@@ -107,12 +107,18 @@ export async function render(root, ctx) {
     if (c.id === caseId) row.style.background = 'var(--ink-2)';
     row.innerHTML = `
       <div class="main"><div class="title">${c.name}${c.id === caseId ? ' <span class="chip brass">current</span>' : ''}</div><div class="sub mono">${c.kind}${c.era_start ? ` · ${c.era_start}–${c.era_end || '…'}` : ''}</div></div>
+      <button class="btn btn-ghost btn-sm import-case-btn" title="Open this case and go straight to Import">Import</button>
       <button class="btn btn-ghost btn-sm delete-case-btn" title="Delete this case (recoverable for 30 days)">Delete</button>
     `;
     row.addEventListener('click', async (e) => {
-      if (e.target.closest('.delete-case-btn')) return; // handled separately
+      if (e.target.closest('.delete-case-btn') || e.target.closest('.import-case-btn')) return; // handled separately
       await ctx.setCaseId(c.id);
       render(root, ctx);
+    });
+    row.querySelector('.import-case-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await ctx.setCaseId(c.id);
+      ctx.navigate('#/import');
     });
     row.querySelector('.delete-case-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
