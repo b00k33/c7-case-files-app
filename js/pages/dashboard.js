@@ -105,9 +105,20 @@ export async function render(root, ctx) {
     const row = document.createElement('div');
     row.className = 'list-row';
     if (c.id === caseId) row.style.background = 'var(--ink-2)';
-    row.innerHTML = `<div class="main"><div class="title">${c.name}${c.id === caseId ? ' <span class="chip brass">current</span>' : ''}</div><div class="sub mono">${c.kind}${c.era_start ? ` · ${c.era_start}–${c.era_end || '…'}` : ''}</div></div>`;
-    row.addEventListener('click', async () => {
+    row.innerHTML = `
+      <div class="main"><div class="title">${c.name}${c.id === caseId ? ' <span class="chip brass">current</span>' : ''}</div><div class="sub mono">${c.kind}${c.era_start ? ` · ${c.era_start}–${c.era_end || '…'}` : ''}</div></div>
+      <button class="btn btn-ghost btn-sm delete-case-btn" title="Delete this case (recoverable for 30 days)">Delete</button>
+    `;
+    row.addEventListener('click', async (e) => {
+      if (e.target.closest('.delete-case-btn')) return; // handled separately
       await ctx.setCaseId(c.id);
+      render(root, ctx);
+    });
+    row.querySelector('.delete-case-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete "${c.name}"? This is recoverable for 30 days, but it will disappear from view now — everyone and everything in it.`)) return;
+      await store.softDeleteCase(c.id);
+      if (c.id === caseId) await ctx.setCaseId(null);
       render(root, ctx);
     });
     caseListEl.appendChild(row);

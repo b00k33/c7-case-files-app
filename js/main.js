@@ -133,7 +133,12 @@ async function boot() {
       appShell.style.display = '';
       if (state.freshlyCreated && !seeded) {
         seeded = true;
-        await seedExampleCase();
+        try {
+          await seedExampleCase();
+        } catch (e) {
+          console.error('Seeding the example case failed:', e);
+          // don't block the app on this — an empty case beats a stuck screen
+        }
       }
       if (routedOnce) return; // avoid re-routing on every later save-state tick
       routedOnce = true;

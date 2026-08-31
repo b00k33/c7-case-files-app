@@ -94,6 +94,14 @@ export async function init() {
   return true;
 }
 
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} took longer than ${Math.round(ms / 1000)}s — something is stuck, not just slow.`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /** Must be called from a user gesture (a click). Shows the folder picker. */
 export async function connect() {
   setState({ status: 'connecting' });
@@ -101,7 +109,11 @@ export async function connect() {
     const handle = state.pendingHandle
       ? state.pendingHandle
       : await window.showDirectoryPicker({ mode: 'readwrite' });
-    const perm = await handle.requestPermission({ mode: 'readwrite' });
+    // showDirectoryPicker({mode:'readwrite'}) already asks for readwrite —
+    // check before asking again, so a granted handle never triggers a
+    // second, easy-to-miss permission prompt.
+    const already = await handle.queryPermission({ mode: 'readwrite' });
+    const perm = already === 'granted' ? already : await handle.requestPermission({ mode: 'readwrite' });
     if (perm !== 'granted') {
       setState({ status: 'needs-connect', error: 'Permission was not granted.' });
       return false;
@@ -127,7 +139,11 @@ async function open() {
     backupsHandle = await dataHandle.getDirectoryHandle('backups', { create: true });
 
     if (!SQL) {
-      SQL = await window.initSqlJs({ locateFile: (f) => `vendor/${f}` });
+      SQL = await withTimeout(
+        window.initSqlJs({ locateFile: (f) => `vendor/${f}` }),
+        20000,
+        'Loading the database engine'
+      );
     }
 
     let bytes = null;
@@ -143,7 +159,7 @@ async function open() {
 
     if (isNew || !bytes || bytes.length === 0) {
       db = new SQL.Database();
-      const schemaRes = await fetch('js/schema.sql');
+      const schemaRes = await withTimeout(fetch('js/schema.sql'), 10000, 'Loading the database schema');
       const schemaSql = await schemaRes.text();
       db.run(schemaSql);
       setState({ status: 'ready', saveState: 'unsaved', freshlyCreated: true });
