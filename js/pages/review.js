@@ -3,6 +3,22 @@ import { emptyState } from '../indicators.js';
 let cursor = 0;
 let keyHandler = null;
 
+const ID_FIELDS = ['person_id', 'a_id', 'b_id'];
+
+function stripIds(value) {
+  if (typeof value !== 'object' || value === null) return value;
+  const rest = { ...value };
+  for (const k of ID_FIELDS) delete rest[k];
+  return rest;
+}
+
+function idFields(value) {
+  if (typeof value !== 'object' || value === null) return {};
+  const out = {};
+  for (const k of ID_FIELDS) if (k in value) out[k] = value[k];
+  return out;
+}
+
 function fmtDate(iso) {
   if (!iso) return null;
   return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -140,11 +156,20 @@ export async function render(root, ctx) {
   });
   card.querySelector('#act-edit').addEventListener('click', () => {
     const editSlot = card.querySelector('#edit-slot');
-    editSlot.innerHTML = `<div class="field" style="margin-top:12px"><label>Edit value before accepting</label><input type="text" id="edit-value" value="${typeof value === 'string' ? value : JSON.stringify(value)}"></div><button class="btn btn-sm" id="edit-save">Save & accept</button>`;
+    editSlot.innerHTML = `<div class="field" style="margin-top:12px"><label>Edit value before accepting</label><input type="text" id="edit-value"></div><button class="btn btn-sm" id="edit-save">Save & accept</button>`;
+    // set via the DOM property, not an HTML attribute — JSON.stringify
+    // output contains double quotes that would otherwise break out of a
+    // value="..." attribute mid-string.
+    const editInput = editSlot.querySelector('#edit-value');
+    editInput.value = typeof value === 'string' ? value : JSON.stringify(stripIds(value));
     editSlot.querySelector('#edit-save').addEventListener('click', async () => {
-      const raw = editSlot.querySelector('#edit-value').value;
+      const raw = editInput.value;
       let newValue;
       try { newValue = JSON.parse(raw); } catch { newValue = raw; }
+      // person_id / a_id / b_id are never shown for editing (there's no
+      // reason to hand-retype an internal id) — restore them from the
+      // original value rather than losing them.
+      if (newValue && typeof newValue === 'object') newValue = { ...idFields(value), ...newValue };
       await store.decideClaim(claim.id, 'rejected', 'superseded by an edited value');
       await store.createClaim({ case_id: claim.case_id, target_type: claim.target_type, target_id: claim.target_id, field: claim.field, value: newValue, origin: claim.origin, rationale: claim.rationale });
       const fresh = await store.listClaims(ctx.caseId, 'drafted');
