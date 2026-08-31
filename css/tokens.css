@@ -1,0 +1,95 @@
+/* C7 Case Files — design tokens. Self-contained; see STYLE.md. */
+
+:root {
+  /* ground */
+  --ink-0: #101216;
+  --ink-1: #171a1f;
+  --ink-2: #1e2229;
+  --ink-3: #262b33;
+  --line: #2b313a;
+  --text: #e8e6e1;
+  --text-2: #a7adb8;
+  --text-3: #6f7783;
+
+  --brass: #d9a54a;
+  --teal: #5fb3a6;
+  --green: #6faa6f;
+  --amber: #d9a54a;
+  --red: #c96a5a;
+  --violet: #8f86c9;
+
+  /* type — declared per STYLE.md, with honest system fallbacks so the app
+     needs no internet connection to render correctly */
+  --font-body: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-title: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-hand: 'Caveat', 'Segoe Script', cursive;
+
+  /* spacing scale — 4/8/12/16/24/32/48, used everywhere */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* radius scale — two sizes only */
+  --r-sm: 4px;
+  --r-lg: 8px;
+
+  --focus: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--brass);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ink-0);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .title {
+  font-family: var(--font-title);
+  font-weight: 500;
+  color: var(--text);
+  margin: 0;
+}
+
+.section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.mono, .num, time, .value, code {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: var(--teal); }
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--r-sm);
+}
+
+::selection { background: var(--brass); color: var(--ink-0); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ink-3); border-radius: var(--r-sm); }

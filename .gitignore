@@ -1,0 +1,6 @@
+# Real research data never leaves this machine.
+data/c7.db
+data/assets/*
+data/backups/*
+!data/assets/.gitkeep
+!data/backups/.gitkeep

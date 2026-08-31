@@ -1,0 +1,9 @@
+{
+  "name": "c7-case-files",
+  "private": true,
+  "type": "module",
+  "description": "Local research-file app. No dependencies, no build step — this file only tells Node how to load ES modules for the test suite.",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

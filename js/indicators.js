@@ -1,0 +1,205 @@
+// Renders the indicator tokens shared by every page: colour says how sure,
+// form says what it is. This is the only module allowed to draw them, so
+// the rule can't drift page to page.
+
+const NS = 'http://www.w3.org/2000/svg';
+function svg(tag, attrs = {}) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+// --- status -> colour --------------------------------------------------
+
+/** status: 'sourced' | 'drafted' | 'unknown' | 'contradicted' */
+export function statusColor(status) {
+  switch (status) {
+    case 'sourced': return 'var(--brass)';
+    case 'drafted': return 'var(--text-3)';
+    case 'contradicted': return 'var(--red)';
+    case 'unknown':
+    default: return 'transparent';
+  }
+}
+function strokeColor(status) {
+  return status === 'unknown' ? 'var(--text-3)' : statusColor(status);
+}
+
+// --- confidence, from evidence.verification -----------------------------
+// Drafted facts never raise a confidence figure — 'drafted' always maps to 0.
+
+const VERIFICATION_CONFIDENCE = {
+  two_plus: 90,
+  single: 55,
+  disputed: 25,
+  dead_link: 10,
+  drafted: 0,
+};
+
+export function verificationConfidence(verification) {
+  return VERIFICATION_CONFIDENCE[verification] ?? 0;
+}
+
+export function confidenceBand(value) {
+  if (value >= 70) return 'green';
+  if (value >= 40) return 'amber';
+  return 'red';
+}
+
+// --- the bar row: label (left) · bar (middle) · value (right) ----------
+
+export function barRow({ label, value, max = 100, display, colorVar }) {
+  const row = document.createElement('div');
+  row.className = 'bar-row';
+  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  const color = colorVar || `var(--${{ green: 'green', amber: 'amber', red: 'red' }[confidenceBand(pct)]})`;
+  row.innerHTML = `
+    <span class="bar-row-label">${label}</span>
+    <span class="bar-row-track"><span class="bar-row-fill" style="width:${pct}%; background:${color}"></span></span>
+    <span class="bar-row-value">${display != null ? display : value}</span>
+  `;
+  return row;
+}
+
+// --- tokens --------------------------------------------------------------
+// kind: 'lifePath' | 'personalYear' | 'animalYear' | 'sunSign'
+// opts: { status, master, boundary, cusp, value, animal, animalIndex, element, sign }
+
+function halfClip(id) {
+  const clip = svg('clipPath', { id });
+  clip.appendChild(svg('rect', { x: 0, y: 0, width: 10, height: 20 }));
+  return clip;
+}
+
+function ring(cx, cy, r, color, extra = {}) {
+  return svg('circle', { cx, cy, r, fill: 'none', stroke: color, 'stroke-width': 1.6, ...extra });
+}
+
+function disc(cx, cy, r, color) {
+  return svg('circle', { cx, cy, r, fill: color, stroke: color, 'stroke-width': 1 });
+}
+
+export function makeToken(kind, opts = {}) {
+  const { status = 'unknown', master = false, boundary = false, cusp = false } = opts;
+  const size = 20;
+  const root = svg('svg', { viewBox: `0 0 ${size} ${size}`, width: size, height: size, class: 'c7-token', 'data-kind': kind });
+  const color = strokeColor(status);
+  const half = kind === 'animalYear' ? boundary : kind === 'sunSign' ? cusp : boundary || cusp;
+
+  const group = svg('g');
+  if (half) {
+    const clipId = `clip-${Math.random().toString(36).slice(2)}`;
+    root.appendChild(halfClip(clipId));
+    group.setAttribute('clip-path', `url(#${clipId})`);
+  }
+  root.appendChild(group);
+
+  if (master) {
+    group.appendChild(ring(10, 10, 8, color));
+    group.appendChild(ring(10, 10, 5, color));
+  } else if (kind === 'lifePath') {
+    if (status === 'unknown') group.appendChild(ring(10, 10, 7.5, color));
+    else group.appendChild(disc(10, 10, 7.5, color));
+  } else if (kind === 'personalYear') {
+    group.appendChild(ring(10, 10, 7.5, color));
+  } else if (kind === 'animalYear') {
+    // twelve-spoke wheel, one sector filled at animalIndex
+    group.appendChild(ring(10, 10, 8, color));
+    const idx = opts.animalIndex ?? -1;
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2 - Math.PI / 2;
+      const x1 = 10 + Math.cos(a0) * 3, y1 = 10 + Math.sin(a0) * 3;
+      const x2 = 10 + Math.cos(a0) * 8, y2 = 10 + Math.sin(a0) * 8;
+      group.appendChild(svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-width': idx === i ? 2.2 : 0.7, opacity: idx === i ? 1 : 0.45 }));
+    }
+    if (opts.element) {
+      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 7, fill: color, 'font-family': 'var(--font-mono)' });
+      label.textContent = opts.element[0];
+      group.appendChild(label);
+    }
+  } else if (kind === 'sunSign') {
+    group.appendChild(svg('rect', { x: 2.5, y: 2.5, width: 15, height: 15, rx: 3, fill: 'none', stroke: color, 'stroke-width': 1.6 }));
+    if (opts.sign) {
+      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 6.2, fill: color, 'font-family': 'var(--font-mono)' });
+      label.textContent = opts.sign.slice(0, 3).toUpperCase();
+      group.appendChild(label);
+    }
+  }
+
+  if (status === 'contradicted') {
+    root.appendChild(ring(10, 10, 9.2, 'var(--red)', { 'stroke-dasharray': '2,1.4' }));
+  }
+
+  root.setAttribute('title', tokenTitle(kind, opts));
+  const titleEl = svg('title');
+  titleEl.textContent = tokenTitle(kind, opts);
+  root.insertBefore(titleEl, root.firstChild);
+  return root;
+}
+
+function tokenTitle(kind, opts) {
+  const parts = [];
+  if (kind === 'lifePath') parts.push(`Life path${opts.value != null ? ' ' + opts.value : ''}`);
+  if (kind === 'personalYear') parts.push(`Personal year${opts.value != null ? ' ' + opts.value : ''}`);
+  if (kind === 'animalYear') parts.push(opts.boundary ? 'Animal year — near lunar new year, unresolved' : `${opts.animal || '?'} · ${opts.element || '?'}`);
+  if (kind === 'sunSign') parts.push(opts.sign ? `${opts.sign}${opts.cusp ? ' (cusp)' : ''}` : 'Sun sign — unknown');
+  if (opts.master) parts.push('master number');
+  parts.push(`— ${opts.status || 'unknown'}`);
+  return parts.join(' ');
+}
+
+/** Cap a list of tokens at a ceiling, per STYLE.md (3 on a card, 4 on a node, 2 bands on a timeline). */
+export function capTokens(list, max) {
+  return list.slice(0, max);
+}
+
+// --- relation glyphs, drawn ON the connecting line ----------------------
+
+/** kind: 'clash' | 'trine' | 'harmony' | 'same' | 'neutral', unsettled: bool */
+export function relationGlyph(kind, { unsettled = false } = {}) {
+  const size = 16;
+  const root = svg('svg', { viewBox: `0 0 ${size} ${size}`, width: size, height: size, class: 'c7-relation-glyph', 'data-kind': kind });
+  const color = unsettled ? 'var(--text-3)' : {
+    clash: 'var(--red)', trine: 'var(--green)', harmony: 'var(--teal)', same: 'var(--brass)', neutral: 'var(--text-3)',
+  }[kind];
+
+  if (unsettled) {
+    root.appendChild(svg('text', { x: 8, y: 11.5, 'text-anchor': 'middle', 'font-size': 10, fill: color, 'font-family': 'var(--font-mono)' })).textContent = '?';
+    return root;
+  }
+
+  if (kind === 'clash') {
+    root.appendChild(svg('line', { x1: 5, y1: 3, x2: 9, y2: 13, stroke: color, 'stroke-width': 1.8 }));
+    root.appendChild(svg('line', { x1: 9, y1: 3, x2: 13, y2: 13, stroke: color, 'stroke-width': 1.8 }));
+  } else if (kind === 'trine') {
+    root.appendChild(svg('polygon', { points: '8,3 14,13 2,13', fill: 'none', stroke: color, 'stroke-width': 1.6 }));
+  } else if (kind === 'harmony') {
+    root.appendChild(ring(6, 8, 4, color));
+    root.appendChild(ring(10, 8, 4, color));
+  } else if (kind === 'same') {
+    root.appendChild(svg('line', { x1: 3, y1: 6, x2: 13, y2: 6, stroke: color, 'stroke-width': 1.8 }));
+    root.appendChild(svg('line', { x1: 3, y1: 10, x2: 13, y2: 10, stroke: color, 'stroke-width': 1.8 }));
+  } else {
+    root.appendChild(svg('line', { x1: 3, y1: 8, x2: 13, y2: 8, stroke: color, 'stroke-width': 1, opacity: 0.4 }));
+  }
+  return root;
+}
+
+// --- empty state, per STYLE.md section 8: missing / why / one action ----
+
+export function emptyState({ missing, why, action, onAction }) {
+  const el = document.createElement('div');
+  el.className = 'empty-state';
+  el.innerHTML = `
+    <p class="empty-missing">${missing}</p>
+    <p class="empty-why">${why}</p>
+  `;
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-ghost';
+    btn.textContent = action;
+    if (onAction) btn.addEventListener('click', onAction);
+    el.appendChild(btn);
+  }
+  return el;
+}

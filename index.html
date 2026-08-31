@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>C7 Case Files</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="connect-root"></div>
+
+<div id="app-shell" style="display:none">
+  <nav id="nav-rail">
+    <div class="brand">C7<span class="sub">Case Files</span></div>
+    <a class="nav-link" data-route="dashboard" href="#/dashboard"><span class="ic">▤</span><span class="label">Dashboard</span></a>
+    <a class="nav-link" data-route="evidence" href="#/evidence"><span class="ic">▣</span><span class="label">Evidence</span></a>
+    <a class="nav-link" data-route="board" href="#/board"><span class="ic">▦</span><span class="label">Board</span></a>
+    <a class="nav-link" data-route="relations" href="#/relations"><span class="ic">◈</span><span class="label">Relations</span></a>
+    <a class="nav-link" data-route="patterns" href="#/patterns"><span class="ic">▩</span><span class="label">Patterns</span></a>
+    <a class="nav-link" data-route="import" href="#/import"><span class="ic">▾</span><span class="label">Import</span></a>
+    <a class="nav-link" data-route="review" href="#/review"><span class="ic">✓</span><span class="label">Review</span></a>
+  </nav>
+
+  <div id="main-col">
+    <header id="topbar">
+      <h1 class="page-title" id="page-title">Dashboard</h1>
+      <div id="save-state" data-state="saved"><span id="save-state-text">saved</span></div>
+    </header>
+    <main id="page-root" class="fade-in"></main>
+  </div>
+
+  <nav id="tab-bar">
+    <a data-route="dashboard" href="#/dashboard"><span class="ic">▤</span>Today</a>
+    <a data-route="evidence" href="#/evidence"><span class="ic">▣</span>Evidence</a>
+    <a data-route="board" href="#/board"><span class="ic">▦</span>Board</a>
+    <a data-route="relations" href="#/relations"><span class="ic">◈</span>Map</a>
+    <a data-route="review" href="#/review"><span class="ic">✓</span>Review</a>
+  </nav>
+</div>
+
+<div id="drawer-backdrop"></div>
+<div id="drawer"></div>
+
+<script src="vendor/sql-wasm.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>C7 calc module tests</title>
+<pre id="out" style="font:13px monospace; white-space:pre-wrap; padding:16px;"></pre>
+<script type="module">
+import { reduce, lifePath, personalYear, universalYear, birthdayNumber, expression, soulUrge, personality } from '../js/numerology.js';
+import { animalIndex, elementIndex, signFor } from '../js/chinese.js';
+import { sunSign } from '../js/western.js';
+import { clash, trine, harmony, same, relation } from '../js/relations.js';
+import { expectedCounts } from '../js/stats.js';
+
+const results = [];
+function test(name, fn) {
+  try {
+    fn();
+    results.push({ name, pass: true });
+  } catch (e) {
+    results.push({ name, pass: false, error: e.message });
+  }
+}
+function eq(a, b, msg) {
+  const as = JSON.stringify(a), bs = JSON.stringify(b);
+  if (as !== bs) throw new Error(`${msg || 'mismatch'}: got ${as}, expected ${bs}`);
+}
+
+// --- numerology ---
+test('reduce: plain digit sum, no master', () => {
+  eq(reduce(37, true), { value: 1, master: false });
+  eq(reduce(9, true), { value: 9, master: false });
+});
+test('reduce: master numbers survive when keepMaster', () => {
+  eq(reduce(11, true), { value: 11, master: true });
+  eq(reduce(22, true), { value: 22, master: true });
+  eq(reduce(29, true), { value: 11, master: true });
+});
+test('reduce: master numbers reduced away when keepMaster is false', () => {
+  eq(reduce(11, false), { value: 2, master: false });
+  eq(reduce(29, false), { value: 2, master: false });
+});
+test('lifePath: without a master number, shows its working', () => {
+  const r = lifePath('1981-11-13');
+  eq(r.ok, true); eq(r.master, false); eq(r.value, 7);
+  eq(r.parts, { day: 13, dayReduced: 4, month: 11, monthReduced: 2, year: 1981, yearReduced: 1, total: 7 });
+});
+test('lifePath: with a master number in the final total', () => {
+  const r = lifePath('1900-01-09');
+  eq(r.ok, true); eq(r.master, true); eq(r.value, 11);
+  eq(r.parts, { day: 9, dayReduced: 9, month: 1, monthReduced: 1, year: 1900, yearReduced: 1, total: 11 });
+});
+test('lifePath: refuses to guess without a full date', () => {
+  eq(lifePath(null), { ok: false, reason: 'needs a day and month' });
+  eq(lifePath('1981'), { ok: false, reason: 'needs a day and month' });
+  eq(lifePath('1981-11'), { ok: false, reason: 'needs a day and month' });
+  eq(lifePath('not-a-date'), { ok: false, reason: 'needs a day and month' });
+});
+test('lifePath: rejects an invalid calendar date', () => {
+  eq(lifePath('1981-02-30').ok, false);
+});
+test('personalYear: reduce(birthDay + birthMonth + reduce(year))', () => {
+  eq(personalYear('1981-11-13', 2026).value, 7);
+});
+test('personalYear: refuses to guess without a full birth date', () => {
+  eq(personalYear('1981', 2026), { ok: false, reason: 'needs a day and month' });
+});
+test('universalYear: the year itself, reduced', () => {
+  eq(universalYear(2026), { ok: true, value: 1, master: false, year: 2026 });
+  eq(universalYear(2029).value, 4);
+});
+test('birthdayNumber: reduced day of birth', () => {
+  eq(birthdayNumber('1981-11-13').value, 4);
+  eq(birthdayNumber('1981-11-29').master, true);
+  eq(birthdayNumber('1981'), { ok: false, reason: 'needs a day and month' });
+});
+test('expression/soulUrge/personality: Pythagorean values, name required', () => {
+  eq(expression('ABC').value, 6);
+  eq(expression(''), { ok: false, reason: 'needs a name' });
+  eq(soulUrge('ABC').value, 1);
+  eq(personality('ABC').value, 5);
+});
+
+// --- chinese ---
+test('animalIndex: 1984 is Rat (index 0), cycles by 12', () => {
+  eq(animalIndex(1984), 0); eq(animalIndex(1990), 6); eq(animalIndex(1972), 0);
+});
+test('elementIndex: 1984/1985 Wood, pairs of two years', () => {
+  eq(elementIndex(1984), 0); eq(elementIndex(1985), 0); eq(elementIndex(1986), 1); eq(elementIndex(1990), 3);
+});
+test('signFor: refuses to guess without a full date', () => {
+  eq(signFor('1990'), { ok: false, reason: 'needs a day and month' });
+  eq(signFor(null), { ok: false, reason: 'needs a day and month' });
+});
+test('signFor: mid-year date, no boundary involved', () => {
+  const r = signFor('1990-06-15');
+  eq(r.ok, true); eq(r.boundary, false); eq(r.animal, 'Horse'); eq(r.element, 'Metal');
+});
+test('signFor: crosses the lunar new year boundary', () => {
+  const before = signFor('2023-01-10');
+  eq(before.boundary, false); eq(before.animal, 'Tiger');
+  const after = signFor('2023-01-25');
+  eq(after.boundary, false); eq(after.animal, 'Rabbit');
+});
+test('signFor: unknown-CNY year near the boundary returns boundary:true, never guesses', () => {
+  const r = signFor('1800-02-10');
+  eq(r.ok, true); eq(r.boundary, true); eq(r.animal, null); eq(r.element, null);
+});
+
+// --- western ---
+test('sunSign: refuses to guess without a full date', () => {
+  eq(sunSign('1990'), { ok: false, reason: 'needs a day and month' });
+});
+test('sunSign: mid-sign date is not a cusp', () => {
+  const r = sunSign('1990-07-01');
+  eq(r.sign, 'Cancer'); eq(r.cusp, false);
+});
+test('sunSign: boundary date is flagged as a cusp', () => {
+  const r = sunSign('1990-03-21');
+  eq(r.sign, 'Aries'); eq(r.cusp, true);
+});
+test('sunSign: Capricorn wraps the year end', () => {
+  eq(sunSign('1990-01-05').sign, 'Capricorn');
+  eq(sunSign('1990-12-25').sign, 'Capricorn');
+});
+
+// --- relations ---
+test('clash: opposite pairs, 6 apart', () => {
+  eq(clash(0, 6), true); eq(clash(1, 7), true); eq(clash(0, 4), false);
+});
+test('trine: same-remainder-mod-4 groups, excluding self', () => {
+  eq(trine(0, 4), true); eq(trine(4, 8), true); eq(trine(0, 0), false); eq(trine(0, 1), false);
+});
+test('harmony: the six fixed pairs summing to 1 or 13', () => {
+  eq(harmony(0, 1), true); eq(harmony(4, 9), true); eq(harmony(0, 2), false);
+});
+test('same: identical index only', () => {
+  eq(same(5, 5), true); eq(same(5, 6), false);
+});
+test('relation: picks exactly one label per pair', () => {
+  eq(relation(0, 6), 'clash'); eq(relation(0, 4), 'trine'); eq(relation(0, 1), 'harmony');
+  eq(relation(5, 5), 'same'); eq(relation(0, 2), 'neutral');
+});
+
+// --- stats ---
+test('expectedCounts: uniform distribution over the 144 ordered outcomes', () => {
+  eq(expectedCounts(12), { clash: 1, trine: 2, harmony: 1, same: 1 });
+  eq(expectedCounts(6), { clash: 0.5, trine: 1, harmony: 0.5, same: 0.5 });
+});
+
+const pass = results.filter(r => r.pass).length;
+const fail = results.filter(r => !r.pass);
+const lines = results.map(r => (r.pass ? `PASS  ${r.name}` : `FAIL  ${r.name}\n      ${r.error}`));
+lines.push('', `${pass}/${results.length} passed`);
+document.getElementById('out').textContent = lines.join('\n');
+window.__TEST_SUMMARY__ = { total: results.length, pass, fail: fail.length, failures: fail };
+console.log(`C7_TESTS ${pass}/${results.length} passed`);
+if (fail.length) console.error('C7_TESTS_FAILURES', JSON.stringify(fail));
+</script>
