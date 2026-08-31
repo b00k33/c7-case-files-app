@@ -12,10 +12,12 @@ const ROUTES = {
   review: () => import('./pages/review.js'),
   subject: () => import('./pages/subject.js'),
   video: () => import('./pages/video.js'),
+  fun: () => import('./pages/fun.js'),
 };
 const TITLES = {
   dashboard: 'Dashboard', evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', subject: 'Subject File', video: 'Video',
+  fun: 'Fun & Zodiac',
 };
 
 const connectRoot = document.getElementById('connect-root');

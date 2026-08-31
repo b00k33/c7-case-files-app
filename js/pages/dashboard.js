@@ -14,7 +14,9 @@ function timeAgo(iso) {
 
 export async function render(root, ctx) {
   const { store } = ctx;
-  const cases = await store.listCases();
+  // the auto-provisioned "Fun & Zodiac" case (kind:'fun') lives on its own
+  // nav page, not mixed in with real research cases here
+  const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
 
   if (!cases.length) {
     root.innerHTML = '';
