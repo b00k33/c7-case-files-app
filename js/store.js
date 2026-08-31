@@ -411,6 +411,21 @@ async function applyClaim(claim) {
     await updatePerson(claim.target_id, patch);
     return;
   }
+  if (claim.field === 'birth') {
+    const patch = { birth_precision: value.precision };
+    if (value.precision === 'day') patch.birth_date = value.date;
+    else if (value.precision === 'year') { patch.birth_year_min = value.year; patch.birth_year_max = value.year; }
+    await updatePerson(claim.target_id, patch);
+    return;
+  }
+  if (claim.field === 'death') {
+    // the person table only has a single death_date column (no year_min/max
+    // range, unlike birth) — a year-only death can't honestly be stored here,
+    // so only day-precision claims land on the person; year-only stays on
+    // the event record, which does support year precision.
+    if (value.precision === 'day') await updatePerson(claim.target_id, { death_date: value.date, death_precision: 'day' });
+    return;
+  }
   if (claim.field === 'relationship') {
     await upsertRelationship({ ...value, case_id: claim.case_id, confidence: value.confidence ?? 50, confirmed: 0 });
     return;
