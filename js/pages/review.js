@@ -3,11 +3,51 @@ import { emptyState } from '../indicators.js';
 let cursor = 0;
 let keyHandler = null;
 
-function fmtValue(field, value) {
-  if (typeof value === 'object' && value !== null) {
-    return Object.entries(value).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k}: ${v}`).join(' · ');
+function fmtDate(iso) {
+  if (!iso) return null;
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Turns a claim's raw value (often an object shaped for a specific table
+// row) into something readable: a primary sentence, a row of short meta
+// chips (kind, date...), and — only as a fallback for shapes not specially
+// handled — a plain label/value list. Internal ids (person_id, a_id, b_id)
+// never surface as raw text; a relationship resolves them to real names.
+async function describeClaim(store, claim, value) {
+  const f = claim.field;
+  if (f === 'event') {
+    const meta = [{ k: 'kind', v: value.kind }];
+    if (value.date) meta.push({ k: 'date', v: fmtDate(value.date) });
+    else if (value.date_year_min) meta.push({ k: 'date', v: `${value.date_year_min} (year only)` });
+    return { title: value.title, meta };
   }
-  return String(value);
+  if (f === 'birth' || f === 'death') {
+    const label = f === 'birth' ? 'Born' : 'Died';
+    const title = value.precision === 'day' ? `${label} ${fmtDate(value.date)}` : `${label} ${value.year} (year only)`;
+    return { title, meta: [] };
+  }
+  if (f === 'relationship') {
+    const [a, b] = await Promise.all([store.getPerson(value.a_id), store.getPerson(value.b_id)]);
+    return { title: `${a?.display_name || '?'} — ${value.kind} of — ${b?.display_name || '?'}`, meta: [] };
+  }
+  if (f === 'person') {
+    const meta = value.birth_date ? [{ k: 'born', v: fmtDate(value.birth_date) }] : [];
+    return { title: value.display_name, meta };
+  }
+  if (f === 'alias') {
+    return { title: value.alias, meta: [{ k: 'kind', v: value.kind }] };
+  }
+  if (f === 'address') {
+    const range = [value.from_year, value.to_year].filter(Boolean).join('–');
+    return { title: value.label, meta: range ? [{ k: 'years', v: range }] : [] };
+  }
+  if (typeof value === 'object' && value !== null) {
+    const rows = Object.entries(value)
+      .filter(([k, v]) => v != null && v !== '' && k !== 'person_id')
+      .map(([k, v]) => ({ k, v }));
+    return { title: null, meta: [], rows };
+  }
+  return { title: String(value), meta: [] };
 }
 
 export async function render(root, ctx) {
@@ -58,15 +98,18 @@ export async function render(root, ctx) {
   const claim = claims[cursor];
   const value = JSON.parse(claim.value);
   const target = claim.target_id && claim.target_type === 'person' ? await store.getPerson(claim.target_id) : null;
+  const desc = await describeClaim(store, claim, value);
 
   const card = document.createElement('div');
   card.className = 'review-card';
   card.innerHTML = `
     <div class="section-label">${cursor + 1} of ${claims.length} · from ${claim.origin}</div>
     <div class="field-name">${claim.field}${target ? ' — ' + target.display_name : ''}</div>
-    <div class="value">${fmtValue(claim.field, value)}</div>
-    ${claim.rationale ? `<div class="mono" style="color:var(--text-3);font-size:12px">${claim.rationale}</div>` : ''}
-    <div class="mono" style="color:var(--text-3);font-size:11px;margin-top:12px">
+    ${desc.title ? `<div class="claim-title">${desc.title}</div>` : ''}
+    ${desc.meta?.length ? `<div class="claim-meta">${desc.meta.map((m) => `<span class="meta-item"><span class="k">${m.k}</span>${m.v}</span>`).join('')}</div>` : ''}
+    ${desc.rows?.length ? `<div class="claim-fields">${desc.rows.map((r) => `<div class="row-item"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`).join('')}</div>` : ''}
+    ${claim.rationale ? `<div class="claim-note mono">${claim.rationale}</div>` : ''}
+    <div class="claim-note" style="margin-top:12px">
       Accepting applies this directly. It does not raise any confidence figure by itself — only evidence you link afterward does that.
     </div>
     <div class="review-actions">
