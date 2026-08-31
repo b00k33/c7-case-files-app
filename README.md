@@ -7,16 +7,13 @@ no internet connection needed.
 
 ## How to open it
 
-**You need Python 3 installed once** (it's what serves the app to your
-browser — a plain double-click on `index.html` can't work, see *Why it has
-to be served* below).
+Nothing to install — just double-click.
 
-- **macOS:** double-click `start.command`. Python 3 already ships with
-  macOS. If macOS blocks it the first time (unidentified developer), right-
-  click it → Open, once.
-- **Windows:** double-click `start.bat`. If you don't have Python yet,
-  install it from [python.org](https://python.org) (tick "Add python.exe to
-  PATH" during install), then double-click again.
+- **macOS:** double-click `start.command`. It uses Python 3, which already
+  ships with macOS. If macOS blocks it the first time (unidentified
+  developer), right-click it → Open, once.
+- **Windows:** double-click `start.bat`. It uses PowerShell, which every
+  Windows machine already has — no separate install needed.
 
 Either way, your browser opens to `http://localhost:8777` and the app
 starts. Use a recent **Chrome or Edge** — this app needs a browser feature

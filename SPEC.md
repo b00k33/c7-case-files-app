@@ -15,13 +15,17 @@ locally.
 
 Resolution: ship a one-double-click launcher next to the app.
 
-- `start.command` (macOS) and `start.bat` (Windows)
-- each runs `python3 -m http.server 8777` in the app folder and opens
-  `http://localhost:8777`
-- Python 3 ships with macOS and is a single install on Windows
+- `start.command` (macOS) — runs `python3 -m http.server 8777` in the app
+  folder and opens `http://localhost:8777`. Python 3 ships with macOS.
+- `start.bat` (Windows) — runs `serve.ps1` via PowerShell, which serves the
+  folder on the same port using .NET's `HttpListener`, and opens
+  `http://localhost:8777`. PowerShell ships with every Windows install, so
+  this needs nothing extra either (an earlier version shelled out to
+  `python`, which most Windows machines don't have — switched to avoid
+  that install step).
 
-Nothing else to install. No npm, no build step, no bundler. Double-click,
-browser opens, app runs.
+Nothing else to install, on either platform. No npm, no build step, no
+bundler. Double-click, browser opens, app runs.
 
 ## 2. Folder shape
 
@@ -29,6 +33,7 @@ browser opens, app runs.
 c7-case-files/
   start.command            double-click launcher (mac)
   start.bat                double-click launcher (windows)
+  serve.ps1                the windows launcher's local server (no installs needed)
   index.html                the only page
   css/
     tokens.css             colours, type, spacing — the design system
