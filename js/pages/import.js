@@ -324,13 +324,13 @@ const RELATIONSHIP_KINDS = ['parent', 'spouse', 'sibling', 'business', 'associat
 
 function renderPasteTab(body, ctx, people) {
   const personOpts = people.map((p) => `<option value="${p.id}">${p.display_name}</option>`).join('');
-  let mode = 'existing';
+  let mode = people.length ? 'existing' : 'new'; // "existing" is unusable with nobody in the case yet
 
   body.innerHTML = `
     <div class="field">
       <label>Whose timeline is this?</label>
       <div class="row" style="gap:8px">
-        <button type="button" class="btn btn-ghost btn-sm" id="mode-existing" ${people.length ? '' : 'disabled'}>Existing person</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mode-existing" ${people.length ? '' : 'disabled'} title="${people.length ? '' : 'No people in this case yet — start with + New person'}">Existing person</button>
         <button type="button" class="btn btn-ghost btn-sm" id="mode-new">+ New person</button>
       </div>
       <div id="mode-body" style="margin-top:12px"></div>
@@ -443,12 +443,12 @@ function renderPasteTab(body, ctx, people) {
       confirmBtn.disabled = true;
       confirmBtn.textContent = 'Adding…';
 
-      let personId;
+      let personId, personName;
       if (mode === 'new') {
-        const name = body.querySelector('#np-name').value.trim();
-        const person = await ctx.store.createPerson({ case_id: ctx.caseId, display_name: name, kind: 'person' });
+        personName = body.querySelector('#np-name').value.trim();
+        const person = await ctx.store.createPerson({ case_id: ctx.caseId, display_name: personName, kind: 'person' });
         personId = person.id;
-        await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'name_at_birth', value: name, origin: 'paste', rationale: 'from paste: new person' });
+        await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'name_at_birth', value: personName, origin: 'paste', rationale: 'from paste: new person' });
         const relKind = body.querySelector('#np-kind')?.value;
         const relB = body.querySelector('#np-b')?.value;
         if (relKind && relB) {
@@ -456,7 +456,24 @@ function renderPasteTab(body, ctx, people) {
         }
       } else {
         personId = body.querySelector('#p-person').value;
+        personName = people.find((p) => p.id === personId)?.display_name || '';
       }
+
+      // A timeline about one person often mentions others in the same
+      // row ("Arthur dies. Henry becomes heir.") — detectKind flags that
+      // row as a death, but it isn't THIS person's death. Only draft the
+      // person's own birth/death fields when their name is actually in the
+      // SAME clause as the birth/death word — checking the whole title
+      // isn't enough, since the subject's name can legitimately appear in
+      // a neighbouring clause about someone else's death ("Henry VII dies.
+      // Henry becomes King Henry VIII.").
+      const KIND_KEYWORDS = { birth: /\bborn\b|\bbirth\b/i, death: /\bdies\b|\bdied\b|\bdeath\b/i };
+      const mentionsPerson = (title, kind) => {
+        if (!personName) return false;
+        const re = KIND_KEYWORDS[kind];
+        const clause = re ? title.split(/(?<=[.!?])\s+/).find((s) => re.test(s)) || title : title;
+        return clause.toLowerCase().includes(personName.toLowerCase());
+      };
 
       for (const r of events) {
         await ctx.store.createClaim({
@@ -468,6 +485,7 @@ function renderPasteTab(body, ctx, people) {
           origin: 'paste',
           rationale: r.source ? `Source: ${r.source}` : r.notes,
         });
+        if (!mentionsPerson(r.title, r.kind)) continue;
         if (r.kind === 'birth') {
           const value = r.date ? { precision: 'day', date: r.date } : { precision: 'year', year: r.date_year_min };
           await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'birth', value, origin: 'paste', rationale: r.notes });
