@@ -14,6 +14,28 @@ function chipClass(v) {
 let currentView = 'grid';
 let filters = { type: '', verification: '' };
 
+// one options list for every source picker: real sources, a "none", and an
+// inline "+ New source…" row (same pattern as the case switcher)
+function sourceOptions(sources, selectedId) {
+  return '<option value="">No source</option>'
+    + sources.map((s) => `<option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>${s.name}${s.kind === 'dramatisation' ? ' (dramatisation)' : ''}</option>`).join('')
+    + '<option value="__new">+ New source…</option>';
+}
+
+// resolves a picker's value to a source id — creating the source inline when
+// "+ New source…" was picked. Her call (2026-09-01): inline create asks just
+// a name; kind defaults to 'secondary', editable later if it matters.
+// Returns undefined when the prompt was cancelled.
+async function handleSourcePick(store, sel) {
+  if (sel.value === '__new') {
+    const name = prompt('Name this source (e.g. "Sexton\'s podcast"):');
+    if (!name) return undefined;
+    const src = await store.createSource({ name, kind: 'secondary' });
+    return src.id;
+  }
+  return sel.value || null;
+}
+
 export async function render(root, ctx) {
   const { store } = ctx;
   if (!ctx.caseId) {
@@ -98,7 +120,8 @@ function renderGrid(el, ctx, items) {
     card.style.cursor = 'pointer';
     card.innerHTML = `
       <div class="mono" style="font-size:10px;color:var(--text-3);text-transform:uppercase">${it.type}</div>
-      <div style="margin:6px 0">${it.title}</div>
+      <div style="margin:6px 0 2px">${it.title}</div>
+      ${it.source_name ? `<div class="mono" style="font-size:10px;color:var(--text-3);margin-bottom:6px">${it.source_name}</div>` : '<div style="margin-bottom:6px"></div>'}
       <div class="row between">
         <span class="chip ${chipClass(it.verification)}">${it.verification}</span>
         ${it.dated ? `<span class="mono" style="font-size:11px;color:var(--text-3)">${it.dated}</span>` : ''}
@@ -160,13 +183,15 @@ async function renderDetail(body, ctx, evidenceId) {
   const item = await store.getEvidence(evidenceId);
   const links = await store.listLinksForEvidence(evidenceId);
   const people = ctx.caseId ? await store.listPeople(ctx.caseId) : [];
+  const sources = await store.listSources();
 
   body.innerHTML = `
     <div class="mono" style="font-size:10px;color:var(--text-3);text-transform:uppercase">${item.type}</div>
     <h3 class="title" style="margin:6px 0 12px">${item.title}</h3>
     <div class="stack" style="gap:6px;font-size:12px">
       <div class="row between"><span class="section-label">Verification</span><span class="chip ${chipClass(item.verification)}">${item.verification}</span></div>
-      <div class="row between"><span class="section-label">Source</span><span>${item.source_name || '—'} ${item.source_kind ? `(${item.source_kind})` : ''}</span></div>
+      <div class="row between"><span class="section-label">Source</span><select id="source-select" style="max-width:62%">${sourceOptions(sources, item.source_id)}</select></div>
+      ${item.source_kind === 'dramatisation' ? '<div class="chip red" style="align-self:flex-end">dramatisation — cannot raise confidence</div>' : ''}
       <div class="row between"><span class="section-label">Captured</span><span class="mono">${item.captured_at || '—'} ${item.captured_by ? 'by ' + item.captured_by : ''}</span></div>
       <div class="row between"><span class="section-label">Content dated</span><span class="mono">${item.dated || 'unknown'} (${item.date_precision})</span></div>
       ${item.original_url ? `<div class="row between"><span class="section-label">Original URL</span><span class="mono" style="word-break:break-all">${item.original_url}</span></div>` : ''}
@@ -211,8 +236,22 @@ async function renderDetail(body, ctx, evidenceId) {
     renderDetail(body, ctx, evidenceId);
   });
 
+  body.querySelector('#source-select').addEventListener('change', async (e) => {
+    const id = await handleSourcePick(store, e.target);
+    if (id === undefined) { renderDetail(body, ctx, evidenceId); return; } // cancelled — reset the select
+    await store.updateEvidence(item.id, { source_id: id });
+    renderDetail(body, ctx, evidenceId);
+  });
+
   body.querySelector('#verify-save').addEventListener('click', async () => {
-    await store.updateEvidence(item.id, { verification: body.querySelector('#verify-select').value });
+    const chosen = body.querySelector('#verify-select').value;
+    // her call (2026-09-01, per SPEC's "dramatisation cannot raise
+    // confidence"): block, don't just warn
+    if ((chosen === 'single' || chosen === 'two_plus') && item.source_kind === 'dramatisation') {
+      alert('This item\'s source is a dramatisation — an acted retelling. A dramatisation can never raise confidence, so it can\'t be marked as a real source. If the source is set wrongly, change it above first.');
+      return;
+    }
+    await store.updateEvidence(item.id, { verification: chosen });
     renderDetail(body, ctx, evidenceId);
   });
 
@@ -244,11 +283,13 @@ async function renderDetail(body, ctx, evidenceId) {
 async function renderAddForm(body, ctx) {
   const { store } = ctx;
   const kase = await store.getCase(ctx.caseId);
+  const sources = await store.listSources();
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:4px">Add evidence</h3>
     <p class="mono" style="margin:0 0 16px;font-size:11px;color:var(--text-2)">→ goes into <span style="color:var(--brass)">${kase ? kase.name : 'the current case'}</span></p>
     <div class="field"><label>Type</label><select id="a-type">${TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}</select></div>
     <div class="field"><label>Title</label><input type="text" id="a-title"></div>
+    <div class="field"><label>Source (who this comes from)</label><select id="a-source">${sourceOptions(sources, null)}</select></div>
     <div class="field"><label>File (optional — stored in data/assets/, identified by its hash)</label><input type="file" id="a-file"></div>
     <div class="field"><label>Original URL</label><input type="url" id="a-url"></div>
     <div class="field"><label>Content dated</label><input type="date" id="a-dated"></div>
@@ -264,6 +305,19 @@ async function renderAddForm(body, ctx) {
 
   // a pasted video-site link means this is video evidence — flip the type
   // automatically (only if she hasn't already picked something herself)
+  // inline source creation right in the form
+  body.querySelector('#a-source').addEventListener('change', async (e) => {
+    if (e.target.value !== '__new') return;
+    const id = await handleSourcePick(store, e.target);
+    if (id === undefined) { e.target.value = ''; return; } // cancelled
+    const src = await store.getSource(id);
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = src.name;
+    e.target.insertBefore(opt, e.target.querySelector('option[value="__new"]'));
+    e.target.value = id;
+  });
+
   const typeEl = body.querySelector('#a-type');
   let typeTouched = false;
   typeEl.addEventListener('change', () => { typeTouched = true; });
@@ -283,6 +337,7 @@ async function renderAddForm(body, ctx) {
       case_id: ctx.caseId,
       type: body.querySelector('#a-type').value,
       title,
+      source_id: (body.querySelector('#a-source').value && body.querySelector('#a-source').value !== '__new') ? body.querySelector('#a-source').value : null,
       original_url: body.querySelector('#a-url').value || null,
       dated: body.querySelector('#a-dated').value || null,
       notes: body.querySelector('#a-notes').value || null,
