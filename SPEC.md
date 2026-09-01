@@ -415,3 +415,35 @@ panel is allowed to show an observed count alone.
 3. Dramatisations can be stored and tagged but can never raise confidence.
 4. Every observed count is shown beside its expected count.
 5. Deleting is always soft first — a `deleted_at`, restorable for 30 days.
+
+## 9. The cloud era (2026-09-01) — how the app actually runs now
+
+Her decision, after the phone request: cloud is the master copy. The
+original local-only model above still describes the data rules; what
+changed is where the app lives and how devices share it.
+
+- **Live app:** GitHub Pages, `https://b00k33.github.io/c7-case-files-app/`
+  (public deploy repo; the private repo is the backup). Installable —
+  manifest + service worker; updates surface as a tap-to-reload chip,
+  never an auto-reload. `sw.js` `CACHE_VERSION` must be bumped every
+  deploy push.
+- **Storage modes** (`js/db.js`): `folder` on desktop Chrome/Edge (the
+  original File System Access flow, unchanged) and `idb` everywhere else
+  (phones — same SQLite, persisted in the browser's IndexedDB, no connect
+  screen, 5 rolling backups). Phones do not seed the example case.
+- **Sync** (`js/sync.js`): record-by-record against one `c7_records` table
+  (entity + id + row JSON + tombstone) living inside the Book33 Supabase
+  project — her call, keeping C7 beside the personal planner and away from
+  the pharmacy's business database; owner-only row security. Every cycle
+  pulls before it pushes; deletes are tombstones; per-record
+  last-writer-wins; a pending local edit is never overwritten by a pull;
+  sync never blocks boot. `change_log` stays device-local. Auth is her
+  existing Supabase login in C7's own session slot (`c7-sb-auth`).
+- **Migration:** the first sign-in against an empty cloud uploads the whole
+  local database once. Later devices pull instead, and an untouched
+  example case is removed rather than duplicated.
+- **The launcher (`start.bat` / `start.command`) is legacy.** The
+  localhost copy edits the same folder as the live app from a separate
+  origin — the two-live-masters trap — so it shows a steering notice to
+  the live URL. A "Download backup (.db)" button in the sync drawer
+  exports the whole database as one SQLite file from any device.

@@ -229,11 +229,33 @@ async function boot() {
       if (!location.hash) location.hash = '#/dashboard';
       else renderRoute();
       sync.initSync(); // fire-and-forget — the app never waits on the network
+      maybeShowLegacyNotice();
     } else {
       renderConnectScreen(state);
     }
   });
   await db.init();
+}
+
+// the launcher-served localhost copy is now the legacy path: it edits the
+// same folder as the live app but on a separate origin, so running both is
+// exactly the two-live-masters trap. Steer, don't block.
+function maybeShowLegacyNotice() {
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+  if (sessionStorage.getItem('c7-legacy-notice-dismissed')) return;
+  const strip = document.createElement('div');
+  strip.className = 'legacy-strip';
+  strip.innerHTML = `
+    <span>This is the old local-only copy — it does not sync. The app now lives at
+    <a href="https://b00k33.github.io/c7-case-files-app/" style="color:var(--brass)">b00k33.github.io/c7-case-files-app</a>
+    — use that from now on, on every device.</span>
+    <button class="btn btn-ghost btn-sm" id="legacy-dismiss">✕</button>
+  `;
+  document.getElementById('main-col').prepend(strip);
+  strip.querySelector('#legacy-dismiss').addEventListener('click', () => {
+    sessionStorage.setItem('c7-legacy-notice-dismissed', '1');
+    strip.remove();
+  });
 }
 
 // ---- cloud sync chip + account drawer ----
@@ -287,6 +309,7 @@ function renderSyncDrawer(body) {
         inlineNote(btn, String(e && e.message || e));
       }
     });
+    appendBackupButton(body); // backup shouldn't require being signed in
     return;
   }
   body.innerHTML = `
@@ -311,6 +334,32 @@ function renderSyncDrawer(body) {
     await sync.signOut();
     ctx.closeDrawer();
   });
+  appendBackupButton(body);
+}
+
+// the "keep export" half of retiring the folder version: the whole
+// database, downloaded as a plain SQLite file, from any device
+function appendBackupButton(body) {
+  const wrap = document.createElement('div');
+  wrap.style.marginTop = '24px';
+  wrap.innerHTML = `
+    <div class="section-label" style="margin-bottom:8px">Backup</div>
+    <button class="btn btn-ghost btn-sm" id="sy-backup">Download backup (.db)</button>
+    <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
+  `;
+  wrap.querySelector('#sy-backup').addEventListener('click', () => {
+    const bytes = db.exportBytes();
+    const blob = new Blob([bytes], { type: 'application/x-sqlite3' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    a.href = url;
+    a.download = `c7-backup-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.db`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  });
+  body.appendChild(wrap);
 }
 
 boot();

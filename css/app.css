@@ -81,6 +81,14 @@
   padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
 }
 .case-context:empty { display: none; }
+/* old-localhost-copy notice — steers to the live synced app */
+.legacy-strip {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--ink-2); border-left: 3px solid var(--amber); border-radius: 0;
+  color: var(--text-2); font-size: 12px;
+}
+
 /* cloud sync chip — always visible, tap opens the account drawer */
 .sync-chip {
   margin-right: var(--sp-3);

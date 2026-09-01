@@ -220,6 +220,12 @@ export function isReady() {
   return state.status === 'ready' && !!db;
 }
 
+/** The whole database as SQLite bytes — for the Download-backup button. */
+export function exportBytes() {
+  if (!db) throw new Error('database not open');
+  return db.export();
+}
+
 // --- query helpers used by store.js ---
 
 export function exec(sql, params = []) {
