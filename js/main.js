@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import * as store from './store.js';
 import { seedExampleCase } from './store.js';
+import { inlineNameForm } from './ui.js';
 
 const ROUTES = {
   dashboard: () => import('./pages/dashboard.js'),
@@ -55,25 +56,40 @@ async function refreshCaseContext() {
 }
 
 document.getElementById('case-rail-select')?.addEventListener('change', async (e) => {
+  // her call (2026-09-01): switching case always lands on that case's
+  // Dashboard — its front door — not a re-render of wherever you were
+  const landOnDashboard = () => {
+    if (location.hash === '#/dashboard' || !location.hash) renderRoute();
+    else ctx.navigate('#/dashboard');
+  };
   try {
     if (e.target.value === '__fun') return; // the Fun page's label row, not a real case
     if (e.target.value === '__new') {
-      const name = prompt('Name this case file:');
-      if (!name) { refreshCaseContext(); return; } // cancelled — put the select back
-      const kase = await store.createCase({ name, kind: 'research' });
-      await ctx.setCaseId(kase.id);
-    } else {
-      await ctx.setCaseId(e.target.value);
+      // no prompt() — an inline mini-form appears in the rail block itself
+      const sel = e.target;
+      sel.style.display = 'none';
+      const form = inlineNameForm({
+        placeholder: 'Name this case file…',
+        submitLabel: 'Create',
+        onSubmit: async (name) => {
+          const kase = await store.createCase({ name, kind: 'research' });
+          await ctx.setCaseId(kase.id);
+          form.remove();
+          sel.style.display = '';
+          landOnDashboard();
+        },
+        onCancel: () => { sel.style.display = ''; refreshCaseContext(); },
+      });
+      sel.after(form);
+      return;
     }
+    await ctx.setCaseId(e.target.value);
   } catch (err) {
     console.error('Case switch failed:', err);
     refreshCaseContext();
     return;
   }
-  // her call (2026-09-01): switching case always lands on that case's
-  // Dashboard — its front door — not a re-render of wherever you were
-  if (location.hash === '#/dashboard' || !location.hash) renderRoute();
-  else ctx.navigate('#/dashboard');
+  landOnDashboard();
 });
 
 const ctx = {

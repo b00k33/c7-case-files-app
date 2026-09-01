@@ -1,4 +1,5 @@
 import { emptyState } from '../indicators.js';
+import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
 
 const TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
 const VERIFICATIONS = ['two_plus', 'single', 'disputed', 'dead_link', 'drafted'];
@@ -22,18 +23,25 @@ function sourceOptions(sources, selectedId) {
     + '<option value="__new">+ New source…</option>';
 }
 
-// resolves a picker's value to a source id — creating the source inline when
-// "+ New source…" was picked. Her call (2026-09-01): inline create asks just
-// a name; kind defaults to 'secondary', editable later if it matters.
-// Returns undefined when the prompt was cancelled.
-async function handleSourcePick(store, sel) {
-  if (sel.value === '__new') {
-    const name = prompt('Name this source (e.g. "Sexton\'s podcast"):');
-    if (!name) return undefined;
-    const src = await store.createSource({ name, kind: 'secondary' });
-    return src.id;
-  }
-  return sel.value || null;
+// "+ New source…" picked: swap the select for an inline mini-form (no
+// prompt() — STYLE.md's no-modals law). Her call (2026-09-01): inline create
+// asks just a name; kind defaults to 'secondary', editable later if it
+// matters. onCreated gets the new source; onCancel restores the caller's UI.
+function mountNewSourceForm(store, sel, { onCreated, onCancel }) {
+  sel.style.display = 'none';
+  const anchor = sel.closest('.row') || sel;
+  const form = inlineNameForm({
+    placeholder: 'e.g. "Sexton\'s podcast"',
+    submitLabel: 'Add source',
+    onSubmit: async (name) => {
+      const src = await store.createSource({ name, kind: 'secondary' });
+      form.remove();
+      sel.style.display = '';
+      await onCreated(src);
+    },
+    onCancel: () => { sel.style.display = ''; onCancel(); },
+  });
+  anchor.after(form);
 }
 
 export async function render(root, ctx) {
@@ -237,29 +245,41 @@ async function renderDetail(body, ctx, evidenceId) {
   });
 
   body.querySelector('#source-select').addEventListener('change', async (e) => {
-    const id = await handleSourcePick(store, e.target);
-    if (id === undefined) { renderDetail(body, ctx, evidenceId); return; } // cancelled — reset the select
-    await store.updateEvidence(item.id, { source_id: id });
+    if (e.target.value === '__new') {
+      mountNewSourceForm(store, e.target, {
+        onCreated: async (src) => {
+          await store.updateEvidence(item.id, { source_id: src.id });
+          renderDetail(body, ctx, evidenceId);
+        },
+        onCancel: () => renderDetail(body, ctx, evidenceId),
+      });
+      return;
+    }
+    await store.updateEvidence(item.id, { source_id: e.target.value || null });
     renderDetail(body, ctx, evidenceId);
   });
 
+  const verifyRow = body.querySelector('#verify-save').closest('.row');
   body.querySelector('#verify-save').addEventListener('click', async () => {
     const chosen = body.querySelector('#verify-select').value;
     // her call (2026-09-01, per SPEC's "dramatisation cannot raise
-    // confidence"): block, don't just warn
+    // confidence"): block, don't just warn — as an inline note, not an alert
     if ((chosen === 'single' || chosen === 'two_plus') && item.source_kind === 'dramatisation') {
-      alert('This item\'s source is a dramatisation — an acted retelling. A dramatisation can never raise confidence, so it can\'t be marked as a real source. If the source is set wrongly, change it above first.');
+      inlineNote(verifyRow, 'This item\'s source is a dramatisation — an acted retelling. A dramatisation can never raise confidence, so it can\'t be marked as a real source. If the source is set wrongly, change it above first.');
       return;
     }
+    clearInlineNote(verifyRow);
     await store.updateEvidence(item.id, { verification: chosen });
     renderDetail(body, ctx, evidenceId);
   });
 
-  body.querySelector('#delete-btn').addEventListener('click', async () => {
-    if (!confirm('Remove this evidence item? It can be restored for 30 days.')) return;
-    await store.softDeleteEvidence(item.id);
-    ctx.closeDrawer();
-    render(document.getElementById('page-root'), ctx);
+  twoTapConfirm(body.querySelector('#delete-btn'), {
+    confirmLabel: 'Really delete? (recoverable 30 days)',
+    onConfirm: async () => {
+      await store.softDeleteEvidence(item.id);
+      ctx.closeDrawer();
+      render(document.getElementById('page-root'), ctx);
+    },
   });
 
   if (item.type === 'video') {
@@ -308,14 +328,16 @@ async function renderAddForm(body, ctx) {
   // inline source creation right in the form
   body.querySelector('#a-source').addEventListener('change', async (e) => {
     if (e.target.value !== '__new') return;
-    const id = await handleSourcePick(store, e.target);
-    if (id === undefined) { e.target.value = ''; return; } // cancelled
-    const src = await store.getSource(id);
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = src.name;
-    e.target.insertBefore(opt, e.target.querySelector('option[value="__new"]'));
-    e.target.value = id;
+    mountNewSourceForm(store, e.target, {
+      onCreated: async (src) => {
+        const opt = document.createElement('option');
+        opt.value = src.id;
+        opt.textContent = src.name;
+        e.target.insertBefore(opt, e.target.querySelector('option[value="__new"]'));
+        e.target.value = src.id;
+      },
+      onCancel: () => { e.target.value = ''; },
+    });
   });
 
   const typeEl = body.querySelector('#a-type');
@@ -328,8 +350,10 @@ async function renderAddForm(body, ctx) {
     }
   });
   body.querySelector('#a-save').addEventListener('click', async () => {
-    const title = body.querySelector('#a-title').value.trim();
-    if (!title) { alert('Title is required.'); return; }
+    const titleInput = body.querySelector('#a-title');
+    const title = titleInput.value.trim();
+    if (!title) { inlineNote(titleInput, 'A title is required.'); titleInput.focus(); return; }
+    clearInlineNote(titleInput);
     let fileMeta = {};
     const file = body.querySelector('#a-file').files[0];
     if (file) fileMeta = await store.storeEvidenceFile(file);

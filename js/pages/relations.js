@@ -4,6 +4,7 @@ import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
 import { makeToken, relationGlyph, barRow, emptyState } from '../indicators.js';
+import { inlineNote, clearInlineNote } from '../ui.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
@@ -156,8 +157,10 @@ function renderAddPerson(body, ctx) {
     <button class="btn btn-primary" id="p-save">Add</button>
   `;
   body.querySelector('#p-save').addEventListener('click', async () => {
-    const name = body.querySelector('#p-name').value.trim();
-    if (!name) { alert('Name required.'); return; }
+    const nameInput = body.querySelector('#p-name');
+    const name = nameInput.value.trim();
+    if (!name) { inlineNote(nameInput, 'A name is required.'); nameInput.focus(); return; }
+    clearInlineNote(nameInput);
     const bdate = body.querySelector('#p-bdate').value;
     await ctx.store.createPerson({
       case_id: ctx.caseId, display_name: name, kind: body.querySelector('#p-kind').value,
@@ -179,7 +182,9 @@ function renderAddRel(body, ctx, people) {
   `;
   body.querySelector('#r-save').addEventListener('click', async () => {
     const a = body.querySelector('#r-a').value, b = body.querySelector('#r-b').value;
-    if (a === b) { alert('Pick two different people.'); return; }
+    const saveBtn = body.querySelector('#r-save');
+    if (a === b) { inlineNote(saveBtn, 'Pick two different people — A and B are the same person.'); return; }
+    clearInlineNote(saveBtn);
     await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: a, b_id: b, kind: body.querySelector('#r-kind').value, confidence: 50, confirmed: 0 });
     ctx.closeDrawer();
     render(document.getElementById('page-root'), ctx);

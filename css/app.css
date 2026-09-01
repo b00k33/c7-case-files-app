@@ -377,6 +377,16 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .review-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); flex-wrap: wrap; }
 .kbd { font-family: var(--font-mono); background: var(--ink-3); border-radius: var(--r-sm); padding: 1px 5px; font-size: 11px; color: var(--text-2); }
 
+/* ------------------------------------------ popup replacements (no modals) */
+.btn-armed { background: var(--red) !important; color: var(--ink-0) !important; border-color: var(--red) !important; }
+.inline-form { margin-top: var(--sp-2); }
+.inline-form-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: var(--sp-1); }
+.inline-note {
+  margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--red); border-radius: 0;
+  background: var(--ink-2); color: var(--text-2); font-size: 12px;
+}
+
 /* --------------------------------------------------------------- video */
 
 .video-layout { display: grid; grid-template-columns: 1fr 320px; gap: var(--sp-4); }

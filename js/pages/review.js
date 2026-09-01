@@ -1,4 +1,5 @@
 import { emptyState } from '../indicators.js';
+import { inlineNameForm, twoTapConfirm } from '../ui.js';
 
 let cursor = 0;
 let keyHandler = null;
@@ -149,21 +150,25 @@ export async function render(root, ctx) {
   `;
   slot.appendChild(progress);
 
-  root.querySelector('#bulk-accept').addEventListener('click', async () => {
-    if (!confirm(`Accept all ${claims.length} drafted claims? Each still applies directly — none of this raises confidence beyond what evidence backs.`)) return;
-    for (const c of claims) await store.decideClaim(c.id, 'accepted');
-    decidedThisSession += claims.length;
-    sessionCounts.accepted += claims.length;
-    cursor = 0;
-    render(root, ctx);
+  twoTapConfirm(root.querySelector('#bulk-accept'), {
+    confirmLabel: `Really accept all ${claims.length}?`,
+    onConfirm: async () => {
+      for (const c of claims) await store.decideClaim(c.id, 'accepted');
+      decidedThisSession += claims.length;
+      sessionCounts.accepted += claims.length;
+      cursor = 0;
+      render(root, ctx);
+    },
   });
-  root.querySelector('#bulk-reject').addEventListener('click', async () => {
-    if (!confirm(`Reject all ${claims.length} drafted claims?`)) return;
-    for (const c of claims) await store.decideClaim(c.id, 'rejected');
-    decidedThisSession += claims.length;
-    sessionCounts.rejected += claims.length;
-    cursor = 0;
-    render(root, ctx);
+  twoTapConfirm(root.querySelector('#bulk-reject'), {
+    confirmLabel: `Really reject all ${claims.length}?`,
+    onConfirm: async () => {
+      for (const c of claims) await store.decideClaim(c.id, 'rejected');
+      decidedThisSession += claims.length;
+      sessionCounts.rejected += claims.length;
+      cursor = 0;
+      render(root, ctx);
+    },
   });
 
   const claim = claims[cursor];
@@ -206,8 +211,14 @@ export async function render(root, ctx) {
   card.querySelector('#act-accept').addEventListener('click', () => decide('accepted'));
   card.querySelector('#act-reject').addEventListener('click', () => decide('rejected'));
   card.querySelector('#act-question').addEventListener('click', () => {
-    const q = prompt('What\'s the open question?', `Unclear: ${claim.field}${target ? ' for ' + target.display_name : ''}`);
-    if (q != null) decide('question', q);
+    const actions = card.querySelector('.review-actions');
+    if (card.querySelector('.inline-form')) return; // already open
+    actions.after(inlineNameForm({
+      label: "What's the open question?",
+      value: `Unclear: ${claim.field}${target ? ' for ' + target.display_name : ''}`,
+      submitLabel: 'Raise question',
+      onSubmit: (q) => decide('question', q),
+    }));
   });
   card.querySelector('#act-skip').addEventListener('click', () => {
     cursor = (cursor + 1) % claims.length;

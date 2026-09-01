@@ -1,4 +1,5 @@
 import { barRow, emptyState } from '../indicators.js';
+import { inlineNameForm, twoTapConfirm } from '../ui.js';
 
 const EVIDENCE_TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
 
@@ -20,19 +21,24 @@ export async function render(root, ctx) {
 
   if (!cases.length) {
     root.innerHTML = '';
-    root.appendChild(emptyState({
+    const empty = emptyState({
       missing: 'No case files yet.',
       why: 'A case is the container for everyone and everything you attach to this research — people, evidence, relations.',
       action: '+ New case file',
-      onAction: async () => {
-        const name = prompt('Name this case file:');
-        if (!name) return;
-        const kase = await store.createCase({ name, kind: 'research' });
-        await ctx.setCaseId(kase.id);
-        ctx.navigate('#/dashboard');
-        render(root, ctx);
+      onAction: () => {
+        if (empty.querySelector('.inline-form')) return; // already open
+        empty.appendChild(inlineNameForm({
+          placeholder: 'Name this case file…',
+          onSubmit: async (name) => {
+            const kase = await store.createCase({ name, kind: 'research' });
+            await ctx.setCaseId(kase.id);
+            ctx.navigate('#/dashboard');
+            render(root, ctx);
+          },
+        }));
       },
-    }));
+    });
+    root.appendChild(empty);
     return;
   }
 
@@ -122,21 +128,27 @@ export async function render(root, ctx) {
       await ctx.setCaseId(c.id);
       ctx.navigate('#/import');
     });
-    row.querySelector('.delete-case-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!confirm(`Delete "${c.name}"? This is recoverable for 30 days, but it will disappear from view now — everyone and everything in it.`)) return;
-      await store.softDeleteCase(c.id);
-      if (c.id === caseId) await ctx.setCaseId(null);
-      render(root, ctx);
+    twoTapConfirm(row.querySelector('.delete-case-btn'), {
+      confirmLabel: 'Really delete?',
+      onConfirm: async () => {
+        await store.softDeleteCase(c.id);
+        if (c.id === caseId) await ctx.setCaseId(null);
+        render(root, ctx);
+      },
     });
     caseListEl.appendChild(row);
   }
-  root.querySelector('#new-case-btn').addEventListener('click', async () => {
-    const name = prompt('Name this case file:');
-    if (!name) return;
-    const kase2 = await store.createCase({ name, kind: 'research' });
-    await ctx.setCaseId(kase2.id);
-    render(root, ctx);
+  root.querySelector('#new-case-btn').addEventListener('click', () => {
+    const panel = caseListEl.parentElement;
+    if (panel.querySelector('.inline-form')) return; // already open
+    caseListEl.before(inlineNameForm({
+      placeholder: 'Name this case file…',
+      onSubmit: async (name) => {
+        const kase2 = await store.createCase({ name, kind: 'research' });
+        await ctx.setCaseId(kase2.id);
+        render(root, ctx);
+      },
+    }));
   });
 
   // evidence bars

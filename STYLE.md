@@ -171,3 +171,14 @@ would.
 - **Smallest text: 10px.** Uppercase micro-labels (eyebrows, tab bar,
   field labels, table headers) bottom out at 10px — nothing renders at 9px
   or below.
+- **Dense-list gap: 2px (blessed 2026-09-01).** Dense row lists (case
+  list, drafted queue, attention lists) use a 2px stack gap — an official
+  eighth step below the spacing scale, for lists where tone (not space)
+  separates rows. Not for cards, panels or forms.
+- **No browser popups either (enforced 2026-09-01).** `prompt()`,
+  `confirm()` and `alert()` count as modals and are banned along with
+  dialog boxes. The three replacement patterns live in `js/ui.js`:
+  destructive buttons use a two-tap arm-then-act (button turns red, asks
+  once, resets in 5s); name entry uses an inline mini-form in place
+  (Enter submits, Escape cancels); refusals and validation messages render
+  as an inline note under the control they refuse.
