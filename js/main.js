@@ -232,3 +232,30 @@ async function boot() {
 }
 
 boot();
+
+// ---- installable app: service worker + her chosen update flow ----
+// A new pushed version NEVER reloads over her work. The waiting worker sits
+// until she taps the "Update ready" chip; only then does it take over.
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  const chip = document.getElementById('update-chip');
+  const showChipFor = (worker) => {
+    chip.style.display = '';
+    chip.addEventListener('click', () => {
+      chip.disabled = true;
+      chip.textContent = 'Updating…';
+      worker.postMessage('c7-skip-waiting');
+    }, { once: true });
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    if (reg.waiting) showChipFor(reg.waiting); // an update already downloaded earlier
+    reg.addEventListener('updatefound', () => {
+      const fresh = reg.installing;
+      if (!fresh) return;
+      fresh.addEventListener('statechange', () => {
+        // 'installed' + an existing controller = a new version is waiting
+        if (fresh.state === 'installed' && navigator.serviceWorker.controller) showChipFor(fresh);
+      });
+    });
+  }).catch((e) => console.error('Service worker registration failed:', e));
+}

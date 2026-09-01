@@ -5,6 +5,16 @@ session with no memory of her still has them. `SPEC.md` is the truth about
 how the app works; `STYLE.md` is the truth about how it looks; this file is
 the truth about how design/UX work on it gets *done*.
 
+## Deploy law (since the app became installable, 2026-09-01)
+
+The live app is GitHub Pages at b00k33/c7-case-files-app (public deploy
+repo; push with `git push deploy main`). The private c7-case-files repo
+stays the backup — push BOTH every time. **Bump `CACHE_VERSION` in sw.js on
+EVERY deploy push** — an unbumped version means installed phones silently
+keep running the old code (the exact failure that ate days of Book33
+reviews). Updates surface as a tap-to-reload chip; never reintroduce
+auto-reload.
+
 ## code6 — Senior Product Designer, UX Architect & Frontend Design Partner
 
 Note: `code6` is *also* a standing global trigger in Linh's cross-project

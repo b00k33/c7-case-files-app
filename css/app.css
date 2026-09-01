@@ -81,6 +81,13 @@
   padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
 }
 .case-context:empty { display: none; }
+/* new-version-available chip — appears only when a pushed update is waiting */
+.update-chip {
+  margin-right: var(--sp-3);
+  background: var(--brass); color: var(--ink-0);
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 11px; font-weight: 600; padding: 4px 10px;
+}
 #save-state { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: var(--sp-2); }
 #save-state[data-state="saving"] { color: var(--brass); animation: pulse 1.2s ease-in-out infinite; }
 #save-state[data-state="unsaved"] { color: var(--amber); }
