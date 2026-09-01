@@ -5,7 +5,7 @@
 // PUSH LAW (learned the hard way on Book33): bump CACHE_VERSION on EVERY
 // push to the deploy repo, or installed phones keep running the old code
 // silently. The version string is the whole update mechanism.
-const CACHE_VERSION = 'c7-v3';
+const CACHE_VERSION = 'c7-v4';
 
 const SHELL = [
   './',
@@ -51,7 +51,11 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+      // ONLY our own old caches. Cache storage is origin-wide and Book33
+      // lives on this origin too — deleting non-c7 caches would wipe
+      // another app's offline shell (and its worker doing the same is
+      // exactly how c7's cache got eaten on 2026-09-01).
+      Promise.all(keys.filter((k) => k.startsWith('c7-') && k !== CACHE_VERSION).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
