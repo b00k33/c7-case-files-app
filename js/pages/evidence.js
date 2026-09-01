@@ -35,6 +35,7 @@ export async function render(root, ctx) {
       <div class="row wrap" style="gap:8px">
         <select id="f-type"><option value="">All types</option>${TYPES.map((t) => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <select id="f-verify"><option value="">All verification</option>${VERIFICATIONS.map((v) => `<option value="${v}" ${filters.verification === v ? 'selected' : ''}>${VERIFICATION_LABEL[v]}</option>`).join('')}</select>
+        <button class="btn btn-ghost btn-sm" id="copy-list-btn" title="Copy what's listed below as text — one 'Title — link' line per item">Copy list</button>
       </div>
       <div id="evidence-body"></div>
     </div>
@@ -53,6 +54,23 @@ export async function render(root, ctx) {
   let items = await store.listEvidence(ctx.caseId);
   if (filters.type) items = items.filter((i) => i.type === filters.type);
   if (filters.verification) items = items.filter((i) => i.verification === filters.verification);
+
+  // copies exactly what the current filters show — set type to "video" for
+  // a clean video list. One "Title — link" line per item; no URL, no dash.
+  const copyBtn = root.querySelector('#copy-list-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = items.map((i) => (i.original_url ? `${i.title} — ${i.original_url}` : i.title)).join('\n');
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }
+    const old = copyBtn.textContent;
+    copyBtn.textContent = `Copied ${items.length}`;
+    setTimeout(() => { copyBtn.textContent = old; }, 1500);
+  });
+  copyBtn.disabled = !items.length;
 
   const bodyEl = root.querySelector('#evidence-body');
   if (!items.length) {
