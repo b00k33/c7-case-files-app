@@ -236,6 +236,23 @@ function renderAddForm(body, ctx) {
     <p style="color:var(--text-3);font-size:11px">New evidence starts as <b>drafted</b> — zero confidence until you set its verification.</p>
     <button class="btn btn-primary" id="a-save">Add</button>
   `;
+
+  // pre-fill today — she's usually logging something she just captured, and
+  // it's right there to change when the content is older
+  const today = new Date();
+  body.querySelector('#a-dated').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  // a pasted video-site link means this is video evidence — flip the type
+  // automatically (only if she hasn't already picked something herself)
+  const typeEl = body.querySelector('#a-type');
+  let typeTouched = false;
+  typeEl.addEventListener('change', () => { typeTouched = true; });
+  body.querySelector('#a-url').addEventListener('input', (e) => {
+    if (typeTouched) return;
+    if (/youtube\.com|youtu\.be|tiktok\.com|instagram\.com\/(reel|tv)|vimeo\.com/i.test(e.target.value)) {
+      typeEl.value = 'video';
+    }
+  });
   body.querySelector('#a-save').addEventListener('click', async () => {
     const title = body.querySelector('#a-title').value.trim();
     if (!title) { alert('Title is required.'); return; }
