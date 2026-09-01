@@ -47,14 +47,29 @@ async function refreshCaseContext() {
         railBlock.style.display = 'none';
       } else {
         railBlock.style.display = '';
-        railSelect.innerHTML = cases.map((c) => `<option value="${c.id}"${c.id === currentCaseId ? ' selected' : ''}>${c.name}</option>`).join('');
+        railSelect.innerHTML = cases.map((c) => `<option value="${c.id}"${c.id === currentCaseId ? ' selected' : ''}>${c.name}</option>`).join('')
+          + '<option value="__new">+ New case…</option>';
       }
     }
   } catch (_) { if (chip) chip.textContent = ''; }
 }
 
 document.getElementById('case-rail-select')?.addEventListener('change', async (e) => {
-  await ctx.setCaseId(e.target.value);
+  try {
+    if (e.target.value === '__fun') return; // the Fun page's label row, not a real case
+    if (e.target.value === '__new') {
+      const name = prompt('Name this case file:');
+      if (!name) { refreshCaseContext(); return; } // cancelled — put the select back
+      const kase = await store.createCase({ name, kind: 'research' });
+      await ctx.setCaseId(kase.id);
+    } else {
+      await ctx.setCaseId(e.target.value);
+    }
+  } catch (err) {
+    console.error('Case switch failed:', err);
+    refreshCaseContext();
+    return;
+  }
   // her call (2026-09-01): switching case always lands on that case's
   // Dashboard — its front door — not a re-render of wherever you were
   if (location.hash === '#/dashboard' || !location.hash) renderRoute();
@@ -109,9 +124,17 @@ async function renderRoute() {
 
   setNavActive(key === 'subject' || key === 'video' ? '' : key);
   ctx.setTitle(TITLES[key] || 'C7 Case Files');
-  // the Fun page saves into its own case, so the research-case chip would lie there
-  if (key === 'fun') document.getElementById('case-context').textContent = '';
-  else refreshCaseContext();
+  // the Fun page saves into its own case — say so honestly (her call
+  // 2026-09-01: show "Fun & Zodiac" there rather than hiding the block)
+  if (key === 'fun') {
+    document.getElementById('case-context').textContent = 'Fun & Zodiac';
+    const railBlock = document.getElementById('case-rail');
+    const railSelect = document.getElementById('case-rail-select');
+    if (railBlock && railSelect) {
+      railBlock.style.display = '';
+      railSelect.innerHTML = '<option value="__fun" selected>Fun & Zodiac</option>';
+    }
+  } else refreshCaseContext();
   ctx.closeDrawer();
 
   if (typeof currentUnmount === 'function') { try { currentUnmount(); } catch (_) {} }
