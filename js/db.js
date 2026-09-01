@@ -98,6 +98,14 @@ export function hasFileSystemAccess() {
   return typeof window.showDirectoryPicker === 'function';
 }
 
+// Some phone browsers expose showDirectoryPicker but can't actually open a
+// folder — she hit exactly this on Android (2026-09-01). A phone never
+// wants the folder flow anyway: its data arrives by sync.
+function looksLikeAPhone() {
+  if (navigator.userAgentData && navigator.userAgentData.mobile) return true;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 // 'folder' = desktop Chrome/Edge, data lives in the visible data/ folder via
 // the File System Access API. 'idb' = every browser without that API
 // (phones, Safari, Firefox): the same SQLite database lives inside the
@@ -108,11 +116,8 @@ export function storageMode() { return mode; }
 
 /** Try to reconnect silently using a previously-granted handle. */
 export async function init() {
-  if (!hasFileSystemAccess()) {
-    mode = 'idb';
-    setState({ status: 'connecting' });
-    await open();
-    return state.status === 'ready';
+  if (!hasFileSystemAccess() || looksLikeAPhone()) {
+    return useBrowserStorage();
   }
   setState({ status: 'connecting' });
   const saved = await idbGet('handles', 'root');
@@ -128,6 +133,18 @@ export async function init() {
   rootHandle = saved;
   await open();
   return true;
+}
+
+/**
+ * Skip the folder entirely and keep the database in this browser's own
+ * storage. Automatic on phones; also offered as a button on the connect
+ * screen so nobody is ever stuck at a folder picker.
+ */
+export async function useBrowserStorage() {
+  mode = 'idb';
+  setState({ status: 'connecting', pendingHandle: null, error: null });
+  await open();
+  return state.status === 'ready';
 }
 
 function withTimeout(promise, ms, label) {

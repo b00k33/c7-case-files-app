@@ -191,11 +191,15 @@ function renderConnectScreen(state) {
       <p>Pick the <span class="mono">c7-case-files</span> folder — the one with <span class="mono">data/</span> inside it — so the app can read and write your database on this computer. Nothing leaves this folder.</p>
       ${state.error ? `<p class="err">${state.error}</p>` : ''}
       <button class="btn btn-primary" id="connect-btn">${state.status === 'connecting' ? 'Connecting…' : 'Connect data folder'}</button>
+      <p style="margin-top:20px;font-size:12px;color:var(--text-3)">No folder handy, or on a phone?</p>
+      <button class="btn btn-ghost btn-sm" id="browser-storage-btn">Skip the folder — keep data in this browser</button>
+      <p style="font-size:11px;color:var(--text-3);max-width:380px">Your case files then live in this browser's own storage and arrive by cloud sync once you sign in. The folder is only needed once, on the computer that already holds your data.</p>
     `;
   }
   connectRoot.innerHTML = `<div class="connect-screen">${body}</div>`;
   const btn = document.getElementById('connect-btn') || document.getElementById('retry-btn');
   if (btn) btn.addEventListener('click', () => db.connect());
+  document.getElementById('browser-storage-btn')?.addEventListener('click', () => db.useBrowserStorage());
 }
 
 let seeded = false;
@@ -370,6 +374,9 @@ boot();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const chip = document.getElementById('update-chip');
   const showChipFor = (worker) => {
+    // on the connect screen there is no work to protect and the chip lives
+    // inside the hidden app shell — apply the update straight away
+    if (appShell.style.display === 'none') { worker.postMessage('c7-skip-waiting'); return; }
     chip.style.display = '';
     chip.addEventListener('click', () => {
       chip.disabled = true;
