@@ -40,31 +40,57 @@ export function getState() {
   return state;
 }
 
-// --- tiny IndexedDB helper, just for remembering the directory handle ---
+// --- tiny IndexedDB helper. Originally just remembered the directory
+// handle; since the phone build (Stage 1, 2026-09-01) it is also the whole
+// data home on browsers without the File System Access API: 'files' holds
+// the SQLite bytes, 'assets' the attachment blobs, 'backups' rolling copies.
 function idbOpen() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('c7-case-files', 1);
-    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    const req = indexedDB.open('c7-case-files', 2);
+    req.onupgradeneeded = () => {
+      const d = req.result;
+      for (const s of ['handles', 'files', 'assets', 'backups']) {
+        if (!d.objectStoreNames.contains(s)) d.createObjectStore(s);
+      }
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
-async function idbGet(key) {
+async function idbGet(storeName, key) {
   const conn = await idbOpen();
   return new Promise((resolve, reject) => {
-    const tx = conn.transaction('handles', 'readonly');
-    const req = tx.objectStore('handles').get(key);
-    req.onsuccess = () => resolve(req.result || null);
+    const tx = conn.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).get(key);
+    req.onsuccess = () => resolve(req.result ?? null);
     req.onerror = () => reject(req.error);
   });
 }
-async function idbSet(key, value) {
+async function idbSet(storeName, key, value) {
   const conn = await idbOpen();
   return new Promise((resolve, reject) => {
-    const tx = conn.transaction('handles', 'readwrite');
-    tx.objectStore('handles').put(value, key);
+    const tx = conn.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).put(value, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbDelete(storeName, key) {
+  const conn = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = conn.transaction(storeName, 'readwrite');
+    tx.objectStore(storeName).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbKeys(storeName) {
+  const conn = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = conn.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).getAllKeys();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
   });
 }
 
@@ -72,14 +98,24 @@ export function hasFileSystemAccess() {
   return typeof window.showDirectoryPicker === 'function';
 }
 
+// 'folder' = desktop Chrome/Edge, data lives in the visible data/ folder via
+// the File System Access API. 'idb' = every browser without that API
+// (phones, Safari, Firefox): the same SQLite database lives inside the
+// browser's own IndexedDB instead — no folder picker, no connect screen.
+let mode = 'folder';
+
+export function storageMode() { return mode; }
+
 /** Try to reconnect silently using a previously-granted handle. */
 export async function init() {
   if (!hasFileSystemAccess()) {
-    setState({ status: 'unsupported', error: 'This browser cannot read or write local files. Use a recent Chrome or Edge.' });
-    return false;
+    mode = 'idb';
+    setState({ status: 'connecting' });
+    await open();
+    return state.status === 'ready';
   }
   setState({ status: 'connecting' });
-  const saved = await idbGet('root');
+  const saved = await idbGet('handles', 'root');
   if (!saved) {
     setState({ status: 'needs-connect' });
     return false;
@@ -119,7 +155,7 @@ export async function connect() {
       return false;
     }
     rootHandle = handle;
-    await idbSet('root', handle);
+    await idbSet('handles', 'root', handle);
     await open();
     return true;
   } catch (e) {
@@ -134,9 +170,11 @@ export async function connect() {
 
 async function open() {
   try {
-    dataHandle = await rootHandle.getDirectoryHandle('data', { create: true });
-    assetsHandle = await dataHandle.getDirectoryHandle('assets', { create: true });
-    backupsHandle = await dataHandle.getDirectoryHandle('backups', { create: true });
+    if (mode === 'folder') {
+      dataHandle = await rootHandle.getDirectoryHandle('data', { create: true });
+      assetsHandle = await dataHandle.getDirectoryHandle('assets', { create: true });
+      backupsHandle = await dataHandle.getDirectoryHandle('backups', { create: true });
+    }
 
     if (!SQL) {
       SQL = await withTimeout(
@@ -148,13 +186,19 @@ async function open() {
 
     let bytes = null;
     let isNew = false;
-    try {
-      dbFileHandle = await dataHandle.getFileHandle('c7.db', { create: false });
-      const file = await dbFileHandle.getFile();
-      bytes = new Uint8Array(await file.arrayBuffer());
-    } catch (e) {
-      isNew = true;
-      dbFileHandle = await dataHandle.getFileHandle('c7.db', { create: true });
+    if (mode === 'idb') {
+      const stored = await idbGet('files', 'c7.db');
+      if (stored && stored.byteLength) bytes = new Uint8Array(stored.buffer || stored);
+      else isNew = true;
+    } else {
+      try {
+        dbFileHandle = await dataHandle.getFileHandle('c7.db', { create: false });
+        const file = await dbFileHandle.getFile();
+        bytes = new Uint8Array(await file.arrayBuffer());
+      } catch (e) {
+        isNew = true;
+        dbFileHandle = await dataHandle.getFileHandle('c7.db', { create: true });
+      }
     }
 
     if (isNew || !bytes || bytes.length === 0) {
@@ -230,27 +274,51 @@ async function pruneBackups() {
   }
 }
 
+// IDB storage is thriftier than a disk folder — keep fewer rolling backups
+const IDB_BACKUPS_TO_KEEP = 5;
+
+async function pruneIdbBackups() {
+  const names = (await idbKeys('backups')).filter((n) => String(n).startsWith('c7-')).sort();
+  const excess = names.length - IDB_BACKUPS_TO_KEEP;
+  for (let i = 0; i < excess; i++) {
+    try { await idbDelete('backups', names[i]); } catch (_) { /* ignore */ }
+  }
+}
+
 export async function persist() {
   if (!db || !dirty) return;
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   setState({ saveState: 'saving' });
   try {
-    // back up whatever is currently on disk BEFORE overwriting it
-    try {
-      const existing = await dbFileHandle.getFile();
-      if (existing.size > 0) {
-        const backupHandle = await backupsHandle.getFileHandle(backupName(), { create: true });
-        const w = await backupHandle.createWritable();
-        await w.write(await existing.arrayBuffer());
-        await w.close();
-        await pruneBackups();
-      }
-    } catch (_) { /* first-ever save, nothing to back up yet */ }
+    if (mode === 'idb') {
+      // back up what's currently stored BEFORE overwriting it — same law
+      // as the folder mode, browser-storage edition
+      try {
+        const existing = await idbGet('files', 'c7.db');
+        if (existing && existing.byteLength) {
+          await idbSet('backups', backupName(), existing);
+          await pruneIdbBackups();
+        }
+      } catch (_) { /* first-ever save, nothing to back up yet */ }
+      await idbSet('files', 'c7.db', db.export());
+    } else {
+      // back up whatever is currently on disk BEFORE overwriting it
+      try {
+        const existing = await dbFileHandle.getFile();
+        if (existing.size > 0) {
+          const backupHandle = await backupsHandle.getFileHandle(backupName(), { create: true });
+          const w = await backupHandle.createWritable();
+          await w.write(await existing.arrayBuffer());
+          await w.close();
+          await pruneBackups();
+        }
+      } catch (_) { /* first-ever save, nothing to back up yet */ }
 
-    const bytes = db.export();
-    const writable = await dbFileHandle.createWritable();
-    await writable.write(bytes);
-    await writable.close();
+      const bytes = db.export();
+      const writable = await dbFileHandle.createWritable();
+      await writable.write(bytes);
+      await writable.close();
+    }
 
     dirty = false;
     setState({ saveState: 'saved', error: null });
@@ -271,21 +339,31 @@ export async function sha256(arrayBuffer) {
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Store a File's bytes under data/assets/<sha256>.<ext>, return {filePath, sha256, bytes, mime}. */
+/** Store a File's bytes keyed by hash, return {filePath, sha256, bytes, mime}. */
 export async function storeAsset(file) {
   const buf = await file.arrayBuffer();
   const hash = await sha256(buf);
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
   const filePath = `${hash}.${ext}`;
-  const handle = await assetsHandle.getFileHandle(filePath, { create: true });
-  const w = await handle.createWritable();
-  await w.write(buf);
-  await w.close();
-  return { filePath, sha256: hash, bytes: file.size, mime: file.type || 'application/octet-stream' };
+  const mime = file.type || 'application/octet-stream';
+  if (mode === 'idb') {
+    await idbSet('assets', filePath, new Blob([buf], { type: mime }));
+  } else {
+    const handle = await assetsHandle.getFileHandle(filePath, { create: true });
+    const w = await handle.createWritable();
+    await w.write(buf);
+    await w.close();
+  }
+  return { filePath, sha256: hash, bytes: file.size, mime };
 }
 
 /** Resolve an asset's bytes as an object URL for display (images, PDFs). */
 export async function assetUrl(filePath) {
+  if (mode === 'idb') {
+    const blob = await idbGet('assets', filePath);
+    if (!blob) throw new Error('asset not found in browser storage');
+    return URL.createObjectURL(blob);
+  }
   const handle = await assetsHandle.getFileHandle(filePath, { create: false });
   const file = await handle.getFile();
   return URL.createObjectURL(file);
