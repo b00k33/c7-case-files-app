@@ -31,16 +31,32 @@ const drawerBackdrop = document.getElementById('drawer-backdrop');
 
 let currentCaseId = localStorage.getItem('c7-current-case') || null;
 
-// keeps the "which case am I in" chip in the topbar truthful — every case
-// switch goes through setCaseId, so this is the one place to refresh it
+// keeps every "which case am I in" marker truthful — the rail's case block
+// (with its switcher) and the topbar chip. Every case switch goes through
+// setCaseId, so this is the one place to refresh them.
 async function refreshCaseContext() {
-  const el = document.getElementById('case-context');
-  if (!el) return;
+  const chip = document.getElementById('case-context');
+  const railBlock = document.getElementById('case-rail');
+  const railSelect = document.getElementById('case-rail-select');
   try {
-    const kase = currentCaseId ? await store.getCase(currentCaseId) : null;
-    el.textContent = kase ? kase.name : '';
-  } catch (_) { el.textContent = ''; }
+    const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
+    const kase = cases.find((c) => c.id === currentCaseId) || null;
+    if (chip) chip.textContent = kase ? kase.name : '';
+    if (railBlock && railSelect) {
+      if (!cases.length) {
+        railBlock.style.display = 'none';
+      } else {
+        railBlock.style.display = '';
+        railSelect.innerHTML = cases.map((c) => `<option value="${c.id}"${c.id === currentCaseId ? ' selected' : ''}>${c.name}</option>`).join('');
+      }
+    }
+  } catch (_) { if (chip) chip.textContent = ''; }
 }
+
+document.getElementById('case-rail-select')?.addEventListener('change', async (e) => {
+  await ctx.setCaseId(e.target.value);
+  renderRoute(); // re-render the current page against the newly chosen case
+});
 
 const ctx = {
   get caseId() { return currentCaseId; },

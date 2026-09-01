@@ -23,6 +23,25 @@
   color: var(--text);
 }
 #nav-rail .brand .sub { display: block; font-family: var(--font-body); font-size: 10px; color: var(--text-3); letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+
+/* you-are-here: the case everything is scoped to, always in view, switchable */
+.case-rail {
+  margin: 0 var(--sp-1) var(--sp-5);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--ink-2);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--r-sm);
+}
+.case-rail .eyebrow { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3); font-weight: 600; }
+.case-rail select {
+  width: 100%; margin-top: 2px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-title); font-size: 15px; color: var(--brass);
+  appearance: none; -webkit-appearance: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.case-rail select:focus-visible { box-shadow: var(--focus); }
+.case-rail select option { background: var(--ink-1); color: var(--text); font-family: var(--font-body); font-size: 13px; }
 .nav-link {
   display: flex;
   align-items: center;
@@ -387,7 +406,10 @@ table.matrix td.diag { background: transparent; cursor: default; }
   #nav-rail { width: 60px; }
   #nav-rail .label { display: none; }
   #nav-rail .brand .sub { display: none; }
+  .case-rail { display: none !important; } /* no room at 60px — the topbar chip carries it */
 }
+/* wide screens: the rail block says it; the topbar chip would just repeat it */
+@media (min-width: 1200px) { .case-context { display: none; } }
 
 @media (max-width: 640px) {
   #nav-rail { display: none; }
