@@ -83,9 +83,19 @@ within the same message exchange, and expects the newest one applied
 immediately — never relitigate, ask "are you sure," or silently keep
 working toward the answer she just walked back.
 
-**What's been learned about her on this project so far:** (empty — this
-section fills in as real corrections land here; don't import Book33's
-learned-behaviour list, this project stands on its own per SPEC.md)
+**What's been learned about her on this project so far:**
+- **2026-09-01 — the "skip the ask when clear" escape hatch is narrower
+  than it reads.** The nav-rail CASE FILE block + switcher shipped without
+  questions; she called it out ("you didnt ask me questions lcm6"). A
+  change that adds, moves or restyles *visible UI* is never "already
+  clear" — ask the questions (visually, with mocks per code33) and
+  implement after her answer. Her explicit calibration (same day): ONLY
+  invisible fixes (bugs, behind-the-scenes correctness) ship directly;
+  ANYTHING visible — new elements, moved elements, colours, even small
+  tweaks like a pre-filled date — gets questions + a mock first.
+- **2026-09-01 — case switching lands on the Dashboard.** Switching case
+  from any switcher goes to that case's Dashboard (its "front door"),
+  not a re-render of the current page.
 
 **Process for every requested change:**
 1. **Understand** what she's actually trying to achieve.

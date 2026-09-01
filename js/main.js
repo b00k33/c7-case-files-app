@@ -55,7 +55,10 @@ async function refreshCaseContext() {
 
 document.getElementById('case-rail-select')?.addEventListener('change', async (e) => {
   await ctx.setCaseId(e.target.value);
-  renderRoute(); // re-render the current page against the newly chosen case
+  // her call (2026-09-01): switching case always lands on that case's
+  // Dashboard — its front door — not a re-render of wherever you were
+  if (location.hash === '#/dashboard' || !location.hash) renderRoute();
+  else ctx.navigate('#/dashboard');
 });
 
 const ctx = {
