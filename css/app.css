@@ -54,6 +54,14 @@
   flex: 0 0 auto;
 }
 #topbar .page-title { font-size: 20px; }
+/* which case this page reads from and saves into — sits beside the title */
+.case-context {
+  margin-left: var(--sp-3); margin-right: auto;
+  font-size: 11px; color: var(--text-2);
+  background: var(--ink-2); border-radius: var(--r-sm);
+  padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
+}
+.case-context:empty { display: none; }
 #save-state { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: var(--sp-2); }
 #save-state[data-state="saving"] { color: var(--brass); animation: pulse 1.2s ease-in-out infinite; }
 #save-state[data-state="unsaved"] { color: var(--amber); }
@@ -307,6 +315,31 @@ table.matrix td.diag { background: transparent; cursor: default; }
 }
 @media (prefers-reduced-motion: reduce) { .review-card { animation: none; } }
 .review-card .field-name { font-family: var(--font-mono); color: var(--brass); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* the finish: the dossier gets its stamp */
+.review-finish { max-width: 560px; margin: var(--sp-7) auto 0; text-align: center; }
+@keyframes stamp-slam {
+  0% { opacity: 0; transform: rotate(-6deg) scale(2.2); }
+  55% { opacity: 1; transform: rotate(-6deg) scale(0.94); }
+  75% { transform: rotate(-6deg) scale(1.04); }
+  100% { opacity: 1; transform: rotate(-6deg) scale(1); }
+}
+@keyframes stamp-settle { from { text-shadow: 0 0 24px var(--brass); } to { text-shadow: none; } }
+.review-finish .stamp {
+  display: inline-block; padding: var(--sp-3) var(--sp-5);
+  border: 3px double var(--brass); border-radius: var(--r-lg);
+  color: var(--brass); font-family: var(--font-title); font-weight: 600;
+  font-size: 34px; line-height: 1.1; text-transform: uppercase; letter-spacing: .14em;
+  transform: rotate(-6deg);
+  animation: stamp-slam .5s cubic-bezier(.25, 1.2, .45, 1) both, stamp-settle .9s ease .4s both;
+}
+@keyframes finish-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.review-finish .finish-tally { margin-top: var(--sp-5); font-size: 13px; color: var(--text); animation: finish-rise .4s ease .45s both; }
+.review-finish .finish-note { margin-top: var(--sp-2); font-size: 12px; color: var(--text-2); animation: finish-rise .4s ease .55s both; }
+.review-finish .btn { margin-top: var(--sp-5); animation: finish-rise .4s ease .65s both; }
+@media (prefers-reduced-motion: reduce) {
+  .review-finish .stamp, .review-finish .finish-tally, .review-finish .finish-note, .review-finish .btn { animation: none; }
+}
 .review-card .kind-glyph {
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border-radius: var(--r-sm); margin-right: var(--sp-2);

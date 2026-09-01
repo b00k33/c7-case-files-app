@@ -3,6 +3,7 @@ import { emptyState } from '../indicators.js';
 let cursor = 0;
 let keyHandler = null;
 let decidedThisSession = 0; // fills the progress bar as she clears the queue
+let sessionCounts = { accepted: 0, rejected: 0, question: 0 }; // for the finish stamp's tally
 
 // Each claim announces what it is — colour + glyph by kind, so a death
 // never reads the same as a wedding at a glance.
@@ -115,12 +116,22 @@ export async function render(root, ctx) {
   const slot = root.querySelector('#review-slot');
   if (!claims.length) {
     if (decidedThisSession > 0) {
-      slot.appendChild(emptyState({
-        missing: `Queue cleared — ${decidedThisSession} claim${decidedThisSession === 1 ? '' : 's'} decided. ✦`,
-        why: 'Everything drafted has been looked at. Accepted facts are live on their people now.',
-        action: 'Go to the Board',
-        onAction: () => ctx.navigate('#/board'),
-      }));
+      // the payoff: the dossier gets its stamp
+      const tally = [
+        sessionCounts.accepted ? `${sessionCounts.accepted} accepted` : null,
+        sessionCounts.rejected ? `${sessionCounts.rejected} rejected` : null,
+        sessionCounts.question ? `${sessionCounts.question} question${sessionCounts.question === 1 ? '' : 's'} raised` : null,
+      ].filter(Boolean).join(' · ');
+      const finish = document.createElement('div');
+      finish.className = 'review-finish';
+      finish.innerHTML = `
+        <div class="stamp">Case<br>Reviewed</div>
+        <div class="finish-tally mono">${tally}</div>
+        <div class="finish-note">Accepted facts are live on their people now.</div>
+        <button class="btn btn-primary" id="finish-board">See it on the Board</button>
+      `;
+      slot.appendChild(finish);
+      finish.querySelector('#finish-board').addEventListener('click', () => ctx.navigate('#/board'));
     } else {
       slot.appendChild(emptyState({ missing: 'The review queue is empty.', why: 'Nothing drafted is waiting on a decision.', action: 'Go to Import', onAction: () => ctx.navigate('#/import') }));
     }
@@ -142,6 +153,7 @@ export async function render(root, ctx) {
     if (!confirm(`Accept all ${claims.length} drafted claims? Each still applies directly — none of this raises confidence beyond what evidence backs.`)) return;
     for (const c of claims) await store.decideClaim(c.id, 'accepted');
     decidedThisSession += claims.length;
+    sessionCounts.accepted += claims.length;
     cursor = 0;
     render(root, ctx);
   });
@@ -149,6 +161,7 @@ export async function render(root, ctx) {
     if (!confirm(`Reject all ${claims.length} drafted claims?`)) return;
     for (const c of claims) await store.decideClaim(c.id, 'rejected');
     decidedThisSession += claims.length;
+    sessionCounts.rejected += claims.length;
     cursor = 0;
     render(root, ctx);
   });
@@ -186,6 +199,7 @@ export async function render(root, ctx) {
   async function decide(decision, rationale) {
     await store.decideClaim(claim.id, decision, rationale);
     decidedThisSession++;
+    if (decision in sessionCounts) sessionCounts[decision]++;
     render(root, ctx);
   }
 
@@ -221,6 +235,7 @@ export async function render(root, ctx) {
       const idx = fresh.findIndex((c) => c.field === claim.field && c.target_id === claim.target_id);
       await store.decideClaim(fresh[idx].id, 'accepted');
       decidedThisSession++; // one claim resolved, even though it took a reject+re-accept internally
+      sessionCounts.accepted++;
       render(root, ctx);
     });
   });

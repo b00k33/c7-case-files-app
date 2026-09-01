@@ -31,12 +31,24 @@ const drawerBackdrop = document.getElementById('drawer-backdrop');
 
 let currentCaseId = localStorage.getItem('c7-current-case') || null;
 
+// keeps the "which case am I in" chip in the topbar truthful — every case
+// switch goes through setCaseId, so this is the one place to refresh it
+async function refreshCaseContext() {
+  const el = document.getElementById('case-context');
+  if (!el) return;
+  try {
+    const kase = currentCaseId ? await store.getCase(currentCaseId) : null;
+    el.textContent = kase ? kase.name : '';
+  } catch (_) { el.textContent = ''; }
+}
+
 const ctx = {
   get caseId() { return currentCaseId; },
   async setCaseId(id) {
     currentCaseId = id;
     if (id) localStorage.setItem('c7-current-case', id);
     else localStorage.removeItem('c7-current-case');
+    refreshCaseContext();
   },
   navigate(hash) { location.hash = hash; },
   setTitle(t) { pageTitle.textContent = t; },
@@ -78,6 +90,9 @@ async function renderRoute() {
 
   setNavActive(key === 'subject' || key === 'video' ? '' : key);
   ctx.setTitle(TITLES[key] || 'C7 Case Files');
+  // the Fun page saves into its own case, so the research-case chip would lie there
+  if (key === 'fun') document.getElementById('case-context').textContent = '';
+  else refreshCaseContext();
   ctx.closeDrawer();
 
   if (typeof currentUnmount === 'function') { try { currentUnmount(); } catch (_) {} }
@@ -148,6 +163,7 @@ async function boot() {
         const cases = await store.listCases();
         if (cases.length) currentCaseId = cases[0].id;
       }
+      refreshCaseContext();
       if (!location.hash) location.hash = '#/dashboard';
       else renderRoute();
     } else {

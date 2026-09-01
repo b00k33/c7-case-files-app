@@ -223,10 +223,12 @@ async function renderDetail(body, ctx, evidenceId) {
   }
 }
 
-function renderAddForm(body, ctx) {
+async function renderAddForm(body, ctx) {
   const { store } = ctx;
+  const kase = await store.getCase(ctx.caseId);
   body.innerHTML = `
-    <h3 class="title" style="margin-bottom:16px">Add evidence</h3>
+    <h3 class="title" style="margin-bottom:4px">Add evidence</h3>
+    <p class="mono" style="margin:0 0 16px;font-size:11px;color:var(--text-2)">→ goes into <span style="color:var(--brass)">${kase ? kase.name : 'the current case'}</span></p>
     <div class="field"><label>Type</label><select id="a-type">${TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}</select></div>
     <div class="field"><label>Title</label><input type="text" id="a-title"></div>
     <div class="field"><label>File (optional — stored in data/assets/, identified by its hash)</label><input type="file" id="a-file"></div>
