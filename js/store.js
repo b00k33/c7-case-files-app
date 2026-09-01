@@ -9,11 +9,20 @@ import * as db from './db.js';
 export function uuid() { return crypto.randomUUID(); }
 export function nowISO() { return new Date().toISOString(); }
 
+// change_log is device-local audit. The sync outbox rides the same
+// chokepoint: every mutation that logs a change also queues that record for
+// the next cloud push (the outbox tables exist once sync.js has booted).
+let outboxReady = false;
+export function markOutboxReady() { outboxReady = true; }
+
 function logChange(entity, entityId, op, payload) {
   db.run(
     'INSERT INTO change_log (id, entity, entity_id, op, payload, at, device) VALUES (?,?,?,?,?,?,?)',
     [uuid(), entity, entityId, op, JSON.stringify(payload), nowISO(), 'local']
   );
+  if (outboxReady && entity !== 'change_log') {
+    db.run('INSERT OR REPLACE INTO c7_outbox (entity, entity_id, queued_at) VALUES (?,?,?)', [entity, entityId, nowISO()]);
+  }
 }
 
 // ---------------------------------------------------------------- cases --

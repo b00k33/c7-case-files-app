@@ -81,6 +81,17 @@
   padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
 }
 .case-context:empty { display: none; }
+/* cloud sync chip — always visible, tap opens the account drawer */
+.sync-chip {
+  margin-right: var(--sp-3);
+  background: var(--ink-2); color: var(--text-3);
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 11px; padding: 4px 10px; white-space: nowrap;
+}
+.sync-chip[data-state="idle"] { color: var(--green); }
+.sync-chip[data-state="syncing"] { color: var(--brass); animation: pulse 1.2s ease-in-out infinite; }
+.sync-chip[data-state="error"] { color: var(--red); }
+
 /* new-version-available chip — appears only when a pushed update is waiting */
 .update-chip {
   margin-right: var(--sp-3);
@@ -136,7 +147,7 @@
 .field { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-3); }
 .field label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
 input[type="text"], input[type="date"], input[type="time"], input[type="number"], input[type="search"],
-input[type="url"], select, textarea {
+input[type="url"], input[type="email"], input[type="password"], select, textarea {
   background: var(--ink-2);
   border: none;
   border-radius: var(--r-sm);

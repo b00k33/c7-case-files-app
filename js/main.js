@@ -1,7 +1,8 @@
 import * as db from './db.js';
 import * as store from './store.js';
+import * as sync from './sync.js';
 import { seedExampleCase } from './store.js';
-import { inlineNameForm } from './ui.js';
+import { inlineNameForm, inlineNote, clearInlineNote } from './ui.js';
 
 const ROUTES = {
   dashboard: () => import('./pages/dashboard.js'),
@@ -206,7 +207,10 @@ async function boot() {
     if (state.status === 'ready') {
       connectRoot.style.display = 'none';
       appShell.style.display = '';
-      if (state.freshlyCreated && !seeded) {
+      if (state.freshlyCreated && !seeded && db.storageMode() === 'folder') {
+        // desktop gets the example case; a phone (idb mode) starts empty —
+        // its real content arrives by sync, and a seed would just come back
+        // as a duplicate of the desktop's copy
         seeded = true;
         try {
           await seedExampleCase();
@@ -224,11 +228,89 @@ async function boot() {
       refreshCaseContext();
       if (!location.hash) location.hash = '#/dashboard';
       else renderRoute();
+      sync.initSync(); // fire-and-forget — the app never waits on the network
     } else {
       renderConnectScreen(state);
     }
   });
   await db.init();
+}
+
+// ---- cloud sync chip + account drawer ----
+function elapsed(ts) {
+  if (!ts) return '';
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
+}
+
+const syncChip = document.getElementById('sync-chip');
+function renderSyncChip(s) {
+  syncChip.dataset.state = s.status;
+  if (s.status === 'off') syncChip.textContent = '⇅ sync off';
+  else if (s.status === 'syncing') syncChip.textContent = '⇅ syncing…';
+  else if (s.status === 'error') syncChip.textContent = '⇅ sync problem';
+  else syncChip.textContent = s.pending > 0 ? `⇅ ${s.pending} waiting` : `⇅ synced ${elapsed(s.lastSync)}`;
+  syncChip.title = s.error || (sync.currentUser() ? `Signed in as ${sync.currentUser()}` : 'Not signed in — tap to set up sync');
+}
+sync.subscribe(renderSyncChip);
+setInterval(() => renderSyncChip(sync.getState()), 30000); // keep "Xm ago" honest
+
+syncChip.addEventListener('click', () => ctx.openDrawer((body) => renderSyncDrawer(body)));
+
+function renderSyncDrawer(body) {
+  const user = sync.currentUser();
+  const s = sync.getState();
+  if (!user) {
+    body.innerHTML = `
+      <h3 class="title" style="margin-bottom:4px">Cloud sync</h3>
+      <p style="color:var(--text-2);font-size:12px;margin:0 0 16px">
+        Sign in and this device shares one set of case files with your other devices.
+        Your data stays in your own private account — the same sign-in Book33 sync uses.
+      </p>
+      <div class="field"><label>Email</label><input type="email" id="sy-email" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="sy-pass" autocomplete="current-password"></div>
+      <button class="btn btn-primary" id="sy-signin">Sign in</button>
+    `;
+    const btn = body.querySelector('#sy-signin');
+    btn.addEventListener('click', async () => {
+      clearInlineNote(btn);
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      try {
+        await sync.signIn(body.querySelector('#sy-email').value.trim(), body.querySelector('#sy-pass').value);
+        ctx.closeDrawer();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+        inlineNote(btn, String(e && e.message || e));
+      }
+    });
+    return;
+  }
+  body.innerHTML = `
+    <h3 class="title" style="margin-bottom:4px">Cloud sync</h3>
+    <div class="mono" style="font-size:12px;color:var(--text-2);margin-bottom:16px">Signed in as ${user}</div>
+    <div class="stack" style="gap:6px;font-size:12px">
+      <div class="row between"><span class="section-label">Status</span><span class="mono">${s.status === 'error' ? 'problem — see below' : s.status}</span></div>
+      <div class="row between"><span class="section-label">Last synced</span><span class="mono">${s.lastSync ? elapsed(s.lastSync) : 'not yet'}</span></div>
+      <div class="row between"><span class="section-label">Waiting to upload</span><span class="mono">${s.pending || 0}</span></div>
+    </div>
+    ${s.error ? `<div class="inline-note" style="margin-top:12px">${s.error}</div>` : ''}
+    <div class="row" style="gap:8px;margin-top:20px">
+      <button class="btn btn-primary btn-sm" id="sy-now">Sync now</button>
+      <button class="btn btn-ghost btn-sm" id="sy-out">Sign out</button>
+    </div>
+  `;
+  body.querySelector('#sy-now').addEventListener('click', async () => {
+    await sync.syncNow();
+    renderSyncDrawer(body);
+  });
+  body.querySelector('#sy-out').addEventListener('click', async () => {
+    await sync.signOut();
+    ctx.closeDrawer();
+  });
 }
 
 boot();
