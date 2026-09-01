@@ -156,3 +156,18 @@ would.
 - **String on the board:** a thin `--text-3` line (SVG), brass where it
   meets a sourced card, dashed where it meets a drafted one — same
   sourced/drafted colour law as every other indicator.
+- **Motion exceptions (approved 2026-09-01):** the Review page is allowed
+  two moves beyond §7's near-none rule — a short card deal-in as claims
+  advance, and the "CASE REVIEWED" stamp slam when the queue clears. Both
+  are disabled under `prefers-reduced-motion`. Nothing else moves.
+- **Review card accents (2026-09-01):** each drafted claim carries its
+  kind's colour as a left stripe + glyph chip — birth `--green`, death
+  `--red`, marriage brass, move `--teal`, business `--violet`.
+- **Case rail block (2026-09-01):** the current case lives at the top of
+  the nav rail as a brass-accented block that is also the case switcher
+  (with an inline "+ New case…" row). On icon-rail and mobile widths the
+  topbar chip carries the case name instead — named exactly once at any
+  width. Switching a case lands on that case's Dashboard.
+- **Smallest text: 10px.** Uppercase micro-labels (eyebrows, tab bar,
+  field labels, table headers) bottom out at 10px — nothing renders at 9px
+  or below.
