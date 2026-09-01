@@ -2,6 +2,26 @@ import { emptyState } from '../indicators.js';
 
 let cursor = 0;
 let keyHandler = null;
+let decidedThisSession = 0; // fills the progress bar as she clears the queue
+
+// Each claim announces what it is — colour + glyph by kind, so a death
+// never reads the same as a wedding at a glance.
+const KIND_STYLE = {
+  birth: { accent: 'var(--green)', glyph: '◉' },
+  death: { accent: 'var(--red)', glyph: '◌' },
+  marriage: { accent: 'var(--brass)', glyph: '◈' },
+  move: { accent: 'var(--teal)', glyph: '➔' },
+  business: { accent: 'var(--violet)', glyph: '▣' },
+};
+
+function claimStyle(claim, value) {
+  if (claim.field === 'event') return KIND_STYLE[value?.kind] || { accent: 'var(--brass)', glyph: '◆' };
+  if (claim.field === 'birth') return KIND_STYLE.birth;
+  if (claim.field === 'death') return KIND_STYLE.death;
+  if (claim.field === 'relationship') return { accent: 'var(--teal)', glyph: '◈' };
+  if (claim.field === 'person') return { accent: 'var(--violet)', glyph: '◉' };
+  return { accent: 'var(--brass)', glyph: '◆' };
+}
 
 const ID_FIELDS = ['person_id', 'a_id', 'b_id'];
 
@@ -94,19 +114,41 @@ export async function render(root, ctx) {
 
   const slot = root.querySelector('#review-slot');
   if (!claims.length) {
-    slot.appendChild(emptyState({ missing: 'The review queue is empty.', why: 'Nothing drafted is waiting on a decision.', action: 'Go to Import', onAction: () => ctx.navigate('#/import') }));
+    if (decidedThisSession > 0) {
+      slot.appendChild(emptyState({
+        missing: `Queue cleared — ${decidedThisSession} claim${decidedThisSession === 1 ? '' : 's'} decided. ✦`,
+        why: 'Everything drafted has been looked at. Accepted facts are live on their people now.',
+        action: 'Go to the Board',
+        onAction: () => ctx.navigate('#/board'),
+      }));
+    } else {
+      slot.appendChild(emptyState({ missing: 'The review queue is empty.', why: 'Nothing drafted is waiting on a decision.', action: 'Go to Import', onAction: () => ctx.navigate('#/import') }));
+    }
     return;
   }
+
+  // progress: fills as claims are decided this sitting
+  const totalThisSitting = decidedThisSession + claims.length;
+  const pct = Math.round((decidedThisSession / totalThisSitting) * 100);
+  const progress = document.createElement('div');
+  progress.className = 'review-progress';
+  progress.innerHTML = `
+    <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+    <div class="counts"><span class="done">${decidedThisSession} decided</span><span>${claims.length} to go</span></div>
+  `;
+  slot.appendChild(progress);
 
   root.querySelector('#bulk-accept').addEventListener('click', async () => {
     if (!confirm(`Accept all ${claims.length} drafted claims? Each still applies directly — none of this raises confidence beyond what evidence backs.`)) return;
     for (const c of claims) await store.decideClaim(c.id, 'accepted');
+    decidedThisSession += claims.length;
     cursor = 0;
     render(root, ctx);
   });
   root.querySelector('#bulk-reject').addEventListener('click', async () => {
     if (!confirm(`Reject all ${claims.length} drafted claims?`)) return;
     for (const c of claims) await store.decideClaim(c.id, 'rejected');
+    decidedThisSession += claims.length;
     cursor = 0;
     render(root, ctx);
   });
@@ -115,12 +157,14 @@ export async function render(root, ctx) {
   const value = JSON.parse(claim.value);
   const target = claim.target_id && claim.target_type === 'person' ? await store.getPerson(claim.target_id) : null;
   const desc = await describeClaim(store, claim, value);
+  const style = claimStyle(claim, value);
 
   const card = document.createElement('div');
   card.className = 'review-card';
+  card.style.setProperty('--claim-accent', style.accent);
   card.innerHTML = `
     <div class="section-label">${cursor + 1} of ${claims.length} · from ${claim.origin}</div>
-    <div class="field-name">${claim.field}${target ? ' — ' + target.display_name : ''}</div>
+    <div class="field-name" style="margin-top:6px"><span class="kind-glyph">${style.glyph}</span>${claim.field}${target ? ' — ' + target.display_name : ''}</div>
     ${desc.title ? `<div class="claim-title">${desc.title}</div>` : ''}
     ${desc.meta?.length ? `<div class="claim-meta">${desc.meta.map((m) => `<span class="meta-item"><span class="k">${m.k}</span>${m.v}</span>`).join('')}</div>` : ''}
     ${desc.rows?.length ? `<div class="claim-fields">${desc.rows.map((r) => `<div class="row-item"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`).join('')}</div>` : ''}
@@ -141,6 +185,7 @@ export async function render(root, ctx) {
 
   async function decide(decision, rationale) {
     await store.decideClaim(claim.id, decision, rationale);
+    decidedThisSession++;
     render(root, ctx);
   }
 
@@ -175,6 +220,7 @@ export async function render(root, ctx) {
       const fresh = await store.listClaims(ctx.caseId, 'drafted');
       const idx = fresh.findIndex((c) => c.field === claim.field && c.target_id === claim.target_id);
       await store.decideClaim(fresh[idx].id, 'accepted');
+      decidedThisSession++; // one claim resolved, even though it took a reject+re-accept internally
       render(root, ctx);
     });
   });
