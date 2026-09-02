@@ -403,6 +403,18 @@ export async function storeAsset(file) {
   return { filePath, sha256: hash, bytes: file.size, mime };
 }
 
+/** Save bytes fetched from the cloud under an existing file path (this device didn't have them). */
+export async function importAsset(filePath, blob, mime) {
+  if (mode === 'idb') {
+    await idbSet('assets', filePath, blob.type ? blob : new Blob([blob], { type: mime || 'application/octet-stream' }));
+    return;
+  }
+  const handle = await assetsHandle.getFileHandle(filePath, { create: true });
+  const w = await handle.createWritable();
+  await w.write(await blob.arrayBuffer());
+  await w.close();
+}
+
 /** Resolve an asset's bytes as an object URL for display (images, PDFs). */
 export async function assetUrl(filePath) {
   if (mode === 'idb') {

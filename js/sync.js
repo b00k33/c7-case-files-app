@@ -40,6 +40,8 @@ function setState(patch) {
 export function subscribe(cb) { listeners.add(cb); cb(state); return () => listeners.delete(cb); }
 export function getState() { return state; }
 export function currentUser() { return session?.user?.email || null; }
+export function currentUserId() { return session?.user?.id || null; }
+export function getClient() { return sb; }
 
 // ---- local plumbing ------------------------------------------------------
 

@@ -1,5 +1,7 @@
 import { emptyState, verificationLabel } from '../indicators.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
+import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
+import { INBOX_TAG, PURPOSES } from '../store.js';
 
 const TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
 const VERIFICATIONS = ['two_plus', 'single', 'disputed', 'dead_link', 'drafted'];
@@ -52,6 +54,12 @@ export async function render(root, ctx) {
     return;
   }
 
+  // arriving from the Dashboard's "images waiting" line, or from the phone's share sheet
+  if (localStorage.getItem('c7-evidence-view') === 'inbox') { currentView = 'inbox'; localStorage.removeItem('c7-evidence-view'); }
+  const sharedIn = await drainSharedImages(ctx);
+  if (sharedIn) currentView = 'inbox';
+  const inboxCount = await store.countInbox(ctx.caseId);
+
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
@@ -59,9 +67,15 @@ export async function render(root, ctx) {
           <button data-v="grid" class="${currentView === 'grid' ? 'active' : ''}">Grid</button>
           <button data-v="board" class="${currentView === 'board' ? 'active' : ''}">Board</button>
           <button data-v="table" class="${currentView === 'table' ? 'active' : ''}">Table</button>
+          <button data-v="inbox" class="${currentView === 'inbox' ? 'active' : ''}">Inbox${inboxCount ? ` <span style="color:var(--brass)">${inboxCount}</span>` : ''}</button>
         </div>
-        <button class="btn btn-primary" id="add-evidence-btn">+ Add evidence</button>
+        <div class="row" style="gap:8px">
+          <button class="btn btn-ghost" id="add-images-btn">+ Add images</button>
+          <input type="file" id="add-images-input" accept="image/*" multiple style="display:none">
+          <button class="btn btn-primary" id="add-evidence-btn">+ Add evidence</button>
+        </div>
       </div>
+      <div class="dropzone" id="dropzone">Drop images here — or on your phone, share them to Case Files from the gallery</div>
       <div class="row wrap" style="gap:8px">
         <select id="f-type"><option value="">All types</option>${TYPES.map((t) => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <select id="f-verify"><option value="">All verification</option>${VERIFICATIONS.map((v) => `<option value="${v}" ${filters.verification === v ? 'selected' : ''}>${VERIFICATION_LABEL[v]}</option>`).join('')}</select>
@@ -77,9 +91,36 @@ export async function render(root, ctx) {
     currentView = btn.dataset.v;
     render(root, ctx);
   });
+  root.querySelector('#dropzone').style.display = currentView === 'inbox' ? '' : 'none';
   root.querySelector('#f-type').addEventListener('change', (e) => { filters.type = e.target.value; render(root, ctx); });
   root.querySelector('#f-verify').addEventListener('change', (e) => { filters.verification = e.target.value; render(root, ctx); });
   root.querySelector('#add-evidence-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddForm(body, ctx)));
+
+  // the image inbox's three ways in: picker, drag-and-drop, share sheet (drained above)
+  const fileInput = root.querySelector('#add-images-input');
+  root.querySelector('#add-images-btn').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const files = [...fileInput.files];
+    fileInput.value = '';
+    if (files.length) { await addImages(ctx, files, root); currentView = 'inbox'; render(root, ctx); }
+  });
+  const dz = root.querySelector('#dropzone');
+  root.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('over'); });
+  root.addEventListener('dragleave', () => dz.classList.remove('over'));
+  root.addEventListener('drop', async (e) => {
+    e.preventDefault(); dz.classList.remove('over');
+    const files = [...(e.dataTransfer?.files || [])].filter((f) => /^image\//.test(f.type));
+    if (files.length) { await addImages(ctx, files, root); currentView = 'inbox'; render(root, ctx); }
+  });
+
+  if (currentView === 'inbox') {
+    const bodyEl0 = root.querySelector('#evidence-body');
+    const people = await store.listPeople(ctx.caseId);
+    const inbox = await store.listInboxEvidence(ctx.caseId);
+    root.querySelector('#copy-list-btn').disabled = true;
+    await renderInbox(bodyEl0, ctx, inbox, people, root);
+    return;
+  }
 
   let items = await store.listEvidence(ctx.caseId);
   if (filters.type) items = items.filter((i) => i.type === filters.type);
@@ -116,6 +157,200 @@ export async function render(root, ctx) {
   if (currentView === 'grid') renderGrid(bodyEl, ctx, items);
   else if (currentView === 'board') renderBoard(bodyEl, ctx, items);
   else renderTable(bodyEl, ctx, items);
+}
+
+// ---- the image inbox: capture now, title/person/purpose later ----
+
+function guessType(file) {
+  const n = (file.name || '').toLowerCase();
+  return n.includes('screenshot') || n.includes('screen') || file.type === 'image/png' ? 'screenshot' : 'photo';
+}
+
+/** Compress, store locally, create a drafted evidence row tagged 'inbox', queue the cloud copy. */
+async function addImages(ctx, files, root) {
+  const { store } = ctx;
+  const status = document.createElement('div');
+  status.className = 'inline-note';
+  status.style.borderLeftColor = 'var(--brass)';
+  root.querySelector('#dropzone').after(status);
+  const today = new Date().toISOString().slice(0, 10);
+  let n = 0;
+  for (const raw of files) {
+    n++;
+    status.textContent = `Adding image ${n} of ${files.length}…`;
+    try {
+      const file = await compressImage(raw);
+      const meta = await store.storeEvidenceFile(file);
+      const ev = await store.createEvidence({
+        case_id: ctx.caseId,
+        type: guessType(raw),
+        title: (raw.name || 'image').replace(/\.[^.]+$/, ''),
+        dated: today,
+        verification: 'drafted',
+        ...meta,
+      });
+      await store.tagEvidence(ev.id, INBOX_TAG);
+      await store.tagEvidence(ev.id, 'untitled'); // the filename is a stand-in, not a title
+      queueUpload(meta.file_path, meta.mime);
+    } catch (e) {
+      console.error('Could not add image', raw.name, e);
+    }
+  }
+  status.remove();
+  flushUploads(); // cloud copies, in the background; retried by sync if this fails
+  ctx.refreshBadges?.();
+}
+
+/** Images shared in from the phone's share sheet sit in a small cache until the app drains them. */
+async function drainSharedImages(ctx) {
+  if (!location.search.includes('shared=1') || !window.caches) return false;
+  history.replaceState(null, '', location.pathname + location.hash);
+  try {
+    const cache = await caches.open('c7-share');
+    const keys = await cache.keys();
+    const files = [];
+    for (const req of keys) {
+      const res = await cache.match(req);
+      if (!res) continue;
+      const name = decodeURIComponent(res.headers.get('X-File-Name') || 'shared-image');
+      files.push(new File([await res.blob()], name, { type: res.headers.get('Content-Type') || 'image/jpeg' }));
+      await cache.delete(req);
+    }
+    if (!files.length) return false;
+    await addImages(ctx, files, document.getElementById('page-root'));
+    return true;
+  } catch (e) {
+    console.error('Shared images could not be read', e);
+    return false;
+  }
+}
+
+async function renderInbox(el, ctx, inbox, people, root) {
+  const { store } = ctx;
+  el.style.display = 'block';
+  if (!inbox.length) {
+    el.appendChild(emptyState({
+      missing: 'The inbox is empty.',
+      why: 'Add images and they wait here until each has a title and a person — then they leave for the main collection.',
+      action: '+ Add images',
+      onAction: () => root.querySelector('#add-images-input').click(),
+    }));
+    return;
+  }
+
+  // batch defaults: set once, then tweak any card. The last subject file she
+  // opened is the likely person (code7: don't ask for what's knowable).
+  const lastSubject = localStorage.getItem('c7-last-subject');
+  const defaultPerson = people.some((p) => p.id === lastSubject) ? lastSubject : '';
+  const personOpts = (sel) => `<option value="">Person…</option>${people.map((p) => `<option value="${p.id}"${p.id === sel ? ' selected' : ''}>${p.display_name}</option>`).join('')}`;
+  const purposeOpts = (sel) => `<option value="">Purpose…</option>${PURPOSES.map((p) => `<option value="${p.key}"${p.key === sel ? ' selected' : ''}>${p.label}</option>`).join('')}`;
+
+  el.innerHTML = `
+    <div class="batch-bar">
+      <span class="section-label">Apply to all</span>
+      <select id="batch-person">${personOpts(defaultPerson)}</select>
+      <select id="batch-purpose">${purposeOpts('')}</select>
+      <button class="btn btn-ghost btn-sm" id="batch-apply">Apply</button>
+      <span style="font-size:11px;color:var(--text-3)">then tweak any card</span>
+    </div>
+    <div class="inbox-grid" id="inbox-grid"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:16px;gap:12px;align-items:center">
+      <span id="inbox-summary" class="mono" style="font-size:11px;color:var(--text-3)"></span>
+      <button class="btn btn-primary" id="inbox-save">Save</button>
+    </div>
+  `;
+
+  const grid = el.querySelector('#inbox-grid');
+  const cards = [];
+  for (const it of inbox) {
+    const links = await store.listLinksForEvidence(it.id);
+    const existingLink = links.find((l) => l.target_type === 'person')?.target_id || '';
+    const linkedPerson = existingLink || defaultPerson; // what the select shows; only existingLink is a real link
+    const tags = await store.evidenceTagNames(it.id);
+    const purpose = (tags.find((t) => t.startsWith('purpose:')) || '').replace('purpose:', '');
+    const untitled = tags.includes('untitled'); // filename stand-in: shown as a hint, not a value
+    const card = document.createElement('div');
+    card.className = 'inbox-card';
+    card.innerHTML = `
+      <div class="inbox-thumb"><span class="mono" style="font-size:10px;color:var(--text-3)">${it.type} · ${it.dated || ''}</span></div>
+      <div class="inbox-fields">
+        <input type="text" class="ib-title" placeholder="${untitled ? `Title… (file: ${(it.title || '').replace(/"/g, '&quot;')})` : 'Title…'}" value="${untitled ? '' : (it.title || '').replace(/"/g, '&quot;')}">
+        <div class="row" style="gap:6px">
+          <select class="ib-person" style="flex:1;min-width:0">${personOpts(linkedPerson)}</select>
+          <select class="ib-purpose" style="flex:1;min-width:0">${purposeOpts(purpose)}</select>
+        </div>
+        <details><summary style="cursor:pointer;font-size:11px;color:var(--text-3);list-style:none">note ▸</summary><textarea class="ib-note" placeholder="What this shows, specifically" style="min-height:48px;margin-top:6px">${it.notes || ''}</textarea></details>
+        <div class="row between" style="align-items:center">
+          <span class="ib-status mono" style="font-size:10px"></span>
+          <button class="btn btn-ghost btn-sm ib-del" style="color:var(--red)">Delete</button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+    const entry = { item: it, card, existingLink };
+    cards.push(entry);
+    resolveAssetUrl(it.file_path, it.mime).then((url) => {
+      if (!url) return;
+      const img = document.createElement('img');
+      img.src = url; img.alt = it.title || '';
+      img.addEventListener('click', () => ctx.openDrawer((body) => renderDetail(body, ctx, it.id)));
+      card.querySelector('.inbox-thumb').prepend(img);
+    });
+    const refresh = () => {
+      const ready = card.querySelector('.ib-title').value.trim() && card.querySelector('.ib-person').value;
+      const st = card.querySelector('.ib-status');
+      st.textContent = ready ? '✓ ready — leaves the inbox on save' : (!card.querySelector('.ib-title').value.trim() ? 'needs a title' : 'needs a person');
+      st.style.color = ready ? 'var(--green)' : 'var(--red)';
+      updateSummary();
+    };
+    card.querySelector('.ib-title').addEventListener('input', refresh);
+    card.querySelector('.ib-person').addEventListener('change', refresh);
+    twoTapConfirm(card.querySelector('.ib-del'), {
+      confirmLabel: 'Really delete?',
+      onConfirm: async () => { await store.softDeleteEvidence(it.id); render(root, ctx); },
+    });
+    entry.refresh = refresh;
+  }
+  function updateSummary() {
+    const ready = cards.filter((c) => c.card.querySelector('.ib-title').value.trim() && c.card.querySelector('.ib-person').value).length;
+    el.querySelector('#inbox-summary').textContent = `${ready} ready · ${cards.length - ready} stay in the inbox`;
+    el.querySelector('#inbox-save').textContent = ready ? `Save ${ready} ready` : 'Save';
+  }
+  cards.forEach((c) => c.refresh());
+
+  el.querySelector('#batch-apply').addEventListener('click', () => {
+    const p = el.querySelector('#batch-person').value, pu = el.querySelector('#batch-purpose').value;
+    for (const c of cards) {
+      if (p) c.card.querySelector('.ib-person').value = p;
+      if (pu) c.card.querySelector('.ib-purpose').value = pu;
+      c.refresh();
+    }
+  });
+
+  el.querySelector('#inbox-save').addEventListener('click', async () => {
+    const btn = el.querySelector('#inbox-save');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    for (const c of cards) {
+      const title = c.card.querySelector('.ib-title').value.trim();
+      const personId = c.card.querySelector('.ib-person').value;
+      const purpose = c.card.querySelector('.ib-purpose').value;
+      const notes = c.card.querySelector('.ib-note').value.trim();
+      const patch = {};
+      if (title && title !== c.item.title) patch.title = title;
+      if ((notes || null) !== (c.item.notes || null)) patch.notes = notes || null;
+      if (Object.keys(patch).length) await store.updateEvidence(c.item.id, patch);
+      if (title) await store.untagEvidence(c.item.id, 'untitled');
+      if (personId && personId !== c.existingLink) {
+        await store.linkEvidence({ evidence_id: c.item.id, target_type: 'person', target_id: personId });
+      }
+      const tags = await store.evidenceTagNames(c.item.id);
+      for (const t of tags) if (t.startsWith('purpose:') && t !== `purpose:${purpose}`) await store.untagEvidence(c.item.id, t);
+      if (purpose && !tags.includes(`purpose:${purpose}`)) await store.tagEvidence(c.item.id, `purpose:${purpose}`);
+      if (title && (personId || c.existingLink)) await store.untagEvidence(c.item.id, INBOX_TAG);
+    }
+    ctx.refreshBadges?.();
+    render(root, ctx);
+  });
 }
 
 function renderGrid(el, ctx, items) {

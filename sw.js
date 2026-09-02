@@ -5,7 +5,7 @@
 // PUSH LAW (learned the hard way on Book33): bump CACHE_VERSION on EVERY
 // push to the deploy repo, or installed phones keep running the old code
 // silently. The version string is the whole update mechanism.
-const CACHE_VERSION = 'c7-v11';
+const CACHE_VERSION = 'c7-v12';
 
 const SHELL = [
   './',
@@ -21,6 +21,7 @@ const SHELL = [
   'js/config.js',
   'js/contradictions.js',
   'js/pages/contradictions.js',
+  'js/assets.js',
   'js/schema.sql',
   'js/numerology.js',
   'js/chinese.js',
@@ -57,7 +58,7 @@ self.addEventListener('activate', (e) => {
       // lives on this origin too — deleting non-c7 caches would wipe
       // another app's offline shell (and its worker doing the same is
       // exactly how c7's cache got eaten on 2026-09-01).
-      Promise.all(keys.filter((k) => k.startsWith('c7-') && k !== CACHE_VERSION).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k.startsWith('c7-') && k !== CACHE_VERSION && k !== 'c7-share').map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -66,7 +67,29 @@ self.addEventListener('message', (e) => {
   if (e.data === 'c7-skip-waiting') self.skipWaiting();
 });
 
+// Android share sheet → "Case Files": the OS POSTs the shared images here.
+// Stash them in a small cache and bounce to the app, which drains the
+// stash into the evidence inbox. (Book33 does the same for .ics files.)
+const SHARE_CACHE = 'c7-share';
 self.addEventListener('fetch', (e) => {
+  if (e.request.method === 'POST' && new URL(e.request.url).pathname.endsWith('/share-target')) {
+    e.respondWith((async () => {
+      try {
+        const fd = await e.request.formData();
+        const files = fd.getAll('images').filter((f) => f && f.size);
+        const cache = await caches.open(SHARE_CACHE);
+        let i = 0;
+        for (const f of files) {
+          await cache.put(
+            `${self.registration.scope}__share__/${Date.now()}-${i++}`,
+            new Response(f, { headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(f.name || 'shared-image') } })
+          );
+        }
+      } catch (err) { /* nothing shared or unreadable — still open the app */ }
+      return Response.redirect('./?shared=1#/evidence', 303);
+    })());
+    return;
+  }
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return; // never intercept cross-origin (Supabase later)

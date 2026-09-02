@@ -197,6 +197,8 @@ export async function render(root, ctx) {
   // needs attention
   const attnEl = root.querySelector('#attention-list');
   const attnItems = [];
+  const inboxN = await store.countInbox(caseId);
+  if (inboxN) attnItems.push({ label: `${inboxN} image${inboxN === 1 ? '' : 's'} waiting for a title and person`, go: '#/evidence', before: () => localStorage.setItem('c7-evidence-view', 'inbox') });
   if (claims.length) attnItems.push({ label: `${claims.length} drafted claim${claims.length === 1 ? '' : 's'} awaiting review`, go: '#/review' });
   if (openQuestions.length) attnItems.push({ label: `${openQuestions.length} open question${openQuestions.length === 1 ? '' : 's'}`, go: '#/subject' });
   if (disputed.length) attnItems.push({ label: `${disputed.length} disputed or dead evidence item${disputed.length === 1 ? '' : 's'}`, go: '#/evidence' });
@@ -207,7 +209,7 @@ export async function render(root, ctx) {
       const row = document.createElement('div');
       row.className = 'list-row';
       row.innerHTML = `<div class="main"><div class="title">${item.label}</div></div><span class="chip">→</span>`;
-      row.addEventListener('click', () => ctx.navigate(item.go));
+      row.addEventListener('click', () => { item.before?.(); ctx.navigate(item.go); });
       attnEl.appendChild(row);
     }
   }

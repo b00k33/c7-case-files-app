@@ -329,8 +329,12 @@ export async function softDeleteEvidence(id) {
   logChange('evidence', id, 'delete', {});
 }
 
+// returns the evidence table's own column names, so callers can spread it
+// straight into createEvidence (db.storeAsset speaks camelCase — that
+// mismatch silently dropped file_path on every upload until 2026-09-02)
 export async function storeEvidenceFile(file) {
-  return db.storeAsset(file);
+  const r = await db.storeAsset(file);
+  return { file_path: r.filePath, sha256: r.sha256, bytes: r.bytes, mime: r.mime };
 }
 
 export async function evidenceAssetUrl(filePath) {
@@ -402,6 +406,59 @@ export async function tagTarget(tagId, targetType, targetId) {
 export async function untagTarget(tagId, targetType, targetId) {
   db.run('DELETE FROM tagging WHERE tag_id=? AND target_type=? AND target_id=?', [tagId, targetType, targetId]);
   logChange('tagging', `${tagId}:${targetType}:${targetId}`, 'delete', {});
+}
+
+// ---- the image inbox rides the tag system: 'inbox' marks unsorted
+// evidence, 'purpose:<kind>' records why an image was kept ----
+
+export const INBOX_TAG = 'inbox';
+export const PURPOSES = [
+  { key: 'identifies-person', label: 'identifies a person' },
+  { key: 'date-place', label: 'establishes a date or place' },
+  { key: 'behaviour', label: 'shows behaviour' },
+  { key: 'contradiction', label: 'shows a contradiction' },
+  { key: 'context', label: 'context / background' },
+];
+
+export async function ensureTag(name) {
+  const existing = (await listTags()).find((t) => t.name.toLowerCase() === name.toLowerCase());
+  return existing ? existing.id : createTag(name);
+}
+
+export async function tagEvidence(evidenceId, name) {
+  const id = await ensureTag(name);
+  await tagTarget(id, 'evidence', evidenceId);
+}
+
+export async function untagEvidence(evidenceId, name) {
+  const t = (await listTags()).find((x) => x.name.toLowerCase() === name.toLowerCase());
+  if (t) await untagTarget(t.id, 'evidence', evidenceId);
+}
+
+export async function evidenceTagNames(evidenceId) {
+  return (await listTagsForTarget('evidence', evidenceId)).map((t) => t.name);
+}
+
+export async function listInboxEvidence(caseId) {
+  return db.exec(
+    `SELECT e.* FROM evidence e
+     JOIN tagging tg ON tg.target_type='evidence' AND tg.target_id=e.id
+     JOIN tag t ON t.id=tg.tag_id
+     WHERE t.name=? AND e.case_id=? AND e.deleted_at IS NULL
+     ORDER BY e.created_at DESC`,
+    [INBOX_TAG, caseId]
+  );
+}
+
+export async function countInbox(caseId) {
+  const r = db.exec(
+    `SELECT COUNT(*) AS n FROM evidence e
+     JOIN tagging tg ON tg.target_type='evidence' AND tg.target_id=e.id
+     JOIN tag t ON t.id=tg.tag_id
+     WHERE t.name=? AND e.case_id=? AND e.deleted_at IS NULL`,
+    [INBOX_TAG, caseId]
+  );
+  return r.length ? r[0].n : 0;
 }
 
 export async function listTagsForTarget(targetType, targetId) {

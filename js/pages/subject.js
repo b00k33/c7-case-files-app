@@ -131,6 +131,7 @@ export async function render(root, ctx, personId) {
     return;
   }
   ctx.setTitle(person.display_name);
+  localStorage.setItem('c7-last-subject', person.id); // the image inbox pre-fills this person
 
   const [aliases, addresses, rels, events, links, questions, status] = await Promise.all([
     store.listAliases(person.id),

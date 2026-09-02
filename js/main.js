@@ -123,8 +123,18 @@ const ctx = {
     drawerBackdrop.classList.remove('open');
   },
   store,
+  refreshBadges() { refreshInboxBadge(); },
 };
 drawerBackdrop.addEventListener('click', ctx.closeDrawer);
+
+// "N images waiting" on the Evidence nav item (rail + tab bar)
+async function refreshInboxBadge() {
+  const els = [document.getElementById('inbox-badge-rail'), document.getElementById('inbox-badge-tab')].filter(Boolean);
+  if (!els.length) return;
+  let n = 0;
+  try { n = currentCaseId && db.isReady() ? await store.countInbox(currentCaseId) : 0; } catch (_) { n = 0; }
+  for (const el of els) el.textContent = n ? String(n) : '';
+}
 
 function setNavActive(route) {
   document.querySelectorAll('.nav-link, #tab-bar a').forEach((el) => {
@@ -144,6 +154,7 @@ async function renderRoute() {
   ctx.setTitle(TITLES[key] || 'C7 Case Files');
   // the Fun page saves into its own case — say so honestly (her call
   // 2026-09-01: show "Fun & Zodiac" there rather than hiding the block)
+  refreshInboxBadge();
   if (key === 'fun') {
     document.getElementById('case-context').textContent = 'Fun & Zodiac';
     const railBlock = document.getElementById('case-rail');
@@ -331,6 +342,8 @@ function renderSyncChip(s) {
   syncChip.title = s.error || (sync.currentUser() ? `Signed in as ${sync.currentUser()}` : 'Not signed in — tap to set up sync');
 }
 sync.subscribe(renderSyncChip);
+// after each successful sync, push any queued image copies to the cloud
+sync.subscribe((s) => { if (s.status === 'idle') import('./assets.js').then((m) => m.flushUploads()).catch(() => {}); });
 setInterval(() => renderSyncChip(sync.getState()), 30000); // keep "Xm ago" honest
 
 syncChip.addEventListener('click', () => ctx.openDrawer((body) => renderSyncDrawer(body)));
