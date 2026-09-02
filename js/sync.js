@@ -164,26 +164,20 @@ async function push() {
   }
 }
 
-// first login from the device that already holds the data: queue everything
-// once, so the cloud starts as a copy of the desktop. Runs ONLY when the
-// cloud is empty — a later device pulls instead of re-uploading (and its
-// untouched example case is removed rather than pushed up as a duplicate).
+// First sign-in on any device: queue EVERY local row for upload, once.
+// Upserts are idempotent and per-record last-writer-wins, so re-sending
+// rows the cloud already has is harmless — and it means the order devices
+// sign in can never cause a device's existing data to be skipped (an
+// earlier version only uploaded when the cloud was empty; a phone that
+// created one record first would have silently blocked the desktop's
+// whole upload). The pull that precedes this has already applied anything
+// newer from the cloud. If the cloud already holds data, this device's
+// untouched example case is removed rather than pushed up as a duplicate.
 async function migrateIfFirst() {
   if (metaGet('migration_done')) return;
   const { count, error } = await sb.from('c7_records').select('id', { count: 'exact', head: true });
   if (error) throw error;
-  if (count === 0) {
-    const statements = [];
-    for (const t of SYNC_TABLES) {
-      for (const row of db.exec(`SELECT * FROM ${t}`)) {
-        const id = t === 'tagging' ? `${row.tag_id}:${row.target_type}:${row.target_id}` : row.id;
-        statements.push(['INSERT OR REPLACE INTO c7_outbox (entity, entity_id, queued_at) VALUES (?,?,?)', [t, id, nowISO()]]);
-      }
-    }
-    if (statements.length) db.runMany(statements);
-  } else {
-    // cloud already populated: drop this device's untouched seed case so it
-    // doesn't sit beside the real data as a duplicate
+  if (count > 0) {
     const seed = db.exec("SELECT id FROM case_file WHERE name='Harrow Household' AND deleted_at IS NULL");
     for (const s of seed) {
       if (!hasPendingLocalChange('case_file', s.id)) {
@@ -191,6 +185,14 @@ async function migrateIfFirst() {
       }
     }
   }
+  const statements = [];
+  for (const t of SYNC_TABLES) {
+    for (const row of db.exec(`SELECT * FROM ${t}`)) {
+      const id = t === 'tagging' ? `${row.tag_id}:${row.target_type}:${row.target_id}` : row.id;
+      statements.push(['INSERT OR REPLACE INTO c7_outbox (entity, entity_id, queued_at) VALUES (?,?,?)', [t, id, nowISO()]]);
+    }
+  }
+  if (statements.length) db.runMany(statements);
   metaSet('migration_done', '1');
 }
 
