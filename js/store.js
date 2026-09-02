@@ -601,7 +601,13 @@ async function applyClaim(claim) {
     return;
   }
   if (claim.field === 'person') {
-    await createPerson({ ...value, case_id: claim.case_id });
+    const { spouse_of, ...fields } = value;
+    const created = await createPerson({ ...fields, case_id: claim.case_id });
+    // a looked-up spouse also becomes a spouse relationship, unconfirmed,
+    // so the person's marital status reads from the map straight away
+    if (spouse_of && created && created.id) {
+      await upsertRelationship({ case_id: claim.case_id, a_id: spouse_of, b_id: created.id, kind: 'spouse', confidence: 50, confirmed: 0, notes: claim.rationale || null });
+    }
     return;
   }
   throw new Error(`don't know how to apply claim field "${claim.field}"`);

@@ -129,20 +129,36 @@ export async function savePhotoFromUrl(store, personId, url) {
 export async function draftFromLookup(store, caseId, personId, facts) {
   const drafted = [];
   const cite = (prop) => `Source: Wikidata ${facts.wikidataUrl} (${prop})${facts.wikiUrl ? ` · Wikipedia ${facts.wikiUrl}` : ''}`;
-  const claim = (field, value, prop) => store.createClaim({ case_id: caseId, target_type: 'person', target_id: personId, field, value, origin: 'lookup', rationale: cite(prop) })
-    .then(() => drafted.push(field));
+  // running the lookup twice must not draft everything twice (2026-09-02:
+  // Dolly arrived with 14 claims for 7 facts) — an identical drafted
+  // claim already in the queue is left alone
+  const existing = await store.listClaims(caseId, 'drafted');
+  const already = (targetType, targetId, field, value) => existing.some((c) => c.target_type === targetType && c.target_id === targetId && c.field === field && c.value === JSON.stringify(value));
+  const claim = async (field, value, prop) => {
+    if (already('person', personId, field, value)) return;
+    await store.createClaim({ case_id: caseId, target_type: 'person', target_id: personId, field, value, origin: 'lookup', rationale: cite(prop) });
+    drafted.push(field);
+  };
 
   // the citation exists even before anything is accepted
   const sources = await store.listSources();
   let src = sources.find((s) => s.name === 'Wikipedia');
   if (!src) src = await store.createSource({ name: 'Wikipedia', kind: 'secondary', agenda_note: 'Crowd-edited encyclopaedia; check the article\'s own citations for anything contested.' });
-  const ev = await store.createEvidence({
-    case_id: caseId, type: 'document', title: `Wikipedia: ${facts.label}`, source_id: src.id,
-    original_url: facts.wikiUrl || facts.wikidataUrl, verification: 'single',
-    notes: [facts.description, facts.summary].filter(Boolean).join('\n\n') || null,
-    dated: new Date().toISOString().slice(0, 10),
-  });
-  await store.linkEvidence({ evidence_id: ev.id, target_type: 'person', target_id: personId, note: 'from lookup' });
+  // one Wikipedia item per article per case — a second lookup reuses it
+  const url = facts.wikiUrl || facts.wikidataUrl;
+  let ev = (await store.listEvidence(caseId)).find((e) => !e.deleted_at && e.original_url === url && /^Wikipedia:/.test(e.title || ''));
+  if (!ev) {
+    ev = await store.createEvidence({
+      case_id: caseId, type: 'document', title: `Wikipedia: ${facts.label}`, source_id: src.id,
+      original_url: url, verification: 'single',
+      notes: [facts.description, facts.summary].filter(Boolean).join('\n\n') || null,
+      dated: new Date().toISOString().slice(0, 10),
+    });
+  }
+  const links = await store.listLinksForTarget('person', personId);
+  if (!links.some((l) => l.evidence_id === ev.id)) {
+    await store.linkEvidence({ evidence_id: ev.id, target_type: 'person', target_id: personId, note: 'from lookup' });
+  }
 
   // the article's picture: an identification aid, not a fact, so it's saved
   // directly — fetched once, stored as an asset (syncs, works offline), with
@@ -156,9 +172,11 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   if (facts.gender) await claim('gender', facts.gender.charAt(0).toUpperCase() + facts.gender.slice(1), P.gender);
   if (facts.occupations.length) await claim('occupation', facts.occupations.join(', '), P.occupation);
   for (const sp of facts.spouses) {
-    // a spouse arrives as a new person to accept; the relationship is one
-    // step away on the Relations map once both exist
-    await store.createClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'person', value: { display_name: sp.name, notes: `Spouse of ${facts.label} per Wikidata ${facts.wikidataUrl} (P26)` }, origin: 'lookup', rationale: cite(P.spouse) });
+    // a spouse arrives as a new person to accept; accepting also draws the
+    // spouse relationship (spouse_of), so marital status reads from the map
+    const value = { display_name: sp.name, notes: `Spouse of ${facts.label} per Wikidata ${facts.wikidataUrl} (P26)`, spouse_of: personId };
+    if (already('case', caseId, 'person', value)) continue;
+    await store.createClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'person', value, origin: 'lookup', rationale: cite(P.spouse) });
     drafted.push('spouse');
   }
   return { drafted, evidenceId: ev.id };
