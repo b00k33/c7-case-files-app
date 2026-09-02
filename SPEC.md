@@ -442,6 +442,13 @@ changed is where the app lives and how devices share it.
 - **Migration:** the first sign-in against an empty cloud uploads the whole
   local database once. Later devices pull instead, and an untouched
   example case is removed rather than duplicated.
+- **Third-party lookups (her rule change, 2026-09-02):** the app may make
+  read-only, user-triggered requests to Wikidata and Wikipedia (public APIs,
+  no key; nothing sent but the searched name). Results never touch a record
+  directly — each fact becomes a drafted claim in Review citing its Wikidata
+  property, and one Wikipedia evidence item is linked to the person so the
+  citation exists before anything is accepted (`js/lookup.js`). No other
+  third party; no automatic lookups.
 - **The launcher (`start.bat` / `start.command`) is legacy.** The
   localhost copy edits the same folder as the live app from a separate
   origin — the two-live-masters trap — so it shows a steering notice to

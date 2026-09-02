@@ -1,4 +1,6 @@
 import { emptyState } from '../indicators.js';
+import { inlineNote, clearInlineNote } from '../ui.js';
+import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
 
 let activeTab = 'describe';
 
@@ -225,10 +227,7 @@ export async function render(root, ctx) {
 
   const body = root.querySelector('#tab-body');
   if (activeTab === 'lookup') {
-    body.appendChild(emptyState({
-      missing: 'No live record lookup.',
-      why: 'This app makes no network calls, by design — nothing here reaches the internet. Paste what you found elsewhere instead, using the "Paste text" tab.',
-    }));
+    renderLookupTab(body, ctx, people);
   } else if (activeTab === 'paste') {
     renderPasteTab(body, ctx, people);
   } else {
@@ -321,6 +320,66 @@ function renderClaimForm(body, ctx, people, origin) {
 }
 
 const RELATIONSHIP_KINDS = ['parent', 'spouse', 'sibling', 'business', 'associate', 'household'];
+
+// Wikipedia / Wikidata lookup for an existing person (her rule change,
+// 2026-09-02): public figures and historical people. Facts arrive drafted.
+function renderLookupTab(body, ctx, people) {
+  const { store } = ctx;
+  body.innerHTML = `
+    <div class="field">
+      <label>Whose record?</label>
+      ${people.length
+        ? `<select id="lk-person">${people.map((p) => `<option value="${p.id}">${p.display_name}</option>`).join('')}</select>`
+        : '<div class="empty-state" style="padding:16px"><p class="empty-missing" style="margin:0">No people in this case yet.</p><p class="empty-why" style="margin:4px 0 0">Add the person first (Relations map or the Paste tab), then look them up here.</p></div>'}
+    </div>
+    <div class="field">
+      <label>Search Wikidata / Wikipedia by name</label>
+      <div class="row" style="gap:8px">
+        <input type="text" id="lk-name" style="flex:1" placeholder="Public figures and historical people">
+        <button class="btn btn-ghost btn-sm" id="lk-search" ${people.length ? '' : 'disabled'}>Look up</button>
+      </div>
+    </div>
+    <p style="color:var(--text-3);font-size:11px">Read-only public lookup — nothing is sent but the name. Every fact lands in Review as a drafted claim citing its Wikidata property; a Wikipedia evidence item is linked to the person.</p>
+    <div id="lk-results" class="stack" style="gap:4px"></div>
+  `;
+  const personSel = body.querySelector('#lk-person');
+  const nameInput = body.querySelector('#lk-name');
+  if (personSel) {
+    nameInput.value = people[0].display_name;
+    personSel.addEventListener('change', () => { nameInput.value = people.find((p) => p.id === personSel.value)?.display_name || ''; });
+  }
+  body.querySelector('#lk-search').addEventListener('click', async () => {
+    const btn = body.querySelector('#lk-search');
+    const resultsEl = body.querySelector('#lk-results');
+    clearInlineNote(btn);
+    resultsEl.innerHTML = '';
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(nameInput.value); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = 'Look up';
+    if (!matches.length) { if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person.'); return; }
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Use this ▸</span>`;
+      row.addEventListener('click', async () => {
+        resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Fetching facts and their sources…</div>';
+        try {
+          const facts = await fetchProfile(m.id);
+          const personId = personSel.value;
+          const { drafted } = await draftFromLookup(store, ctx.caseId, personId, facts);
+          const who = people.find((p) => p.id === personId)?.display_name || 'the person';
+          resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${drafted.length} fact${drafted.length === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}) and a Wikipedia evidence item linked to ${who}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
+          render(document.getElementById('page-root'), ctx);
+        } catch (e) {
+          resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
+        }
+      });
+      resultsEl.appendChild(row);
+    }
+  });
+}
 
 function renderPasteTab(body, ctx, people) {
   const personOpts = people.map((p) => `<option value="${p.id}">${p.display_name}</option>`).join('');

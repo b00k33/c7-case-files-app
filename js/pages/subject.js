@@ -5,6 +5,7 @@ import { relation } from '../relations.js';
 import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
+import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 
 function fmtLongDate(iso) {
@@ -200,6 +201,14 @@ export async function render(root, ctx, personId) {
           <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
         </div>
         <div id="pi-result"></div>
+        <div class="field" style="margin-top:16px">
+          <label>Look up on Wikipedia — public figures and historical people</label>
+          <div class="row" style="gap:8px">
+            <input type="text" id="lk-name" value="${person.display_name.replace(/"/g, '&quot;')}" style="flex:1">
+            <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>
+          </div>
+        </div>
+        <div id="lk-results" class="stack" style="gap:4px"></div>
       </div>
 
       <div class="panel">
@@ -305,6 +314,40 @@ export async function render(root, ctx, personId) {
     sessionStorage.setItem('c7-pi-result', `Saved — ${saved}.${skipped}`);
     render(root, ctx, personId);
   });
+  // ---- Wikipedia / Wikidata lookup: search, pick, draft through Review ----
+  root.querySelector('#lk-search').addEventListener('click', async () => {
+    const btn = root.querySelector('#lk-search');
+    const resultsEl = root.querySelector('#lk-results');
+    clearInlineNote(btn);
+    resultsEl.innerHTML = '';
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(root.querySelector('#lk-name').value); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = 'Look up';
+    if (!matches.length) {
+      if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person, which is fine; the paste box above still works.');
+      return;
+    }
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Use this ▸</span>`;
+      row.addEventListener('click', async () => {
+        resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Fetching facts and their sources…</div>';
+        try {
+          const facts = await fetchProfile(m.id);
+          const { drafted } = await draftFromLookup(store, ctx.caseId, person.id, facts);
+          const n = drafted.length;
+          resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}), each citing Wikidata` : 'Nothing draftable on that record'} — and a Wikipedia evidence item is now linked to ${person.display_name}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
+        } catch (e) {
+          resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
+        }
+      });
+      resultsEl.appendChild(row);
+    }
+  });
+
   const lastResult = sessionStorage.getItem('c7-pi-result');
   if (lastResult) {
     sessionStorage.removeItem('c7-pi-result');

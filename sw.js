@@ -5,7 +5,7 @@
 // PUSH LAW (learned the hard way on Book33): bump CACHE_VERSION on EVERY
 // push to the deploy repo, or installed phones keep running the old code
 // silently. The version string is the whole update mechanism.
-const CACHE_VERSION = 'c7-v13';
+const CACHE_VERSION = 'c7-v14';
 
 const SHELL = [
   './',
@@ -23,6 +23,7 @@ const SHELL = [
   'js/pages/contradictions.js',
   'js/assets.js',
   'js/profile-parse.js',
+  'js/lookup.js',
   'js/schema.sql',
   'js/numerology.js',
   'js/chinese.js',
