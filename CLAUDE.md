@@ -103,6 +103,15 @@ working toward the answer she just walked back.
   invisible fixes (bugs, behind-the-scenes correctness) ship directly;
   ANYTHING visible — new elements, moved elements, colours, even small
   tweaks like a pre-filled date — gets questions + a mock first.
+- **2026-09-02 audit picks (her taste, apply forward unasked):** internal
+  codes never reach the screen (verification chips say "2+ sources", not
+  "two_plus"; activity says "Added a question: …", not "insert · question");
+  a name is said once per screen (topbar title, not repeated in a panel
+  heading); numbers read as numbers with the arithmetic behind a "show
+  working" disclosure; on the phone, chrome compresses before data — one
+  status dot instead of chips, a one-row stat strip so real content reaches
+  the first screen; a label repeated on every row ("confidence" ×4) is
+  removed, the visual carries it.
 - **2026-09-01 — case switching lands on the Dashboard.** Switching case
   from any switcher goes to that case's Dashboard (its "front door"),
   not a re-render of the current page.
