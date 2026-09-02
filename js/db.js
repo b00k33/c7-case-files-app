@@ -258,6 +258,7 @@ const ADDED_COLUMNS = [
   ['person', 'gender', 'TEXT'],
   ['person', 'nationality', 'TEXT'],
   ['person', 'marital_status', 'TEXT'],
+  ['video_moment', 'file_path', 'TEXT'], // a picture of the moment (2026-09-02)
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

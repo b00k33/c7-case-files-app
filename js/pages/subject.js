@@ -202,7 +202,7 @@ export async function render(root, ctx, personId) {
         </div>
         <div id="pi-result"></div>
         <div class="field" style="margin-top:16px">
-          <label>Look up on Wikipedia — public figures and historical people</label>
+          <label>Look up</label>
           <div class="row" style="gap:8px">
             <input type="text" id="lk-name" value="${person.display_name.replace(/"/g, '&quot;')}" style="flex:1">
             <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>

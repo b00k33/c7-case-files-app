@@ -2,6 +2,26 @@ import { emptyState, verificationLabel } from '../indicators.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { INBOX_TAG, PURPOSES } from '../store.js';
+import { youtubeThumb } from '../media.js';
+
+// the picture on an evidence card: an attached image, else the first moment
+// picture, else YouTube's thumbnail for a linked video, else nothing
+async function cardPicture(store, it) {
+  if (it.file_path && /^image\//.test(it.mime || '')) {
+    const u = await resolveAssetUrl(it.file_path, it.mime);
+    if (u) return u;
+  }
+  if (it.type === 'video') {
+    const moments = await store.listVideoMoments(it.id);
+    const withPic = moments.find((m) => m.file_path);
+    if (withPic) {
+      const u = await resolveAssetUrl(withPic.file_path, 'image/jpeg');
+      if (u) return u;
+    }
+    return youtubeThumb(it.original_url);
+  }
+  return null;
+}
 
 const TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
 const VERIFICATIONS = ['two_plus', 'single', 'disputed', 'dead_link', 'drafted'];
@@ -362,6 +382,7 @@ function renderGrid(el, ctx, items) {
     card.className = 'card';
     card.style.cursor = 'pointer';
     card.innerHTML = `
+      <div class="card-thumb"></div>
       <div class="mono" style="font-size:10px;color:var(--text-3);text-transform:uppercase">${it.type}</div>
       <div style="margin:6px 0 2px">${it.title}</div>
       ${it.source_name ? `<div class="mono" style="font-size:10px;color:var(--text-3);margin-bottom:6px">${it.source_name}</div>` : '<div style="margin-bottom:6px"></div>'}
@@ -372,6 +393,14 @@ function renderGrid(el, ctx, items) {
     `;
     card.addEventListener('click', () => ctx.openDrawer((body) => renderDetail(body, ctx, it.id)));
     el.appendChild(card);
+    cardPicture(ctx.store, it).then((src) => {
+      if (!src) return;
+      const img = document.createElement('img');
+      img.alt = ''; img.loading = 'lazy'; img.src = src;
+      const slot = card.querySelector('.card-thumb');
+      img.addEventListener('load', () => slot.classList.add('has'));
+      slot.appendChild(img);
+    });
   }
 }
 

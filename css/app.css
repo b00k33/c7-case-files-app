@@ -411,6 +411,21 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .review-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); flex-wrap: wrap; }
 .kbd { font-family: var(--font-mono); background: var(--ink-3); border-radius: var(--r-sm); padding: 1px 5px; font-size: 11px; color: var(--text-2); }
 
+/* ------------------------------------------------ media pictures */
+.card-thumb { height: 110px; margin: calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)) var(--sp-3); background: var(--ink-2); border-radius: var(--r-lg) var(--r-lg) 0 0; overflow: hidden; display: none; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-thumb.has { display: block; }
+.video-frame .yt-thumb { position: relative; width: 100%; height: 100%; display: block; }
+.video-frame .yt-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--r-lg); display: block; }
+.video-frame .yt-thumb .open { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--ink-0); color: var(--brass); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); font-size: 12px; text-decoration: none; }
+.pic-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--sp-2); }
+.pic-gallery .pic { position: relative; background: var(--ink-2); border-radius: var(--r-sm); overflow: hidden; aspect-ratio: 16 / 10; cursor: pointer; }
+.pic-gallery .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pic-gallery .pic .t { position: absolute; left: 4px; bottom: 4px; background: var(--ink-0); color: var(--brass); font-family: var(--font-mono); font-size: 10px; padding: 1px 6px; border-radius: var(--r-sm); }
+.moment-row .m-pic { width: 44px; height: 30px; object-fit: cover; border-radius: var(--r-sm); margin-right: var(--sp-2); flex: 0 0 auto; }
+.moment-row .m-addpic { font-size: 10px; color: var(--text-3); cursor: pointer; margin-left: auto; white-space: nowrap; }
+.moment-row .m-addpic:hover { color: var(--brass); }
+
 /* ---------------------------------------------------- profile basics */
 .basics-strip { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-2); font-size: 12px; color: var(--text-2); align-items: center; }
 .basics-strip .sep { color: var(--line); }

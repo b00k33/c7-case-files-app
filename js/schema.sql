@@ -102,12 +102,14 @@ CREATE TABLE evidence (
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
 
+-- file_path: an optional picture of the moment (a screenshot), stored like any asset
 CREATE TABLE video_moment (
   id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
   evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
   t_ms INTEGER NOT NULL,
   label TEXT, note TEXT, quote TEXT,
-  conflicts INTEGER DEFAULT 0
+  conflicts INTEGER DEFAULT 0,
+  file_path TEXT
 );
 
 CREATE TABLE evidence_link (

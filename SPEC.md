@@ -447,8 +447,10 @@ changed is where the app lives and how devices share it.
   no key; nothing sent but the searched name). Results never touch a record
   directly — each fact becomes a drafted claim in Review citing its Wikidata
   property, and one Wikipedia evidence item is linked to the person so the
-  citation exists before anything is accepted (`js/lookup.js`). No other
-  third party; no automatic lookups.
+  citation exists before anything is accepted (`js/lookup.js`). The only
+  other third-party load is a YouTube thumbnail image for a linked video
+  (`js/media.js`; an `<img>` from YouTube's image host, video id only,
+  placeholder when offline). Nothing else; no automatic lookups.
 - **The launcher (`start.bat` / `start.command`) is legacy.** The
   localhost copy edits the same folder as the live app from a separate
   origin — the two-live-masters trap — so it shows a steering notice to
