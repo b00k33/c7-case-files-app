@@ -35,13 +35,14 @@ export function twoTapConfirm(btn, { confirmLabel = 'Really? Tap again', onConfi
  * Enter submits, Escape cancels, ✕ cancels. Empty input refuses quietly
  * (keeps focus) rather than submitting nothing.
  */
-export function inlineNameForm({ label, placeholder = '', value = '', submitLabel = 'Create', onSubmit, onCancel }) {
+export function inlineNameForm({ label, placeholder = '', value = '', submitLabel = 'Create', choices = null, onSubmit, onCancel }) {
   const wrap = document.createElement('div');
   wrap.className = 'inline-form';
   wrap.innerHTML = `
     ${label ? `<label class="inline-form-label">${label}</label>` : ''}
-    <div class="row" style="gap:8px">
-      <input type="text" style="flex:1">
+    <div class="row wrap" style="gap:8px">
+      <input type="text" style="flex:1 1 160px;min-width:0">
+      ${choices ? `<select class="if-choice">${choices.map((c) => `<option value="${c.value}">${c.label}</option>`).join('')}</select>` : ''}
       <button type="button" class="btn btn-primary btn-sm if-submit">${submitLabel}</button>
       <button type="button" class="btn btn-ghost btn-sm if-cancel" title="Cancel">✕</button>
     </div>
@@ -53,7 +54,7 @@ export function inlineNameForm({ label, placeholder = '', value = '', submitLabe
   const submit = async () => {
     const v = input.value.trim();
     if (!v) { input.focus(); return; }
-    await onSubmit(v);
+    await onSubmit(v, wrap.querySelector('.if-choice')?.value);
   };
   wrap.querySelector('.if-submit').addEventListener('click', submit);
   wrap.querySelector('.if-cancel').addEventListener('click', cancel);

@@ -71,14 +71,15 @@ document.getElementById('case-rail-select')?.addEventListener('change', async (e
       const sel = e.target;
       sel.style.display = 'none';
       const form = inlineNameForm({
-        placeholder: 'Name this case file…',
+        placeholder: 'Who or what is this case about?',
         submitLabel: 'Create',
-        onSubmit: async (name) => {
-          const kase = await store.createCase({ name, kind: 'research' });
-          await ctx.setCaseId(kase.id);
+        choices: [{ value: 'person', label: 'A person' }, { value: 'family', label: 'A family / household' }],
+        onSubmit: async (name, kind) => {
+          const { createCaseOfKind } = await import('./pages/dashboard.js');
           form.remove();
           sel.style.display = '';
-          landOnDashboard();
+          await createCaseOfKind(store, ctx, name, kind); // navigates: person file, or the family's dashboard
+          refreshCaseContext();
         },
         onCancel: () => { sel.style.display = ''; refreshCaseContext(); },
       });
@@ -413,6 +414,7 @@ function appendBackupButton(body) {
     <div class="section-label" style="margin-bottom:8px">Backup</div>
     <button class="btn btn-ghost btn-sm" id="sy-backup">Download backup (.db)</button>
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
+    <p class="mono" style="color:var(--text-3);font-size:11px;margin:16px 0 0">App version ${window.C7_VERSION || 'unknown'}</p>
   `;
   // permanent fallback for the install strip (which can be dismissed)
   if (!isStandalone() && (installPrompt || isIOS())) {

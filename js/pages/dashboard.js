@@ -13,6 +13,27 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+// what a case is about (her call, 2026-09-02): a person, or a family
+export const CASE_KINDS = [
+  { value: 'person', label: 'A person' },
+  { value: 'family', label: 'A family / household' },
+];
+export const CASE_KIND_LABEL = { person: 'person', family: 'family', research: 'research', history: 'history', fun: 'fun' };
+
+// creating a person-case also creates the person, so their file (and Look
+// up) exists immediately — no empty case, no extra step
+export async function createCaseOfKind(store, ctx, name, kind) {
+  const kase = await store.createCase({ name, kind: kind || 'person' });
+  await ctx.setCaseId(kase.id);
+  if ((kind || 'person') === 'person') {
+    const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
+    ctx.navigate(`#/subject/${p.id}`);
+  } else {
+    ctx.navigate('#/dashboard');
+  }
+  return kase;
+}
+
 const ENTITY_NOUN = {
   case_file: 'a case file', person: 'a person', person_alias: 'an alias', address: 'an address',
   relationship: 'a relationship', event: 'an event', source: 'a source', evidence: 'evidence',
@@ -55,12 +76,11 @@ export async function render(root, ctx) {
       onAction: () => {
         if (empty.querySelector('.inline-form')) return; // already open
         empty.appendChild(inlineNameForm({
-          placeholder: 'Name this case file…',
-          onSubmit: async (name) => {
-            const kase = await store.createCase({ name, kind: 'research' });
-            await ctx.setCaseId(kase.id);
-            ctx.navigate('#/dashboard');
-            render(root, ctx);
+          placeholder: 'Who or what is this case about?',
+          choices: CASE_KINDS,
+          onSubmit: async (name, kind) => {
+            await createCaseOfKind(store, ctx, name, kind);
+            if (location.hash === '#/dashboard') render(root, ctx);
           },
         }));
       },
@@ -141,7 +161,7 @@ export async function render(root, ctx) {
     row.className = 'list-row';
     if (c.id === caseId) row.style.background = 'var(--ink-2)';
     row.innerHTML = `
-      <div class="main"><div class="title">${c.name}${c.id === caseId ? ' <span class="chip brass">current</span>' : ''}</div><div class="sub mono">${c.kind}${c.era_start ? ` · ${c.era_start}–${c.era_end || '…'}` : ''}</div></div>
+      <div class="main"><div class="title">${c.name}${c.id === caseId ? ' <span class="chip brass">current</span>' : ''}</div><div class="sub mono">${CASE_KIND_LABEL[c.kind] || c.kind}${c.era_start ? ` · ${c.era_start}–${c.era_end || '…'}` : ''}</div></div>
       <button class="btn btn-ghost btn-sm import-case-btn" title="Open this case and go straight to Import">Import</button>
       <button class="btn btn-ghost btn-sm delete-case-btn" title="Delete this case (recoverable for 30 days)">Delete</button>
     `;
@@ -169,11 +189,11 @@ export async function render(root, ctx) {
     const panel = caseListEl.parentElement;
     if (panel.querySelector('.inline-form')) return; // already open
     caseListEl.before(inlineNameForm({
-      placeholder: 'Name this case file…',
-      onSubmit: async (name) => {
-        const kase2 = await store.createCase({ name, kind: 'research' });
-        await ctx.setCaseId(kase2.id);
-        render(root, ctx);
+      placeholder: 'Who or what is this case about?',
+      choices: CASE_KINDS,
+      onSubmit: async (name, kind) => {
+        await createCaseOfKind(store, ctx, name, kind);
+        if (location.hash === '#/dashboard') render(root, ctx);
       },
     }));
   });
@@ -200,14 +220,18 @@ export async function render(root, ctx) {
   // her cases are named after the person; a case with nobody in it has no
   // page to look anyone up from — offer the obvious first step, pre-filled
   if (!people.length) {
-    attnItems.push({
-      label: `No one in this case yet — add “${kase.name}” as a person`,
-      go: null,
-      before: async () => {
-        const p = await store.createPerson({ case_id: caseId, display_name: kase.name, kind: 'person' });
-        ctx.navigate(`#/subject/${p.id}`);
-      },
-    });
+    if (kase.kind === 'family') {
+      attnItems.push({ label: 'No family members yet — add the first person', go: '#/relations' });
+    } else {
+      attnItems.push({
+        label: `No one in this case yet — add “${kase.name}” as a person`,
+        go: null,
+        before: async () => {
+          const p = await store.createPerson({ case_id: caseId, display_name: kase.name, kind: 'person' });
+          ctx.navigate(`#/subject/${p.id}`);
+        },
+      });
+    }
   }
   const inboxN = await store.countInbox(caseId);
   if (inboxN) attnItems.push({ label: `${inboxN} image${inboxN === 1 ? '' : 's'} waiting for a title and person`, go: '#/evidence', before: () => localStorage.setItem('c7-evidence-view', 'inbox') });

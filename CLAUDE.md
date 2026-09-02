@@ -9,8 +9,9 @@ the truth about how design/UX work on it gets *done*.
 
 The live app is GitHub Pages at b00k33/c7-case-files-app (public deploy
 repo; push with `git push deploy main`). The private c7-case-files repo
-stays the backup — push BOTH every time. **Bump `CACHE_VERSION` in sw.js on
-EVERY deploy push** — an unbumped version means installed phones silently
+stays the backup — push BOTH every time. **Bump `C7_VERSION` in js/version.js
+on EVERY deploy push** (sw.js reads it as the cache name; the sync drawer
+shows it as "App version") — an unbumped version means installed phones silently
 keep running the old code (the exact failure that ate days of Book33
 reviews). Updates surface as a tap-to-reload chip; never reintroduce
 auto-reload.
