@@ -33,6 +33,7 @@ CREATE TABLE person (
   death_date TEXT, death_precision TEXT DEFAULT 'unknown',
   gender TEXT, nationality TEXT,           -- profile basics (2026-09-02), free text
   marital_status TEXT,                     -- override only; normally derived from spouse relationships
+  photo_path TEXT, photo_url TEXT,         -- profile picture: stored asset + where it came from
   occupation TEXT, status TEXT DEFAULT 'active',    -- active|watch|cold|archived
   notes TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT

@@ -426,6 +426,15 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .moment-row .m-addpic { font-size: 10px; color: var(--text-3); cursor: pointer; margin-left: auto; white-space: nowrap; }
 .moment-row .m-addpic:hover { color: var(--brass); }
 
+/* ------------------------------------------------ profile picture */
+.avatar { width: 72px; height: 72px; border-radius: var(--r-lg); background: var(--ink-2); overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar .initials { font-family: var(--font-title); font-size: 24px; color: var(--brass); }
+.avatar .hint { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; text-align: center; color: var(--text-3); background: var(--ink-0); padding: 2px 0; opacity: 0; transition: opacity .12s; }
+.avatar:hover .hint { opacity: 1; }
+.subject-head { display: flex; gap: var(--sp-4); align-items: flex-start; }
+.subject-head > .stack { flex: 1; min-width: 0; }
+
 /* ---------------------------------------------------- profile basics */
 .basics-strip { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-2); font-size: 12px; color: var(--text-2); align-items: center; }
 .basics-strip .sep { color: var(--line); }

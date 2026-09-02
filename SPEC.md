@@ -447,8 +447,11 @@ changed is where the app lives and how devices share it.
   no key; nothing sent but the searched name). Results never touch a record
   directly — each fact becomes a drafted claim in Review citing its Wikidata
   property, and one Wikipedia evidence item is linked to the person so the
-  citation exists before anything is accepted (`js/lookup.js`). The only
-  other third-party load is a YouTube thumbnail image for a linked video
+  citation exists before anything is accepted (`js/lookup.js`). The
+  article's lead picture is fetched once from Wikimedia and stored as the
+  person's profile picture (`person.photo_path`, origin kept in
+  `photo_url`) — an identification aid, saved directly, replaceable by her
+  own upload. The only other third-party load is a YouTube thumbnail image for a linked video
   (`js/media.js`; an `<img>` from YouTube's image host, video id only,
   placeholder when offline). Nothing else; no automatic lookups.
 - **The launcher (`start.bat` / `start.command`) is legacy.** The

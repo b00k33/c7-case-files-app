@@ -6,6 +6,7 @@ import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, c
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
+import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 
 function fmtLongDate(iso) {
@@ -177,16 +178,24 @@ export async function render(root, ctx, personId) {
   root.innerHTML = `
     <div class="stack">
       <div class="panel">
-        <div class="row between">
-          <div class="mono" style="color:var(--text-3);font-size:11px">
-            ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip">${person.status}</span>
-            ${person.occupation ? ` · <span style="color:var(--text-2)">${person.occupation}</span>` : ''}
+        <div class="subject-head">
+          <div class="avatar" id="avatar" title="${person.photo_path || person.photo_url ? 'Change picture' : 'Add a picture'}">
+            <span class="initials">${person.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
+            <span class="hint">${person.photo_path || person.photo_url ? 'change' : '+ picture'}</span>
           </div>
-          <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
+          <div class="stack" style="gap:0">
+            <div class="row between">
+              <div class="mono" style="color:var(--text-3);font-size:11px">
+                ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip">${person.status}</span>
+                ${person.occupation ? ` · <span style="color:var(--text-2)">${person.occupation}</span>` : ''}
+              </div>
+              <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
+            </div>
+            <div class="basics-strip" id="basics-strip"></div>
+            ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
+            ${person.notes ? `<p style="margin-top:8px;color:var(--text-3);font-size:12px">${person.notes}</p>` : ''}
+          </div>
         </div>
-        <div class="basics-strip" id="basics-strip"></div>
-        ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
-        ${person.notes ? `<p style="margin-top:8px;color:var(--text-3);font-size:12px">${person.notes}</p>` : ''}
       </div>
 
       <div class="panel">
@@ -254,6 +263,33 @@ export async function render(root, ctx, personId) {
   `;
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
+
+  // profile picture: stored asset first, remote Wikipedia URL as fallback; tap to replace
+  const avatar = root.querySelector('#avatar');
+  const showPhoto = (src) => {
+    if (!src) return;
+    const img = document.createElement('img');
+    img.alt = ''; img.src = src;
+    img.addEventListener('load', () => { avatar.querySelector('.initials')?.remove(); });
+    img.addEventListener('error', () => img.remove());
+    avatar.prepend(img);
+  };
+  if (person.photo_path) resolveAssetUrl(person.photo_path, 'image/jpeg').then((u) => showPhoto(u || person.photo_url));
+  else if (person.photo_url) showPhoto(person.photo_url);
+  avatar.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.addEventListener('change', async () => {
+      const f = input.files[0];
+      if (!f) return;
+      const meta = await store.storeEvidenceFile(await compressImage(f));
+      await store.updatePerson(person.id, { photo_path: meta.file_path, photo_url: null });
+      queueUpload(meta.file_path, meta.mime);
+      flushUploads();
+      render(root, ctx, personId);
+    });
+    input.click();
+  });
 
   const openEdit = () => ctx.openDrawer((body) => renderEditForm(body, ctx, person));
   root.querySelector('#edit-person-btn').addEventListener('click', openEdit);
@@ -339,7 +375,8 @@ export async function render(root, ctx, personId) {
           const facts = await fetchProfile(m.id);
           const { drafted } = await draftFromLookup(store, ctx.caseId, person.id, facts);
           const n = drafted.length;
-          resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}), each citing Wikidata` : 'Nothing draftable on that record'} — and a Wikipedia evidence item is now linked to ${person.display_name}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
+          resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}), each citing Wikidata` : 'Nothing draftable on that record'} — a Wikipedia evidence item is linked to ${person.display_name}${facts.photoUrl ? ', and their picture is saved' : ''}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
+          if (facts.photoUrl) setTimeout(() => render(root, ctx, personId), 1200); // show the new picture
         } catch (e) {
           resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
         }

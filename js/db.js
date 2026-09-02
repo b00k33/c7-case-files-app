@@ -259,6 +259,8 @@ const ADDED_COLUMNS = [
   ['person', 'nationality', 'TEXT'],
   ['person', 'marital_status', 'TEXT'],
   ['video_moment', 'file_path', 'TEXT'], // a picture of the moment (2026-09-02)
+  ['person', 'photo_path', 'TEXT'],      // profile picture as a stored asset (2026-09-02)
+  ['person', 'photo_url', 'TEXT'],       // where it came from (Wikipedia) or a remote fallback
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

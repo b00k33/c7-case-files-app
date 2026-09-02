@@ -74,12 +74,15 @@ export async function fetchProfile(qid) {
   const L = (id) => (id ? labels[id] || id : null);
 
   const wikiTitle = ent.sitelinks && ent.sitelinks.enwiki ? ent.sitelinks.enwiki.title : null;
-  let summary = null, wikiUrl = null;
+  let summary = null, wikiUrl = null, photoUrl = null;
   if (wikiTitle) {
     try {
       const s = await getJSON(WP_SUMMARY + encodeURIComponent(wikiTitle));
       summary = s.extract || null;
       wikiUrl = (s.content_urls && s.content_urls.desktop && s.content_urls.desktop.page) || `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`;
+      // the article's lead image, at a sensible size (Wikimedia serves it with CORS)
+      const src = (s.originalimage && s.originalimage.source) || (s.thumbnail && s.thumbnail.source) || null;
+      photoUrl = src ? src.replace(/\/(\d+)px-/, '/640px-') : null;
     } catch (_) { wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`; }
   }
 
@@ -88,7 +91,7 @@ export async function fetchProfile(qid) {
     label: ent.labels && ent.labels.en ? ent.labels.en.value : qid,
     description: ent.descriptions && ent.descriptions.en ? ent.descriptions.en.value : '',
     wikidataUrl: `https://www.wikidata.org/wiki/${qid}`,
-    wikiUrl, summary,
+    wikiUrl, summary, photoUrl,
     birth: parseWdTime(values(claims, P.birth)[0]),
     death: parseWdTime(values(claims, P.death)[0]),
     birthPlace: L(birthPlaceId),
@@ -97,6 +100,26 @@ export async function fetchProfile(qid) {
     spouses: spouseIds.map((id) => ({ qid: id, name: L(id) })),
     occupations: occupationIds.map(L),
   };
+}
+
+/** Download a remote picture into the asset store and set it as the person's photo. */
+export async function savePhotoFromUrl(store, personId, url) {
+  if (!url) return false;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(String(res.status));
+    const blob = await res.blob();
+    const { compressImage, queueUpload, flushUploads } = await import('./assets.js');
+    const file = await compressImage(new File([blob], 'wikipedia.jpg', { type: blob.type || 'image/jpeg' }));
+    const meta = await store.storeEvidenceFile(file);
+    await store.updatePerson(personId, { photo_path: meta.file_path, photo_url: url });
+    queueUpload(meta.file_path, meta.mime);
+    flushUploads();
+    return true;
+  } catch (_) {
+    await store.updatePerson(personId, { photo_url: url }); // remote fallback, rendered live
+    return false;
+  }
 }
 
 /**
@@ -120,6 +143,11 @@ export async function draftFromLookup(store, caseId, personId, facts) {
     dated: new Date().toISOString().slice(0, 10),
   });
   await store.linkEvidence({ evidence_id: ev.id, target_type: 'person', target_id: personId, note: 'from lookup' });
+
+  // the article's picture: an identification aid, not a fact, so it's saved
+  // directly — fetched once, stored as an asset (syncs, works offline), with
+  // its Wikipedia origin kept; if the bytes can't be read, the URL alone
+  await savePhotoFromUrl(store, personId, facts.photoUrl);
 
   if (facts.birth) await claim('birth', facts.birth, P.birth);
   if (facts.death && facts.death.precision === 'day') await claim('death', facts.death, P.death);
