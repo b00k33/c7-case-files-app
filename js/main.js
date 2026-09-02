@@ -238,6 +238,7 @@ async function boot() {
       else renderRoute();
       sync.initSync(); // fire-and-forget — the app never waits on the network
       maybeShowLegacyNotice();
+      renderInstallStrip(); // in case beforeinstallprompt fired before the shell existed
     } else {
       renderConnectScreen(state);
     }
@@ -265,6 +266,51 @@ function maybeShowLegacyNotice() {
     strip.remove();
   });
 }
+
+// ---- install: an explicit button, since the browser's own hint is easy to miss ----
+// Chrome/Edge (phone and desktop) fire beforeinstallprompt when the app is
+// installable and not yet installed; we hold that event and fire it from our
+// own button. A brass strip shows until installed, then disappears for good.
+let installPrompt = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+
+function renderInstallStrip() {
+  document.querySelector('.install-strip')?.remove();
+  if (isStandalone() || sessionStorage.getItem('c7-install-strip-dismissed')) return;
+  if (!installPrompt && !isIOS()) return;
+  const strip = document.createElement('div');
+  strip.className = 'install-strip';
+  strip.innerHTML = isIOS()
+    ? `<span>Install Case Files on this iPhone: tap <b>Share</b> then <b>Add to Home Screen</b>.</span><button class="btn btn-ghost btn-sm" id="install-dismiss">✕</button>`
+    : `<span>Install Case Files on this device — its own icon, opens instantly, works offline.</span>
+       <span class="row" style="gap:8px"><button class="btn btn-primary btn-sm" id="install-now">Install</button><button class="btn btn-ghost btn-sm" id="install-dismiss">✕</button></span>`;
+  document.getElementById('main-col').prepend(strip);
+  strip.querySelector('#install-now')?.addEventListener('click', () => triggerInstall());
+  strip.querySelector('#install-dismiss').addEventListener('click', () => {
+    sessionStorage.setItem('c7-install-strip-dismissed', '1');
+    strip.remove();
+  });
+}
+
+async function triggerInstall() {
+  if (!installPrompt) return;
+  const evt = installPrompt;
+  installPrompt = null;
+  evt.prompt();
+  try { await evt.userChoice; } catch (_) {}
+  renderInstallStrip();
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  renderInstallStrip();
+});
+window.addEventListener('appinstalled', () => {
+  installPrompt = null;
+  renderInstallStrip();
+});
 
 // ---- cloud sync chip + account drawer ----
 function elapsed(ts) {
@@ -355,6 +401,19 @@ function appendBackupButton(body) {
     <button class="btn btn-ghost btn-sm" id="sy-backup">Download backup (.db)</button>
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
   `;
+  // permanent fallback for the install strip (which can be dismissed)
+  if (!isStandalone() && (installPrompt || isIOS())) {
+    const inst = document.createElement('div');
+    inst.style.marginBottom = '16px';
+    inst.innerHTML = `
+      <div class="section-label" style="margin-bottom:8px">Install</div>
+      ${isIOS()
+        ? '<p style="color:var(--text-2);font-size:12px;margin:0">On iPhone: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>'
+        : '<button class="btn btn-primary btn-sm" id="sy-install">Install app on this device</button><p style="color:var(--text-3);font-size:11px;margin:8px 0 0">Its own icon, opens instantly, works offline.</p>'}
+    `;
+    inst.querySelector('#sy-install')?.addEventListener('click', () => triggerInstall());
+    wrap.prepend(inst);
+  }
   wrap.querySelector('#sy-backup').addEventListener('click', () => {
     const bytes = db.exportBytes();
     const blob = new Blob([bytes], { type: 'application/x-sqlite3' });
