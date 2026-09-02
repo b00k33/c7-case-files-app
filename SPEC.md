@@ -439,6 +439,14 @@ changed is where the app lives and how devices share it.
   last-writer-wins; a pending local edit is never overwritten by a pull;
   sync never blocks boot. `change_log` stays device-local. Auth is her
   existing Supabase login in C7's own session slot (`c7-sb-auth`).
+  Two timestamps, two jobs (fixed 2026-09-02, c7-v23): the cloud row's
+  `updated_at` is the **push time** and drives the pull cursor, so a
+  phone edit pushed late can never be skipped by a desktop that has
+  already pulled past its edit time; the row's own `updated_at` inside
+  `data` decides last-writer-wins. Pulls re-read a ten-minute overlap
+  (re-applying is harmless, missing is not). A change pushes ~3s after it
+  lands in the outbox and when the tab goes hidden, not only on the
+  minute tick — on the phone the app is closed long before a minute.
 - **Migration:** the first sign-in against an empty cloud uploads the whole
   local database once. Later devices pull instead, and an untouched
   example case is removed rather than duplicated.

@@ -13,7 +13,7 @@
 // change_log stays device-local audit and does not sync.
 
 import * as db from './db.js';
-import { markOutboxReady, nowISO } from './store.js';
+import { markOutboxReady, setOutboxListener, nowISO } from './store.js';
 import { SUPABASE_URL, SUPABASE_KEY, AUTH_STORAGE_KEY } from './config.js';
 
 const SYNC_TABLES = [
@@ -24,6 +24,7 @@ const SYNC_TABLES = [
 const PAGE = 500;
 const PUSH_BATCH = 100;
 const INTERVAL_MS = 60000;
+const SOON_MS = 3000;
 
 let sb = null;            // supabase client (null until the CDN lib loads)
 let session = null;
@@ -117,15 +118,24 @@ function applyRemote(record) {
 
 // ---- the cycle: pull, then push -----------------------------------------
 
+// The pull cursor is the cloud row's updated_at, which push() stamps with
+// the PUSH time (not the edit time). A phone edit made at 13:35 but pushed
+// at 13:50 — after the desktop had already pulled past 13:35 — would
+// otherwise never arrive. Plus a ten-minute overlap: applying a record
+// twice is harmless (last-writer-wins), missing one is not.
+const OVERLAP_MS = 10 * 60 * 1000;
+
 async function pull() {
   const since = metaGet('last_pull') || '1970-01-01T00:00:00Z';
   let newest = since;
   let sawAny = false;
+  let cursor = new Date(Math.max(0, Date.parse(since) - OVERLAP_MS)).toISOString();
+  if (Number.isNaN(Date.parse(since))) cursor = since;
   for (;;) {
     const { data, error } = await sb
       .from('c7_records')
       .select('id, entity, data, updated_at, deleted')
-      .gt('updated_at', newest)
+      .gt('updated_at', cursor)
       .order('updated_at', { ascending: true })
       .limit(PAGE);
     if (error) throw error;
@@ -135,6 +145,7 @@ async function pull() {
       // a record she edited here and hasn't pushed yet wins locally
       if (!hasPendingLocalChange(rec.entity, rec.id)) applyRemote(rec);
       if (rec.updated_at > newest) newest = rec.updated_at;
+      if (rec.updated_at > cursor) cursor = rec.updated_at;
     }
     if (data.length < PAGE) break;
   }
@@ -148,6 +159,7 @@ async function push() {
   const uid = session.user.id;
   for (let i = 0; i < items.length; i += PUSH_BATCH) {
     const slice = items.slice(i, i + PUSH_BATCH);
+    const pushedAt = nowISO();
     const rows = slice.map(({ entity, entity_id }) => {
       const row = readLocalRow(entity, entity_id);
       const gone = !row || (row.deleted_at != null);
@@ -157,7 +169,9 @@ async function push() {
         id: String(entity_id),
         data: gone ? (row || {}) : row,
         deleted: gone,
-        updated_at: (row && row.updated_at) || nowISO(),
+        // arrival time, so other devices' pull cursors can't skip it; the
+        // row's own updated_at (inside data) still decides last-writer-wins
+        updated_at: pushedAt,
       };
     });
     const { error } = await sb.from('c7_records').upsert(rows, { onConflict: 'owner_id,entity,id' });
@@ -249,6 +263,13 @@ export async function initSync() {
 
   window.addEventListener('online', () => syncNow());
   timer = setInterval(() => { if (pendingCount() > 0 || session) syncNow(); }, INTERVAL_MS);
+  // a change pushes within seconds, not at the next minute tick — on the
+  // phone the app is often closed again long before a minute passes
+  let soon = null;
+  setOutboxListener(() => { clearTimeout(soon); soon = setTimeout(() => syncNow(), SOON_MS); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && pendingCount() > 0) syncNow();
+  });
 }
 
 export async function signIn(email, password) {

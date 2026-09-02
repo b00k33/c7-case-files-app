@@ -13,7 +13,10 @@ export function nowISO() { return new Date().toISOString(); }
 // chokepoint: every mutation that logs a change also queues that record for
 // the next cloud push (the outbox tables exist once sync.js has booted).
 let outboxReady = false;
+let outboxListener = null;
 export function markOutboxReady() { outboxReady = true; }
+/** sync.js registers here to push soon after any change lands in the outbox. */
+export function setOutboxListener(fn) { outboxListener = fn; }
 
 function logChange(entity, entityId, op, payload) {
   db.run(
@@ -22,6 +25,7 @@ function logChange(entity, entityId, op, payload) {
   );
   if (outboxReady && entity !== 'change_log') {
     db.run('INSERT OR REPLACE INTO c7_outbox (entity, entity_id, queued_at) VALUES (?,?,?)', [entity, entityId, nowISO()]);
+    if (outboxListener) { try { outboxListener(); } catch (_) { /* never let sync scheduling break a save */ } }
   }
 }
 
