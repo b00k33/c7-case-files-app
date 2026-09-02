@@ -435,7 +435,13 @@ export async function importAsset(filePath, blob, mime) {
   await w.close();
 }
 
-/** Resolve an asset's bytes as an object URL for display (images, PDFs). */
+/**
+ * Resolve an asset's bytes as an object URL for display (images, PDFs).
+ * The bytes are copied into memory first: a URL backed by the File itself
+ * dies the moment the file on disk is touched — and her data folder lives
+ * in OneDrive, which touches every file it syncs (2026-09-02: Dolly's
+ * picture showed once, then never again until a reload).
+ */
 export async function assetUrl(filePath) {
   if (mode === 'idb') {
     const blob = await idbGet('assets', filePath);
@@ -444,5 +450,6 @@ export async function assetUrl(filePath) {
   }
   const handle = await assetsHandle.getFileHandle(filePath, { create: false });
   const file = await handle.getFile();
-  return URL.createObjectURL(file);
+  const bytes = await file.arrayBuffer();
+  return URL.createObjectURL(new Blob([bytes], { type: file.type || 'application/octet-stream' }));
 }
