@@ -173,6 +173,9 @@ window.addEventListener('hashchange', renderRoute);
 
 function renderSaveState(state) {
   saveStateEl.dataset.state = state.saveState;
+  // the phone folds save state into the sync dot (red = a failed write)
+  const chip = document.getElementById('sync-chip');
+  if (chip) chip.dataset.save = state.saveState;
   const labels = { saved: 'saved', saving: 'saving…', unsaved: 'unsaved changes', error: 'save failed — ' + (state.error || 'unknown error') };
   saveStateText.textContent = labels[state.saveState] || state.saveState;
 }

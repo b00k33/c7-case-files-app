@@ -178,7 +178,8 @@ async function migrateIfFirst() {
   const { count, error } = await sb.from('c7_records').select('id', { count: 'exact', head: true });
   if (error) throw error;
   if (count > 0) {
-    const seed = db.exec("SELECT id FROM case_file WHERE name='Harrow Household' AND deleted_at IS NULL");
+    // the seed is named "Example: The Harrow Household" — match loosely
+    const seed = db.exec("SELECT id FROM case_file WHERE name LIKE '%Harrow Household%' AND deleted_at IS NULL");
     for (const s of seed) {
       if (!hasPendingLocalChange('case_file', s.id)) {
         db.run('UPDATE case_file SET deleted_at=? WHERE id=?', [nowISO(), s.id]);

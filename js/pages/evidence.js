@@ -1,4 +1,4 @@
-import { emptyState } from '../indicators.js';
+import { emptyState, verificationLabel } from '../indicators.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
 
 const TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
@@ -131,7 +131,7 @@ function renderGrid(el, ctx, items) {
       <div style="margin:6px 0 2px">${it.title}</div>
       ${it.source_name ? `<div class="mono" style="font-size:10px;color:var(--text-3);margin-bottom:6px">${it.source_name}</div>` : '<div style="margin-bottom:6px"></div>'}
       <div class="row between">
-        <span class="chip ${chipClass(it.verification)}">${it.verification}</span>
+        <span class="chip ${chipClass(it.verification)}">${verificationLabel(it.verification)}</span>
         ${it.dated ? `<span class="mono" style="font-size:11px;color:var(--text-3)">${it.dated}</span>` : ''}
       </div>
     `;
@@ -174,7 +174,7 @@ function renderTable(el, ctx, items) {
         <td class="mono">${it.type}</td>
         <td>${it.source_name || '—'}</td>
         <td class="num">${it.dated || '—'}</td>
-        <td><span class="chip ${chipClass(it.verification)}">${it.verification}</span></td>
+        <td><span class="chip ${chipClass(it.verification)}">${verificationLabel(it.verification)}</span></td>
         <td class="num">${it.bytes || '—'}</td>
       </tr>`).join('')}</tbody>
   `;
@@ -197,7 +197,7 @@ async function renderDetail(body, ctx, evidenceId) {
     <div class="mono" style="font-size:10px;color:var(--text-3);text-transform:uppercase">${item.type}</div>
     <h3 class="title" style="margin:6px 0 12px">${item.title}</h3>
     <div class="stack" style="gap:6px;font-size:12px">
-      <div class="row between"><span class="section-label">Verification</span><span class="chip ${chipClass(item.verification)}">${item.verification}</span></div>
+      <div class="row between"><span class="section-label">Verification</span><span class="chip ${chipClass(item.verification)}">${verificationLabel(item.verification)}</span></div>
       <div class="row between"><span class="section-label">Source</span><select id="source-select" style="max-width:62%">${sourceOptions(sources, item.source_id)}</select></div>
       ${item.source_kind === 'dramatisation' ? '<div class="chip red" style="align-self:flex-end">dramatisation — cannot raise confidence</div>' : ''}
       <div class="row between"><span class="section-label">Captured</span><span class="mono">${item.captured_at || '—'} ${item.captured_by ? 'by ' + item.captured_by : ''}</span></div>

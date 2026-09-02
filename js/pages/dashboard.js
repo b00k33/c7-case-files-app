@@ -13,6 +13,33 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+const ENTITY_NOUN = {
+  case_file: 'a case file', person: 'a person', person_alias: 'an alias', address: 'an address',
+  relationship: 'a relationship', event: 'an event', source: 'a source', evidence: 'evidence',
+  video_moment: 'a video moment', evidence_link: 'an evidence link', tag: 'a tag', tagging: 'a tag',
+  claim: 'a drafted claim', question: 'a question', finding: 'a finding',
+};
+const OP_VERB = { insert: 'Added', update: 'Updated', delete: 'Removed' };
+
+// "Updated evidence: Filing for divorce" — name from the change payload when
+// it carries one, otherwise a cheap lookup; never a bare "insert · finding".
+async function describeChange(store, ch) {
+  const verb = OP_VERB[ch.op] || ch.op;
+  const noun = ENTITY_NOUN[ch.entity] || ch.entity;
+  let name = null;
+  try {
+    const p = ch.payload ? JSON.parse(ch.payload) : null;
+    name = p && (p.display_name || p.title || p.name || p.text || p.alias || p.label) || null;
+    if (!name) {
+      if (ch.entity === 'person') name = (await store.getPerson(ch.entity_id))?.display_name;
+      else if (ch.entity === 'case_file') name = (await store.getCase(ch.entity_id))?.name;
+      else if (ch.entity === 'evidence') name = (await store.getEvidence(ch.entity_id))?.title;
+    }
+  } catch (_) { /* payload wasn't JSON — fine */ }
+  if (name && String(name).length > 60) name = String(name).slice(0, 57) + '…';
+  return name ? `${verb} ${noun}: <span style="color:var(--text-2)">${name}</span>` : `${verb} ${noun}`;
+}
+
 export async function render(root, ctx) {
   const { store } = ctx;
   // the auto-provisioned "Fun & Zodiac" case (kind:'fun') lives on its own
@@ -72,11 +99,11 @@ export async function render(root, ctx) {
       </div>
       <div id="dash-search-results"></div>
 
-      <div class="row wrap" style="gap:16px">
+      <div class="row wrap stat-strip" style="gap:16px">
         <div class="stat-tile" style="flex:1;min-width:120px"><div class="n">${people.length}</div><div class="l">People</div></div>
         <div class="stat-tile" style="flex:1;min-width:120px"><div class="n">${evidence.length}</div><div class="l">Evidence</div></div>
-        <div class="stat-tile" style="flex:1;min-width:120px"><div class="n">${claims.length}</div><div class="l">Drafted, needs review</div></div>
-        <div class="stat-tile" style="flex:1;min-width:120px"><div class="n">${openQuestions.length}</div><div class="l">Open questions</div></div>
+        <div class="stat-tile" style="flex:1;min-width:120px"><div class="n">${claims.length}</div><div class="l">To review</div></div>
+        <div class="stat-tile" style="flex:1;min-width:120px"><div class="n">${openQuestions.length}</div><div class="l">Questions</div></div>
       </div>
 
       <div class="grid-2">
@@ -185,7 +212,7 @@ export async function render(root, ctx) {
     }
   }
 
-  // recent activity
+  // recent activity — written for a person, not a log reader (audit 2026-09-01)
   const actEl = root.querySelector('#activity-list');
   if (!changes.length) {
     actEl.appendChild(emptyState({ missing: 'No activity yet.', why: 'Every insert, edit and delete will show up here.' }));
@@ -194,7 +221,7 @@ export async function render(root, ctx) {
       const row = document.createElement('div');
       row.className = 'list-row';
       row.style.cursor = 'default';
-      row.innerHTML = `<div class="main"><div class="title mono" style="font-size:11px">${ch.op} · ${ch.entity}</div></div><div class="sub mono">${timeAgo(ch.at)}</div>`;
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:12px">${await describeChange(store, ch)}</div></div><div class="sub mono">${timeAgo(ch.at)}</div>`;
       actEl.appendChild(row);
     }
   }

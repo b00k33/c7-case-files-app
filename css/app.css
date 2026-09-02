@@ -451,9 +451,43 @@ table.matrix td.diag { background: transparent; cursor: default; }
   #nav-rail { display: none; }
   #tab-bar { display: flex; }
   #page-root { padding: var(--sp-3); padding-bottom: calc(64px + var(--sp-3)); }
-  #topbar { padding: var(--sp-3); }
+  /* phone header (audit 2026-09-01, her pick): case name as a brass eyebrow
+     over the title; sync + save fold into one status dot; nothing fights */
+  #topbar {
+    padding: var(--sp-3);
+    display: grid; grid-template-columns: 1fr auto; column-gap: var(--sp-3); row-gap: 2px;
+    grid-template-areas: "case status" "title status" "update update";
+    align-items: center;
+  }
+  #topbar .page-title { grid-area: title; font-size: 18px; line-height: 1.2; }
+  .case-context {
+    grid-area: case; display: block !important; margin: 0; padding: 0; max-width: none;
+    background: none; color: var(--brass); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .case-context:empty { display: none !important; }
+  .update-chip { grid-area: update; margin: var(--sp-2) 0 0; justify-self: start; }
+  /* a 44px tap target (the mobile button floor) drawing a 12px dot inside */
+  .sync-chip {
+    grid-area: status; margin: 0; padding: 0; font-size: 0; line-height: 0;
+    width: 44px; height: 44px; min-height: 44px; border-radius: 50%; background: none; position: relative;
+  }
+  .sync-chip::before {
+    content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 12px; height: 12px; border-radius: 50%; background: var(--text-3);
+  }
+  .sync-chip[data-state="idle"]::before { background: var(--green); }
+  .sync-chip[data-state="syncing"]::before { background: var(--brass); }
+  .sync-chip[data-state="error"]::before, .sync-chip[data-save="error"]::before { background: var(--red); }
+  .sync-chip[data-save="unsaved"]::before { box-shadow: 0 0 0 2px var(--ink-0), 0 0 0 3px var(--amber); }
+  .sync-chip[data-state="syncing"] { animation: none; }
+  #save-state { display: none; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .video-layout { grid-template-columns: 1fr; }
+  /* dashboard stat tiles become one compact row so case files reach the first screen */
+  .stat-strip { flex-wrap: nowrap !important; gap: var(--sp-1) !important; }
+  .stat-strip .stat-tile { flex: 1 1 0 !important; min-width: 0 !important; padding: var(--sp-2) var(--sp-2); display: flex; flex-direction: column; align-items: center; }
+  .stat-strip .stat-tile .n { font-size: 16px; line-height: 1.1; }
+  .stat-strip .stat-tile .l { font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
   #drawer { width: 100vw; top: auto; height: 85vh; border-radius: var(--r-lg) var(--r-lg) 0 0; transform: translateY(100%); }
   #drawer.open { transform: translateY(0); }
   button, .btn, .nav-link, input, select, textarea { min-height: 44px; }

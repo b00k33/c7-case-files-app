@@ -40,6 +40,12 @@ export function verificationConfidence(verification) {
   return VERIFICATION_CONFIDENCE[verification] ?? 0;
 }
 
+// the human face of the verification codes — chips never show "two_plus"
+const VERIFICATION_SHORT = { two_plus: '2+ sources', single: '1 source', disputed: 'disputed', dead_link: 'dead link', drafted: 'drafted' };
+export function verificationLabel(verification) {
+  return VERIFICATION_SHORT[verification] || verification;
+}
+
 export function confidenceBand(value) {
   if (value >= 70) return 'green';
   if (value >= 40) return 'amber';

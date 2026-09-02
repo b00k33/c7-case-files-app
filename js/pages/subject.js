@@ -2,7 +2,7 @@ import { lifePath, birthdayNumber, personalYear, universalYear, expression, soul
 import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
-import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand } from '../indicators.js';
+import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
 
 function ageAt(birthISO, atISO) {
   const b = new Date(birthISO), a = new Date(atISO);
@@ -63,16 +63,28 @@ function chartPanel(person, status) {
   grid.className = 'grid-2';
   grid.style.marginTop = '16px';
 
+  // the numbers read as numbers (audit 2026-09-01, her pick); the arithmetic
+  // stays one tap away under "show working", never lost
   const left = document.createElement('div');
   left.className = 'stack';
+  const big = (value, label, brass) => `<div><div class="title" style="font-size:22px;color:${brass ? 'var(--brass)' : 'var(--text)'}">${value}</div><div class="section-label">${label}</div></div>`;
   left.innerHTML = `
-    <div class="mono" style="font-size:12px;color:var(--text-2)">
-      Life path ${lp.value}${lp.master ? ' (master)' : ''} — ${lp.parts.day}→${lp.parts.dayReduced} · ${lp.parts.month}→${lp.parts.monthReduced} · ${lp.parts.year}→${lp.parts.yearReduced} · = ${lp.value}
+    <div class="row wrap" style="gap:20px;align-items:flex-end">
+      ${big(`${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
+      ${big(`${py.value}${py.master ? '★' : ''}`, `${thisYear} year`)}
+      ${big(chinese.boundary ? '—' : chinese.animal, chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase())}
+      ${big(sun.sign, sun.cusp ? 'sun · cusp' : 'sun')}
     </div>
-    <div class="mono" style="font-size:12px;color:var(--text-2)">Birthday number ${bn.value}${bn.master ? ' (master)' : ''}</div>
-    <div class="mono" style="font-size:12px;color:var(--text-2)">Personal year ${thisYear}: ${py.value}${py.master ? ' (master)' : ''} · Universal year: ${uy.value}${uy.master ? ' (master)' : ''}</div>
-    <div class="mono" style="font-size:12px;color:var(--text-2)">${chinese.boundary ? 'Animal year: unresolved (near lunar new year, no CNY date on file for this year)' : `${chinese.animal} · ${chinese.element}`}</div>
-    <div class="mono" style="font-size:12px;color:var(--text-2)">${sun.sign}${sun.cusp ? ' (cusp)' : ''}</div>
+    <details style="margin-top:4px">
+      <summary style="cursor:pointer;font-size:11px;color:var(--text-3);list-style:none">show working ▸</summary>
+      <div class="stack mono" style="font-size:12px;color:var(--text-2);margin-top:8px;gap:4px">
+        <div>Life path ${lp.value}${lp.master ? ' (master)' : ''} — ${lp.parts.day}→${lp.parts.dayReduced} · ${lp.parts.month}→${lp.parts.monthReduced} · ${lp.parts.year}→${lp.parts.yearReduced} · = ${lp.value}</div>
+        <div>Birthday number ${bn.value}${bn.master ? ' (master)' : ''}</div>
+        <div>Personal year ${thisYear}: ${py.value}${py.master ? ' (master)' : ''} · Universal year: ${uy.value}${uy.master ? ' (master)' : ''}</div>
+        <div>${chinese.boundary ? 'Animal year: unresolved (near lunar new year, no CNY date on file for this year)' : `${chinese.animal} · ${chinese.element}`}</div>
+        <div>${sun.sign}${sun.cusp ? ' (cusp)' : ''}</div>
+      </div>
+    </details>
   `;
   grid.appendChild(left);
 
@@ -133,16 +145,13 @@ export async function render(root, ctx, personId) {
     <div class="stack">
       <div class="panel">
         <div class="row between">
-          <div>
-            <h2 class="title" style="font-size:24px">${person.display_name}</h2>
-            <div class="mono" style="color:var(--text-3);font-size:11px;margin-top:4px">
-              ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip">${person.status}</span>
-            </div>
+          <div class="mono" style="color:var(--text-3);font-size:11px">
+            ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip">${person.status}</span>
+            ${person.occupation ? ` · <span style="color:var(--text-2)">${person.occupation}</span>` : ''}
           </div>
           <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
         </div>
         ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
-        ${person.occupation ? `<p style="margin-top:12px;color:var(--text-2)">${person.occupation}</p>` : ''}
         ${person.notes ? `<p style="margin-top:8px;color:var(--text-3);font-size:12px">${person.notes}</p>` : ''}
       </div>
 
@@ -225,7 +234,7 @@ export async function render(root, ctx, personId) {
       wrap.appendChild(label);
       row.appendChild(wrap);
       relEl.appendChild(row);
-      relEl.appendChild(barRow({ label: 'confidence', value: r.confidence, max: 100 }));
+      relEl.appendChild(barRow({ label: '', value: r.confidence, max: 100 })); // the bar says "confidence"; the label said it four times
     }
   }
 
@@ -237,7 +246,7 @@ export async function render(root, ctx, personId) {
     timelineItems.push({ kind: 'event', date: e.date || (e.date_year_min ? `${e.date_year_min}` : null), title: e.title, sub: e.kind, links: evLinks });
   }
   for (const l of links) {
-    timelineItems.push({ kind: 'evidence', date: null, title: l.evidence_title, sub: `${l.evidence_type} · ${l.evidence_verification}`, verification: l.evidence_verification, evidenceId: l.evidence_id });
+    timelineItems.push({ kind: 'evidence', date: null, title: l.evidence_title, sub: `${l.evidence_type} · ${verificationLabel(l.evidence_verification)}`, verification: l.evidence_verification, evidenceId: l.evidence_id });
   }
   timelineItems.sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
 
@@ -287,7 +296,7 @@ export async function render(root, ctx, personId) {
     for (const l of links) {
       const row = document.createElement('div');
       row.className = 'list-row';
-      row.innerHTML = `<div class="main"><div class="title">${l.evidence_title}</div><div class="sub">${l.evidence_type}</div></div><span class="chip ${l.evidence_verification === 'two_plus' ? 'green' : l.evidence_verification === 'drafted' ? '' : 'brass'}">${l.evidence_verification}</span>`;
+      row.innerHTML = `<div class="main"><div class="title">${l.evidence_title}</div><div class="sub">${l.evidence_type}</div></div><span class="chip ${l.evidence_verification === 'two_plus' ? 'green' : l.evidence_verification === 'drafted' ? '' : 'brass'}">${verificationLabel(l.evidence_verification)}</span>`;
       row.addEventListener('click', () => ctx.navigate('#/evidence'));
       evEl.appendChild(row);
     }
