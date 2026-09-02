@@ -76,6 +76,8 @@ export async function render(root, ctx) {
 
   // arriving from the Dashboard's "images waiting" line, or from the phone's share sheet
   if (localStorage.getItem('c7-evidence-view') === 'inbox') { currentView = 'inbox'; localStorage.removeItem('c7-evidence-view'); }
+  const wantedType = localStorage.getItem('c7-evidence-type');
+  if (wantedType) { filters.type = wantedType; currentView = 'grid'; localStorage.removeItem('c7-evidence-type'); }
   const sharedIn = await drainSharedImages(ctx);
   if (sharedIn) currentView = 'inbox';
   const inboxCount = await store.countInbox(ctx.caseId);

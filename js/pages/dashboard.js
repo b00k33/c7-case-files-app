@@ -135,22 +135,21 @@ export async function render(root, ctx) {
           <div id="case-list" class="stack" style="gap:2px"></div>
         </div>
 
-        <div class="panel">
-          <div class="panel-title">Evidence by type</div>
+        <div class="panel" style="align-self:start">
+          <div class="panel-title">Evidence by type <span class="mono" style="color:var(--text-3);font-size:10px">· tap a row</span></div>
           <div id="evidence-bars"></div>
         </div>
       </div>
 
-      <div class="grid-2">
-        <div class="panel">
-          <div class="panel-title">Needs attention</div>
-          <div id="attention-list" class="stack" style="gap:2px"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-title">Recent activity</div>
-          <div id="activity-list" class="stack" style="gap:2px"></div>
-        </div>
+      <div class="panel">
+        <div class="panel-title">Needs attention</div>
+        <div id="attention-list" class="stack" style="gap:2px"></div>
       </div>
+
+      <details class="panel" style="padding-top:12px;padding-bottom:12px">
+        <summary class="panel-title" style="cursor:pointer;list-style:none;margin:0;display:flex;align-items:center;gap:8px"><span style="color:var(--text-3)">▸</span>Recent activity</summary>
+        <div id="activity-list" class="stack" style="gap:2px;margin-top:12px"></div>
+      </details>
     </div>
   `;
 
@@ -210,7 +209,17 @@ export async function render(root, ctx) {
   } else {
     for (const t of EVIDENCE_TYPES) {
       if (!byType[t]) continue;
-      barsEl.appendChild(barRow({ label: t, value: byType[t], max: maxType, colorVar: 'var(--teal)' }));
+      const row = barRow({ label: t, value: byType[t], max: maxType, colorVar: 'var(--teal)' });
+      row.style.cursor = 'pointer';
+      row.title = byType[t] === 1 ? `Open the ${t}` : `Show the ${byType[t]} ${t} items`;
+      row.addEventListener('click', () => {
+        const ofType = evidence.filter((e) => e.type === t);
+        // one video → straight into it; otherwise the Evidence page, filtered
+        if (t === 'video' && ofType.length === 1) { ctx.navigate(`#/video/${ofType[0].id}`); return; }
+        localStorage.setItem('c7-evidence-type', t);
+        ctx.navigate('#/evidence');
+      });
+      barsEl.appendChild(row);
     }
   }
 
