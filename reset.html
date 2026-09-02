@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C7 Case Files — refresh</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #101216; color: #e8e6e1; font-family: 'Public Sans', system-ui, sans-serif; text-align: center; padding: 24px; }
+  h1 { font-family: Georgia, serif; font-weight: 500; font-size: 22px; margin: 0 0 8px; }
+  p { color: #a7adb8; font-size: 14px; max-width: 32ch; margin: 0 auto 16px; }
+  a { color: #d9a54a; }
+</style>
+</head>
+<body>
+<div>
+  <h1>Refreshing the app…</h1>
+  <p id="msg">Clearing this phone's old cached copy of C7 Case Files. Your data is untouched.</p>
+  <p><a id="go" href="./">Open the app</a></p>
+</div>
+<script>
+// Recovery page for a device stuck on an old cached version. It is NEVER
+// listed in sw.js's SHELL, so an old worker can't serve a stale copy of it.
+// It removes only this app's worker registration and c7- caches — never
+// Book33's, which shares this origin — then loads the app fresh.
+(async () => {
+  const msg = document.getElementById('msg');
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) {
+        if (r.scope.includes('/c7-case-files-app/')) await r.unregister();
+      }
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      for (const k of keys) if (k.startsWith('c7-')) await caches.delete(k);
+    }
+    msg.textContent = 'Done — opening the fresh version.';
+    setTimeout(() => location.replace('./?fresh=' + Date.now()), 600);
+  } catch (e) {
+    msg.textContent = 'Could not clear automatically: ' + (e && e.message || e) + '. Tap "Open the app" anyway.';
+  }
+})();
+</script>
+</body>
+</html>

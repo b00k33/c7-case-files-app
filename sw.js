@@ -5,7 +5,7 @@
 // PUSH LAW (learned the hard way on Book33): bump CACHE_VERSION on EVERY
 // push to the deploy repo, or installed phones keep running the old code
 // silently. The version string is the whole update mechanism.
-const CACHE_VERSION = 'c7-v5';
+const CACHE_VERSION = 'c7-v6';
 
 const SHELL = [
   './',
@@ -68,7 +68,10 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return; // never intercept cross-origin (Supabase later)
+  // ignoreSearch only for page navigations ("./?fresh=…" must still find the
+  // shell); for scripts/assets a query string is a deliberate cache-bust and
+  // must reach the network
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || fetch(e.request))
+    caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' }).then((hit) => hit || fetch(e.request))
   );
 });
