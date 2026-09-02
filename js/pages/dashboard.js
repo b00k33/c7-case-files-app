@@ -197,6 +197,18 @@ export async function render(root, ctx) {
   // needs attention
   const attnEl = root.querySelector('#attention-list');
   const attnItems = [];
+  // her cases are named after the person; a case with nobody in it has no
+  // page to look anyone up from — offer the obvious first step, pre-filled
+  if (!people.length) {
+    attnItems.push({
+      label: `No one in this case yet — add “${kase.name}” as a person`,
+      go: null,
+      before: async () => {
+        const p = await store.createPerson({ case_id: caseId, display_name: kase.name, kind: 'person' });
+        ctx.navigate(`#/subject/${p.id}`);
+      },
+    });
+  }
   const inboxN = await store.countInbox(caseId);
   if (inboxN) attnItems.push({ label: `${inboxN} image${inboxN === 1 ? '' : 's'} waiting for a title and person`, go: '#/evidence', before: () => localStorage.setItem('c7-evidence-view', 'inbox') });
   if (claims.length) attnItems.push({ label: `${claims.length} drafted claim${claims.length === 1 ? '' : 's'} awaiting review`, go: '#/review' });
@@ -209,7 +221,7 @@ export async function render(root, ctx) {
       const row = document.createElement('div');
       row.className = 'list-row';
       row.innerHTML = `<div class="main"><div class="title">${item.label}</div></div><span class="chip">→</span>`;
-      row.addEventListener('click', () => { item.before?.(); ctx.navigate(item.go); });
+      row.addEventListener('click', async () => { await item.before?.(); if (item.go) ctx.navigate(item.go); });
       attnEl.appendChild(row);
     }
   }
