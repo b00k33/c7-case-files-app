@@ -411,6 +411,16 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .review-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); flex-wrap: wrap; }
 .kbd { font-family: var(--font-mono); background: var(--ink-3); border-radius: var(--r-sm); padding: 1px 5px; font-size: 11px; color: var(--text-2); }
 
+/* ---------------------------------------------------- profile basics */
+.basics-strip { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-2); font-size: 12px; color: var(--text-2); align-items: center; }
+.basics-strip .sep { color: var(--line); }
+.basics-strip .missing { color: var(--text-3); cursor: pointer; }
+.basics-strip .missing:hover { color: var(--brass); }
+.profile-grid { display: grid; grid-template-columns: 110px 1fr; gap: var(--sp-2) var(--sp-3); font-size: 12px; margin-top: var(--sp-3); }
+.profile-grid .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--text-3); text-transform: uppercase; padding-top: 2px; }
+.profile-grid .v { color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.profile-grid .v.empty { color: var(--text-3); }
+
 /* ------------------------------------------------------- image inbox */
 .dropzone { border: 1px dashed var(--line); border-radius: var(--r-lg); padding: var(--sp-3); text-align: center; font-size: 11px; color: var(--text-3); }
 .dropzone.over { border-color: var(--brass); color: var(--brass); background: var(--ink-2); }

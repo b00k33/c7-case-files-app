@@ -4,6 +4,36 @@ import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
 import { renderPairs } from '../contradictions.js';
+import { parseProfileText } from '../profile-parse.js';
+import { inlineNote, clearInlineNote } from '../ui.js';
+
+function fmtLongDate(iso) {
+  if (!iso) return null;
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// "44 (born 13 Nov 1981)" · "died at 56" · "≈44 (born 1981)" · "unknown" — never a guess dressed as a fact
+function ageText(person) {
+  const endISO = person.death_date || new Date().toISOString().slice(0, 10);
+  const died = !!person.death_date;
+  if (person.birth_precision === 'day' && person.birth_date) {
+    const a = ageAt(person.birth_date, endISO);
+    return died ? `died at ${a}` : `${a}`;
+  }
+  const y = person.birth_year_min || (person.birth_date ? parseInt(person.birth_date.slice(0, 4), 10) : null);
+  if (y) {
+    const approx = parseInt(endISO.slice(0, 4), 10) - y;
+    return died ? `died at ≈${approx}` : `≈${approx}`;
+  }
+  return 'unknown';
+}
+
+function bornText(person) {
+  if (person.birth_precision === 'day' && person.birth_date) return fmtLongDate(person.birth_date);
+  if (person.birth_precision === 'month' && person.birth_date) return new Date(`${person.birth_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  if (person.birth_year_min) return person.birth_year_min === person.birth_year_max || !person.birth_year_max ? String(person.birth_year_min) : `${person.birth_year_min}–${person.birth_year_max}`;
+  return null;
+}
 
 function ageAt(birthISO, atISO) {
   const b = new Date(birthISO), a = new Date(atISO);
@@ -153,8 +183,23 @@ export async function render(root, ctx, personId) {
           </div>
           <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
         </div>
+        <div class="basics-strip" id="basics-strip"></div>
         ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
         ${person.notes ? `<p style="margin-top:8px;color:var(--text-3);font-size:12px">${person.notes}</p>` : ''}
+      </div>
+
+      <div class="panel">
+        <div class="row between"><div class="panel-title" style="margin:0">Profile</div><button class="btn btn-ghost btn-sm" id="edit-person-btn-2">Edit</button></div>
+        <div class="profile-grid" id="profile-grid"></div>
+        <div class="field" style="margin-top:16px">
+          <label>Import information — paste anything, it saves what it recognises</label>
+          <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
+        </div>
+        <div class="row" style="gap:8px;align-items:center">
+          <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
+          <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
+        </div>
+        <div id="pi-result"></div>
       </div>
 
       <div class="panel">
@@ -201,9 +246,74 @@ export async function render(root, ctx, personId) {
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
 
-  root.querySelector('#edit-person-btn').addEventListener('click', () => {
-    ctx.openDrawer((body) => renderEditForm(body, ctx, person));
+  const openEdit = () => ctx.openDrawer((body) => renderEditForm(body, ctx, person));
+  root.querySelector('#edit-person-btn').addEventListener('click', openEdit);
+  root.querySelector('#edit-person-btn-2').addEventListener('click', openEdit);
+
+  // ---- basics: strip under the name + the Profile grid (same facts, two densities) ----
+  // marital status is read from the map (a spouse relationship) unless she's set an override
+  let spouseName = null;
+  for (const r of rels) {
+    if (r.kind !== 'spouse') continue;
+    const other = await store.getPerson(r.a_id === person.id ? r.b_id : r.a_id);
+    if (other) { spouseName = other.display_name; break; }
+  }
+  const marital = person.marital_status
+    ? person.marital_status + (spouseName ? ` · ${spouseName}` : '')
+    : (spouseName ? `Married · ${spouseName}` : null);
+  const born = bornText(person);
+  const age = ageText(person);
+  const basics = [
+    { key: 'age', text: age === 'unknown' ? null : `<b style="font-weight:500;color:var(--text)">${age}</b>${born ? ` <span style="color:var(--text-3)">born ${born}</span>` : ''}`, missing: 'age' },
+    { key: 'gender', text: person.gender || null, missing: 'gender' },
+    { key: 'nationality', text: person.nationality || null, missing: 'nationality' },
+    { key: 'birth_place', text: person.birth_place ? `born ${person.birth_place}` : null, missing: 'birthplace' },
+    { key: 'marital', text: marital, missing: 'marital status' },
+  ];
+  const strip = root.querySelector('#basics-strip');
+  strip.innerHTML = basics.map((b) => b.text ? `<span>${b.text}</span>` : `<span class="missing" title="Tap to fill in">— <span style="font-size:10px">${b.missing}</span></span>`).join('<span class="sep">·</span>');
+  strip.querySelectorAll('.missing').forEach((el) => el.addEventListener('click', openEdit));
+
+  const grid = root.querySelector('#profile-grid');
+  const row = (k, v) => `<span class="k">${k}</span><span class="v${v ? '' : ' empty'}">${v || '—'}</span>`;
+  grid.innerHTML = [
+    row('Born', born ? `${born}${person.birth_place ? ' · ' + person.birth_place : ''}` : null),
+    row('Age', age === 'unknown' ? null : age),
+    row('Died', person.death_date ? fmtLongDate(person.death_date) : null),
+    row('Gender', person.gender),
+    row('Nationality', person.nationality),
+    row('Marital', marital ? `${marital}${!person.marital_status && spouseName ? ' <span style="color:var(--text-3);font-size:10px">(from relationships)</span>' : ''}` : null),
+    row('Occupation', person.occupation),
+    row('Ref · status', `${person.ref_code || '—'} · ${person.status}`),
+  ].join('');
+
+  // ---- import information: paste, parse, save, report ----
+  root.querySelector('#pi-save').addEventListener('click', async () => {
+    const btn = root.querySelector('#pi-save');
+    const text = root.querySelector('#pi-text').value;
+    const resultEl = root.querySelector('#pi-result');
+    clearInlineNote(btn);
+    const parsed = parseProfileText(text);
+    if (!parsed.recognised.length) {
+      inlineNote(btn, text.trim() ? `Nothing recognised in that. Try "dob 15 Sept 2024", "Russian", "female", "married", "born in Moscow", "died 2020", "aka …".` : 'Paste something first.');
+      return;
+    }
+    if (Object.keys(parsed.fields).length) await store.updatePerson(person.id, parsed.fields);
+    for (const a of parsed.aliases) await store.createAlias({ person_id: person.id, alias: a.alias, kind: a.kind });
+    const saved = parsed.recognised.map((r) => `${r.label}: ${r.value}`).join(' · ');
+    const skipped = parsed.unrecognised.length ? ` Not recognised (left alone): ${parsed.unrecognised.map((u) => `“${u}”`).join(', ')}` : '';
+    sessionStorage.setItem('c7-pi-result', `Saved — ${saved}.${skipped}`);
+    render(root, ctx, personId);
   });
+  const lastResult = sessionStorage.getItem('c7-pi-result');
+  if (lastResult) {
+    sessionStorage.removeItem('c7-pi-result');
+    const note = document.createElement('div');
+    note.className = 'inline-note';
+    note.style.borderLeftColor = 'var(--green)';
+    note.textContent = lastResult;
+    root.querySelector('#pi-result').appendChild(note);
+  }
 
   // addresses
   const addrEl = root.querySelector('#address-list');
@@ -340,11 +450,19 @@ function renderEditForm(body, ctx, person) {
       <div class="field" style="flex:1"><label>Year min (if range)</label><input type="number" id="f-ymin" value="${person.birth_year_min ?? ''}"></div>
       <div class="field" style="flex:1"><label>Year max (if range)</label><input type="number" id="f-ymax" value="${person.birth_year_max ?? ''}"></div>
     </div>
+    <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${person.birth_place || ''}"></div>
+    <div class="field"><label>Death date (leave blank if living)</label><input type="date" id="f-ddate" value="${person.death_date || ''}"></div>
+    <div class="row" style="gap:8px">
+      <div class="field" style="flex:1"><label>Gender</label><input type="text" id="f-gender" value="${person.gender || ''}"></div>
+      <div class="field" style="flex:1"><label>Nationality</label><input type="text" id="f-nat" value="${person.nationality || ''}"></div>
+    </div>
+    <div class="field"><label>Marital status — leave blank to read it from the map (a spouse relationship)</label><input type="text" id="f-marital" value="${person.marital_status || ''}" placeholder="divorced · widowed · single…"></div>
     <div class="field"><label>Occupation</label><input type="text" id="f-occ" value="${person.occupation || ''}"></div>
     <div class="field"><label>Notes</label><textarea id="f-notes">${person.notes || ''}</textarea></div>
     <button class="btn btn-primary" id="save-person-btn">Save</button>
   `;
   body.querySelector('#save-person-btn').addEventListener('click', async () => {
+    const ddate = body.querySelector('#f-ddate').value || null;
     await ctx.store.updatePerson(person.id, {
       display_name: body.querySelector('#f-name').value,
       name_at_birth: body.querySelector('#f-nab').value || null,
@@ -352,6 +470,12 @@ function renderEditForm(body, ctx, person) {
       birth_precision: body.querySelector('#f-bprec').value,
       birth_year_min: body.querySelector('#f-ymin').value ? parseInt(body.querySelector('#f-ymin').value, 10) : null,
       birth_year_max: body.querySelector('#f-ymax').value ? parseInt(body.querySelector('#f-ymax').value, 10) : null,
+      birth_place: body.querySelector('#f-bplace').value || null,
+      death_date: ddate,
+      death_precision: ddate ? 'day' : 'unknown',
+      gender: body.querySelector('#f-gender').value || null,
+      nationality: body.querySelector('#f-nat').value || null,
+      marital_status: body.querySelector('#f-marital').value || null,
       occupation: body.querySelector('#f-occ').value || null,
       notes: body.querySelector('#f-notes').value || null,
     });

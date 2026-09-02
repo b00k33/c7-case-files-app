@@ -252,8 +252,20 @@ const MIGRATIONS = [
   )`,
   'CREATE INDEX IF NOT EXISTS idx_contradiction_person ON contradiction(person_id)',
 ];
+// columns added to existing tables after first release (SQLite has no
+// ADD COLUMN IF NOT EXISTS, so check PRAGMA first)
+const ADDED_COLUMNS = [
+  ['person', 'gender', 'TEXT'],
+  ['person', 'nationality', 'TEXT'],
+  ['person', 'marital_status', 'TEXT'],
+];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);
+  for (const [table, col, type] of ADDED_COLUMNS) {
+    const cols = db.exec(`PRAGMA table_info(${table})`);
+    const names = cols.length ? cols[0].values.map((r) => r[1]) : [];
+    if (!names.includes(col)) db.run(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+  }
 }
 
 export function isReady() {

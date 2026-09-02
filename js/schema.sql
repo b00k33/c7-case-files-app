@@ -31,6 +31,8 @@ CREATE TABLE person (
   birth_place TEXT, birth_lat REAL, birth_lng REAL, birth_tz TEXT,
 
   death_date TEXT, death_precision TEXT DEFAULT 'unknown',
+  gender TEXT, nationality TEXT,           -- profile basics (2026-09-02), free text
+  marital_status TEXT,                     -- override only; normally derived from spouse relationships
   occupation TEXT, status TEXT DEFAULT 'active',    -- active|watch|cold|archived
   notes TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT

@@ -8,6 +8,7 @@ import { animalIndex, elementIndex, signFor } from '../js/chinese.js';
 import { sunSign } from '../js/western.js';
 import { clash, trine, harmony, same, relation } from '../js/relations.js';
 import { expectedCounts } from '../js/stats.js';
+import { parseDate, parseProfileText } from '../js/profile-parse.js';
 
 const results = [];
 function test(name, fn) {
@@ -22,6 +23,44 @@ function eq(a, b, msg) {
   const as = JSON.stringify(a), bs = JSON.stringify(b);
   if (as !== bs) throw new Error(`${msg || 'mismatch'}: got ${as}, expected ${bs}`);
 }
+
+// --- profile paste parser ---
+test('parseDate: ordinal day-month-year, month-day-year, numeric day-first, ISO', () => {
+  eq(parseDate('15th sept 2024'), { date: '2024-09-15', precision: 'day', year: 2024 });
+  eq(parseDate('Sept 15, 2024'), { date: '2024-09-15', precision: 'day', year: 2024 });
+  eq(parseDate('03/04/1990'), { date: '1990-04-03', precision: 'day', year: 1990 });
+  eq(parseDate('1990-04-03'), { date: '1990-04-03', precision: 'day', year: 1990 });
+});
+test('parseDate: month-only and year-only keep honest precision; junk is null', () => {
+  eq(parseDate('sept 2024'), { date: '2024-09-01', precision: 'month', year: 2024 });
+  eq(parseDate('1984'), { date: null, precision: 'year', year: 1984 });
+  eq(parseDate('31 feb 2020'), null);
+  eq(parseDate('hello'), null);
+});
+test('parseProfileText: dob keyword saves the birth date', () => {
+  const r = parseProfileText('dob 15th sept 2024');
+  eq(r.fields.birth_date, '2024-09-15');
+  eq(r.fields.birth_precision, 'day');
+  eq(r.unrecognised, []);
+});
+test('parseProfileText: a bare demonym is a nationality', () => {
+  const r = parseProfileText('Russian');
+  eq(r.fields.nationality, 'Russian');
+});
+test('parseProfileText: mixed paste — gender, marital, birthplace, death, alias, unrecognised', () => {
+  const r = parseProfileText('female, married\nborn in Moscow\ndied 3 Jan 2020\naka Masha\nlikes cats');
+  eq(r.fields.gender, 'Female');
+  eq(r.fields.marital_status, 'Married');
+  eq(r.fields.birth_place, 'Moscow');
+  eq(r.fields.death_date, '2020-01-03');
+  eq(r.aliases, [{ alias: 'Masha', kind: 'other' }]);
+  eq(r.unrecognised, ['likes cats']);
+});
+test('parseProfileText: a bare full date becomes the birth date; two demonyms join', () => {
+  const r = parseProfileText('2 September 1966; Mexican; American');
+  eq(r.fields.birth_date, '1966-09-02');
+  eq(r.fields.nationality, 'Mexican, American');
+});
 
 // --- numerology ---
 test('reduce: plain digit sum, no master', () => {
