@@ -232,6 +232,46 @@ export async function getSource(id) {
   return rows[0] || null;
 }
 
+// ------------------------------------------------------- contradictions --
+
+const CONTRA_SELECT = `
+  SELECT c.*,
+    ea.title AS a_title, ea.dated AS a_dated, ea.original_url AS a_url, ea.type AS a_type,
+    eb.title AS b_title, eb.dated AS b_dated, eb.original_url AS b_url, eb.type AS b_type,
+    ma.t_ms AS a_t_ms, mb.t_ms AS b_t_ms
+  FROM contradiction c
+  JOIN evidence ea ON ea.id = c.a_evidence_id
+  JOIN evidence eb ON eb.id = c.b_evidence_id
+  LEFT JOIN video_moment ma ON ma.id = c.a_moment_id
+  LEFT JOIN video_moment mb ON mb.id = c.b_moment_id`;
+
+export async function listContradictionsForPerson(personId) {
+  return db.exec(`${CONTRA_SELECT} WHERE c.person_id=? AND c.deleted_at IS NULL ORDER BY c.created_at DESC`, [personId]);
+}
+
+export async function listContradictionsForCase(caseId) {
+  return db.exec(`${CONTRA_SELECT} WHERE c.case_id=? AND c.deleted_at IS NULL ORDER BY c.created_at DESC`, [caseId]);
+}
+
+export async function createContradiction(obj) {
+  const id = uuid();
+  const now = nowISO();
+  db.run(
+    `INSERT INTO contradiction (id,case_id,person_id,a_evidence_id,a_moment_id,a_quote,b_evidence_id,b_moment_id,b_quote,note,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.case_id, obj.person_id || null, obj.a_evidence_id, obj.a_moment_id || null, obj.a_quote || null,
+      obj.b_evidence_id, obj.b_moment_id || null, obj.b_quote || null, obj.note || null, now, now]
+  );
+  logChange('contradiction', id, 'insert', obj);
+  return id;
+}
+
+export async function softDeleteContradiction(id) {
+  const now = nowISO();
+  db.run('UPDATE contradiction SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('contradiction', id, 'update', { deleted_at: now });
+}
+
 // ------------------------------------------------------------- evidence --
 
 export async function listEvidence(caseId) {

@@ -221,6 +221,10 @@ async function renderDetail(body, ctx, evidenceId) {
       <select id="verify-select">${VERIFICATIONS.map((v) => `<option value="${v}" ${v === item.verification ? 'selected' : ''}>${VERIFICATION_LABEL[v]}</option>`).join('')}</select>
       <button class="btn btn-sm" id="verify-save">Update verification</button>
     </div>
+
+    <div class="panel-title" style="margin-top:20px">Contradictions</div>
+    <button class="btn btn-ghost btn-sm" id="contra-btn">Contradicts…</button>
+    <div id="contra-slot"></div>
     ${item.type === 'video' ? '<div id="moments-slot" style="margin-top:16px"></div>' : ''}
     <button class="btn btn-danger btn-sm" id="delete-btn" style="margin-top:20px">Delete (soft)</button>
   `;
@@ -273,6 +277,12 @@ async function renderDetail(body, ctx, evidenceId) {
     renderDetail(body, ctx, evidenceId);
   });
 
+  body.querySelector('#contra-btn').addEventListener('click', () => {
+    const slot = body.querySelector('#contra-slot');
+    if (slot.querySelector('.contra-form')) return;
+    renderContradictForm(slot, ctx, item, people, links);
+  });
+
   twoTapConfirm(body.querySelector('#delete-btn'), {
     confirmLabel: 'Really delete? (recoverable 30 days)',
     onConfirm: async () => {
@@ -298,6 +308,74 @@ async function renderDetail(body, ctx, evidenceId) {
     openBtn.addEventListener('click', () => { ctx.closeDrawer(); ctx.navigate(`#/video/${item.id}`); });
     slot.appendChild(openBtn);
   }
+}
+
+// "This vs that": pair this item with another as a contradiction about one
+// person. Each side is a marked video moment (picked) or a typed quote —
+// no forced detour through the Video player. Descriptive only: never
+// touches verification or confidence (her rule, 2026-09-01).
+async function renderContradictForm(slot, ctx, item, people, links) {
+  const { store } = ctx;
+  const others = (await store.listEvidence(ctx.caseId)).filter((e) => e.id !== item.id);
+  const myMoments = await store.listVideoMoments(item.id);
+  const linkedIds = links.filter((l) => l.target_type === 'person').map((l) => l.target_id);
+  const orderedPeople = [...people.filter((p) => linkedIds.includes(p.id)), ...people.filter((p) => !linkedIds.includes(p.id))];
+  const fmtT = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  const momentOpts = (moments) => moments.length
+    ? `<option value="">— type a quote below instead —</option>${moments.map((m) => `<option value="${m.id}">${fmtT(m.t_ms)} — ${(m.quote || m.label || 'moment').slice(0, 60)}</option>`).join('')}`
+    : '<option value="">no marked moments — type a quote below</option>';
+
+  slot.innerHTML = `
+    <div class="contra-form stack" style="gap:10px;margin-top:12px;padding:12px;background:var(--ink-2);border-radius:var(--r-lg)">
+      <div class="field"><label>Contradicts which item?</label>
+        <select id="cf-other"><option value="">Pick evidence…</option>${others.map((e) => `<option value="${e.id}">${e.title}</option>`).join('')}</select></div>
+      <div class="field"><label>About which person?</label>
+        <select id="cf-person">${orderedPeople.map((p) => `<option value="${p.id}">${p.display_name}${linkedIds.includes(p.id) ? ' (linked)' : ''}</option>`).join('')}</select></div>
+      <div class="field"><label>This side — moment</label><select id="cf-a-moment">${momentOpts(myMoments)}</select></div>
+      <div class="field"><label>This side — quote</label><input type="text" id="cf-a-quote" placeholder="What is said or shown here"></div>
+      <div class="field"><label>Other side — moment</label><select id="cf-b-moment"><option value="">pick the other item first</option></select></div>
+      <div class="field"><label>Other side — quote</label><input type="text" id="cf-b-quote" placeholder="What is said or shown there"></div>
+      <div class="field"><label>Note — what contradicts what?</label><textarea id="cf-note" style="min-height:56px"></textarea></div>
+      <div class="row" style="gap:8px">
+        <button class="btn btn-primary btn-sm" id="cf-save">Save contradiction</button>
+        <button class="btn btn-ghost btn-sm" id="cf-cancel">Cancel</button>
+      </div>
+    </div>
+  `;
+  const q = (id) => slot.querySelector(id);
+  let otherMoments = [];
+  q('#cf-other').addEventListener('change', async (e) => {
+    otherMoments = e.target.value ? await store.listVideoMoments(e.target.value) : [];
+    q('#cf-b-moment').innerHTML = momentOpts(otherMoments);
+  });
+  // picking a moment pre-fills its quote (editable) — no retyping
+  q('#cf-a-moment').addEventListener('change', (e) => {
+    const m = myMoments.find((x) => x.id === e.target.value);
+    if (m && !q('#cf-a-quote').value) q('#cf-a-quote').value = m.quote || m.label || '';
+  });
+  q('#cf-b-moment').addEventListener('change', (e) => {
+    const m = otherMoments.find((x) => x.id === e.target.value);
+    if (m && !q('#cf-b-quote').value) q('#cf-b-quote').value = m.quote || m.label || '';
+  });
+  q('#cf-cancel').addEventListener('click', () => { slot.innerHTML = ''; });
+  q('#cf-save').addEventListener('click', async () => {
+    const saveBtn = q('#cf-save');
+    clearInlineNote(saveBtn);
+    const other = q('#cf-other').value;
+    if (!other) { inlineNote(saveBtn, 'Pick the other evidence item first.'); return; }
+    const aQuote = q('#cf-a-quote').value.trim(), bQuote = q('#cf-b-quote').value.trim();
+    if (!aQuote && !q('#cf-a-moment').value) { inlineNote(saveBtn, 'This side needs a moment or a quote.'); return; }
+    if (!bQuote && !q('#cf-b-moment').value) { inlineNote(saveBtn, 'The other side needs a moment or a quote.'); return; }
+    await store.createContradiction({
+      case_id: ctx.caseId,
+      person_id: q('#cf-person').value || null,
+      a_evidence_id: item.id, a_moment_id: q('#cf-a-moment').value || null, a_quote: aQuote || null,
+      b_evidence_id: other, b_moment_id: q('#cf-b-moment').value || null, b_quote: bQuote || null,
+      note: q('#cf-note').value.trim() || null,
+    });
+    const personName = orderedPeople.find((p) => p.id === q('#cf-person').value)?.display_name;
+    slot.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">Saved — it's on ${personName ? personName + "'s" : 'the'} Contradictions page and strung on the Board.</div>`;
+  });
 }
 
 async function renderAddForm(body, ctx) {

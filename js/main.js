@@ -15,11 +15,12 @@ const ROUTES = {
   subject: () => import('./pages/subject.js'),
   video: () => import('./pages/video.js'),
   fun: () => import('./pages/fun.js'),
+  contradictions: () => import('./pages/contradictions.js'),
 };
 const TITLES = {
   dashboard: 'Dashboard', evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', subject: 'Subject File', video: 'Video',
-  fun: 'Fun & Zodiac',
+  fun: 'Fun & Zodiac', contradictions: 'Contradictions',
 };
 
 const connectRoot = document.getElementById('connect-root');
@@ -139,7 +140,7 @@ async function renderRoute() {
   const key = route || 'dashboard';
   const loader = ROUTES[key] || ROUTES.dashboard;
 
-  setNavActive(key === 'subject' || key === 'video' ? '' : key);
+  setNavActive(key === 'subject' || key === 'video' || key === 'contradictions' ? '' : key);
   ctx.setTitle(TITLES[key] || 'C7 Case Files');
   // the Fun page saves into its own case — say so honestly (her call
   // 2026-09-01: show "Fun & Zodiac" there rather than hiding the block)

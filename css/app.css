@@ -403,6 +403,22 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .review-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); flex-wrap: wrap; }
 .kbd { font-family: var(--font-mono); background: var(--ink-3); border-radius: var(--r-sm); padding: 1px 5px; font-size: 11px; color: var(--text-2); }
 
+/* ----------------------------------------------------- contradictions */
+.contra-pair { background: var(--ink-1); border-left: 3px solid var(--red); border-radius: 0 var(--r-lg) var(--r-lg) 0; padding: var(--sp-3) var(--sp-4); }
+.contra-grid { display: grid; grid-template-columns: 1fr 28px 1fr; gap: var(--sp-2); align-items: stretch; }
+.contra-side { background: var(--ink-2); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); min-width: 0; }
+.contra-side .ref { font-size: 10px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contra-side .quote { font-family: var(--font-title); font-size: 15px; line-height: 1.35; color: var(--text); margin-top: var(--sp-1); }
+.contra-side .when { font-size: 10px; color: var(--text-3); margin-top: var(--sp-1); }
+.contra-vs { display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--red); }
+.contra-note { margin-top: var(--sp-2); font-size: 12px; color: var(--text-2); }
+@media (max-width: 640px) {
+  .contra-grid { grid-template-columns: 1fr; }
+  .contra-vs { padding: 2px 0; }
+}
+.board-card.evidence { border-top: 2px solid var(--red); }
+.board-card.evidence .tag { font-family: var(--font-mono); font-size: 9px; color: var(--red); text-transform: uppercase; letter-spacing: .06em; }
+
 /* ------------------------------------------ popup replacements (no modals) */
 .btn-armed { background: var(--red) !important; color: var(--ink-0) !important; border-color: var(--red) !important; }
 .inline-form { margin-top: var(--sp-2); }

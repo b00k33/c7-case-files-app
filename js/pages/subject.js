@@ -3,6 +3,7 @@ import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
+import { renderPairs } from '../contradictions.js';
 
 function ageAt(birthISO, atISO) {
   const b = new Date(birthISO), a = new Date(atISO);
@@ -176,6 +177,14 @@ export async function render(root, ctx, personId) {
         <div id="timeline-list" class="stack" style="gap:10px"></div>
       </div>
 
+      <div class="panel">
+        <div class="row between" style="margin-bottom:12px">
+          <div class="panel-title" style="margin:0">Contradictions <span class="mono" style="color:var(--text-3);font-size:11px" id="contra-count"></span></div>
+          <a href="#/contradictions/${person.id}" class="btn btn-ghost btn-sm">Open page →</a>
+        </div>
+        <div id="contra-list" class="stack" style="gap:12px"></div>
+      </div>
+
       <div class="grid-2">
         <div class="panel">
           <div class="panel-title">Open questions</div>
@@ -271,6 +280,18 @@ export async function render(root, ctx, personId) {
       if (item.evidenceId) card.addEventListener('click', () => ctx.navigate('#/evidence'));
       timelineEl.appendChild(card);
     }
+  }
+
+  // contradictions — the first three here, the full list on its own page
+  const contras = await store.listContradictionsForPerson(person.id);
+  root.querySelector('#contra-count').textContent = contras.length ? `· ${contras.length}` : '';
+  renderPairs(root.querySelector('#contra-list'), ctx, contras.slice(0, 3), { onDeleted: () => render(root, ctx, personId) });
+  if (contras.length > 3) {
+    const more = document.createElement('a');
+    more.href = `#/contradictions/${person.id}`;
+    more.className = 'btn btn-ghost btn-sm';
+    more.textContent = `and ${contras.length - 3} more →`;
+    root.querySelector('#contra-list').appendChild(more);
   }
 
   // open questions (case-wide — the schema has no per-person link for questions)

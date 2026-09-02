@@ -223,14 +223,37 @@ async function open() {
       const schemaRes = await withTimeout(fetch('js/schema.sql'), 10000, 'Loading the database schema');
       const schemaSql = await schemaRes.text();
       db.run(schemaSql);
+      applyMigrations();
       setState({ status: 'ready', saveState: 'unsaved', freshlyCreated: true });
     } else {
       db = new SQL.Database(bytes);
+      applyMigrations();
       setState({ status: 'ready', saveState: 'saved', freshlyCreated: false });
     }
   } catch (e) {
     setState({ status: 'error', error: String(e && e.message || e) });
   }
+}
+
+// Tables added after the first release. Every statement is idempotent so a
+// database created from any earlier schema.sql gains them on open; keep
+// each in step with its schema.sql definition.
+const MIGRATIONS = [
+  `CREATE TABLE IF NOT EXISTS contradiction (
+    id TEXT PRIMARY KEY,
+    case_id TEXT REFERENCES case_file(id) ON DELETE CASCADE,
+    person_id TEXT REFERENCES person(id) ON DELETE SET NULL,
+    a_evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+    a_moment_id TEXT, a_quote TEXT,
+    b_evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+    b_moment_id TEXT, b_quote TEXT,
+    note TEXT,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_contradiction_person ON contradiction(person_id)',
+];
+function applyMigrations() {
+  for (const sql of MIGRATIONS) db.run(sql);
 }
 
 export function isReady() {

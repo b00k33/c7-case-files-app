@@ -153,6 +153,21 @@ CREATE TABLE finding (
   notes TEXT, created_at TEXT NOT NULL
 );
 
+-- "this vs that": two pieces of evidence (each optionally pinned to a video
+-- moment or a quote) that contradict each other about one person. Purely
+-- descriptive — never changes verification or confidence (her rule).
+CREATE TABLE contradiction (
+  id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
+  case_id TEXT REFERENCES case_file(id) ON DELETE CASCADE,
+  person_id TEXT REFERENCES person(id) ON DELETE SET NULL,
+  a_evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+  a_moment_id TEXT, a_quote TEXT,
+  b_evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+  b_moment_id TEXT, b_quote TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+
 -- append-only history: undo today, sync between devices later
 CREATE TABLE change_log (
   id TEXT PRIMARY KEY,
@@ -168,3 +183,4 @@ CREATE INDEX idx_evidence_case ON evidence(case_id);
 CREATE INDEX idx_link_target ON evidence_link(target_type, target_id);
 CREATE INDEX idx_claim_state ON claim(case_id, state);
 CREATE INDEX idx_changelog_at ON change_log(at);
+CREATE INDEX idx_contradiction_person ON contradiction(person_id);

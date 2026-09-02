@@ -9,6 +9,11 @@ function cardYear(ev) {
   return null;
 }
 
+function fmtT(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export async function render(root, ctx) {
   const { store } = ctx;
   if (!ctx.caseId) {
@@ -17,13 +22,29 @@ export async function render(root, ctx) {
     return;
   }
 
-  const [kase, events, people] = await Promise.all([
+  const [kase, events, people, contradictions] = await Promise.all([
     store.getCase(ctx.caseId),
     store.listEventsForCase(ctx.caseId),
     store.listPeople(ctx.caseId),
+    store.listContradictionsForCase(ctx.caseId),
   ]);
 
-  const dated = events.filter((e) => cardYear(e) != null);
+  // each side of a contradiction becomes an evidence card at its content
+  // date, so the red string between them shows the gap in time
+  const evidenceCards = new Map(); // evidence id -> card item
+  const undatedContras = [];
+  for (const c of contradictions) {
+    const sides = [
+      { id: c.a_evidence_id, title: c.a_title, dated: c.a_dated, t_ms: c.a_t_ms },
+      { id: c.b_evidence_id, title: c.b_title, dated: c.b_dated, t_ms: c.b_t_ms },
+    ];
+    if (!c.a_dated || !c.b_dated) { undatedContras.push(c); continue; }
+    for (const s of sides) {
+      if (!evidenceCards.has(s.id)) evidenceCards.set(s.id, { _ev: true, id: s.id, title: s.title, date: s.dated, t_ms: s.t_ms });
+    }
+  }
+
+  const dated = [...events.filter((e) => cardYear(e) != null), ...evidenceCards.values()];
   const undated = events.filter((e) => cardYear(e) == null);
 
   root.innerHTML = `
@@ -114,29 +135,65 @@ export async function render(root, ctx) {
   svgLines.setAttribute('class', 'string-svg');
   svgLines.style.top = '52px';
 
-  let cardIndex = 0;
+  const evidencePos = {}; // evidence id -> {x, y} of its card centre, for the red string
+  const NS = 'http://www.w3.org/2000/svg';
   for (const y of years) {
     const list = byYear[y] || [];
     list.forEach((ev, i) => {
       const x = (y - yearMin) * cellW + cellW / 2;
       const yPos = 30 + i * 92;
       const card = document.createElement('div');
-      card.className = 'board-card';
+      card.className = 'board-card' + (ev._ev ? ' evidence' : '');
       card.style.left = `${x - 75}px`;
       card.style.top = `${yPos}px`;
-      card.innerHTML = `<div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${ev.date || y} · ${ev.kind || ''}</div>`;
-      card.addEventListener('click', () => { if (ev.person_id) ctx.navigate(`#/subject/${ev.person_id}`); });
+      if (ev._ev) {
+        card.innerHTML = `<div class="tag">evidence</div><div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${ev.date}${ev.t_ms != null ? ' · ' + fmtT(ev.t_ms) : ''}</div>`;
+        card.addEventListener('click', () => ctx.navigate('#/evidence'));
+        evidencePos[ev.id] = { x, y: yPos + 28 };
+      } else {
+        card.innerHTML = `<div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${ev.date || y} · ${ev.kind || ''}</div>`;
+        card.addEventListener('click', () => { if (ev.person_id) ctx.navigate(`#/subject/${ev.person_id}`); });
+      }
       cardsLayer.appendChild(card);
 
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      const line = document.createElementNS(NS, 'line');
       line.setAttribute('x1', x); line.setAttribute('y1', 0);
       line.setAttribute('x2', x); line.setAttribute('y2', yPos);
-      line.setAttribute('stroke', ev.person_id ? 'var(--brass)' : 'var(--text-3)');
+      const sourced = ev._ev || ev.person_id;
+      line.setAttribute('stroke', sourced ? 'var(--brass)' : 'var(--text-3)');
       line.setAttribute('stroke-width', '1');
-      if (!ev.person_id) line.setAttribute('stroke-dasharray', '3,2');
+      if (!sourced) line.setAttribute('stroke-dasharray', '3,2');
       svgLines.appendChild(line);
-      cardIndex++;
     });
+  }
+
+  // the red string: one curve per contradiction, between its two evidence cards
+  for (const c of contradictions) {
+    const a = evidencePos[c.a_evidence_id], b = evidencePos[c.b_evidence_id];
+    if (!a || !b) continue;
+    const midX = (a.x + b.x) / 2;
+    const lift = Math.max(a.y, b.y) + 46; // bow below the cards so it never crosses them
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', `M ${a.x} ${a.y} Q ${midX} ${lift} ${b.x} ${b.y}`);
+    path.setAttribute('stroke', 'var(--red)');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('fill', 'none');
+    svgLines.appendChild(path);
+    for (const p of [a, b]) {
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y); dot.setAttribute('r', '3');
+      dot.setAttribute('fill', 'var(--red)');
+      svgLines.appendChild(dot);
+    }
+    const days = Math.round(Math.abs(new Date(c.a_dated) - new Date(c.b_dated)) / 86400000);
+    const label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', midX); label.setAttribute('y', (a.y + b.y) / 2 + (lift - (a.y + b.y) / 2) / 2 + 12);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('fill', 'var(--red)');
+    label.setAttribute('font-size', '10');
+    label.setAttribute('font-family', 'JetBrains Mono, monospace');
+    label.textContent = `contradiction · ${days} day${days === 1 ? '' : 's'} apart`;
+    svgLines.appendChild(label);
   }
   const maxStack = Math.max(1, ...Object.values(byYear).map((a) => a.length));
   strip.style.minHeight = `${52 + 30 + maxStack * 92 + 20}px`;
@@ -163,6 +220,13 @@ export async function render(root, ctx) {
       chip.title = 'No year known — won\'t appear on the strip until dated';
       tray.appendChild(chip);
     }
+  }
+  for (const c of undatedContras) {
+    const chip = document.createElement('span');
+    chip.className = 'chip red';
+    chip.textContent = `${c.a_title} vs ${c.b_title}`;
+    chip.title = 'A contradiction whose evidence has no content date on one side — set "Content dated" on both items to string it on the board';
+    tray.appendChild(chip);
   }
   slot.appendChild(tray);
 }
