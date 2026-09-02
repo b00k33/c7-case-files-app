@@ -191,8 +191,8 @@ function renderAddRel(body, ctx, people) {
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:16px">Add a relationship</h3>
     <div class="field"><label>A</label><select id="r-a">${opts}</select></div>
-    <div class="field"><label>Kind</label><select id="r-kind">${['parent', 'spouse', 'sibling', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
-    <div class="field"><label>B ${'(for "parent", A is the parent of B)'}</label><select id="r-b">${opts}</select></div>
+    <div class="field"><label>Kind</label><select id="r-kind">${['parent', 'spouse', 'sibling', 'godparent', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
+    <div class="field"><label>B ${'(for "parent" or "godparent", A is the parent or godparent of B)'}</label><select id="r-b">${opts}</select></div>
     <button class="btn btn-primary" id="r-save">Add</button>
   `;
   body.querySelector('#r-save').addEventListener('click', async () => {

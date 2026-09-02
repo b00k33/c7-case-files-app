@@ -553,6 +553,67 @@ const PERSON_FIELDS = new Set([
   'gender', 'nationality', 'marital_status',
 ]);
 
+function relationshipExists(caseId, aId, bId, kind) {
+  return db.exec(
+    'SELECT 1 FROM relationship WHERE case_id=? AND kind=? AND ((a_id=? AND b_id=?) OR (a_id=? AND b_id=?)) LIMIT 1',
+    [caseId, kind, aId, bId, bId, aId]
+  ).length > 0;
+}
+
+export async function deleteClaim(id) {
+  db.run('DELETE FROM claim WHERE id=?', [id]);
+  logChange('claim', id, 'delete', {}); // a tombstone, so other devices drop it too
+}
+
+// ------------------------------------------------------------ duplicates --
+// Her ask (2026-09-03): a way to clear copies. Exact copies only — a drafted
+// claim identical in target, field and value; an evidence item whose link is
+// the same as another's. Same-name people are counted, never removed.
+
+export async function findDuplicates(caseId) {
+  const claims = db.exec("SELECT id, target_type, target_id, field, value FROM claim WHERE case_id=? AND state='drafted' ORDER BY created_at", [caseId]);
+  const seen = new Set();
+  const dupClaims = [];
+  for (const c of claims) {
+    const key = [c.target_type, c.target_id, c.field, c.value].join('');
+    if (seen.has(key)) dupClaims.push(c.id); else seen.add(key);
+  }
+  const evidence = db.exec("SELECT id, original_url FROM evidence WHERE case_id=? AND deleted_at IS NULL AND original_url IS NOT NULL AND trim(original_url) != '' ORDER BY created_at", [caseId]);
+  const byUrl = new Map();
+  for (const e of evidence) {
+    const key = e.original_url.trim().toLowerCase();
+    if (!byUrl.has(key)) byUrl.set(key, { keep: e.id, remove: [] }); else byUrl.get(key).remove.push(e.id);
+  }
+  const dupEvidence = [...byUrl.values()].filter((g) => g.remove.length);
+  const people = db.exec(
+    'SELECT MIN(display_name) AS name, COUNT(*) AS n FROM person WHERE case_id=? AND deleted_at IS NULL GROUP BY lower(trim(display_name)) HAVING n > 1', [caseId]
+  ).map((r) => ({ name: r.name, count: r.n }));
+  const evidenceCount = dupEvidence.reduce((n, g) => n + g.remove.length, 0);
+  return { claims: dupClaims, evidence: dupEvidence, evidenceCount, people, total: dupClaims.length + evidenceCount };
+}
+
+/** Remove the copies findDuplicates reports; the oldest of each set stays. */
+export async function removeDuplicates(caseId) {
+  const d = await findDuplicates(caseId);
+  for (const id of d.claims) await deleteClaim(id);
+  for (const g of d.evidence) {
+    for (const dupId of g.remove) {
+      // whatever hung off the copy moves to the kept item
+      for (const l of db.exec('SELECT * FROM evidence_link WHERE evidence_id=?', [dupId])) {
+        const has = db.exec('SELECT 1 FROM evidence_link WHERE evidence_id=? AND target_type=? AND target_id=?', [g.keep, l.target_type, l.target_id]).length;
+        if (has) { db.run('DELETE FROM evidence_link WHERE id=?', [l.id]); logChange('evidence_link', l.id, 'delete', {}); }
+        else { db.run('UPDATE evidence_link SET evidence_id=? WHERE id=?', [g.keep, l.id]); logChange('evidence_link', l.id, 'update', { evidence_id: g.keep }); }
+      }
+      for (const m of db.exec('SELECT id FROM video_moment WHERE evidence_id=?', [dupId])) {
+        db.run('UPDATE video_moment SET evidence_id=? WHERE id=?', [g.keep, m.id]);
+        logChange('video_moment', m.id, 'update', { evidence_id: g.keep });
+      }
+      await softDeleteEvidence(dupId);
+    }
+  }
+  return d;
+}
+
 /**
  * Apply an accepted claim's value to the actual data. This is the single
  * chokepoint where a drafted fact is allowed to become real.
@@ -605,8 +666,38 @@ async function applyClaim(claim) {
     const created = await createPerson({ ...fields, case_id: claim.case_id });
     // a looked-up spouse also becomes a spouse relationship, unconfirmed,
     // so the person's marital status reads from the map straight away
-    if (spouse_of && created && created.id) {
+    if (spouse_of && created && created.id && !relationshipExists(claim.case_id, spouse_of, created.id, 'spouse')) {
       await upsertRelationship({ case_id: claim.case_id, a_id: spouse_of, b_id: created.id, kind: 'spouse', confidence: 50, confirmed: 0, notes: claim.rationale || null });
+    }
+    return;
+  }
+  if (claim.field === 'relative') {
+    // a looked-up relative: the person with that name if the case already
+    // has them, otherwise a new person carrying the dates; then the
+    // relationship, unconfirmed and cited (her picks, 2026-09-03)
+    const name = String(value.display_name || '').trim();
+    if (!name || !value.of) return;
+    let person = db.exec('SELECT * FROM person WHERE case_id=? AND deleted_at IS NULL AND lower(trim(display_name))=lower(?) LIMIT 1', [claim.case_id, name])[0] || null;
+    if (!person) {
+      const b = value.birth || null, d = value.death || null;
+      person = await createPerson({
+        case_id: claim.case_id, kind: 'person', display_name: name,
+        birth_date: b && (b.precision === 'day' || b.precision === 'month') ? b.date : null,
+        birth_precision: b ? b.precision : 'unknown',
+        birth_year_min: b && b.precision === 'year' ? b.year : null, birth_year_max: b && b.precision === 'year' ? b.year : null,
+        death_date: d && d.precision === 'day' ? d.date : null, death_precision: d && d.precision === 'day' ? 'day' : 'unknown',
+        notes: value.qid ? `Wikidata https://www.wikidata.org/wiki/${value.qid}` : null,
+      });
+    }
+    const subject = value.of, other = person.id;
+    const DIRECTED = { // [kind, a_id, b_id] — for parent/godparent, A is the parent/godparent of B
+      father: ['parent', other, subject], mother: ['parent', other, subject], child: ['parent', subject, other],
+      sibling: ['sibling', subject, other], spouse: ['spouse', subject, other],
+      godparent: ['godparent', other, subject], godchild: ['godparent', subject, other],
+    };
+    const [kind, a, b] = DIRECTED[value.role] || ['associate', subject, other];
+    if (!relationshipExists(claim.case_id, a, b, kind)) {
+      await upsertRelationship({ case_id: claim.case_id, a_id: a, b_id: b, kind, confidence: 70, confirmed: 0, notes: claim.rationale || null });
     }
     return;
   }

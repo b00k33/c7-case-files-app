@@ -457,7 +457,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
       const row = document.createElement('div');
       row.className = 'row between';
-      const dirLabel = r.kind === 'parent' ? (r.a_id === person.id ? 'parent of' : 'child of') : r.kind;
+      const dirLabel = r.kind === 'parent' ? (r.a_id === person.id ? 'parent of' : 'child of')
+        : r.kind === 'godparent' ? (r.a_id === person.id ? 'godparent of' : 'godchild of')
+        : r.kind;
       const wrap = document.createElement('div');
       wrap.className = 'row';
       wrap.style.gap = '8px';

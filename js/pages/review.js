@@ -20,7 +20,7 @@ function claimStyle(claim, value) {
   if (claim.field === 'event') return KIND_STYLE[value?.kind] || { accent: 'var(--brass)', glyph: '◆' };
   if (claim.field === 'birth') return KIND_STYLE.birth;
   if (claim.field === 'death') return KIND_STYLE.death;
-  if (claim.field === 'relationship') return { accent: 'var(--teal)', glyph: '◈' };
+  if (claim.field === 'relationship' || claim.field === 'relative') return { accent: 'var(--teal)', glyph: '◈' };
   if (claim.field === 'person') return { accent: 'var(--violet)', glyph: '◉' };
   return { accent: 'var(--brass)', glyph: '◆' };
 }
@@ -72,6 +72,19 @@ async function describeClaim(store, claim, value) {
     const meta = value.birth_date ? [{ k: 'born', v: fmtDate(value.birth_date) }] : [];
     return { title: value.display_name, meta };
   }
+  if (f === 'relative') {
+    // "Add Avie Lee Owens as Dolly's mother · born 1923" — or Link, when the
+    // case already has someone by that name
+    const [of, people] = await Promise.all([value.of ? store.getPerson(value.of) : null, store.listPeople(claim.case_id)]);
+    const existing = people.find((p) => p.display_name.trim().toLowerCase() === String(value.display_name || '').trim().toLowerCase());
+    const whose = of ? `${of.display_name}’s` : 'their';
+    const when = (t) => (t ? (t.precision === 'day' ? fmtDate(t.date) : String(t.year)) : null);
+    const meta = [];
+    if (value.birth) meta.push({ k: 'born', v: when(value.birth) });
+    if (value.death) meta.push({ k: 'died', v: when(value.death) });
+    meta.push({ k: 'in this case', v: existing ? 'yes — links the existing person' : 'no — creates them' });
+    return { title: `${existing ? 'Link' : 'Add'} ${value.display_name} as ${whose} ${value.role}`, meta };
+  }
   if (f === 'alias') {
     return { title: value.alias, meta: [{ k: 'kind', v: value.kind }] };
   }
@@ -100,6 +113,7 @@ export async function render(root, ctx) {
 
   const claims = await store.listClaims(ctx.caseId, 'drafted');
   if (cursor >= claims.length) cursor = 0;
+  const dups = await store.findDuplicates(ctx.caseId);
 
   root.innerHTML = `
     <div class="stack">
@@ -110,9 +124,20 @@ export async function render(root, ctx) {
           <button class="btn btn-ghost btn-sm" id="bulk-reject">Reject all</button>
         </div>` : ''}
       </div>
+      ${dups.total ? `<div class="inline-note row between wrap" style="border-left-color:var(--brass);gap:8px;margin:0">
+        <span>${[dups.claims.length ? `${dups.claims.length} claim${dups.claims.length === 1 ? ' is an exact copy' : 's are exact copies'} of others in this queue` : null,
+                 dups.evidenceCount ? `${dups.evidenceCount} evidence item${dups.evidenceCount === 1 ? '' : 's'} share${dups.evidenceCount === 1 ? 's' : ''} a link with another` : null].filter(Boolean).join(' · ')}</span>
+        <button class="btn btn-ghost btn-sm" id="dup-remove">Remove ${dups.total} duplicate${dups.total === 1 ? '' : 's'}</button>
+      </div>` : ''}
       <div id="review-slot"></div>
     </div>
   `;
+  if (dups.total) {
+    twoTapConfirm(root.querySelector('#dup-remove'), {
+      confirmLabel: `Really remove ${dups.total}?`,
+      onConfirm: async () => { await store.removeDuplicates(ctx.caseId); cursor = 0; render(root, ctx); },
+    });
+  }
 
   const slot = root.querySelector('#review-slot');
   if (!claims.length) {

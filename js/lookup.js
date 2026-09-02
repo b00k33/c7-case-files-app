@@ -8,6 +8,11 @@ const WD = 'https://www.wikidata.org/w/api.php';
 const WP_SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 
 const P = { birth: 'P569', death: 'P570', birthPlace: 'P19', citizenship: 'P27', gender: 'P21', spouse: 'P26', occupation: 'P106' };
+// relatives (her ask, 2026-09-03): each arrives as one claim — accept it and
+// the person AND the relationship exist. Godchildren are recorded on the
+// child's side in Wikidata, so they need the reverse query below.
+const REL = { father: 'P22', mother: 'P25', sibling: 'P3373', child: 'P40', godparent: 'P1290', spouse: 'P26' };
+const SPARQL = 'https://query.wikidata.org/sparql';
 
 // Wikidata gives country names; a nationality field reads better as a demonym
 const DEMONYM = {
@@ -66,10 +71,31 @@ export async function fetchProfile(qid) {
   const occupationIds = values(claims, P.occupation).map(idOf).filter(Boolean).slice(0, 4);
   [birthPlaceId, genderId, ...citizenIds, ...spouseIds, ...occupationIds].filter(Boolean).forEach((id) => ids.add(id));
 
+  // relatives by role, straight off the item
+  const relRefs = [];
+  for (const [role, prop] of Object.entries(REL)) {
+    for (const v of values(claims, prop)) { const id = idOf(v); if (id && !relRefs.some((r) => r.qid === id && r.role === role)) relRefs.push({ qid: id, role }); }
+  }
+  // godchildren: the child's item names the godparent, so ask the other way round
+  try {
+    const sq = await getJSON(`${SPARQL}?format=json&query=${encodeURIComponent(`SELECT ?c WHERE { ?c wdt:P1290 wd:${qid} } LIMIT 50`)}`);
+    for (const b of (sq.results && sq.results.bindings) || []) {
+      const m = /Q\d+$/.exec(b.c && b.c.value || '');
+      if (m && !relRefs.some((r) => r.qid === m[0] && r.role === 'godchild')) relRefs.push({ qid: m[0], role: 'godchild' });
+    }
+  } catch (_) { /* the query service is optional; everything else still works */ }
+  relRefs.forEach((r) => ids.add(r.qid));
+
   const labels = {};
-  if (ids.size) {
-    const ld = await getJSON(`${WD}?action=wbgetentities&ids=${[...ids].join('|')}&props=labels&languages=en&format=json&origin=*`);
-    for (const [id, e] of Object.entries(ld.entities || {})) labels[id] = e.labels && e.labels.en ? e.labels.en.value : id;
+  const relClaims = {};
+  const idList = [...ids];
+  for (let i = 0; i < idList.length; i += 50) {
+    const chunk = idList.slice(i, i + 50);
+    const ld = await getJSON(`${WD}?action=wbgetentities&ids=${chunk.join('|')}&props=labels|claims&languages=en&format=json&origin=*`);
+    for (const [id, e] of Object.entries(ld.entities || {})) {
+      labels[id] = e.labels && e.labels.en ? e.labels.en.value : id;
+      relClaims[id] = e.claims || {};
+    }
   }
   const L = (id) => (id ? labels[id] || id : null);
 
@@ -98,6 +124,11 @@ export async function fetchProfile(qid) {
     gender: L(genderId),
     nationality: citizenIds.map((id) => DEMONYM[L(id)] || L(id)).filter((v, i, a) => a.indexOf(v) === i),
     spouses: spouseIds.map((id) => ({ qid: id, name: L(id) })),
+    relatives: relRefs.map((r) => ({
+      qid: r.qid, role: r.role, name: L(r.qid),
+      birth: parseWdTime(values(relClaims[r.qid] || {}, P.birth)[0]),
+      death: parseWdTime(values(relClaims[r.qid] || {}, P.death)[0]),
+    })),
     occupations: occupationIds.map(L),
   };
 }
@@ -171,13 +202,16 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   if (facts.nationality.length) await claim('nationality', facts.nationality.join(', '), P.citizenship);
   if (facts.gender) await claim('gender', facts.gender.charAt(0).toUpperCase() + facts.gender.slice(1), P.gender);
   if (facts.occupations.length) await claim('occupation', facts.occupations.join(', '), P.occupation);
-  for (const sp of facts.spouses) {
-    // a spouse arrives as a new person to accept; accepting also draws the
-    // spouse relationship (spouse_of), so marital status reads from the map
-    const value = { display_name: sp.name, notes: `Spouse of ${facts.label} per Wikidata ${facts.wikidataUrl} (P26)`, spouse_of: personId };
-    if (already('case', caseId, 'person', value)) continue;
-    await store.createClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'person', value, origin: 'lookup', rationale: cite(P.spouse) });
-    drafted.push('spouse');
+  // every relative is one claim: accept it and the person (or the existing
+  // person with that name) gets the relationship, dates included
+  const ROLE_PROP = { ...REL, godchild: 'P1290, reverse' };
+  const relatives = facts.relatives || facts.spouses.map((sp) => ({ ...sp, role: 'spouse', birth: null, death: null }));
+  for (const rel of relatives) {
+    if (!rel.name || /^Q\d+$/.test(rel.name)) continue; // an unlabelled item is nothing she can judge
+    const value = { display_name: rel.name, qid: rel.qid, role: rel.role, of: personId, birth: rel.birth || null, death: rel.death || null };
+    if (already('case', caseId, 'relative', value)) continue;
+    await store.createClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'relative', value, origin: 'lookup', rationale: cite(ROLE_PROP[rel.role] || '') });
+    drafted.push(rel.role);
   }
   return { drafted, evidenceId: ev.id };
 }

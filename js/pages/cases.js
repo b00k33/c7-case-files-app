@@ -133,15 +133,25 @@ export async function render(root, ctx) {
       confirmLabel: 'Really delete?',
       onConfirm: async () => { await store.softDeleteCase(c.id); if (c.id === ctx.caseId) await ctx.setCaseId(null); render(root, ctx); },
     });
-    card.querySelector('.menu-btn').addEventListener('click', (e) => {
+    card.querySelector('.menu-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       const slot = card.querySelector('.menu-slot');
       if (slot.children.length) { slot.innerHTML = ''; return; }
+      const dups = await store.findDuplicates(c.id);
+      const flagged = dups.people.length ? `${dups.people.length} same-name ${dups.people.length === 1 ? 'person' : 'people'} (${dups.people.map((p) => p.name).join(', ')}) — not removed` : '';
       slot.innerHTML = `
         <div class="row wrap" style="gap:6px;margin-top:8px">
           <button class="btn btn-ghost btn-sm m-rename">Rename</button>
           <button class="btn btn-ghost btn-sm m-kind">${c.kind === 'family' ? 'Make it a person case' : 'Make it a family case'}</button>
-        </div>`;
+          ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
+        </div>
+        ${dups.total || flagged ? `<div class="mono" style="font-size:11px;color:var(--text-3);margin-top:6px">${[dups.claims.length ? `${dups.claims.length} claim${dups.claims.length === 1 ? '' : 's'}` : null, dups.evidenceCount ? `${dups.evidenceCount} evidence item${dups.evidenceCount === 1 ? '' : 's'} (same link)` : null, flagged || null].filter(Boolean).join(' · ')}</div>` : ''}`;
+      if (dups.total) {
+        twoTapConfirm(slot.querySelector('.m-dups'), {
+          confirmLabel: `Really remove ${dups.total}?`,
+          onConfirm: async () => { await store.removeDuplicates(c.id); render(root, ctx); },
+        });
+      }
       slot.querySelector('.m-rename').addEventListener('click', () => {
         slot.innerHTML = '';
         slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name }); render(root, ctx); } }));

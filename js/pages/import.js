@@ -282,7 +282,7 @@ function renderClaimForm(body, ctx, people, origin) {
     else if (type.valueType === 'person') fieldsEl.innerHTML += `<div class="field"><label>Display name</label><input type="text" id="c-name"></div><div class="field"><label>Birth date, if known</label><input type="date" id="c-bdate"></div>`;
     else if (type.valueType === 'relationship') fieldsEl.innerHTML += `
       <div class="field"><label>Person A</label><select id="c-a">${personOpts}</select></div>
-      <div class="field"><label>Kind</label><select id="c-kind">${['parent', 'spouse', 'sibling', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
+      <div class="field"><label>Kind</label><select id="c-kind">${['parent', 'spouse', 'sibling', 'godparent', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
       <div class="field"><label>Person B</label><select id="c-b">${personOpts}</select></div>`;
     else if (type.valueType === 'event') fieldsEl.innerHTML += `
       <div class="field"><label>About</label><select id="c-person">${personOpts}</select></div>
@@ -319,7 +319,7 @@ function renderClaimForm(body, ctx, people, origin) {
   });
 }
 
-const RELATIONSHIP_KINDS = ['parent', 'spouse', 'sibling', 'business', 'associate', 'household'];
+const RELATIONSHIP_KINDS = ['parent', 'spouse', 'sibling', 'godparent', 'business', 'associate', 'household'];
 
 // Wikipedia / Wikidata lookup for an existing person (her rule change,
 // 2026-09-02): public figures and historical people. Facts arrive drafted.

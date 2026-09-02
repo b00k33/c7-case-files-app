@@ -459,7 +459,22 @@ changed is where the app lives and how devices share it.
   article's lead picture is fetched once from Wikimedia and stored as the
   person's profile picture (`person.photo_path`, origin kept in
   `photo_url`) — an identification aid, saved directly, replaceable by her
-  own upload. The only other third-party load is a YouTube thumbnail image for a linked video
+  own upload. **Relatives (2026-09-03, her nine answers):** the lookup also
+  reads father, mother, siblings, children, spouses, godparents, and
+  godchildren (the last via one read-only SPARQL query, because Wikidata
+  records godparents on the child). Each relative is one drafted claim
+  (`field: relative` — name, role, Wikidata id, birth and death dates);
+  accepting it links the person already in the case with that name, or
+  creates them with their dates, then draws the relationship — unconfirmed,
+  confidence 70, citing the property. A lookup never drafts an identical
+  claim twice and reuses the article's evidence item. `godparent` is a
+  relationship kind (A is the godparent of B). **Duplicates (same day):**
+  `findDuplicates`/`removeDuplicates` — exact-copy drafted claims and
+  evidence sharing one link (links and video moments move to the kept,
+  oldest item); same-name people are only counted. Offered as a line above
+  the Review queue and as "Clean up duplicates · N" in the case card's ⋯
+  menu, both two-tap.
+  The only other third-party load is a YouTube thumbnail image for a linked video
   (`js/media.js`; an `<img>` from YouTube's image host, video id only,
   placeholder when offline). Nothing else; no automatic lookups.
 - **The launcher (`start.bat` / `start.command`) is legacy.** The
