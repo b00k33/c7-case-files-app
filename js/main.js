@@ -16,12 +16,19 @@ const ROUTES = {
   video: () => import('./pages/video.js'),
   fun: () => import('./pages/fun.js'),
   contradictions: () => import('./pages/contradictions.js'),
+  cases: () => import('./pages/cases.js'),
+  family: () => import('./pages/family.js'),
+  people: () => import('./pages/people.js'),
+  inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
 const TITLES = {
-  dashboard: 'Dashboard', evidence: 'Evidence', board: 'Board', relations: 'Relations',
+  dashboard: 'Dashboard (old)', evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', subject: 'Subject File', video: 'Video',
-  fun: 'Fun & Zodiac', contradictions: 'Contradictions',
+  fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', people: 'People', inbox: 'Inbox',
 };
+// routes that live "inside" a case: show the back arrow, light up Cases in the nav
+const INSIDE_CASE = new Set(['subject', 'family', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns']);
+const HOME_ROUTE = 'cases';
 
 const connectRoot = document.getElementById('connect-root');
 const appShell = document.getElementById('app-shell');
@@ -58,11 +65,12 @@ async function refreshCaseContext() {
 }
 
 document.getElementById('case-rail-select')?.addEventListener('change', async (e) => {
-  // her call (2026-09-01): switching case always lands on that case's
-  // Dashboard — its front door — not a re-render of wherever you were
-  const landOnDashboard = () => {
-    if (location.hash === '#/dashboard' || !location.hash) renderRoute();
-    else ctx.navigate('#/dashboard');
+  // switching case goes INTO that case (her redesign 2026-09-02): a
+  // person-case opens the person's profile, a family its overview
+  const landOnDashboard = async () => {
+    const { openCase } = await import('./pages/cases.js');
+    const kase = await store.getCase(currentCaseId);
+    if (kase) openCase(ctx, kase); else ctx.navigate(`#/${HOME_ROUTE}`);
   };
   try {
     if (e.target.value === '__fun') return; // the Fun page's label row, not a real case
@@ -78,7 +86,8 @@ document.getElementById('case-rail-select')?.addEventListener('change', async (e
           const { createCaseOfKind } = await import('./pages/dashboard.js');
           form.remove();
           sel.style.display = '';
-          await createCaseOfKind(store, ctx, name, kind); // navigates: person file, or the family's dashboard
+          if (kind === 'person') sessionStorage.setItem('c7-offer-lookup', '1');
+          await createCaseOfKind(store, ctx, name, kind); // navigates: person file, or the family
           refreshCaseContext();
         },
         onCancel: () => { sel.style.display = ''; refreshCaseContext(); },
@@ -125,8 +134,10 @@ const ctx = {
   },
   store,
   refreshBadges() { refreshInboxBadge(); },
+  rerender() { renderRoute(); }, // pages re-render the current route in place (tabs stay tabs)
 };
 drawerBackdrop.addEventListener('click', ctx.closeDrawer);
+document.getElementById('back-btn').addEventListener('click', () => ctx.navigate(`#/${HOME_ROUTE}`));
 
 // "N images waiting" on the Evidence nav item (rail + tab bar)
 async function refreshInboxBadge() {
@@ -147,11 +158,14 @@ let currentUnmount = null;
 
 async function renderRoute() {
   const hash = location.hash.replace(/^#\/?/, '');
-  const [route, param] = hash.split('/');
-  const key = route || 'dashboard';
-  const loader = ROUTES[key] || ROUTES.dashboard;
+  const [route, param, sub] = hash.split('/');
+  const key = route || HOME_ROUTE;
+  const loader = ROUTES[key] || ROUTES[HOME_ROUTE];
+  if (key === 'inbox') localStorage.setItem('c7-evidence-view', 'inbox');
+  if (ROUTES[key]) localStorage.setItem('c7-last-hash', location.hash); // launch reopens where she left off
 
-  setNavActive(key === 'subject' || key === 'video' || key === 'contradictions' ? '' : key);
+  setNavActive(INSIDE_CASE.has(key) ? 'cases' : key);
+  document.getElementById('back-btn').style.display = INSIDE_CASE.has(key) ? '' : 'none';
   ctx.setTitle(TITLES[key] || 'C7 Case Files');
   // the Fun page saves into its own case — say so honestly (her call
   // 2026-09-01: show "Fun & Zodiac" there rather than hiding the block)
@@ -175,7 +189,7 @@ async function renderRoute() {
 
   try {
     const mod = await loader();
-    currentUnmount = await mod.render(pageRoot, ctx, param);
+    currentUnmount = await mod.render(pageRoot, ctx, param, sub);
   } catch (e) {
     pageRoot.innerHTML = `<div class="empty-state"><p class="empty-missing">This page hit an error.</p><p class="empty-why">${String(e && e.message || e)}</p></div>`;
     console.error(e);
@@ -246,7 +260,7 @@ async function boot() {
         if (cases.length) currentCaseId = cases[0].id;
       }
       refreshCaseContext();
-      if (!location.hash) location.hash = '#/dashboard';
+      if (!location.hash) location.hash = localStorage.getItem('c7-last-hash') || `#/${HOME_ROUTE}`;
       else renderRoute();
       sync.initSync(); // fire-and-forget — the app never waits on the network
       maybeShowLegacyNotice();

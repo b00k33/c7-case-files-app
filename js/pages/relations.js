@@ -23,7 +23,7 @@ export async function render(root, ctx) {
   const { store } = ctx;
   if (!ctx.caseId) {
     root.innerHTML = '';
-    root.appendChild(emptyState({ missing: 'No case open.', why: 'Open a case from the Dashboard first.', action: 'Go to Dashboard', onAction: () => ctx.navigate('#/dashboard') }));
+    root.appendChild(emptyState({ missing: 'No case open.', why: 'Pick a case from the Cases page first.', action: 'Go to Cases', onAction: () => ctx.navigate('#/cases') }));
     return;
   }
 
@@ -182,7 +182,7 @@ function renderAddPerson(body, ctx) {
       birth_date: bdate || null, birth_precision: bdate ? 'day' : 'unknown',
     });
     ctx.closeDrawer();
-    render(document.getElementById('page-root'), ctx);
+    ctx.rerender();
   });
 }
 
@@ -202,6 +202,6 @@ function renderAddRel(body, ctx, people) {
     clearInlineNote(saveBtn);
     await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: a, b_id: b, kind: body.querySelector('#r-kind').value, confidence: 50, confirmed: 0 });
     ctx.closeDrawer();
-    render(document.getElementById('page-root'), ctx);
+    ctx.rerender();
   });
 }

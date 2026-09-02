@@ -136,8 +136,21 @@ function chartPanel(person, status) {
   return el;
 }
 
-export async function render(root, ctx, personId) {
+// the profile's tabs (her redesign 2026-09-02): the case's whole workspace
+// lives under the person — Evidence, Board, Relations, Import are the same
+// case-level pages, mounted here so she never leaves the profile
+const TABS = [
+  ['profile', 'Profile'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
+  ['board', 'Board'], ['relations', 'Relations'], ['import', 'Import'],
+];
+const TAB_MODULES = {
+  evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
+  board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
+};
+
+export async function render(root, ctx, personId, tab = 'profile') {
   const { store } = ctx;
+  if (!TAB_MODULES[tab]) tab = 'profile';
 
   if (!personId || !ctx.caseId) {
     const people = ctx.caseId ? await store.listPeople(ctx.caseId) : [];
@@ -198,6 +211,8 @@ export async function render(root, ctx, personId) {
         </div>
       </div>
 
+      <div class="tab-strip" id="tab-strip">${TABS.map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
+      ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
       <div class="panel">
         <div class="row between"><div class="panel-title" style="margin:0">Profile</div><button class="btn btn-ghost btn-sm" id="edit-person-btn-2">Edit</button></div>
         <div class="profile-grid" id="profile-grid"></div>
@@ -221,8 +236,21 @@ export async function render(root, ctx, personId) {
       </div>
 
       <div class="panel">
+        <div class="panel-title">Timeline</div>
+        <div id="timeline-list" class="stack" style="gap:10px"></div>
+      </div>
+
+      <div class="panel">
         <div class="panel-title">Chart</div>
         <div id="chart-slot"></div>
+      </div>
+
+      <div class="panel">
+        <div class="row between" style="margin-bottom:12px">
+          <div class="panel-title" style="margin:0">Contradictions <span class="mono" style="color:var(--text-3);font-size:11px" id="contra-count"></span></div>
+          <a href="#/subject/${person.id}/contradictions" class="btn btn-ghost btn-sm">All →</a>
+        </div>
+        <div id="contra-list" class="stack" style="gap:12px"></div>
       </div>
 
       <div class="grid-2">
@@ -236,19 +264,6 @@ export async function render(root, ctx, personId) {
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-title">Timeline</div>
-        <div id="timeline-list" class="stack" style="gap:10px"></div>
-      </div>
-
-      <div class="panel">
-        <div class="row between" style="margin-bottom:12px">
-          <div class="panel-title" style="margin:0">Contradictions <span class="mono" style="color:var(--text-3);font-size:11px" id="contra-count"></span></div>
-          <a href="#/contradictions/${person.id}" class="btn btn-ghost btn-sm">Open page →</a>
-        </div>
-        <div id="contra-list" class="stack" style="gap:12px"></div>
-      </div>
-
       <div class="grid-2">
         <div class="panel">
           <div class="panel-title">Open questions</div>
@@ -258,11 +273,9 @@ export async function render(root, ctx, personId) {
           <div class="panel-title">Attached evidence</div>
           <div id="evidence-list" class="stack" style="gap:2px"></div>
         </div>
-      </div>
+      </div>`}
     </div>
   `;
-
-  root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
 
   // profile picture: stored asset first, remote Wikipedia URL as fallback; tap to replace
   const avatar = root.querySelector('#avatar');
@@ -293,7 +306,6 @@ export async function render(root, ctx, personId) {
 
   const openEdit = () => ctx.openDrawer((body) => renderEditForm(body, ctx, person));
   root.querySelector('#edit-person-btn').addEventListener('click', openEdit);
-  root.querySelector('#edit-person-btn-2').addEventListener('click', openEdit);
 
   // ---- basics: strip under the name + the Profile grid (same facts, two densities) ----
   // marital status is read from the map (a spouse relationship) unless she's set an override
@@ -318,6 +330,17 @@ export async function render(root, ctx, personId) {
   const strip = root.querySelector('#basics-strip');
   strip.innerHTML = basics.map((b) => b.text ? `<span>${b.text}</span>` : `<span class="missing" title="Tap to fill in">— <span style="font-size:10px">${b.missing}</span></span>`).join('<span class="sep">·</span>');
   strip.querySelectorAll('.missing').forEach((el) => el.addEventListener('click', openEdit));
+
+  // any other tab: mount that page under the header and stop here
+  if (tab !== 'profile') {
+    const mod = await TAB_MODULES[tab]();
+    await mod.render(root.querySelector('#tab-body'), ctx, personId);
+    ctx.setTitle(person.display_name);
+    return;
+  }
+
+  root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
+  root.querySelector('#edit-person-btn-2').addEventListener('click', openEdit);
 
   const grid = root.querySelector('#profile-grid');
   const row = (k, v) => `<span class="k">${k}</span><span class="v${v ? '' : ' empty'}">${v || '—'}</span>`;
@@ -384,6 +407,17 @@ export async function render(root, ctx, personId) {
       resultsEl.appendChild(row);
     }
   });
+
+  // a brand-new person-case offers Look up once — one tap to confirm, never automatic
+  if (sessionStorage.getItem('c7-offer-lookup')) {
+    sessionStorage.removeItem('c7-offer-lookup');
+    const offer = document.createElement('div');
+    offer.className = 'inline-note';
+    offer.style.borderLeftColor = 'var(--brass)';
+    offer.innerHTML = `Public figure? <button class="btn btn-primary btn-sm" id="lk-offer" style="margin:0 6px">Look up ${person.display_name} on Wikipedia</button> <span style="color:var(--text-3)">— facts go to Review first, nothing is saved blind.</span>`;
+    root.querySelector('#lk-results').before(offer);
+    offer.querySelector('#lk-offer').addEventListener('click', () => { offer.remove(); root.querySelector('#lk-search').click(); root.querySelector('#lk-results').scrollIntoView({ block: 'center' }); });
+  }
 
   const lastResult = sessionStorage.getItem('c7-pi-result');
   if (lastResult) {
@@ -560,6 +594,6 @@ function renderEditForm(body, ctx, person) {
       notes: body.querySelector('#f-notes').value || null,
     });
     ctx.closeDrawer();
-    render(document.getElementById('page-root'), ctx, person.id);
+    ctx.rerender();
   });
 }

@@ -428,6 +428,41 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .moment-row .m-addpic { font-size: 10px; color: var(--text-3); cursor: pointer; margin-left: auto; white-space: nowrap; }
 .moment-row .m-addpic:hover { color: var(--brass); }
 
+/* ------------------------------------------------ cases home + faces */
+.case-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-3); }
+.case-card { background: var(--ink-1); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
+.case-card:hover { background: var(--ink-2); }
+.case-card .pic { height: 96px; background: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 0; }
+.case-card .pic.multi .face { margin-left: -10px; border: 2px solid var(--ink-1); }
+.case-card .pic.multi .face:first-child { margin-left: 0; }
+.case-card .pic > .initials { font-family: var(--font-title); font-size: 26px; color: var(--brass); }
+.case-card .body { padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+.case-card .title { font-family: var(--font-title); font-size: 15px; color: var(--text); }
+.case-card .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-height: 0; }
+.case-card .menu-btn { padding: 0 8px; min-height: 28px; }
+.face { border-radius: 50%; background: var(--ink-3); overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.face .initials { font-family: var(--font-title); color: var(--brass); font-size: 14px; }
+.faces-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
+.face-card { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; cursor: pointer; text-align: center; }
+.face-card .name { font-size: 12px; color: var(--text); line-height: 1.2; }
+.face-card:hover .name { color: var(--brass); }
+.people-row { gap: var(--sp-3); }
+.tab-strip { display: flex; gap: var(--sp-1); overflow-x: auto; border-bottom: 1px solid var(--line); margin: 0 0 var(--sp-4); scrollbar-width: none; }
+.tab-strip::-webkit-scrollbar { display: none; }
+.tab-strip a { color: var(--text-2); text-decoration: none; padding: var(--sp-2) var(--sp-3); font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; }
+.tab-strip a.active { color: var(--brass); border-bottom-color: var(--brass); }
+.tab-strip a .n { color: var(--brass); font-family: var(--font-mono); font-size: 11px; margin-left: 4px; }
+#back-btn { margin-right: var(--sp-2); font-size: 16px; padding: 0 8px; }
+@media (max-width: 640px) {
+  .case-grid { grid-template-columns: 1fr; }
+  .case-card { flex-direction: row; align-items: stretch; }
+  .case-card .pic { width: 72px; height: auto; flex: 0 0 72px; }
+  .case-card .pic.multi { flex-direction: column; gap: 2px; }
+  .case-card .pic.multi .face { margin-left: 0; width: 28px !important; height: 28px !important; }
+  .case-card .body { flex: 1; min-width: 0; }
+}
+
 /* ------------------------------------------------ profile picture */
 .avatar { width: 72px; height: 72px; border-radius: var(--r-lg); background: var(--ink-2); overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -532,11 +567,12 @@ table.matrix td.diag { background: transparent; cursor: default; }
      over the title; sync + save fold into one status dot; nothing fights */
   #topbar {
     padding: var(--sp-3);
-    display: grid; grid-template-columns: 1fr auto; column-gap: var(--sp-3); row-gap: 2px;
-    grid-template-areas: "case status" "title status" "update update";
+    display: grid; grid-template-columns: auto 1fr auto; column-gap: 0; row-gap: 2px;
+    grid-template-areas: "back case status" "back title status" "update update update";
     align-items: center;
   }
   #topbar .page-title { grid-area: title; font-size: 18px; line-height: 1.2; }
+  #back-btn { grid-area: back; margin: 0 var(--sp-2) 0 0; align-self: center; }
   .case-context {
     grid-area: case; display: block !important; margin: 0; padding: 0; max-width: none;
     background: none; color: var(--brass); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
@@ -545,7 +581,7 @@ table.matrix td.diag { background: transparent; cursor: default; }
   .update-chip { grid-area: update; margin: var(--sp-2) 0 0; justify-self: start; }
   /* a 44px tap target (the mobile button floor) drawing a 12px dot inside */
   .sync-chip {
-    grid-area: status; margin: 0; padding: 0; font-size: 0; line-height: 0;
+    grid-area: status; margin: 0 0 0 var(--sp-3); padding: 0; font-size: 0; line-height: 0;
     width: 44px; height: 44px; min-height: 44px; border-radius: 50%; background: none; position: relative;
   }
   .sync-chip::before {

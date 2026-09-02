@@ -113,9 +113,20 @@ working toward the answer she just walked back.
   status dot instead of chips, a one-row stat strip so real content reaches
   the first screen; a label repeated on every row ("confidence" ×4) is
   removed, the visual carries it.
-- **2026-09-01 — case switching lands on the Dashboard.** Switching case
-  from any switcher goes to that case's Dashboard (its "front door"),
-  not a re-render of the current page.
+- **2026-09-02 — the Cases home replaced the Dashboard (28 answers, her
+  "Yes, build it").** Selecting a case must *take her somewhere*: a
+  person-case opens the person's profile, a family-case its overview
+  (faces + map). The old "switching lands on the Dashboard" rule is
+  superseded — switching goes INTO the case. Home is a list of picture
+  cards, most recently opened first, attention badges only (no kind/count
+  text), visible Import/Delete, ⋯ for rename/change-kind. The case's
+  workspace lives as tabs under the person (Profile · Evidence ·
+  Contradictions · Board · Relations · Import); back is a plain ← arrow,
+  never a breadcrumb. Phone tab bar: Cases · People · Review · Inbox · Fun.
+  "Dashboard (old)" stays reachable, dimmed, in the rail until ~2026-09-09,
+  then gets removed.
+- **Her design instinct, generalised:** a selector that changes state but
+  not the screen "feels useless" — every pick must land on a page.
 
 **Process for every requested change:**
 1. **Understand** what she's actually trying to achieve.

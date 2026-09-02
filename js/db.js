@@ -115,8 +115,11 @@ let mode = 'folder';
 export function storageMode() { return mode; }
 
 /** Try to reconnect silently using a previously-granted handle. */
+// a desktop that chose "Skip the folder" once is never asked again
+const STORAGE_CHOICE_KEY = 'c7-storage-choice';
+
 export async function init() {
-  if (!hasFileSystemAccess() || looksLikeAPhone()) {
+  if (!hasFileSystemAccess() || looksLikeAPhone() || localStorage.getItem(STORAGE_CHOICE_KEY) === 'browser') {
     return useBrowserStorage();
   }
   setState({ status: 'connecting' });
@@ -142,6 +145,7 @@ export async function init() {
  */
 export async function useBrowserStorage() {
   mode = 'idb';
+  try { localStorage.setItem(STORAGE_CHOICE_KEY, 'browser'); } catch (_) { /* private mode: ask again next time */ }
   setState({ status: 'connecting', pendingHandle: null, error: null });
   await open();
   return state.status === 'ready';
@@ -172,6 +176,7 @@ export async function connect() {
       return false;
     }
     rootHandle = handle;
+    try { localStorage.removeItem(STORAGE_CHOICE_KEY); } catch (_) { /* nothing to clear */ }
     await idbSet('handles', 'root', handle);
     await open();
     return true;

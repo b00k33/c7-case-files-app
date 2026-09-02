@@ -70,7 +70,7 @@ export async function render(root, ctx) {
   const { store } = ctx;
   if (!ctx.caseId) {
     root.innerHTML = '';
-    root.appendChild(emptyState({ missing: 'No case open.', why: 'Open a case from the Dashboard first.', action: 'Go to Dashboard', onAction: () => ctx.navigate('#/dashboard') }));
+    root.appendChild(emptyState({ missing: 'No case open.', why: 'Pick a case from the Cases page first.', action: 'Go to Cases', onAction: () => ctx.navigate('#/cases') }));
     return;
   }
 
@@ -554,7 +554,7 @@ async function renderDetail(body, ctx, evidenceId) {
     onConfirm: async () => {
       await store.softDeleteEvidence(item.id);
       ctx.closeDrawer();
-      render(document.getElementById('page-root'), ctx);
+      ctx.rerender();
     },
   });
 
@@ -713,6 +713,6 @@ async function renderAddForm(body, ctx) {
       ...fileMeta,
     });
     ctx.closeDrawer();
-    render(document.getElementById('page-root'), ctx);
+    ctx.rerender();
   });
 }

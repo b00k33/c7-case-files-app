@@ -182,3 +182,10 @@ would.
   once, resets in 5s); name entry uses an inline mini-form in place
   (Enter submits, Escape cancels); refusals and validation messages render
   as an inline note under the control they refuse.
+- **Cases home cards (2026-09-02).** A card is a picture (96px band on
+  desktop; a 72px left column on phones, one card per row) over the
+  name; badges are chips that appear only when earned; faces are round
+  (`.face`) with brass initials until a picture loads. The profile's tab
+  strip is a horizontally scrollable row of text tabs, brass underline
+  on the active one, no icons. The topbar back control is a bare ←,
+  shown only inside a case.

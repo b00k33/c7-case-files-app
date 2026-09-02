@@ -23,19 +23,19 @@
       <span class="eyebrow">Case file</span>
       <select id="case-rail-select" title="Switch case file"></select>
     </div>
-    <a class="nav-link" data-route="dashboard" href="#/dashboard"><span class="ic">▤</span><span class="label">Dashboard</span></a>
-    <a class="nav-link" data-route="evidence" href="#/evidence"><span class="ic">▣</span><span class="label">Evidence</span><span class="nav-badge" id="inbox-badge-rail" title="Images waiting for a title and person"></span></a>
-    <a class="nav-link" data-route="board" href="#/board"><span class="ic">▦</span><span class="label">Board</span></a>
-    <a class="nav-link" data-route="relations" href="#/relations"><span class="ic">◈</span><span class="label">Relations</span></a>
-    <a class="nav-link" data-route="patterns" href="#/patterns"><span class="ic">▩</span><span class="label">Patterns</span></a>
-    <a class="nav-link" data-route="import" href="#/import"><span class="ic">▾</span><span class="label">Import</span></a>
+    <a class="nav-link" data-route="cases" href="#/cases"><span class="ic">▤</span><span class="label">Cases</span></a>
+    <a class="nav-link" data-route="people" href="#/people"><span class="ic">◉</span><span class="label">People</span></a>
     <a class="nav-link" data-route="review" href="#/review"><span class="ic">✓</span><span class="label">Review</span></a>
+    <a class="nav-link" data-route="inbox" href="#/inbox"><span class="ic">▣</span><span class="label">Inbox</span><span class="nav-badge" id="inbox-badge-rail" title="Images waiting for a title and person"></span></a>
+    <a class="nav-link" data-route="patterns" href="#/patterns"><span class="ic">▩</span><span class="label">Patterns</span></a>
     <a class="nav-link" data-route="fun" href="#/fun"><span class="ic">✦</span><span class="label">Fun &amp; Zodiac</span></a>
+    <a class="nav-link" data-route="dashboard" href="#/dashboard" style="opacity:.55;margin-top:16px" title="The old Dashboard — going away soon"><span class="ic">▤</span><span class="label">Dashboard (old)</span></a>
   </nav>
 
   <div id="main-col">
     <header id="topbar">
-      <h1 class="page-title" id="page-title">Dashboard</h1>
+      <button id="back-btn" class="btn btn-ghost btn-sm" style="display:none" title="Back to Cases">←</button>
+      <h1 class="page-title" id="page-title">Cases</h1>
       <span class="case-context mono" id="case-context" title="The case everything on this page reads from and saves into"></span>
       <button id="update-chip" class="update-chip" style="display:none" title="A new version of the app is ready — tap to switch to it">Update ready — tap to reload</button>
       <button id="sync-chip" class="sync-chip mono" data-state="off" title="Cloud sync">⇅ sync off</button>
@@ -45,11 +45,11 @@
   </div>
 
   <nav id="tab-bar">
-    <a data-route="dashboard" href="#/dashboard"><span class="ic">▤</span>Dashboard</a>
-    <a data-route="evidence" href="#/evidence"><span class="ic">▣</span>Evidence<span class="nav-badge" id="inbox-badge-tab"></span></a>
-    <a data-route="board" href="#/board"><span class="ic">▦</span>Board</a>
-    <a data-route="relations" href="#/relations"><span class="ic">◈</span>Relations</a>
+    <a data-route="cases" href="#/cases"><span class="ic">▤</span>Cases</a>
+    <a data-route="people" href="#/people"><span class="ic">◉</span>People</a>
     <a data-route="review" href="#/review"><span class="ic">✓</span>Review</a>
+    <a data-route="inbox" href="#/inbox"><span class="ic">▣</span>Inbox<span class="nav-badge" id="inbox-badge-tab"></span></a>
+    <a data-route="fun" href="#/fun"><span class="ic">✦</span>Fun</a>
   </nav>
 </div>
 

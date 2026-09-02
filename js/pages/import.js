@@ -188,7 +188,7 @@ export async function render(root, ctx) {
   const { store } = ctx;
   if (!ctx.caseId) {
     root.innerHTML = '';
-    root.appendChild(emptyState({ missing: 'No case open.', why: 'Open a case from the Dashboard first.', action: 'Go to Dashboard', onAction: () => ctx.navigate('#/dashboard') }));
+    root.appendChild(emptyState({ missing: 'No case open.', why: 'Pick a case from the Cases page first.', action: 'Go to Cases', onAction: () => ctx.navigate('#/cases') }));
     return;
   }
   const people = await store.listPeople(ctx.caseId);
@@ -315,7 +315,7 @@ function renderClaimForm(body, ctx, people, origin) {
     }
 
     await ctx.store.createClaim({ case_id: ctx.caseId, target_type, target_id, field: type.field, value, origin, rationale });
-    render(document.getElementById('page-root'), ctx);
+    ctx.rerender();
   });
 }
 
@@ -371,7 +371,7 @@ function renderLookupTab(body, ctx, people) {
           const { drafted } = await draftFromLookup(store, ctx.caseId, personId, facts);
           const who = people.find((p) => p.id === personId)?.display_name || 'the person';
           resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${drafted.length} fact${drafted.length === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}) and a Wikipedia evidence item linked to ${who}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
-          render(document.getElementById('page-root'), ctx);
+          ctx.rerender();
         } catch (e) {
           resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
         }
@@ -555,7 +555,7 @@ function renderPasteTab(body, ctx, people) {
       if (facts.length) {
         await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'notes', value: facts.join('\n\n'), origin: 'paste', rationale: 'from paste: non-dated facts' });
       }
-      render(document.getElementById('page-root'), ctx);
+      ctx.rerender();
     });
     previewEl.appendChild(confirmBtn);
   });

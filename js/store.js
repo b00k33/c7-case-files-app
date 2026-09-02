@@ -25,6 +25,53 @@ function logChange(entity, entityId, op, payload) {
   }
 }
 
+// ---------------------------------------------- cases home: search + summaries --
+
+/** Everything, across every case: cases, people, evidence titles/notes, video quotes. */
+export async function searchAll(q) {
+  const like = `%${q}%`;
+  const cases = db.exec(
+    `SELECT id, name AS label, id AS case_id, name AS case_name FROM case_file
+     WHERE deleted_at IS NULL AND kind != 'fun' AND name LIKE ? ORDER BY name LIMIT 10`, [like]
+  ).map((r) => ({ type: 'case', ...r }));
+  const people = db.exec(
+    `SELECT p.id, p.display_name AS label, p.case_id, c.name AS case_name FROM person p
+     JOIN case_file c ON c.id = p.case_id
+     WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL AND c.kind != 'fun'
+       AND (p.display_name LIKE ? OR p.name_at_birth LIKE ? OR p.notes LIKE ?) ORDER BY p.display_name LIMIT 20`, [like, like, like]
+  ).map((r) => ({ type: 'person', ...r }));
+  const evidence = db.exec(
+    `SELECT e.id, e.title AS label, e.case_id, c.name AS case_name, e.type AS sub FROM evidence e
+     JOIN case_file c ON c.id = e.case_id
+     WHERE e.deleted_at IS NULL AND c.deleted_at IS NULL AND (e.title LIKE ? OR e.notes LIKE ?) ORDER BY e.created_at DESC LIMIT 20`, [like, like]
+  ).map((r) => ({ type: 'evidence', ...r }));
+  const moments = db.exec(
+    `SELECT m.id, COALESCE(m.quote, m.label) AS label, e.id AS evidence_id, e.title AS sub, e.case_id, c.name AS case_name FROM video_moment m
+     JOIN evidence e ON e.id = m.evidence_id JOIN case_file c ON c.id = e.case_id
+     WHERE e.deleted_at IS NULL AND (m.quote LIKE ? OR m.label LIKE ? OR m.note LIKE ?) LIMIT 20`, [like, like, like]
+  ).map((r) => ({ type: 'moment', ...r }));
+  return [...cases, ...people, ...evidence, ...moments];
+}
+
+/** What a case card needs: its people (with pictures) and the counts that earn a badge. */
+export async function caseSummary(caseId) {
+  const people = await listPeople(caseId);
+  const toReview = db.exec(`SELECT COUNT(*) AS n FROM claim WHERE case_id=? AND state='drafted'`, [caseId])[0]?.n || 0;
+  const questions = db.exec(`SELECT COUNT(*) AS n FROM question WHERE case_id=? AND resolved=0`, [caseId])[0]?.n || 0;
+  const inbox = await countInbox(caseId);
+  return { people, toReview, questions, inbox };
+}
+
+/** Every person in every research case, for the People view. */
+export async function listAllPeople() {
+  return db.exec(
+    `SELECT p.*, c.name AS case_name, c.kind AS case_kind FROM person p
+     JOIN case_file c ON c.id = p.case_id
+     WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL AND c.kind != 'fun'
+     ORDER BY p.display_name COLLATE NOCASE`
+  );
+}
+
 // ---------------------------------------------------------------- cases --
 
 export async function listCases() {

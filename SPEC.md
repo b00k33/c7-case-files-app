@@ -459,3 +459,43 @@ changed is where the app lives and how devices share it.
   origin — the two-live-masters trap — so it shows a steering notice to
   the live URL. A "Download backup (.db)" button in the sync drawer
   exports the whole database as one SQLite file from any device.
+
+## 10. The Cases home (2026-09-02) — selecting a case takes you somewhere
+
+Her diagnosis: "when I select a person, nothing changes on the screen —
+this box feels useless." A selector that only changes state is a broken
+promise; every pick must land on a page. Twenty-eight questions later:
+
+- **Home = Cases** (`js/pages/cases.js`), a list of picture cards, most
+  recently opened first (`localStorage c7-case-opened`, per device). A
+  card shows the case name, its picture (the person's face; up to three
+  faces for a family), and attention badges only when earned ("14 to
+  review", "1 image", "1 open") — never kind or count text. Import and
+  Delete stay visible; ⋯ holds Rename and "Make it a family/person case".
+  Delete is two-tap. One search box searches everything across every
+  case (`store.searchAll`: case names, people, evidence titles/notes,
+  video quotes) and each hit opens in its own case.
+- **Tapping a case goes in** (`openCase`): a person-case opens the
+  person's profile (creating the person from the case name if the case
+  is empty); a family-case — or an old research-kind case with several
+  people — opens the **family overview** (`js/pages/family.js`: faces
+  row, then the Relations map with its + Person / + Relationship). The
+  rail switcher does the same; "lands on the Dashboard" is retired.
+- **The profile carries the case's workspace as tabs**: Profile ·
+  Evidence · Contradictions · Board · Relations · Import
+  (`#/subject/<id>/<tab>`). The tab pages are the same case-level
+  modules mounted under the person's header; they re-render through
+  `ctx.rerender()` so tabs stay tabs. Profile body order: basics strip,
+  Profile panel (facts, paste box, Look up), timeline, chart,
+  contradictions, addresses/relations, questions/evidence.
+- **Back is a plain ← arrow** in the topbar on any inside-a-case route,
+  returning to Cases. No breadcrumb.
+- **People** (`js/pages/people.js`): everyone in every case, searchable,
+  tap → profile.
+- A brand-new person-case **offers** Look up on the fresh profile (one
+  tap to run it, never automatic). Launch reopens the last route
+  (`localStorage c7-last-hash`).
+- Navigation: rail Cases · People · Review · Inbox · Patterns · Fun &
+  Zodiac, with "Dashboard (old)" dimmed until ~2026-09-09; phone tab bar
+  Cases · People · Review · Inbox · Fun. `#/inbox` is the Evidence page
+  opened on its Inbox view.

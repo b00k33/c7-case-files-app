@@ -29,7 +29,7 @@ export async function createCaseOfKind(store, ctx, name, kind) {
     const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
     ctx.navigate(`#/subject/${p.id}`);
   } else {
-    ctx.navigate('#/dashboard');
+    ctx.navigate('#/family');
   }
   return kase;
 }
