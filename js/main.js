@@ -125,6 +125,18 @@ const ctx = {
     const body = document.createElement('div');
     drawer.appendChild(body);
     render(body);
+    // Enter in any single-line field fires the drawer's primary action —
+    // the same convention as every inline form (2026-09-02: a birth date
+    // typed then "entered" was silently lost when the drawer closed)
+    body.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLSelectElement)) return;
+      const primary = body.querySelector('.btn-primary:not([disabled])');
+      if (!primary) return;
+      e.preventDefault();
+      primary.click();
+    });
     drawer.classList.add('open');
     drawerBackdrop.classList.add('open');
   },

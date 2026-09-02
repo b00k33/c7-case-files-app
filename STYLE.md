@@ -181,7 +181,10 @@ would.
   destructive buttons use a two-tap arm-then-act (button turns red, asks
   once, resets in 5s); name entry uses an inline mini-form in place
   (Enter submits, Escape cancels); refusals and validation messages render
-  as an inline note under the control they refuse.
+  as an inline note under the control they refuse. Drawers follow the same
+  convention (2026-09-02): Enter in any single-line field fires the
+  drawer's primary button — a typed value must never be lost because the
+  wrong key was pressed.
 - **Cases home cards (2026-09-02).** A card is a picture (96px band on
   desktop; a 72px left column on phones, one card per row) over the
   name; badges are chips that appear only when earned; faces are round
