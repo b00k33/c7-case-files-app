@@ -338,6 +338,8 @@ table.dense td.num { font-family: var(--font-mono); }
   cursor: pointer; font-size: 12px; transform: translate(-50%,-50%); min-width: 96px; text-align: center;
 }
 .rel-node .name { color: var(--text); }
+.rel-node .node-avatar { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin: 0 auto 6px; background: var(--ink-2); border: 2px solid var(--ink-3); }
+.rel-node .node-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rel-lines { position: absolute; inset: 0; pointer-events: none; }
 
 /* -------------------------------------------------------------- matrix */

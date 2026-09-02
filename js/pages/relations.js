@@ -5,6 +5,7 @@ import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
 import { makeToken, relationGlyph, barRow, emptyState } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
+import { resolveAssetUrl } from '../assets.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
@@ -101,6 +102,20 @@ export async function render(root, ctx) {
       const sun = sunSign(p.birth_date);
       const chinese = signFor(p.birth_date);
       node.innerHTML = `<div class="name">${p.display_name}</div>`;
+      // the profile picture, when there is one — the map is where faces help most
+      if (p.photo_path || p.photo_url) {
+        const av = document.createElement('div');
+        av.className = 'node-avatar';
+        node.prepend(av);
+        (p.photo_path ? resolveAssetUrl(p.photo_path, 'image/jpeg') : Promise.resolve(null)).then((u) => {
+          const src = u || p.photo_url;
+          if (!src) { av.remove(); return; }
+          const img = document.createElement('img');
+          img.alt = ''; img.src = src;
+          img.addEventListener('error', () => av.remove());
+          av.appendChild(img);
+        });
+      }
       const tr = document.createElement('div');
       tr.className = 'token-row';
       tr.style.justifyContent = 'center';
