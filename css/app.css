@@ -514,6 +514,16 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tree-node.focus .face { box-shadow: 0 0 0 2px var(--brass); }
 .tree-node.focus .name { color: var(--brass); }
 .tree-node:hover .name { color: var(--brass); }
+/* the sibling block: a quiet tone panel with small faces, hung from one line */
+.tree-group { position: absolute; background: var(--ink-2); border-radius: var(--r-lg); }
+.tree-group .glabel { position: absolute; left: 0; right: 0; top: 6px; text-align: center; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.tree-group .mini { position: absolute; width: 64px; text-align: center; cursor: pointer; }
+.tree-group .mini .face { margin: 0 auto 3px; }
+.tree-group .mini .face .initials { font-size: 11px; }
+.tree-group .mini .name { font-size: 10px; color: var(--text); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tree-group .mini .name .lp { color: var(--brass); font-family: var(--font-mono); }
+.tree-group .mini .years { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); }
+.tree-group .mini:hover .name { color: var(--brass); }
 .tree-confirm { fill: var(--ink-1); stroke: var(--brass); stroke-width: 1.5; cursor: pointer; pointer-events: all; }
 .tree-confirm:hover { fill: var(--brass); }
 .linklike { background: none; border: 0; padding: 0; font: inherit; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); cursor: pointer; }

@@ -382,8 +382,17 @@ panel is allowed to show an observed count alone.
    under the tree as "Other connections". The old circular **zodiac map**
    stays as a toggle. Layout is pure (`js/tree.js`: generations by
    relaxation over parent/spouse/sibling links, couple units, recursive
-   widths); the page only draws. Below: repeating-number panel and
-   life-path grid. **Confirm (2026-09-03):** a recorded-but-unconfirmed
+   widths); the page only draws. **Sibling groups (2026-09-03, her ask):**
+   when a couple has four or more children who carry nothing but "child
+   of these parents" (no spouse, no children, no godparent link, not the
+   focus), those fold into one block — small faces in rows of four,
+   oldest first, first names, a life-path number when Numbers is on — hung
+   from a single line; the connected children stay full nodes beside the
+   block so their own branches hang cleanly. A generation holding a block
+   is as tall as the block. The block's one line is confirmed only when
+   every member's link is, and its brass dot confirms them all at once.
+   Fit, − / +, drag-pan and Expand (full screen) control the view. Below:
+   repeating-number panel and life-path grid. **Confirm (2026-09-03):** a recorded-but-unconfirmed
    link carries a small brass dot at its midpoint on the tree — one tap
    confirms it; the profile's Relations panel shows "unconfirmed · confirm"
    (one tap) or "confirmed ✓" (two taps to un-confirm). Implied links

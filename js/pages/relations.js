@@ -173,6 +173,37 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   }
 
   for (const n of L.nodes) {
+    if (n.group) {
+      // the sibling block: small faces in rows of four, one tap each opens the profile
+      const g = document.createElement('div');
+      g.className = 'tree-group';
+      g.style.left = `${n.x}px`; g.style.top = `${n.y}px`; g.style.width = `${n.w}px`; g.style.height = `${n.h}px`;
+      g.innerHTML = `<div class="glabel">${n.items.length} siblings</div>`;
+      for (const it of n.items) {
+        const p = it.person;
+        const m = document.createElement('div');
+        m.className = 'mini';
+        m.style.left = `${it.x}px`; m.style.top = `${it.y}px`;
+        const years = yearsText(p);
+        const lp = numbers ? lifePath(p.birth_date) : null;
+        m.innerHTML = `<div class="face" style="width:${L.mini.face}px;height:${L.mini.face}px"><span class="initials">${initials(p.display_name)}</span></div>
+          <div class="name">${p.display_name.split(' ')[0]}${lp && lp.ok ? ` <span class="lp">${lp.value}${lp.master ? '★' : ''}</span>` : ''}</div>
+          ${years ? `<div class="years">${years.slice(0, 4)}</div>` : ''}`;
+        m.title = `${p.display_name}${years ? ' · ' + years : ''} — open profile`;
+        m.addEventListener('click', () => { if (!scrollBox.dataset.dragged) ctx.navigate(`#/subject/${p.id}`); });
+        g.appendChild(m);
+        const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
+        if (src) {
+          const img = document.createElement('img');
+          img.alt = ''; img.src = src;
+          img.addEventListener('load', () => m.querySelector('.initials')?.remove());
+          img.addEventListener('error', () => img.remove());
+          m.querySelector('.face').appendChild(img);
+        }
+      }
+      tree.appendChild(g);
+      continue;
+    }
     const p = n.person;
     const el = document.createElement('div');
     el.className = `tree-node${n.id === focus ? ' focus' : ''}`;
