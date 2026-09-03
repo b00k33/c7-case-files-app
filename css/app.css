@@ -494,6 +494,30 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .chip-icon-pic { width: 18px; height: 18px; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .chip-icon-pic.glyph { font-size: 14px; }
 
+/* life-path grid, sorted by animal / sun sign: each group is its own tbody
+   under an accented header row (so the zebra restarts cleanly per group) */
+table.dense tr.grp-head { cursor: default; }
+table.dense tr.grp-head:hover { background: transparent; }
+table.dense tr.grp-head td { padding: var(--sp-4) var(--sp-3) var(--sp-1); height: auto; }
+table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
+.grp-bar { display: flex; align-items: baseline; gap: var(--sp-2); padding-left: 9px; border-left: 3px solid var(--ink-3); font-weight: 600; font-size: 13px; color: var(--text-3); }
+.grp-bar .grp-pic { width: 17px; height: 17px; font-size: 14px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; align-self: center; }
+.grp-bar .grp-sub, .grp-bar .grp-count { font-weight: 400; color: var(--text-3); font-size: 11px; }
+.grp-bar .grp-count { font-family: var(--font-mono); }
+.grp-bar.gb-blue { border-color: var(--zc-blue); color: var(--zc-blue); }
+.grp-bar.gb-green { border-color: var(--zc-green); color: var(--zc-green); }
+.grp-bar.gb-pink { border-color: var(--zc-pink); color: var(--zc-pink); }
+.grp-bar.gb-yellow { border-color: var(--zc-yellow); color: var(--zc-yellow); }
+.grp-bar.gb-air { border-color: var(--ws-air); color: var(--ws-air); }
+.grp-bar.gb-fire { border-color: var(--ws-fire); color: var(--ws-fire); }
+.grp-bar.gb-earth { border-color: var(--ws-earth); color: var(--ws-earth); }
+.grp-bar.gb-water { border-color: var(--ws-water); color: var(--ws-water); }
+/* the grid's sort control: which column, then exact vs its colour group */
+.ctl-col { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); }
+.ctl-sub { font-size: 10px; color: var(--text-3); }
+.ctl-sub button { background: none; border: none; color: var(--text-3); font: inherit; font-size: 10px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; padding: 0; min-height: 0; }
+.ctl-sub button.active { color: var(--brass); text-decoration: none; cursor: default; }
+
 /* ------------------------------------------------ number icons (life path · animal · sign) */
 .num-icons { display: inline-flex; align-items: center; gap: 6px; }
 .num-icons .ni-lp { color: var(--brass); font-size: 13px; font-weight: 500; min-width: 14px; text-align: center; }

@@ -143,13 +143,21 @@ function ensurePosterFilters() {
   document.body.appendChild(root);
 }
 
-/** A pill: the animal's poster-duotone photo (tinted to its trine colour) + its name. */
-export function animalChipHtml(animal) {
+/** Just the animal's poster-duotone photo, tinted to its trine colour — '' if the animal is unknown. */
+export function animalPicHtml(animal, cls = 'chip-icon-pic') {
   const g = zodiacGroup(animal);
   const icon = animalIcon(animal);
-  if (!g || !icon) return animal;
+  if (!g || !icon) return '';
   ensurePosterFilters();
-  return `<span class="chip-icon zc-${g}"><span class="chip-icon-pic" style="filter:url(#c7-animal-duo-${g})">${icon}</span>${animal}</span>`;
+  return `<span class="${cls}" style="filter:url(#c7-animal-duo-${g})">${icon}</span>`;
+}
+
+/** A pill: the animal's poster-duotone photo + its name. */
+export function animalChipHtml(animal) {
+  const g = zodiacGroup(animal);
+  const pic = animalPicHtml(animal);
+  if (!g || !pic) return animal;
+  return `<span class="chip-icon zc-${g}">${pic}${animal}</span>`;
 }
 
 /** A pill in the same shape: the sun sign's glyph (already flat, no filter needed) + its name. */

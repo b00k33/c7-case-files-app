@@ -1,9 +1,9 @@
 import { lifePath } from '../numerology.js';
-import { signFor } from '../chinese.js';
+import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
-import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
@@ -16,6 +16,22 @@ function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').sli
 const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map'
 const NUMBERS_KEY = 'c7-tree-numbers'; // '1' shows number · animal · sign under each face
 const FIT_KEY = 'c7-tree-fit';         // '0' turns "Fit" off (on by default: she wants the whole tree)
+const GRID_SORT_KEY = 'c7-grid-sort';  // 'name' (default) | 'animal' | 'trine' | 'sun' | 'element'
+
+// presentation order for the grid's groups: the zodiac cycle, the wheel, and her colour code
+const SIGN_ORDER = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
+const TRINES = [
+  { key: 'blue', name: 'Blue', members: 'Snake · Ox · Rooster' },
+  { key: 'green', name: 'Green', members: 'Dog · Tiger · Horse' },
+  { key: 'pink', name: 'Pink', members: 'Pig · Goat · Rabbit' },
+  { key: 'yellow', name: 'Yellow', members: 'Rat · Dragon · Monkey' },
+];
+const WESTERN_ELEMENTS = [
+  { key: 'air', name: 'Air', members: 'Gemini · Libra · Aquarius' },
+  { key: 'fire', name: 'Fire', members: 'Aries · Leo · Sagittarius' },
+  { key: 'earth', name: 'Earth', members: 'Taurus · Virgo · Capricorn' },
+  { key: 'water', name: 'Water', members: 'Cancer · Scorpio · Pisces' },
+];
 
 // per render: how far the tree is opened either side of the focus person, and the zoom
 const treeState = { up: 1, down: 1, scale: 1 };
@@ -64,7 +80,10 @@ export async function render(root, ctx, focusId = null) {
           <div id="repeat-slot"></div>
         </div>
         <div class="panel">
-          <div class="panel-title">Life path grid</div>
+          <div class="row between wrap" style="gap:8px;align-items:flex-start;margin-bottom:var(--sp-3)">
+            <div class="panel-title" style="margin:0">Life path grid</div>
+            <div id="grid-ctl"></div>
+          </div>
           <div id="grid-slot"></div>
         </div>
       </div>
@@ -473,26 +492,93 @@ function renderNumberPanels(root, people) {
     }
   }
 
-  const gridSlot = root.querySelector('#grid-slot');
+  renderGrid(root.querySelector('#grid-slot'), root.querySelector('#grid-ctl'), people);
+}
+
+/**
+ * The life-path grid. Sorted by name by default; the control above it can
+ * group the rows by animal or sun sign — exact (repeats first, biggest
+ * cluster at the top, one-offs collected under "No repeats") or by the
+ * colour group (trine / element, in the key's order, exact repeats still
+ * running together inside each colour). The choice sticks, like the tree's
+ * own toggles. Her ask, 2026-09-03.
+ */
+function renderGrid(gridSlot, ctlSlot, people) {
+  gridSlot.innerHTML = '';
+  ctlSlot.innerHTML = '';
   if (!people.length) {
     gridSlot.appendChild(emptyState({ missing: 'No people yet.', why: 'Add people to populate this grid.' }));
-  } else {
-    const table = document.createElement('table');
-    table.className = 'dense';
-    table.innerHTML = `<thead><tr><th>Person</th><th>Life path</th><th>Sun sign</th><th>Animal</th></tr></thead><tbody>${people.map((p) => {
-      const d = exactBirth(p);
-      const lp = lifePath(d);
-      const sun = sunSign(d);
-      const ch = signFor(d);
-      return `<tr><td>${p.display_name}</td><td class="num">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</td><td>${sun.ok ? signChipHtml(sun.sign) : '—'}</td><td>${ch.ok && !ch.boundary ? animalChipHtml(ch.animal) : ch.boundary ? 'boundary' : '—'}</td></tr>`;
-    }).join('')}</tbody>`;
-    gridSlot.appendChild(table);
-    const key = document.createElement('div');
-    key.className = 'zc-key';
-    key.innerHTML = `<span><span class="zc zc-blue">Snake · Ox · Rooster</span></span><span><span class="zc zc-green">Dog · Tiger · Horse</span></span><span><span class="zc zc-pink">Pig · Goat · Rabbit</span></span><span><span class="zc zc-yellow">Rat · Dragon · Monkey</span></span>
-      <span><span class="zc ws-air">air</span> · <span class="zc ws-fire">fire</span> · <span class="zc ws-earth">earth</span> · <span class="zc ws-water">water</span></span>`;
-    gridSlot.appendChild(key);
+    return;
   }
+  const saved = localStorage.getItem(GRID_SORT_KEY);
+  const mode = ['animal', 'trine', 'sun', 'element'].includes(saved) ? saved : 'name';
+  const primary = mode === 'name' ? 'name' : (mode === 'animal' || mode === 'trine') ? 'animal' : 'sun';
+  const grouped = mode === 'trine' || mode === 'element';
+
+  ctlSlot.innerHTML = `
+    <div class="ctl-col">
+      <span class="seg">
+        <button data-p="name" class="${primary === 'name' ? 'active' : ''}">Name</button>
+        <button data-p="animal" class="${primary === 'animal' ? 'active' : ''}">Animal</button>
+        <button data-p="sun" class="${primary === 'sun' ? 'active' : ''}">Sun sign</button>
+      </span>
+      ${primary === 'name' ? '' : `<span class="ctl-sub"><button data-s="exact" class="${grouped ? '' : 'active'}">exact</button> · <button data-s="group" class="${grouped ? 'active' : ''}">${primary === 'animal' ? 'trine' : 'element'}</button></span>`}
+    </div>`;
+  const setMode = (m) => { localStorage.setItem(GRID_SORT_KEY, m); renderGrid(gridSlot, ctlSlot, people); };
+  ctlSlot.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.p)));
+  ctlSlot.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.s === 'exact' ? primary : (primary === 'animal' ? 'trine' : 'element'))));
+
+  const facts = people.map((p) => {
+    const d = exactBirth(p);
+    const lp = lifePath(d), sun = sunSign(d), ch = signFor(d);
+    return { p, lp, ch, animal: ch.ok && !ch.boundary ? ch.animal : null, sign: sun.ok ? sun.sign : null };
+  });
+  const byName = (a, b) => a.p.display_name.localeCompare(b.p.display_name);
+  const row = (f) => `<tr><td>${f.p.display_name}</td><td class="num">${f.lp.ok ? f.lp.value + (f.lp.master ? '★' : '') : '—'}</td><td>${f.sign ? signChipHtml(f.sign) : '—'}</td><td>${f.animal ? animalChipHtml(f.animal) : f.ch.boundary ? 'boundary' : '—'}</td></tr>`;
+  const head = (cls, pic, label, sub, n) => `<tr class="grp-head"><td colspan="4"><div class="grp-bar ${cls}">${pic}${label}${sub ? `<span class="grp-sub">${sub}</span>` : ''}<span class="grp-count">· ${n}</span></div></td></tr>`;
+  const block = (rows) => `<tbody>${rows}</tbody>`;
+
+  const isAnimal = primary === 'animal';
+  const keyOf = isAnimal ? (f) => f.animal : (f) => f.sign;
+  const order = isAnimal ? ANIMALS : SIGN_ORDER;
+  let body = '';
+  if (mode === 'name') {
+    body = block(facts.slice().sort(byName).map(row).join(''));
+  } else if (!grouped) {
+    const groups = new Map();
+    for (const f of facts) { const k = keyOf(f); if (k) { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); } }
+    const repeats = [...groups.keys()].filter((k) => groups.get(k).length > 1)
+      .sort((a, b) => groups.get(b).length - groups.get(a).length || order.indexOf(a) - order.indexOf(b));
+    const singles = facts.filter((f) => keyOf(f) && groups.get(keyOf(f)).length === 1).sort(byName);
+    const unknown = facts.filter((f) => !keyOf(f)).sort(byName);
+    for (const k of repeats) {
+      const cls = isAnimal ? `gb-${zodiacGroup(k)}` : `gb-${signElement(k)}`;
+      const pic = isAnimal ? animalPicHtml(k, 'grp-pic') : `<span class="grp-pic">${signGlyph(k)}</span>`;
+      body += block(head(cls, pic, k, null, groups.get(k).length) + groups.get(k).slice().sort(byName).map(row).join(''));
+    }
+    if (singles.length) body += block(head('gb-none', '', 'No repeats', null, singles.length) + singles.map(row).join(''));
+    if (unknown.length) body += block(head('gb-none', '', 'Unknown', null, unknown.length) + unknown.map(row).join(''));
+  } else {
+    const buckets = isAnimal ? TRINES : WESTERN_ELEMENTS;
+    const bucketOf = isAnimal ? (f) => (f.animal ? zodiacGroup(f.animal) : null) : (f) => (f.sign ? signElement(f.sign) : null);
+    for (const b of buckets) {
+      const members = facts.filter((f) => bucketOf(f) === b.key)
+        .sort((x, y) => order.indexOf(keyOf(x)) - order.indexOf(keyOf(y)) || byName(x, y));
+      if (members.length) body += block(head(`gb-${b.key}`, '', b.name, b.members, members.length) + members.map(row).join(''));
+    }
+    const unknown = facts.filter((f) => !bucketOf(f)).sort(byName);
+    if (unknown.length) body += block(head('gb-none', '', 'Unknown', null, unknown.length) + unknown.map(row).join(''));
+  }
+
+  const table = document.createElement('table');
+  table.className = 'dense';
+  table.innerHTML = `<thead><tr><th>Person</th><th>Life path</th><th>Sun sign</th><th>Animal</th></tr></thead>${body}`;
+  gridSlot.appendChild(table);
+  const key = document.createElement('div');
+  key.className = 'zc-key';
+  key.innerHTML = `<span><span class="zc zc-blue">Snake · Ox · Rooster</span></span><span><span class="zc zc-green">Dog · Tiger · Horse</span></span><span><span class="zc zc-pink">Pig · Goat · Rabbit</span></span><span><span class="zc zc-yellow">Rat · Dragon · Monkey</span></span>
+    <span><span class="zc ws-air">air</span> · <span class="zc ws-fire">fire</span> · <span class="zc ws-earth">earth</span> · <span class="zc ws-water">water</span></span>`;
+  gridSlot.appendChild(key);
 }
 
 // ----------------------------------------------------------------- forms --
