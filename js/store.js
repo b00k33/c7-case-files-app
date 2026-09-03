@@ -91,9 +91,9 @@ export async function createCase(obj) {
   const id = uuid();
   const now = nowISO();
   db.run(
-    `INSERT INTO case_file (id,name,kind,description,era_start,era_end,owner_id,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    [id, obj.name, obj.kind || 'research', obj.description || null, obj.era_start ?? null, obj.era_end ?? null, 'local', now, now]
+    `INSERT INTO case_file (id,name,kind,description,era_start,era_end,owner_id,world,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.name, obj.kind || 'research', obj.description || null, obj.era_start ?? null, obj.era_end ?? null, 'local', obj.world || null, now, now]
   );
   logChange('case_file', id, 'insert', obj);
   return getCase(id);
@@ -638,6 +638,66 @@ export async function removeDuplicates(caseId) {
     }
   }
   return d;
+}
+
+/**
+ * Fold `dupId` into `keepId`: every alias, address, relationship, event,
+ * evidence link, tag, claim and contradiction that pointed at the duplicate
+ * now points at the kept person, and any blank field on the kept person is
+ * filled from the duplicate. A relationship that would become a self-link,
+ * or a duplicate of one `keepId` already has, is dropped rather than kept
+ * twice. `dupId` is then soft-deleted. Used for two people the same
+ * Wikidata item was matched to under different spellings.
+ */
+export async function mergePerson(keepId, dupId) {
+  if (keepId === dupId) return;
+  const keep = await getPerson(keepId), dup = await getPerson(dupId);
+  if (!keep || !dup) throw new Error('one of these people no longer exists');
+
+  for (const row of db.exec('SELECT id FROM person_alias WHERE person_id=?', [dupId])) {
+    db.run('UPDATE person_alias SET person_id=? WHERE id=?', [keepId, row.id]);
+    logChange('person_alias', row.id, 'update', { person_id: keepId });
+  }
+  for (const row of db.exec('SELECT id FROM address WHERE person_id=?', [dupId])) {
+    db.run('UPDATE address SET person_id=? WHERE id=?', [keepId, row.id]);
+    logChange('address', row.id, 'update', { person_id: keepId });
+  }
+  for (const row of db.exec('SELECT id FROM event WHERE person_id=?', [dupId])) {
+    await updateEvent(row.id, { person_id: keepId });
+  }
+  for (const row of db.exec('SELECT id FROM contradiction WHERE person_id=? AND deleted_at IS NULL', [dupId])) {
+    db.run('UPDATE contradiction SET person_id=?, updated_at=? WHERE id=?', [keepId, nowISO(), row.id]);
+    logChange('contradiction', row.id, 'update', { person_id: keepId });
+  }
+  for (const row of db.exec('SELECT id, target_id FROM claim WHERE target_type=\'person\' AND target_id=?', [dupId])) {
+    db.run('UPDATE claim SET target_id=? WHERE id=?', [keepId, row.id]);
+    logChange('claim', row.id, 'update', { target_id: keepId });
+  }
+  for (const row of db.exec('SELECT id, evidence_id FROM evidence_link WHERE target_type=\'person\' AND target_id=?', [dupId])) {
+    const already = db.exec('SELECT 1 FROM evidence_link WHERE evidence_id=? AND target_type=\'person\' AND target_id=?', [row.evidence_id, keepId]).length;
+    if (already) { db.run('DELETE FROM evidence_link WHERE id=?', [row.id]); logChange('evidence_link', row.id, 'delete', {}); }
+    else { db.run('UPDATE evidence_link SET target_id=? WHERE id=?', [keepId, row.id]); logChange('evidence_link', row.id, 'update', { target_id: keepId }); }
+  }
+  for (const row of db.exec('SELECT tag_id FROM tagging WHERE target_type=\'person\' AND target_id=?', [dupId])) {
+    await untagTarget(row.tag_id, 'person', dupId);
+    await tagTarget(row.tag_id, 'person', keepId);
+  }
+  for (const r of db.exec('SELECT * FROM relationship WHERE a_id=? OR b_id=?', [dupId, dupId])) {
+    const a = r.a_id === dupId ? keepId : r.a_id, b = r.b_id === dupId ? keepId : r.b_id;
+    if (a === b || relationshipExists(r.case_id, a, b, r.kind)) { await deleteRelationship(r.id); continue; }
+    db.run('UPDATE relationship SET a_id=?, b_id=? WHERE id=?', [a, b, r.id]);
+    logChange('relationship', r.id, 'update', { a_id: a, b_id: b });
+  }
+
+  const patch = {};
+  for (const f of ['name_at_birth', 'ref_code', 'birth_date', 'birth_precision', 'birth_year_min', 'birth_year_max',
+    'birth_time', 'birth_time_precision', 'birth_place', 'birth_lat', 'birth_lng', 'birth_tz',
+    'death_date', 'death_precision', 'gender', 'nationality', 'marital_status', 'photo_path', 'photo_url',
+    'wikidata_id', 'occupation', 'notes']) {
+    if ((keep[f] == null || keep[f] === '') && dup[f] != null && dup[f] !== '') patch[f] = dup[f];
+  }
+  if (Object.keys(patch).length) await updatePerson(keepId, patch);
+  await softDeletePerson(dupId);
 }
 
 /**

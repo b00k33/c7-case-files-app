@@ -432,7 +432,8 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .case-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-3); }
 .case-card { background: var(--ink-1); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
 .case-card:hover { background: var(--ink-2); }
-.case-card .pic { height: 96px; background: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 0; }
+.case-card .pic { position: relative; height: 96px; background: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 0; }
+.fic-ribbon { position: absolute; top: 8px; left: -6px; z-index: 1; background: var(--violet); color: var(--ink-0); font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 2px; transform: rotate(-8deg); max-width: 85%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .case-card .pic.multi .face { margin-left: -10px; border: 2px solid var(--ink-1); }
 .case-card .pic.multi .face:first-child { margin-left: 0; }
 .case-card .pic > .initials { font-family: var(--font-title); font-size: 26px; color: var(--brass); }

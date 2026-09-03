@@ -35,7 +35,7 @@ export function twoTapConfirm(btn, { confirmLabel = 'Really? Tap again', onConfi
  * Enter submits, Escape cancels, ✕ cancels. Empty input refuses quietly
  * (keeps focus) rather than submitting nothing.
  */
-export function inlineNameForm({ label, placeholder = '', value = '', submitLabel = 'Create', choices = null, onSubmit, onCancel }) {
+export function inlineNameForm({ label, placeholder = '', value = '', submitLabel = 'Create', choices = null, withFictional = false, onSubmit, onCancel }) {
   const wrap = document.createElement('div');
   wrap.className = 'inline-form';
   wrap.innerHTML = `
@@ -46,19 +46,35 @@ export function inlineNameForm({ label, placeholder = '', value = '', submitLabe
       <button type="button" class="btn btn-primary btn-sm if-submit">${submitLabel}</button>
       <button type="button" class="btn btn-ghost btn-sm if-cancel" title="Cancel">✕</button>
     </div>
+    ${withFictional ? `
+    <div class="row wrap" style="gap:8px;margin-top:6px;align-items:center">
+      <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-fictional"> Fictional (a made-up world, not real research)</label>
+      <input type="text" class="if-world" placeholder="World, e.g. Harry Potter" style="display:none;flex:1 1 140px;min-width:0">
+    </div>` : ''}
   `;
   const input = wrap.querySelector('input');
   input.placeholder = placeholder;
   input.value = value;
+  const worldCheck = wrap.querySelector('.if-fictional');
+  const worldInput = wrap.querySelector('.if-world');
+  worldCheck?.addEventListener('change', () => {
+    worldInput.style.display = worldCheck.checked ? '' : 'none';
+    if (worldCheck.checked) worldInput.focus();
+  });
   const cancel = () => { wrap.remove(); onCancel?.(); };
   const submit = async () => {
     const v = input.value.trim();
     if (!v) { input.focus(); return; }
-    await onSubmit(v, wrap.querySelector('.if-choice')?.value);
+    const world = worldCheck?.checked ? (worldInput.value.trim() || 'Fictional') : null;
+    await onSubmit(v, wrap.querySelector('.if-choice')?.value, world);
   };
   wrap.querySelector('.if-submit').addEventListener('click', submit);
   wrap.querySelector('.if-cancel').addEventListener('click', cancel);
   input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submit();
+    else if (e.key === 'Escape') cancel();
+  });
+  worldInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') submit();
     else if (e.key === 'Escape') cancel();
   });

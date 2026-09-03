@@ -81,8 +81,9 @@ export async function render(root, ctx) {
     slot.appendChild(inlineNameForm({
       placeholder: 'Who or what is this case about?',
       choices: CASE_KINDS,
-      onSubmit: async (name, kind) => {
-        const kase = await createCaseOfKind(store, ctx, name, kind);
+      withFictional: true,
+      onSubmit: async (name, kind, world) => {
+        const kase = await createCaseOfKind(store, ctx, name, kind, world);
         markOpened(kase.id);
         if (kind === 'person') sessionStorage.setItem('c7-offer-lookup', '1'); // the new profile offers Look up
       },
@@ -119,9 +120,10 @@ export async function render(root, ctx) {
     `;
     // picture: the person's face, or up to three family faces
     const pic = card.querySelector('.pic');
+    if (c.world) pic.innerHTML = `<span class="fic-ribbon">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>`;
     const subject = subjectOf(c, sum.people);
     const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
-    if (!faces.length) pic.innerHTML = `<span class="initials">${initials(c.name)}</span>`;
+    if (!faces.length) pic.innerHTML += `<span class="initials">${initials(c.name)}</span>`;
     else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
     else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
     // badges only when there is something

@@ -267,6 +267,7 @@ const ADDED_COLUMNS = [
   ['person', 'photo_path', 'TEXT'],      // profile picture as a stored asset (2026-09-02)
   ['person', 'photo_url', 'TEXT'],       // where it came from (Wikipedia) or a remote fallback
   ['person', 'wikidata_id', 'TEXT'],     // the Wikidata item a lookup matched — so a relative is recognised by identity, not by spelling (2026-09-03)
+  ['case_file', 'world', 'TEXT'],        // the fictional world this case is about, set at creation only; null = real research (2026-09-03)
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

@@ -22,8 +22,8 @@ export const CASE_KIND_LABEL = { person: 'person', family: 'family', research: '
 
 // creating a person-case also creates the person, so their file (and Look
 // up) exists immediately — no empty case, no extra step
-export async function createCaseOfKind(store, ctx, name, kind) {
-  const kase = await store.createCase({ name, kind: kind || 'person' });
+export async function createCaseOfKind(store, ctx, name, kind, world) {
+  const kase = await store.createCase({ name, kind: kind || 'person', world: world || null });
   await ctx.setCaseId(kase.id);
   if ((kind || 'person') === 'person') {
     const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
