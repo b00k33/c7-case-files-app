@@ -378,14 +378,24 @@ panel is allowed to show an observed count alone.
    tree opens at their row ± 1 generation with "Up 1 / Down 1 / Expand
    all" and "+ N above/below" chips; the family overview shows the whole
    case. "Numbers" toggles the life-path/animal/sun tokens under each
-   face. Non-family links (business, associate, household) are listed
+   face; "Godparents" (off by default, 2026-09-03 — they were most of the
+   clutter on a 56-person tree) toggles the dotted godparent curves and
+   the godchild/godparent tags. **Filters (2026-09-03, her ask "let me
+   filter through generations/families"):** a per-case *Family* picker —
+   one person's line: them, their spouses, their descendants and the
+   descendants' spouses; the picker lists everyone with a child — and a
+   per-case *Generations* range (row A to row B of the whole case, 1 =
+   oldest). Both are remembered, combine, and the tree, the zodiac map,
+   the other-connections list and the number panels all obey them; the
+   header reads "N of M people". Non-family links (business, associate, household) are listed
    under the tree as "Other connections". The **zodiac map** toggle
    (redesigned 2026-09-03, her eight popup answers) is four trine zones —
    Blue · Yellow / Green · Pink, clashing trines diagonal — each grouped by
    exact animal with counts, a face and short name per person, no
-   person-to-person lines ("the picture is simply who shares a trine") —
-   only a red ✕ line between two opposing animal groups (Rat × Horse …)
-   when both are present in the case (v51, her ask); people
+   web of lines ("the picture is simply who shares a trine") — only a red
+   ✕ line between two PEOPLE in a direct family relationship (parent,
+   spouse, sibling) whose animals clash, e.g. a Pig married to a Snake
+   (v53, her call: "show opposites in direct relationships"); people
    without a settled birth year sit in a tray below; on the phone the
    zones stack as bands. Layout is pure (`js/tree.js`: generations by
    relaxation over parent/spouse/sibling links, couple units, recursive

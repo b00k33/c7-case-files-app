@@ -562,6 +562,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
 .seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer; min-height: 28px; }
 .seg button.active { background: var(--ink-2); color: var(--brass); }
+select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .tree-wrap { background: var(--ink-1); border-radius: var(--r-lg); padding: var(--sp-3); }
 .tree-scroll { overflow: auto; padding: var(--sp-2) 0; cursor: grab; }
 .tree-scroll.dragging { cursor: grabbing; user-select: none; }

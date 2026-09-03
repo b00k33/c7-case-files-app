@@ -6,7 +6,7 @@ import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChi
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl } from '../assets.js';
-import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
+import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -17,6 +17,7 @@ const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map'
 const NUMBERS_KEY = 'c7-tree-numbers'; // '1' shows number · animal · sign under each face
 const FIT_KEY = 'c7-tree-fit';         // '0' turns "Fit" off (on by default: she wants the whole tree)
 const GRID_SORT_KEY = 'c7-grid-sort';  // 'name' (default) | 'animal' | 'trine' | 'sun' | 'element'
+const GOD_KEY = 'c7-tree-god';         // '1' draws the godparent curves and tags (off by default — her call, 2026-09-03: they were most of the clutter)
 
 // presentation order for the grid's groups: the zodiac cycle, the wheel, and her colour code
 const SIGN_ORDER = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
@@ -54,18 +55,68 @@ export async function render(root, ctx, focusId = null) {
     return;
   }
   const focus = focusId && typeof focusId === 'string' ? focusId : null;
-  const [people, rels] = await Promise.all([store.listPeople(ctx.caseId), store.listRelationships(ctx.caseId)]);
+  const [allPeople, allRels] = await Promise.all([store.listPeople(ctx.caseId), store.listRelationships(ctx.caseId)]);
   const view = localStorage.getItem(VIEW_KEY) === 'map' ? 'map' : 'tree';
+
+  // Generation filter (her ask, 2026-09-03: "let me filter through
+  // generations"): a range, from row A to row B of the whole case, that the
+  // tree, the map, the other-connections list and the number panels all
+  // obey. Remembered per case. Row numbers are the tree's own (oldest = 1).
+  const gens = assignGenerations(allPeople, allRels);
+  const genCount = allPeople.length ? Math.max(...gens.values()) + 1 : 0;
+  const genKey = `c7-gen-range:${ctx.caseId}`;
+  let [genFrom, genTo] = (localStorage.getItem(genKey) || '').split(',').map(Number);
+  if (!(genFrom >= 1 && genTo >= genFrom && genTo <= genCount)) { genFrom = 1; genTo = genCount; }
+  const genNarrowed = genCount > 1 && (genFrom > 1 || genTo < genCount);
+
+  // Family filter (her pick, 2026-09-03, "A · a person's line"): a root,
+  // their spouses, their descendants and the descendants' spouses. The
+  // picker lists everyone who has a child in the case. Remembered per case,
+  // and it combines with the generation range.
+  const famKey = `c7-fam-root:${ctx.caseId}`;
+  const byId = new Map(allPeople.map((p) => [p.id, p]));
+  const hasChild = new Set(allRels.filter((r) => r.kind === 'parent').map((r) => r.a_id));
+  const roots = allPeople.filter((p) => hasChild.has(p.id)).sort((a, b) => a.display_name.localeCompare(b.display_name));
+  const famRoot = byId.has(localStorage.getItem(famKey)) && hasChild.has(localStorage.getItem(famKey)) ? localStorage.getItem(famKey) : null;
+  const lineOf = (rootId) => {
+    const line = new Set([rootId]);
+    const queue = [rootId];
+    while (queue.length) {
+      const id = queue.shift();
+      for (const r of allRels) {
+        if (r.kind === 'spouse' && (r.a_id === id || r.b_id === id)) line.add(r.a_id === id ? r.b_id : r.a_id);
+        if (r.kind === 'parent' && r.a_id === id && !line.has(r.b_id)) { line.add(r.b_id); queue.push(r.b_id); }
+      }
+    }
+    return line;
+  };
+  const line = famRoot ? lineOf(famRoot) : null;
+  const narrowed = genNarrowed || !!famRoot;
+  const people = allPeople.filter((p) => (!line || line.has(p.id)) && (!genNarrowed || (gens.get(p.id) + 1 >= genFrom && gens.get(p.id) + 1 <= genTo)));
+  const keep = new Set(people.map((p) => p.id));
+  const rels = narrowed ? allRels.filter((r) => keep.has(r.a_id) && keep.has(r.b_id)) : allRels;
+  const genOptions = (sel) => Array.from({ length: genCount }, (_, i) => `<option value="${i + 1}" ${i + 1 === sel ? 'selected' : ''}>${i + 1}</option>`).join('');
 
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:8px">
-        <div class="row" style="gap:8px;align-items:center">
-          <span class="section-label">${people.length} people · ${rels.length} relationships</span>
+        <div class="row wrap" style="gap:8px;align-items:center">
+          <span class="section-label">${narrowed ? `${people.length} of ${allPeople.length}` : allPeople.length} people · ${rels.length} relationships</span>
           <div class="seg" id="rel-view">
             <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">Tree</button>
             <button class="${view === 'map' ? 'active' : ''}" data-view="map">Zodiac map</button>
           </div>
+          ${roots.length ? `<span class="row" style="gap:6px;align-items:center" id="fam-filter" title="One person's line: them, their spouses, their descendants and the descendants' spouses">
+            <span class="section-label">Family</span>
+            <select id="fam-root" class="sel-sm"><option value="">Everyone</option>${roots.map((p) => `<option value="${p.id}" ${p.id === famRoot ? 'selected' : ''}>${p.display_name}’s line</option>`).join('')}</select>
+          </span>` : ''}
+          ${genCount > 1 ? `<span class="row" style="gap:6px;align-items:center" id="gen-filter" title="Show only these generations (1 = oldest)">
+            <span class="section-label">Generations</span>
+            <select id="gen-from" class="sel-sm">${genOptions(genFrom)}</select>
+            <span style="color:var(--text-3)">–</span>
+            <select id="gen-to" class="sel-sm">${genOptions(genTo)}</select>
+            ${genNarrowed ? '<button class="btn btn-ghost btn-sm" id="gen-all">All</button>' : ''}
+          </span>` : ''}
         </div>
         <div class="row" style="gap:8px">
           <button class="btn btn-ghost btn-sm" id="add-person-btn">+ Person</button>
@@ -93,14 +144,19 @@ export async function render(root, ctx, focusId = null) {
 
   root.querySelector('#add-person-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx)));
   root.querySelector('#add-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')));
-  root.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, people)));
+  root.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
+  const setGen = (a, b) => { localStorage.setItem(genKey, `${Math.min(a, b)},${Math.max(a, b)}`); render(root, ctx, focus); };
+  root.querySelector('#gen-from')?.addEventListener('change', (e) => setGen(Number(e.target.value), genTo));
+  root.querySelector('#gen-to')?.addEventListener('change', (e) => setGen(genFrom, Number(e.target.value)));
+  root.querySelector('#gen-all')?.addEventListener('click', () => { localStorage.removeItem(genKey); render(root, ctx, focus); });
+  root.querySelector('#fam-root')?.addEventListener('change', (e) => { if (e.target.value) localStorage.setItem(famKey, e.target.value); else localStorage.removeItem(famKey); render(root, ctx, focus); });
 
   const mapSlot = root.querySelector('#map-slot');
   if (!people.length) {
     mapSlot.appendChild(emptyState({ missing: 'No people in this case yet.', why: 'Add the first person to start the tree.', action: '+ Person', onAction: () => ctx.openDrawer((body) => renderAddPerson(body, ctx)) }));
   } else if (view === 'map') {
-    await renderZodiacMap(mapSlot, ctx, people);
+    await renderZodiacMap(mapSlot, ctx, people, rels);
   } else {
     await renderTree(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
     renderOthers(root.querySelector('#others-slot'), ctx, people, rels, focus);
@@ -126,6 +182,7 @@ function numbersFor(p) {
 async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   const { full = false } = opts;
   const numbers = localStorage.getItem(NUMBERS_KEY) === '1';
+  const godparents = localStorage.getItem(GOD_KEY) === '1';
   const fit = localStorage.getItem(FIT_KEY) !== '0';
   const up = focus ? treeState.up : Infinity;
   const down = focus ? treeState.down : Infinity;
@@ -144,6 +201,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
         <button class="btn btn-ghost btn-sm" id="tree-down" ${L.hiddenBelow ? '' : 'disabled'}>Down 1</button>
         <button class="btn btn-ghost btn-sm" id="tree-all" ${L.hiddenAbove || L.hiddenBelow ? '' : 'disabled'}>Expand all</button>` : ''}
         <button class="btn btn-ghost btn-sm" id="tree-numbers">${numbers ? 'Numbers on' : 'Numbers off'}</button>
+        <button class="btn btn-ghost btn-sm" id="tree-god" title="Godparent links — the dotted curves and the godchild/godparent tags">${godparents ? 'Godparents on' : 'Godparents off'}</button>
         <span class="seg">
           <button id="tree-fit" class="${fit ? 'active' : ''}" title="Shrink the tree to fit this box">Fit</button>
           <button id="tree-zoom-out" title="Zoom out">−</button>
@@ -185,7 +243,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     else if (e.kind === 'bus') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
     else if (e.kind === 'drop') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'far') el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
-    else if (e.kind === 'god') el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--brass)', 'stroke-width': 1, opacity: 0.6 });
+    else if (e.kind === 'god' && godparents) el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--brass)', 'stroke-width': 1, opacity: 0.6 });
     if (!el) continue;
     if ((e.kind === 'couple' || e.kind === 'drop') && !e.confirmed) el.setAttribute('stroke-dasharray', '4,4');
     if (e.kind === 'far') el.setAttribute('stroke-dasharray', e.confirmed ? '6,3' : '3,4'); // always broken: it reaches across the tree
@@ -271,7 +329,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
       <div class="face" style="width:${L.faceH}px;height:${L.faceH}px"><span class="initials">${initials(p.display_name)}</span></div>
       <div class="name">${p.display_name}</div>
       ${years ? `<div class="years">${years}</div>` : ''}
-      ${godTag.has(p.id) ? `<div class="tag">${godTag.get(p.id)}</div>` : ''}
+      ${godparents && godTag.has(p.id) ? `<div class="tag">${godTag.get(p.id)}</div>` : ''}
     `;
     if (numbers) {
       const icons = numberIcons(numbersFor(p));
@@ -348,6 +406,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   wrap.querySelector('#tree-more-up')?.addEventListener('click', () => { treeState.up += 1; rerender(); });
   wrap.querySelector('#tree-more-down')?.addEventListener('click', () => { treeState.down += 1; rerender(); });
   wrap.querySelector('#tree-numbers').addEventListener('click', () => { localStorage.setItem(NUMBERS_KEY, numbers ? '0' : '1'); rerender(); });
+  wrap.querySelector('#tree-god').addEventListener('click', () => { localStorage.setItem(GOD_KEY, godparents ? '0' : '1'); rerender(); });
   wrap.querySelector('#tree-fit').addEventListener('click', () => { localStorage.setItem(FIT_KEY, fit ? '0' : '1'); if (fit) treeState.scale = parseFloat(wrap.dataset.scale) || 1; rerender(); });
   const zoom = (dir) => {
     const current = parseFloat(wrap.dataset.scale) || 1;
@@ -433,6 +492,7 @@ function shortName(name) {
 function mapPersonNode(p, ctx) {
   const node = document.createElement('div');
   node.className = 'zmap-person';
+  node.dataset.id = p.id;
   node.title = p.display_name;
   node.innerHTML = `<div class="zmap-face">${initials(p.display_name)}</div><div class="nm">${shortName(p.display_name)}</div>`;
   const face = node.querySelector('.zmap-face');
@@ -449,7 +509,7 @@ function mapPersonNode(p, ctx) {
   return node;
 }
 
-async function renderZodiacMap(mapSlot, ctx, people) {
+async function renderZodiacMap(mapSlot, ctx, people, rels) {
   const facts = people.map((p) => { const ch = signFor(exactBirth(p)); return { p, animal: ch.ok && !ch.boundary ? ch.animal : null }; });
   const byName = (a, b) => a.p.display_name.localeCompare(b.p.display_name);
   const wrap = document.createElement('div');
@@ -483,21 +543,21 @@ async function renderZodiacMap(mapSlot, ctx, people) {
   }
   mapSlot.appendChild(wrap);
   // the clash lines follow the layout (2×2 on the desktop, bands on the phone)
-  new ResizeObserver(() => drawClashLines(wrap)).observe(wrap);
+  new ResizeObserver(() => drawClashLines(wrap, facts, rels)).observe(wrap);
   const key = document.createElement('div');
   key.className = 'zmap-key';
-  key.textContent = 'Inside a zone everyone is in harmony with each other · a red ✕ line joins two animals that clash (Rat × Horse, Ox × Goat, Tiger × Monkey, Rabbit (Cat) × Rooster, Dragon × Dog, Snake × Pig) when both are in this case · tap a face to open the profile';
+  key.textContent = 'Inside a zone everyone is in harmony with each other · a red ✕ line joins two people in a direct family relationship whose animals clash — a Pig married to a Snake, a Rat with a Horse child · tap a face to open the profile';
   mapSlot.appendChild(key);
 }
 
 /**
- * Her ask (2026-09-03, "include incompatible lines e.g. rat x horse"): a red
- * line between the two animal groups that clash — the six opposite pairs —
- * with the clash glyph at its midpoint, drawn only when both animals have
- * someone in the case. Group to group, not person to person, so the map
- * stays as quiet as she chose.
+ * Her call (2026-09-03, "show opposites in direct relationships e.g. Henry
+ * pig married Catherine snake"): a red line between two PEOPLE who are in a
+ * direct family relationship (parent, spouse, sibling) and whose animals
+ * clash — the six opposite pairs — with the clash glyph at its midpoint.
+ * Only related pairs, so the lines stay few and each one means something.
  */
-function drawClashLines(wrap) {
+function drawClashLines(wrap, facts, rels) {
   wrap.querySelectorAll('.zmap-clash').forEach((e) => e.remove());
   let svg = wrap.querySelector('.zmap-lines');
   if (!svg) { svg = svgEl('svg', { class: 'zmap-lines' }); wrap.appendChild(svg); }
@@ -507,17 +567,26 @@ function drawClashLines(wrap) {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const r0 = wrap.getBoundingClientRect();
   const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left - r0.left + r.width / 2, r.top - r0.top + r.height / 2]; };
-  for (let k = 0; k < 6; k++) {
-    const a = wrap.querySelector(`.zmap-animal-head[data-animal="${ANIMALS[k]}"]:not(.empty)`);
-    const b = wrap.querySelector(`.zmap-animal-head[data-animal="${ANIMALS[k + 6]}"]:not(.empty)`);
-    if (!a || !b) continue;
-    const [x1, y1] = centre(a), [x2, y2] = centre(b);
+  const animalOf = new Map(facts.map((f) => [f.p.id, f.animal]));
+  const nameOf = new Map(facts.map((f) => [f.p.id, f.p.display_name]));
+  const seen = new Set();
+  for (const r of rels || []) {
+    if (!['parent', 'spouse', 'sibling'].includes(r.kind)) continue;
+    const a = animalOf.get(r.a_id), b = animalOf.get(r.b_id);
+    if (!a || !b || Math.abs(ANIMALS.indexOf(a) - ANIMALS.indexOf(b)) !== 6) continue;
+    const key = [r.a_id, r.b_id].sort().join(':');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const fa = wrap.querySelector(`.zmap-person[data-id="${r.a_id}"] .zmap-face`);
+    const fb = wrap.querySelector(`.zmap-person[data-id="${r.b_id}"] .zmap-face`);
+    if (!fa || !fb) continue;
+    const [x1, y1] = centre(fa), [x2, y2] = centre(fb);
     svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7 }));
     const g = document.createElement('div');
     g.className = 'zmap-clash';
     g.style.left = `${(x1 + x2) / 2}px`;
     g.style.top = `${(y1 + y2) / 2}px`;
-    g.title = `${ANIMALS[k]} × ${ANIMALS[k + 6]} — clash`;
+    g.title = `${nameOf.get(r.a_id)} (${animalLabel(a)}) × ${nameOf.get(r.b_id)} (${animalLabel(b)}) — ${r.kind}, clash`;
     g.appendChild(relationGlyph('clash'));
     wrap.appendChild(g);
   }
