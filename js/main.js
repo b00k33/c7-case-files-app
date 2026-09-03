@@ -168,8 +168,10 @@ function setNavActive(route) {
 }
 
 let currentUnmount = null;
+let redrawTimer = null; // a pull's redraw, waiting for her to finish what she is doing
 
 async function renderRoute() {
+  clearTimeout(redrawTimer);
   const hash = location.hash.replace(/^#\/?/, '');
   const [route, param, sub] = hash.split('/');
   const key = route || HOME_ROUTE;
@@ -373,17 +375,33 @@ sync.subscribe(renderSyncChip);
 // after each successful sync, push any queued image copies to the cloud
 sync.subscribe((s) => { if (s.status === 'idle') import('./assets.js').then((m) => m.flushUploads()).catch(() => {}); });
 // when a pull brought something in, the page she is looking at shows it —
-// unless she is mid-typing or has a drawer open (2026-09-03: the phone sat
-// on a Cases page with one card while five more had already arrived)
+// but never over work the database does not hold yet (2026-09-03: the
+// phone sat on a Cases page with one card while five more had already
+// arrived; then the review found the redraw wiping a pasted timeline, an
+// armed "Really?" and a panned tree). While she is busy the redraw waits
+// and tries again; leaving the page redraws anyway.
+const REDRAW_RETRY_MS = 15000;
+function screenIsBusy() {
+  const a = document.activeElement;
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return true;
+  if (drawer.classList.contains('open')) return true;
+  if (document.querySelector('.btn-armed, .inline-form, .tree-full')) return true;
+  for (const el of pageRoot.querySelectorAll('textarea, input:not([type]), input[type="text"], input[type="search"]')) {
+    if (el.value && el.value.trim()) return true; // a paste, a search she is reading
+  }
+  return false;
+}
+function redrawAfterPull() {
+  clearTimeout(redrawTimer);
+  if (screenIsBusy()) { redrawTimer = setTimeout(redrawAfterPull, REDRAW_RETRY_MS); return; }
+  refreshCaseContext();
+  renderRoute();
+}
 let lastPulledAt = null;
 sync.subscribe((s) => {
   if (!s.pulledAt || s.pulledAt === lastPulledAt) return;
   lastPulledAt = s.pulledAt;
-  const a = document.activeElement;
-  const typing = a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
-  if (typing || drawer.classList.contains('open')) return;
-  refreshCaseContext();
-  renderRoute();
+  redrawAfterPull();
 });
 setInterval(() => renderSyncChip(sync.getState()), 30000); // keep "Xm ago" honest
 

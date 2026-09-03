@@ -302,7 +302,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       await store.updatePerson(person.id, { photo_path: meta.file_path, photo_url: null });
       queueUpload(meta.file_path, meta.mime);
       flushUploads();
-      render(root, ctx, personId);
+      render(root, ctx, personId, tab); // the avatar sits on every tab — stay on the one she is on
     });
     input.click();
   });
@@ -402,7 +402,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
           const { drafted } = await draftFromLookup(store, ctx.caseId, person.id, facts);
           const n = drafted.length;
           resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}), each citing Wikidata` : 'Nothing draftable on that record'} — a Wikipedia evidence item is linked to ${person.display_name}${facts.photoUrl ? ', and their picture is saved' : ''}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
-          if (facts.photoUrl) setTimeout(() => render(root, ctx, personId), 1200); // show the new picture
+          // show the new picture — unless she has already moved on (the
+          // timer must never paint this profile over another page)
+          if (facts.photoUrl) setTimeout(() => { if (root.contains(resultsEl)) render(root, ctx, personId, tab); }, 1200);
         } catch (e) {
           resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
         }

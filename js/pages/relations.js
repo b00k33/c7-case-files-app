@@ -19,7 +19,10 @@ const FIT_KEY = 'c7-tree-fit';         // '0' turns "Fit" off (on by default: sh
 
 // per render: how far the tree is opened either side of the focus person, and the zoom
 const treeState = { up: 1, down: 1, scale: 1 };
-const MIN_FIT = 0.5;   // fit never shrinks below half size — names stay readable; beyond that it scrolls
+// Fit never shrinks below four-fifths — names stay readable on the phone;
+// a wider tree scrolls sideways instead (her pick, 2026-09-03: "stop
+// shrinking at a readable size")
+const MIN_FIT = 0.8;
 const ZOOM_MIN = 0.4, ZOOM_MAX = 1.6, ZOOM_STEP = 0.15;
 
 /**
@@ -97,7 +100,7 @@ function numbersFor(p) {
 /**
  * The tree itself. opts.full = drawn inside the full-screen overlay (✕ to
  * close instead of Expand). Fit shrinks the tree to the box (never below
- * half size); − / + zoom by hand; dragging pans.
+ * four-fifths); − / + zoom by hand; dragging pans.
  */
 async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   const { full = false } = opts;
@@ -135,6 +138,10 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     ${L.hiddenBelow ? `<button class="tree-more" id="tree-more-down">+ ${L.hiddenBelow} below</button>` : ''}
   `;
   slot.appendChild(wrap);
+  // declared before any face is on screen: the photo loop below awaits, and
+  // a tap that landed in that window found scrollBox not yet declared
+  const scrollBox = wrap.querySelector('.tree-scroll');
+  const scaleBox = wrap.querySelector('.tree-scale');
 
   // one door out of the tree: never open a profile at the end of a pan, and
   // when the tree is full-screen, leave the overlay on the way out
@@ -149,22 +156,26 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   svg.style.pointerEvents = 'none'; // lines never block taps on faces; the confirm dots opt back in
   tree.appendChild(svg);
   const stroke = (confirmed) => (confirmed ? 'var(--text-3)' : 'var(--ink-3)');
+  const ARC_RISE = 18; // a marriage across the row arcs this far over the faces between
   for (const e of L.edges) {
     let el = null;
-    if (e.kind === 'couple') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
+    if (e.kind === 'couple' && e.arc) el = svgEl('path', { d: `M${e.x1},${e.top} C${e.x1},${e.top - ARC_RISE} ${e.x2},${e.top - ARC_RISE} ${e.x2},${e.top}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
+    else if (e.kind === 'couple') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'trunk') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
     else if (e.kind === 'bus') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
     else if (e.kind === 'drop') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
+    else if (e.kind === 'far') el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'god') el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--brass)', 'stroke-width': 1, opacity: 0.6 });
     if (!el) continue;
     if ((e.kind === 'couple' || e.kind === 'drop') && !e.confirmed) el.setAttribute('stroke-dasharray', '4,4');
+    if (e.kind === 'far') el.setAttribute('stroke-dasharray', e.confirmed ? '6,3' : '3,4'); // always broken: it reaches across the tree
     if (e.kind === 'god') el.setAttribute('stroke-dasharray', '2,4');
     svg.appendChild(el);
     // a recorded-but-unconfirmed link gets a small brass dot at its midpoint: one tap confirms it
     const ids = e.relIds || (e.relId ? [e.relId] : []);
     if (!e.confirmed && !e.implied && ids.length) {
       const mx = e.kind === 'couple' || e.kind === 'bus' ? (e.x1 + e.x2) / 2 : (e.kind === 'drop' || e.kind === 'trunk' ? e.x : (e.x1 + e.x2) / 2);
-      const my = e.kind === 'couple' ? e.y : (e.y1 + e.y2) / 2;
+      const my = e.kind === 'couple' ? (e.arc ? e.top - ARC_RISE * 0.75 : e.y) : (e.y1 + e.y2) / 2;
       const dot = svgEl('circle', { cx: mx, cy: my, r: 5, class: 'tree-confirm' });
       const t = svgEl('title'); t.textContent = `Confirm — ${e.label || 'this link'}`; dot.appendChild(t);
       dot.addEventListener('click', async (ev) => {
@@ -177,14 +188,23 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     }
   }
 
-  // godparent tags per person
-  const godTag = new Map();
+  // godparent tags per person — every link, not just the last one written
+  const godLinks = new Map();
   for (const r of rels) {
     if (r.kind !== 'godparent') continue;
     const a = people.find((p) => p.id === r.a_id), b = people.find((p) => p.id === r.b_id);
     if (!a || !b) continue;
-    godTag.set(r.b_id, `godchild of ${a.display_name.split(' ')[0]}`);
-    godTag.set(r.a_id, `godparent of ${b.display_name.split(' ')[0]}`);
+    if (!godLinks.has(r.b_id)) godLinks.set(r.b_id, { of: [], to: [] });
+    if (!godLinks.has(r.a_id)) godLinks.set(r.a_id, { of: [], to: [] });
+    godLinks.get(r.b_id).of.push(a.display_name.split(' ')[0]);
+    godLinks.get(r.a_id).to.push(b.display_name.split(' ')[0]);
+  }
+  const godTag = new Map();
+  for (const [id, g] of godLinks) {
+    const parts = [];
+    if (g.of.length) parts.push(`godchild of ${g.of.join(', ')}`);
+    if (g.to.length) parts.push(`godparent of ${g.to.join(', ')}`);
+    godTag.set(id, parts.join(' · '));
   }
 
   for (const n of L.nodes) {
@@ -253,8 +273,6 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   }
 
   // ---- scale: Fit, or the hand-set zoom ----
-  const scrollBox = wrap.querySelector('.tree-scroll');
-  const scaleBox = wrap.querySelector('.tree-scale');
   const applyScale = () => {
     const boxW = scrollBox.clientWidth || L.width;
     const s = fit ? Math.max(MIN_FIT, Math.min(1, boxW / (L.width || 1))) : treeState.scale;
@@ -325,6 +343,10 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
 
 // the tree on the whole screen: its own overlay, same controls, ✕ or Escape to leave
 function openFullTree(ctx, people, rels, focus, rerenderPage) {
+  // one overlay at a time: the Expand button keeps keyboard focus under the
+  // overlay, and a second copy opened with Enter left the page unscrollable
+  if (document.querySelector('.tree-full')) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const overlay = document.createElement('div');
   overlay.className = 'tree-full';
   document.body.appendChild(overlay);

@@ -9,6 +9,7 @@ import { sunSign } from '../js/western.js';
 import { clash, trine, harmony, same, relation } from '../js/relations.js';
 import { expectedCounts } from '../js/stats.js';
 import { parseDate, parseProfileText } from '../js/profile-parse.js';
+import { layoutTree, assignGenerations } from '../js/tree.js';
 
 const results = [];
 function test(name, fn) {
@@ -176,6 +177,102 @@ test('same: identical index only', () => {
 test('relation: picks exactly one label per pair', () => {
   eq(relation(0, 6), 'clash'); eq(relation(0, 4), 'trine'); eq(relation(0, 1), 'harmony');
   eq(relation(5, 5), 'same'); eq(relation(0, 2), 'neutral');
+});
+
+// --- family tree layout ---
+const P = (id, birth) => ({ id, display_name: id, birth_date: birth || null });
+const R = (id, a, b, kind) => ({ id, a_id: a, b_id: b, kind, confirmed: 0 });
+const faceX = (L, id) => { const n = L.nodes.find((x) => x.id === id); return n.x + L.nodeW / 2; };
+const rowOf = (L, g) => L.nodes.filter((n) => n.gen === g).sort((a, b) => a.x - b.x).map((n) => n.id);
+const parents = (...ids) => ids.flatMap((kid) => [R(`p1-${kid}`, 'M', kid, 'parent'), R(`p2-${kid}`, 'F', kid, 'parent')]);
+
+test('tree: two marriages — each spouse joins the person they married, never each other', () => {
+  const people = [P('G1', '1900-01-01'), P('G2', '1901-01-01'), P('X', '1930-01-01'), P('S1', '1928-01-01'), P('S2', '1935-01-01'), P('C', '1960-01-01')];
+  const rels = [R('r1', 'G1', 'X', 'parent'), R('r2', 'G2', 'X', 'parent'), R('r3', 'X', 'S1', 'spouse'), R('r4', 'X', 'S2', 'spouse'), R('r5', 'X', 'C', 'parent'), R('r6', 'S2', 'C', 'parent')];
+  const L = layoutTree(people, rels);
+  eq(rowOf(L, 1), ['S1', 'X', 'S2']);
+  const couples = L.edges.filter((e) => e.kind === 'couple' && !e.implied); // G1·G2 is implied by their child
+  eq(couples.length, 2);
+  eq(couples.every((e) => e.label.includes('X')), true);
+  eq(couples.some((e) => e.label.includes('S1') && e.label.includes('S2')), false);
+});
+test('tree: children drop from the midpoint of THEIR parents, not the row centre', () => {
+  const people = [P('X', '1930-01-01'), P('S1', '1928-01-01'), P('S2', '1935-01-01'), P('C', '1960-01-01')];
+  const rels = [R('r3', 'X', 'S1', 'spouse'), R('r4', 'X', 'S2', 'spouse'), R('r5', 'X', 'C', 'parent'), R('r6', 'S2', 'C', 'parent')];
+  const L = layoutTree(people, rels);
+  const trunk = L.edges.find((e) => e.kind === 'trunk');
+  eq(trunk.x, (faceX(L, 'X') + faceX(L, 'S2')) / 2);
+  eq(trunk.x === faceX(L, 'S1'), false);
+});
+test('tree: half-siblings fold into separate blocks, one per set of parents', () => {
+  const people = [P('X', '1930-01-01'), P('S1', '1928-01-01'), P('S2', '1935-01-01')];
+  const rels = [R('m1', 'X', 'S1', 'spouse'), R('m2', 'X', 'S2', 'spouse')];
+  for (const k of ['a1', 'a2', 'a3', 'a4']) { people.push(P(k, '195' + k[1] + '-01-01')); rels.push(R('x' + k, 'X', k, 'parent'), R('s' + k, 'S1', k, 'parent')); }
+  for (const k of ['b1', 'b2', 'b3', 'b4']) { people.push(P(k, '196' + k[1] + '-01-01')); rels.push(R('x' + k, 'X', k, 'parent'), R('s' + k, 'S2', k, 'parent')); }
+  const L = layoutTree(people, rels);
+  const groups = L.nodes.filter((n) => n.group);
+  eq(groups.length, 2);
+  eq(groups.map((g) => g.items.length), [4, 4]);
+  const trunks = L.edges.filter((e) => e.kind === 'trunk').map((e) => e.x).sort((a, b) => a - b);
+  eq(trunks, [(faceX(L, 'S1') + faceX(L, 'X')) / 2, (faceX(L, 'X') + faceX(L, 'S2')) / 2]);
+});
+test('tree: a parent in another unit still gets a line across, and never folds into a sibling block', () => {
+  const people = [P('M', '1900-01-01'), P('F', '1901-01-01'), P('A', '1925-01-01'), P('B', '1926-01-01'), P('D', '1927-01-01'), P('E', '1928-01-01'), P('C1', '1930-01-01'), P('T', '1920-01-01'), P('S', '1931-01-01'), P('K', '1960-01-01')];
+  const rels = [...parents('A', 'B', 'D', 'E', 'C1'), R('ts', 'T', 'S', 'spouse'), R('k1', 'C1', 'K', 'parent'), R('k2', 'S', 'K', 'parent')];
+  const L = layoutTree(people, rels);
+  const c1 = L.nodes.find((n) => n.id === 'C1');
+  eq(!!c1 && !c1.group, true);
+  eq(L.nodes.find((n) => n.group).items.length, 4);
+  const drop = L.edges.find((e) => e.kind === 'drop' && e.label.startsWith('K ·'));
+  const far = L.edges.find((e) => e.kind === 'far');
+  eq(!!drop, true);
+  eq(far.label.startsWith('K · child of'), true);
+  eq(drop.relIds.concat(far.relIds).sort(), ['k1', 'k2']);
+});
+test('tree: an older sibling standing godparent to a younger one stays level (no runaway rows)', () => {
+  const people = [P('Pa', '1900-01-01'), P('A', '1925-01-01'), P('B', '1930-01-01')];
+  const rels = [R('1', 'Pa', 'A', 'parent'), R('2', 'Pa', 'B', 'parent'), R('3', 'A', 'B', 'sibling'), R('4', 'A', 'B', 'godparent')];
+  const gen = assignGenerations(people, rels);
+  eq([gen.get('Pa'), gen.get('A'), gen.get('B')], [0, 1, 1]);
+  eq(layoutTree(people, rels).height < 400, true);
+});
+test('tree: a godchild with no family of their own sits one row below the godparent; one with parents does not move', () => {
+  const people = [P('R', '1900-01-01'), P('Av', '1901-01-01'), P('Dolly', '1946-01-19'), P('Miley', '1992-11-23'), P('KP', '1945-01-01'), P('Kid', '1970-01-01')];
+  const rels = [R('1', 'R', 'Dolly', 'parent'), R('2', 'Av', 'Dolly', 'parent'), R('3', 'Dolly', 'Miley', 'godparent'), R('4', 'KP', 'Kid', 'parent'), R('5', 'Dolly', 'Kid', 'godparent')];
+  const gen = assignGenerations(people, rels);
+  eq(['R', 'Av', 'Dolly', 'Miley', 'KP', 'Kid'].map((id) => gen.get(id)), [0, 0, 1, 2, 0, 1]);
+});
+test('tree: contradictory rows never leave empty generations', () => {
+  // "A parent of B" beside "B sibling of A" cannot settle; whatever comes out is at most two rows, none empty
+  const gen = assignGenerations([P('A'), P('B')], [R('1', 'A', 'B', 'parent'), R('2', 'B', 'A', 'sibling')]);
+  eq(Math.max(...gen.values()) <= 1, true);
+  const three = assignGenerations([P('A'), P('B'), P('C')], [R('1', 'A', 'B', 'parent'), R('2', 'B', 'A', 'parent'), R('3', 'B', 'C', 'parent')]);
+  eq([...new Set(three.values())].sort().join(), [...Array(new Set(three.values()).size).keys()].join());
+});
+test('tree: a drop confirms only the parent row in its own direction', () => {
+  const L = layoutTree([P('A'), P('B')], [R('r1', 'A', 'B', 'parent'), R('r2', 'B', 'A', 'parent')]);
+  const drop = L.edges.find((e) => e.kind === 'drop');
+  const top = rowOf(L, 0)[0];
+  eq(drop.relIds, [top === 'A' ? 'r1' : 'r2']);
+});
+test('tree: a marriage across the row is drawn as an arc, with head-room above the top row', () => {
+  const people = [P('X', '1930-01-01'), P('S1', '1920-01-01'), P('S2', '1925-01-01'), P('S3', '1931-01-01')];
+  const rels = [R('1', 'X', 'S1', 'spouse'), R('2', 'X', 'S2', 'spouse'), R('3', 'X', 'S3', 'spouse')];
+  const L = layoutTree(people, rels);
+  eq(rowOf(L, 0), ['S1', 'X', 'S2', 'S3']);
+  const couples = L.edges.filter((e) => e.kind === 'couple');
+  eq(couples.length, 3);
+  eq(couples.filter((e) => e.arc).map((e) => e.label), ['X · S3 · spouse']);
+  eq(Math.min(...L.nodes.map((n) => n.y)), 16);
+});
+test('tree: an ordinary couple with children is unchanged — one line, one trunk between them', () => {
+  const people = [P('M', '1900-01-01'), P('F', '1901-01-01'), P('A', '1925-01-01'), P('B', '1926-01-01')];
+  const L = layoutTree(people, [R('m', 'M', 'F', 'spouse'), ...parents('A', 'B')]);
+  eq(L.edges.filter((e) => e.kind === 'couple').length, 1);
+  eq(L.edges.filter((e) => e.kind === 'trunk').length, 1);
+  eq(L.edges.filter((e) => e.kind === 'far').length, 0);
+  eq(L.edges.find((e) => e.kind === 'trunk').x, (faceX(L, 'M') + faceX(L, 'F')) / 2);
+  eq(Math.min(...L.nodes.map((n) => n.y)), 0);
 });
 
 // --- stats ---

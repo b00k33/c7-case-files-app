@@ -106,16 +106,21 @@ function applyRemote(record) {
     return true;
   }
   const data = record.data || {};
+  const local = readLocalRow(entity, record.id);
   // last-writer-wins per record: an older remote copy never overwrites newer
-  // local. Equal timestamps are the SAME version — skipping those is what
-  // stops the ten-minute overlap from rewriting (and redrawing) her screen
-  // on every cycle.
+  // local. Equal timestamps are the SAME version.
   if (entity !== 'tagging' && cols.includes('updated_at')) {
-    const local = readLocalRow(entity, record.id);
     if (local && local.updated_at && data.updated_at && local.updated_at >= data.updated_at) return false;
   }
   const useCols = cols.filter((c) => c in data);
-  if (!useCols.length) return;
+  if (!useCols.length) return false;
+  // Twelve of the sixteen tables carry no updated_at, so the check above
+  // cannot tell "the row I already hold" from a change. The overlap window
+  // re-delivers her own rows every cycle; a row identical to the local one
+  // is not a change — and saying it was repainted her screen every minute
+  // (review, 2026-09-03).
+  const same = (a, b) => (a === undefined ? null : a) === (b === undefined ? null : b);
+  if (local && useCols.every((c) => same(local[c], data[c]))) return false;
   // upsert, not INSERT OR REPLACE: REPLACE deletes the row first, so any
   // column the sending device did not carry (an older app version without
   // gender, nationality or photo_path) came back NULL on this device.
@@ -144,15 +149,24 @@ function applyRemote(record) {
 // the PUSH time (not the edit time). A phone edit made at 13:35 but pushed
 // at 13:50 — after the desktop had already pulled past 13:35 — would
 // otherwise never arrive. Plus a ten-minute overlap: applying a record
-// twice is harmless (last-writer-wins), missing one is not.
+// twice is harmless (last-writer-wins), missing one is not. The overlap is
+// ten minutes of REAL time after the cursor last moved: a push that was
+// in flight when we pulled has landed by then, and re-fetching the same
+// batch every minute for the rest of the day bought nothing.
 const OVERLAP_MS = 10 * 60 * 1000;
+const EPOCH = '1970-01-01T00:00:00Z';
 
 async function pull() {
-  const since = metaGet('last_pull') || '1970-01-01T00:00:00Z';
+  const since = metaGet('last_pull') || EPOCH;
+  const sinceAt = metaGet('last_pull_at');
+  const open = sinceAt == null ? OVERLAP_MS : Math.max(0, OVERLAP_MS - (Date.now() - Number(sinceAt)));
   let newest = since;
   let applied = 0;
-  let cursor = new Date(Math.max(0, Date.parse(since) - OVERLAP_MS)).toISOString();
+  let cursor = new Date(Math.max(0, Date.parse(since) - open)).toISOString();
   if (Number.isNaN(Date.parse(since))) cursor = since;
+  // the window has closed: nothing stamped at or before `since` can still
+  // arrive, so the first page starts strictly after it
+  let op = open > 0 || since === EPOCH ? 'gte' : 'gt';
   // updated_at is NOT unique — push() stamps a whole batch of 100 with one
   // timestamp — so paging with `gt(lastSeen)` would step over every other
   // row sharing that instant, permanently. Page with `gte` instead and
@@ -163,11 +177,12 @@ async function pull() {
     const { data, error } = await sb
       .from('c7_records')
       .select('id, entity, data, updated_at, deleted')
-      .gte('updated_at', cursor)
+      [op]('updated_at', cursor)
       .order('updated_at', { ascending: true })
       .order('id', { ascending: true })
       .limit(PAGE);
     if (error) throw error;
+    op = 'gte';
     if (!data || !data.length) break;
     let advanced = false;
     let fresh = 0;
@@ -189,7 +204,7 @@ async function pull() {
       throw new Error(`More than ${PAGE} records share one timestamp — use "Re-pull everything" in this drawer.`);
     }
   }
-  if (newest !== since) metaSet('last_pull', newest);
+  if (newest !== since) { metaSet('last_pull', newest); metaSet('last_pull_at', String(Date.now())); }
   return applied;
 }
 
@@ -325,7 +340,8 @@ export async function repullAll() {
   // a cycle already in flight holds the old cursor in a local variable and
   // would write it back over this reset when it finishes — wait it out
   for (let i = 0; running && i < 60; i++) await new Promise((r) => setTimeout(r, 500));
-  metaSet('last_pull', '1970-01-01T00:00:00Z');
+  metaSet('last_pull', EPOCH);
+  metaSet('last_pull_at', String(Date.now()));
   await syncNow();
 }
 

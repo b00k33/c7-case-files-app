@@ -391,6 +391,22 @@ panel is allowed to show an observed count alone.
    block so their own branches hang cleanly. A generation holding a block
    is as tall as the block. The block's one line is confirmed only when
    every member's link is, and its brass dot confirms them all at once.
+   **Every line is a row the file holds (review, 2026-09-03):** a person
+   with two marriages stands between them (first spouse left, later ones
+   right; a marriage that cannot sit next to them arcs over the faces
+   between) and each line joins the two people it belongs to — never the
+   two spouses to each other; a set of children drops from the midpoint of
+   THEIR parents, one trunk and bar per set, so half-siblings fold into
+   separate blocks and never hang from a step-parent; a parent who stands
+   in another unit (married again, or a parent of a child of two units)
+   still gets a broken line drawn across the tree; the confirm dot on a
+   drop writes only to the parent row in its own direction. A godparent
+   link places a person one row below the godparent only when the family
+   rows do not place them already (otherwise a sibling standing godparent
+   could never settle); contradictory rows are numbered without gaps so
+   the tree never holds an empty generation. Fit never goes below
+   four-fifths — a wide tree scrolls sideways instead of shrinking past
+   legibility (her pick).
    Fit, − / +, drag-pan and Expand (full screen) control the view. Below:
    repeating-number panel and life-path grid. **Confirm (2026-09-03):** a recorded-but-unconfirmed
    link carries a small brass dot at its midpoint on the tree — one tap

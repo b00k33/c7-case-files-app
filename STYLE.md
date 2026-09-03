@@ -212,7 +212,8 @@ would.
   `js/indicators.js` is the live rule. Evidence status no longer colours
   these; it lives on the profile's status chip and the chart panel.
 - **Tree viewing (2026-09-03).** Fit (on by default) shrinks the tree to
-  its box, never below half size; − / + zoom by hand and turn Fit off;
+  its box, never below four-fifths (her pick: stop at a readable size — a
+  wider tree scrolls sideways); − / + zoom by hand and turn Fit off;
   dragging pans; Expand puts the tree on the whole screen with the same
   controls and ✕ / Escape to leave. Delete on a case card lives in the ⋯
   menu, dimmed, two-tap — Import stays on the card.
