@@ -113,7 +113,9 @@ const ctx = {
     else localStorage.removeItem('c7-current-case');
     refreshCaseContext();
   },
-  navigate(hash) { location.hash = hash; },
+  // the same hash fires no hashchange — switching case from the rail while
+  // already on #/family left the old case on screen (2026-09-03)
+  navigate(hash) { if (location.hash === hash) renderRoute(); else location.hash = hash; },
   setTitle(t) { pageTitle.textContent = t; },
   openDrawer(render) {
     drawer.innerHTML = '';
