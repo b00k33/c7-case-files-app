@@ -87,11 +87,14 @@ function hasPendingLocalChange(entity, entityId) {
   return r.length > 0;
 }
 
+/** Returns true only when this device's data actually changed. */
 function applyRemote(record) {
   const entity = record.entity;
-  if (!SYNC_TABLES.includes(entity)) return;
+  if (!SYNC_TABLES.includes(entity)) return false;
   const cols = columnsOf(entity);
   if (record.deleted) {
+    const existing = readLocalRow(entity, record.id);
+    if (!existing || existing.deleted_at != null) return false; // already gone here
     if (entity === 'tagging') {
       const [tagId, targetType, targetId] = String(record.id).split(':');
       db.run('DELETE FROM tagging WHERE tag_id=? AND target_type=? AND target_id=?', [tagId, targetType, targetId]);
@@ -100,20 +103,39 @@ function applyRemote(record) {
     } else {
       db.run(`DELETE FROM ${entity} WHERE id=?`, [record.id]);
     }
-    return;
+    return true;
   }
   const data = record.data || {};
-  // last-writer-wins per record: an older remote copy never overwrites newer local
+  // last-writer-wins per record: an older remote copy never overwrites newer
+  // local. Equal timestamps are the SAME version — skipping those is what
+  // stops the ten-minute overlap from rewriting (and redrawing) her screen
+  // on every cycle.
   if (entity !== 'tagging' && cols.includes('updated_at')) {
     const local = readLocalRow(entity, record.id);
-    if (local && local.updated_at && data.updated_at && local.updated_at > data.updated_at) return;
+    if (local && local.updated_at && data.updated_at && local.updated_at >= data.updated_at) return false;
   }
   const useCols = cols.filter((c) => c in data);
   if (!useCols.length) return;
+  // upsert, not INSERT OR REPLACE: REPLACE deletes the row first, so any
+  // column the sending device did not carry (an older app version without
+  // gender, nationality or photo_path) came back NULL on this device.
+  // Columns absent from the payload are left exactly as they are.
+  const pk = entity === 'tagging' ? null : 'id';
+  if (pk) {
+    const setCols = useCols.filter((c) => c !== 'id');
+    const sets = setCols.length ? setCols.map((c) => `${c}=excluded.${c}`).join(',') : 'id=excluded.id';
+    db.run(
+      `INSERT INTO ${entity} (${useCols.join(',')}) VALUES (${useCols.map(() => '?').join(',')})
+       ON CONFLICT(id) DO UPDATE SET ${sets}`,
+      useCols.map((c) => data[c])
+    );
+    return true;
+  }
   db.run(
     `INSERT OR REPLACE INTO ${entity} (${useCols.join(',')}) VALUES (${useCols.map(() => '?').join(',')})`,
     useCols.map((c) => data[c])
   );
+  return true;
 }
 
 // ---- the cycle: pull, then push -----------------------------------------
@@ -128,33 +150,54 @@ const OVERLAP_MS = 10 * 60 * 1000;
 async function pull() {
   const since = metaGet('last_pull') || '1970-01-01T00:00:00Z';
   let newest = since;
-  let sawAny = false;
+  let applied = 0;
   let cursor = new Date(Math.max(0, Date.parse(since) - OVERLAP_MS)).toISOString();
   if (Number.isNaN(Date.parse(since))) cursor = since;
+  // updated_at is NOT unique — push() stamps a whole batch of 100 with one
+  // timestamp — so paging with `gt(lastSeen)` would step over every other
+  // row sharing that instant, permanently. Page with `gte` instead and
+  // remember which ids were already applied AT the cursor instant.
+  // (Found by review 2026-09-03, before her data crossed one page.)
+  let seenAtCursor = new Set();
   for (;;) {
     const { data, error } = await sb
       .from('c7_records')
       .select('id, entity, data, updated_at, deleted')
-      .gt('updated_at', cursor)
+      .gte('updated_at', cursor)
       .order('updated_at', { ascending: true })
+      .order('id', { ascending: true })
       .limit(PAGE);
     if (error) throw error;
     if (!data || !data.length) break;
+    let advanced = false;
+    let fresh = 0;
     for (const rec of data) {
-      sawAny = true;
+      if (rec.updated_at === cursor && seenAtCursor.has(rec.id)) continue; // already applied this instant
+      if (rec.updated_at > cursor) { cursor = rec.updated_at; seenAtCursor = new Set(); advanced = true; }
+      seenAtCursor.add(rec.id);
+      fresh += 1;
       // a record she edited here and hasn't pushed yet wins locally
-      if (!hasPendingLocalChange(rec.entity, rec.id)) applyRemote(rec);
+      if (!hasPendingLocalChange(rec.entity, rec.id) && applyRemote(rec)) applied += 1;
       if (rec.updated_at > newest) newest = rec.updated_at;
-      if (rec.updated_at > cursor) cursor = rec.updated_at;
     }
     if (data.length < PAGE) break;
+    // A full page that is entirely one instant cannot be paged past without
+    // losing the rest of it. PUSH_BATCH (100) is far below PAGE (500), so
+    // this should be unreachable — if it ever happens, say so instead of
+    // silently dropping records.
+    if (!advanced && !fresh) {
+      throw new Error(`More than ${PAGE} records share one timestamp — use "Re-pull everything" in this drawer.`);
+    }
   }
   if (newest !== since) metaSet('last_pull', newest);
-  return sawAny;
+  return applied;
 }
 
 async function push() {
-  const items = db.exec('SELECT entity, entity_id FROM c7_outbox ORDER BY queued_at LIMIT 1000');
+  // queued_at comes along so the delete below can tell "the entry I just
+  // uploaded" from "a newer edit to the same record, queued while I was on
+  // the network" — deleting the latter lost that edit until the next change
+  const items = db.exec('SELECT entity, entity_id, queued_at FROM c7_outbox ORDER BY queued_at LIMIT 1000');
   if (!items.length) return;
   const uid = session.user.id;
   for (let i = 0; i < items.length; i += PUSH_BATCH) {
@@ -176,7 +219,7 @@ async function push() {
     });
     const { error } = await sb.from('c7_records').upsert(rows, { onConflict: 'owner_id,entity,id' });
     if (error) throw error;
-    db.runMany(slice.map(({ entity, entity_id }) => ['DELETE FROM c7_outbox WHERE entity=? AND entity_id=?', [entity, entity_id]]));
+    db.runMany(slice.map(({ entity, entity_id, queued_at }) => ['DELETE FROM c7_outbox WHERE entity=? AND entity_id=? AND queued_at=?', [entity, entity_id, queued_at]]));
   }
 }
 
@@ -279,6 +322,9 @@ export async function initSync() {
 export async function repullAll() {
   if (!db.isReady()) return;
   ensureLocalTables();
+  // a cycle already in flight holds the old cursor in a local variable and
+  // would write it back over this reset when it finishes — wait it out
+  for (let i = 0; running && i < 60; i++) await new Promise((r) => setTimeout(r, 500));
   metaSet('last_pull', '1970-01-01T00:00:00Z');
   await syncNow();
 }

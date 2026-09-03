@@ -132,6 +132,7 @@ const ctx = {
       if (e.key !== 'Enter' || e.isComposing) return;
       const t = e.target;
       if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLSelectElement)) return;
+      if (t.closest('.inline-form')) return; // an inline form submits on its own Enter
       const primary = body.querySelector('.btn-primary:not([disabled])');
       if (!primary) return;
       e.preventDefault();

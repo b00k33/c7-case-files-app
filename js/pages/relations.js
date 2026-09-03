@@ -136,6 +136,14 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   `;
   slot.appendChild(wrap);
 
+  // one door out of the tree: never open a profile at the end of a pan, and
+  // when the tree is full-screen, leave the overlay on the way out
+  const openProfile = (id) => {
+    if (scrollBox.dataset.dragged) return;
+    if (full && opts.onClose) opts.onClose({ skipRerender: true });
+    ctx.navigate(`#/subject/${id}`);
+  };
+
   const tree = wrap.querySelector('.tree');
   const svg = svgEl('svg', { class: 'tree-lines', width: L.width, height: L.height, viewBox: `0 0 ${L.width} ${L.height}` });
   svg.style.pointerEvents = 'none'; // lines never block taps on faces; the confirm dots opt back in
@@ -161,6 +169,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
       const t = svgEl('title'); t.textContent = `Confirm — ${e.label || 'this link'}`; dot.appendChild(t);
       dot.addEventListener('click', async (ev) => {
         ev.stopPropagation();
+        if (scrollBox.dataset.dragged) return; // a pan that happened to end here must not confirm
         for (const id of ids) await ctx.store.upsertRelationship({ id, confirmed: 1 });
         rerender();
       });
@@ -197,7 +206,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
           <div class="name">${p.display_name.split(' ')[0]}${lp ? ` <span class="lp${lp.ok ? '' : ' unknown'}" title="${lp.ok ? 'Life path ' + lp.value : 'Life path — needs a full birth date'}">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</span>` : ''}</div>
           ${years ? `<div class="years">${years.slice(0, 4)}</div>` : ''}`;
         m.title = `${p.display_name}${years ? ' · ' + years : ''} — open profile`;
-        m.addEventListener('click', () => { if (!scrollBox.dataset.dragged) ctx.navigate(`#/subject/${p.id}`); });
+        m.addEventListener('click', () => openProfile(p.id));
         g.appendChild(m);
         const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
         if (src) {
@@ -231,7 +240,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
       el.appendChild(icons);
     }
     el.title = `${p.display_name} — open profile`;
-    el.addEventListener('click', () => { if (!scrollBox.dataset.dragged) ctx.navigate(`#/subject/${p.id}`); });
+    el.addEventListener('click', () => openProfile(p.id));
     tree.appendChild(el);
     const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
     if (src) {
@@ -311,7 +320,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   wrap.querySelector('#tree-zoom-out').addEventListener('click', () => zoom(-1));
   wrap.querySelector('#tree-zoom-in').addEventListener('click', () => zoom(1));
   wrap.querySelector('#tree-expand')?.addEventListener('click', () => openFullTree(ctx, people, rels, focus, rerender));
-  wrap.querySelector('#tree-close')?.addEventListener('click', () => opts.onClose && opts.onClose());
+  wrap.querySelector('#tree-close')?.addEventListener('click', () => opts.onClose && opts.onClose({}));
 }
 
 // the tree on the whole screen: its own overlay, same controls, ✕ or Escape to leave
@@ -321,7 +330,12 @@ function openFullTree(ctx, people, rels, focus, rerenderPage) {
   document.body.appendChild(overlay);
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
-  const close = () => { overlay.remove(); document.body.style.overflow = prevOverflow; document.removeEventListener('keydown', onKey); rerenderPage(); };
+  const close = (o = {}) => {
+    overlay.remove();
+    document.body.style.overflow = prevOverflow;
+    document.removeEventListener('keydown', onKey);
+    if (!o.skipRerender) rerenderPage(); // skipped when we are leaving for a profile
+  };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
   const draw = async () => {

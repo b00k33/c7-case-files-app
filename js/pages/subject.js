@@ -230,7 +230,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
         <div class="field" style="margin-top:16px">
           <label>Look up</label>
           <div class="row" style="gap:8px">
-            <input type="text" id="lk-name" value="${person.display_name.replace(/"/g, '&quot;')}" style="flex:1">
+            <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
             <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>
             <button class="btn btn-ghost btn-sm" id="lk-family" title="Parents, siblings, children, spouse, godchildren — straight into this case, with their profiles">Insert family</button>
           </div>
@@ -601,11 +601,18 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
 }
 
+// a name may hold a quote, an ampersand or an angle bracket — O'Brien is
+// fine, but `Ann "Nan" Parton` closed the value attribute and swallowed the
+// rest of the field (review, 2026-09-03)
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderEditForm(body, ctx, person) {
   body.innerHTML = `
-    <h3 class="title" style="margin-bottom:16px">Edit ${person.display_name}</h3>
-    <div class="field"><label>Display name</label><input type="text" id="f-name" value="${person.display_name}"></div>
-    <div class="field"><label>Name at birth</label><input type="text" id="f-nab" value="${person.name_at_birth || ''}"></div>
+    <h3 class="title" style="margin-bottom:16px">Edit ${esc(person.display_name)}</h3>
+    <div class="field"><label>Display name</label><input type="text" id="f-name" value="${esc(person.display_name)}"></div>
+    <div class="field"><label>Name at birth</label><input type="text" id="f-nab" value="${esc(person.name_at_birth)}"></div>
     <div class="field"><label>Birth date</label><input type="date" id="f-bdate" value="${person.birth_date || ''}"></div>
     <div class="field"><label>Birth precision</label>
       <select id="f-bprec">
@@ -616,15 +623,15 @@ function renderEditForm(body, ctx, person) {
       <div class="field" style="flex:1"><label>Year min (if range)</label><input type="number" id="f-ymin" value="${person.birth_year_min ?? ''}"></div>
       <div class="field" style="flex:1"><label>Year max (if range)</label><input type="number" id="f-ymax" value="${person.birth_year_max ?? ''}"></div>
     </div>
-    <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${person.birth_place || ''}"></div>
-    <div class="field"><label>Death date (leave blank if living)</label><input type="date" id="f-ddate" value="${person.death_date || ''}"></div>
+    <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${esc(person.birth_place)}"></div>
+    <div class="field"><label>Death date (leave blank if living)</label><input type="date" id="f-ddate" value="${esc(person.death_date)}"></div>
     <div class="row" style="gap:8px">
-      <div class="field" style="flex:1"><label>Gender</label><input type="text" id="f-gender" value="${person.gender || ''}"></div>
-      <div class="field" style="flex:1"><label>Nationality</label><input type="text" id="f-nat" value="${person.nationality || ''}"></div>
+      <div class="field" style="flex:1"><label>Gender</label><input type="text" id="f-gender" value="${esc(person.gender)}"></div>
+      <div class="field" style="flex:1"><label>Nationality</label><input type="text" id="f-nat" value="${esc(person.nationality)}"></div>
     </div>
-    <div class="field"><label>Marital status — leave blank to read it from the map (a spouse relationship)</label><input type="text" id="f-marital" value="${person.marital_status || ''}" placeholder="divorced · widowed · single…"></div>
-    <div class="field"><label>Occupation</label><input type="text" id="f-occ" value="${person.occupation || ''}"></div>
-    <div class="field"><label>Notes</label><textarea id="f-notes">${person.notes || ''}</textarea></div>
+    <div class="field"><label>Marital status — leave blank to read it from the map (a spouse relationship)</label><input type="text" id="f-marital" value="${esc(person.marital_status)}" placeholder="divorced · widowed · single…"></div>
+    <div class="field"><label>Occupation</label><input type="text" id="f-occ" value="${esc(person.occupation)}"></div>
+    <div class="field"><label>Notes</label><textarea id="f-notes">${esc(person.notes)}</textarea></div>
     <button class="btn btn-primary" id="save-person-btn">Save</button>
   `;
   body.querySelector('#save-person-btn').addEventListener('click', async () => {
