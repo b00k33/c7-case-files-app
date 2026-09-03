@@ -497,10 +497,10 @@ function renderNumberPanels(root, people) {
 
 /**
  * The life-path grid. Sorted by name by default; the control above it can
- * group the rows by animal or sun sign — exact (a header per animal/sign
- * that repeats, same-colour groups one after another in the key's order,
- * bigger cluster first inside a colour, one-offs collected under "No
- * repeats" in the same colour order) or by the colour group (trine /
+ * group the rows by animal or sun sign — exact (colour by colour in the
+ * key's order: a header per animal/sign that repeats, bigger first, then
+ * that colour's one-offs right after it under a quiet "No repeats") or by
+ * the colour group (trine /
  * element, in the key's order; inside each colour the repeats run first,
  * bigger run first, then the one-offs together after them). The choice
  * sticks, like the tree's own toggles. Her ask, 2026-09-03.
@@ -549,23 +549,24 @@ function renderGrid(gridSlot, ctlSlot, people) {
   } else if (!grouped) {
     const groups = new Map();
     for (const f of facts) { const k = keyOf(f); if (k) { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); } }
-    // same-colour groups run one after another in the key's order (her call,
-    // 2026-09-03: "group the fire signs one after another"); inside a colour
-    // the bigger cluster comes first, then the wheel order
-    const colourOrder = (isAnimal ? TRINES : WESTERN_ELEMENTS).map((b) => b.key);
+    // colour by colour, in the key's order (her call, 2026-09-03: "group the
+    // fire signs one after another … leo shown near the aries and sag"):
+    // each repeat under its own header, bigger first, then that colour's
+    // one-offs right after it — never banished to a block at the bottom
+    const buckets = isAnimal ? TRINES : WESTERN_ELEMENTS;
     const colourOf = isAnimal ? (k) => zodiacGroup(k) : (k) => signElement(k);
-    const byColour = (a, b) => colourOrder.indexOf(colourOf(a)) - colourOrder.indexOf(colourOf(b));
-    const repeats = [...groups.keys()].filter((k) => groups.get(k).length > 1)
-      .sort((a, b) => byColour(a, b) || groups.get(b).length - groups.get(a).length || order.indexOf(a) - order.indexOf(b));
-    const singles = facts.filter((f) => keyOf(f) && groups.get(keyOf(f)).length === 1)
-      .sort((x, y) => byColour(keyOf(x), keyOf(y)) || order.indexOf(keyOf(x)) - order.indexOf(keyOf(y)) || byName(x, y));
-    const unknown = facts.filter((f) => !keyOf(f)).sort(byName);
-    for (const k of repeats) {
-      const cls = isAnimal ? `gb-${zodiacGroup(k)}` : `gb-${signElement(k)}`;
-      const pic = isAnimal ? animalPicHtml(k, 'grp-pic') : `<span class="grp-pic">${signGlyph(k)}</span>`;
-      body += block(head(cls, pic, k, null, groups.get(k).length) + groups.get(k).slice().sort(byName).map(row).join(''));
+    for (const b of buckets) {
+      const repeats = [...groups.keys()].filter((k) => colourOf(k) === b.key && groups.get(k).length > 1)
+        .sort((a, c) => groups.get(c).length - groups.get(a).length || order.indexOf(a) - order.indexOf(c));
+      for (const k of repeats) {
+        const pic = isAnimal ? animalPicHtml(k, 'grp-pic') : `<span class="grp-pic">${signGlyph(k)}</span>`;
+        body += block(head(`gb-${b.key}`, pic, k, null, groups.get(k).length) + groups.get(k).slice().sort(byName).map(row).join(''));
+      }
+      const singles = facts.filter((f) => keyOf(f) && colourOf(keyOf(f)) === b.key && groups.get(keyOf(f)).length === 1)
+        .sort((x, y) => order.indexOf(keyOf(x)) - order.indexOf(keyOf(y)) || byName(x, y));
+      if (singles.length) body += block(head(`gb-${b.key} soft`, '', 'No repeats', null, singles.length) + singles.map(row).join(''));
     }
-    if (singles.length) body += block(head('gb-none', '', 'No repeats', null, singles.length) + singles.map(row).join(''));
+    const unknown = facts.filter((f) => !keyOf(f)).sort(byName);
     if (unknown.length) body += block(head('gb-none', '', 'Unknown', null, unknown.length) + unknown.map(row).join(''));
   } else {
     const buckets = isAnimal ? TRINES : WESTERN_ELEMENTS;

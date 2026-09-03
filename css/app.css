@@ -512,6 +512,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .grp-bar.gb-fire { border-color: var(--ws-fire); color: var(--ws-fire); }
 .grp-bar.gb-earth { border-color: var(--ws-earth); color: var(--ws-earth); }
 .grp-bar.gb-water { border-color: var(--ws-water); color: var(--ws-water); }
+.grp-bar.soft { color: var(--text-3); } /* a colour's one-offs: keep the colour bar, mute the label */
 /* the grid's sort control: which column, then exact vs its colour group */
 .ctl-col { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); }
 .ctl-sub { font-size: 10px; color: var(--text-3); }
