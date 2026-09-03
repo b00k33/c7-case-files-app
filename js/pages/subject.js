@@ -2,7 +2,7 @@ import { lifePath, birthdayNumber, personalYear, universalYear, expression, soul
 import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
-import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, signHtml } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, animalLabel, signHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
@@ -104,7 +104,7 @@ function chartPanel(person, status) {
     <div class="row wrap" style="gap:20px;align-items:flex-end">
       ${big(`${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
       ${big(`${py.value}${py.master ? '★' : ''}`, `${thisYear} year`)}
-      ${big(chinese.boundary ? '—' : chinese.animal, chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase(), chinese.boundary ? null : zodiacColor(chinese.animal))}
+      ${big(chinese.boundary ? '—' : animalLabel(chinese.animal), chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase(), chinese.boundary ? null : zodiacColor(chinese.animal))}
       ${big(sun.sign, sun.cusp ? 'sun · cusp' : 'sun', signColor(sun.sign))}
     </div>
     <details style="margin-top:4px">

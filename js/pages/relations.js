@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { expectedDigitCount } from '../stats.js';
-import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl } from '../assets.js';
@@ -23,7 +23,7 @@ const SIGN_ORDER = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libr
 const TRINES = [
   { key: 'blue', name: 'Blue', members: 'Snake · Ox · Rooster' },
   { key: 'green', name: 'Green', members: 'Dog · Tiger · Horse' },
-  { key: 'pink', name: 'Pink', members: 'Pig · Goat · Rabbit' },
+  { key: 'pink', name: 'Pink', members: 'Pig · Goat · Rabbit (Cat)' },
   { key: 'yellow', name: 'Yellow', members: 'Rat · Dragon · Monkey' },
 ];
 const WESTERN_ELEMENTS = [
@@ -465,7 +465,7 @@ async function renderZodiacMap(mapSlot, ctx, people) {
     for (const a of ANIMALS.filter((x) => zodiacGroup(x) === z)) {
       const mem = members.filter((f) => f.animal === a).sort(byName);
       const col = document.createElement('div');
-      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}" data-animal="${a}">${animalPicHtml(a)}${a}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
+      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}" data-animal="${a}">${animalPicHtml(a)}${animalLabel(a)}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
       const list = col.querySelector('.zmap-people');
       for (const f of mem) list.appendChild(mapPersonNode(f.p, ctx));
       cols.appendChild(col);
@@ -486,7 +486,7 @@ async function renderZodiacMap(mapSlot, ctx, people) {
   new ResizeObserver(() => drawClashLines(wrap)).observe(wrap);
   const key = document.createElement('div');
   key.className = 'zmap-key';
-  key.textContent = 'Inside a zone everyone is in harmony with each other · a red ✕ line joins two animals that clash (Rat × Horse, Ox × Goat, Tiger × Monkey, Rabbit × Rooster, Dragon × Dog, Snake × Pig) when both are in this case · tap a face to open the profile';
+  key.textContent = 'Inside a zone everyone is in harmony with each other · a red ✕ line joins two animals that clash (Rat × Horse, Ox × Goat, Tiger × Monkey, Rabbit (Cat) × Rooster, Dragon × Dog, Snake × Pig) when both are in this case · tap a face to open the profile';
   mapSlot.appendChild(key);
 }
 
@@ -610,7 +610,7 @@ function renderGrid(gridSlot, ctlSlot, people) {
         .sort((a, c) => groups.get(c).length - groups.get(a).length || order.indexOf(a) - order.indexOf(c));
       for (const k of repeats) {
         const pic = isAnimal ? animalPicHtml(k, 'grp-pic') : `<span class="grp-pic">${signGlyph(k)}</span>`;
-        body += block(head(`gb-${b.key}`, pic, k, null, groups.get(k).length) + groups.get(k).slice().sort(byName).map(row).join(''));
+        body += block(head(`gb-${b.key}`, pic, isAnimal ? animalLabel(k) : k, null, groups.get(k).length) + groups.get(k).slice().sort(byName).map(row).join(''));
       }
       const singles = facts.filter((f) => keyOf(f) && colourOf(keyOf(f)) === b.key && groups.get(keyOf(f)).length === 1)
         .sort((x, y) => order.indexOf(keyOf(x)) - order.indexOf(keyOf(y)) || byName(x, y));
@@ -644,7 +644,7 @@ function renderGrid(gridSlot, ctlSlot, people) {
   gridSlot.appendChild(table);
   const key = document.createElement('div');
   key.className = 'zc-key';
-  key.innerHTML = `<span><span class="zc zc-blue">Snake · Ox · Rooster</span></span><span><span class="zc zc-green">Dog · Tiger · Horse</span></span><span><span class="zc zc-pink">Pig · Goat · Rabbit</span></span><span><span class="zc zc-yellow">Rat · Dragon · Monkey</span></span>
+  key.innerHTML = `<span><span class="zc zc-blue">Snake · Ox · Rooster</span></span><span><span class="zc zc-green">Dog · Tiger · Horse</span></span><span><span class="zc zc-pink">Pig · Goat · Rabbit (Cat)</span></span><span><span class="zc zc-yellow">Rat · Dragon · Monkey</span></span>
     <span><span class="zc ws-air">air</span> · <span class="zc ws-fire">fire</span> · <span class="zc ws-earth">earth</span> · <span class="zc ws-water">water</span></span>`;
   gridSlot.appendChild(key);
 }

@@ -91,7 +91,9 @@ export function signElement(sign) { return SIGN_ELEMENT[sign] || null; }
 export function zodiacColor(animal) { const g = zodiacGroup(animal); return g ? `var(--zc-${g})` : null; }
 export function signColor(sign) { const e = signElement(sign); return e ? `var(--ws-${e})` : null; }
 /** Inline HTML for a coloured animal / sun-sign name. */
-export function animalHtml(animal) { const g = zodiacGroup(animal); return g ? `<span class="zc zc-${g}">${animal}</span>` : animal; }
+/** The printed name: the Rabbit is the Cat in the Vietnamese zodiac (her call, 2026-09-03: "Rabbit = Cat") — both names, wherever it is shown. */
+export function animalLabel(animal) { return animal === 'Rabbit' || animal === 'Cat' ? 'Rabbit (Cat)' : animal; }
+export function animalHtml(animal) { const g = zodiacGroup(animal); return g ? `<span class="zc zc-${g}">${animalLabel(animal)}</span>` : animal; }
 export function signHtml(sign) { const e = signElement(sign); return e ? `<span class="zc ws-${e}">${sign}</span>` : sign; }
 
 // Her call (2026-09-03): "show lp number as number, and use images/icons for
@@ -156,8 +158,8 @@ export function animalPicHtml(animal, cls = 'chip-icon-pic') {
 export function animalChipHtml(animal) {
   const g = zodiacGroup(animal);
   const pic = animalPicHtml(animal);
-  if (!g || !pic) return animal;
-  return `<span class="chip-icon zc-${g}">${pic}${animal}</span>`;
+  if (!g || !pic) return animalLabel(animal);
+  return `<span class="chip-icon zc-${g}">${pic}${animalLabel(animal)}</span>`;
 }
 
 /** A pill in the same shape: the sun sign's glyph (already flat, no filter needed) + its name. */
@@ -186,7 +188,7 @@ export function numberIcons({ lifePath, chinese, sun }, { size = 'sm' } = {}) {
   an.className = 'ni-animal';
   if (chinese && chinese.ok && !chinese.boundary && animalIcon(chinese.animal)) {
     an.style.borderColor = zodiacColor(chinese.animal) || 'var(--ink-3)';
-    an.title = `${chinese.animal}${chinese.element ? ' · ' + chinese.element : ''}`;
+    an.title = `${animalLabel(chinese.animal)}${chinese.element ? ' · ' + chinese.element : ''}`;
     const g = zodiacGroup(chinese.animal);
     if (g) {
       ensurePosterFilters();
