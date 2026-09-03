@@ -481,6 +481,19 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .zc-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--text-3); margin-top: var(--sp-2); }
 .zc-key .zc { font-weight: 400; }
 
+/* life-path grid: animal/sign as a pill — icon + name, both taking the trine colour */
+.chip-icon { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 7px; border-radius: 999px; font-weight: 500; }
+.chip-icon.zc-blue { background: color-mix(in srgb, var(--zc-blue) 18%, transparent); color: var(--zc-blue); }
+.chip-icon.zc-green { background: color-mix(in srgb, var(--zc-green) 18%, transparent); color: var(--zc-green); }
+.chip-icon.zc-pink { background: color-mix(in srgb, var(--zc-pink) 18%, transparent); color: var(--zc-pink); }
+.chip-icon.zc-yellow { background: color-mix(in srgb, var(--zc-yellow) 18%, transparent); color: var(--zc-yellow); }
+.chip-icon.ws-air { background: color-mix(in srgb, var(--ws-air) 18%, transparent); color: var(--ws-air); }
+.chip-icon.ws-fire { background: color-mix(in srgb, var(--ws-fire) 18%, transparent); color: var(--ws-fire); }
+.chip-icon.ws-earth { background: color-mix(in srgb, var(--ws-earth) 18%, transparent); color: var(--ws-earth); }
+.chip-icon.ws-water { background: color-mix(in srgb, var(--ws-water) 18%, transparent); color: var(--ws-water); }
+.chip-icon-pic { width: 18px; height: 18px; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.chip-icon-pic.glyph { font-size: 14px; }
+
 /* ------------------------------------------------ number icons (life path · animal · sign) */
 .num-icons { display: inline-flex; align-items: center; gap: 6px; }
 .num-icons .ni-lp { color: var(--brass); font-size: 13px; font-weight: 500; min-width: 14px; text-align: center; }

@@ -103,6 +103,63 @@ const SIGN_GLYPH = { Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋', 
 export function animalIcon(animal) { return ANIMAL_ICON[animal] || null; }
 export function signGlyph(sign) { return SIGN_GLYPH[sign] || null; }
 
+// --- animal chip, poster duotone --------------------------------------
+// Her pick for the life-path grid (2026-09-03, round 2, "3b"): the animal
+// photo as a two-colour print — shadows near-black, highlights the trine's
+// own colour — with the tonal split shifted (gamma 0.7) before mapping so
+// more of the shape lands in the bright colour instead of a grey middle.
+// Built from the live --ink-0 / --zc-* custom properties, not hardcoded
+// hex, so it tracks the palette if she ever changes it.
+function hexToFrac(hex) {
+  const h = (hex || '').trim().replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const n = parseInt(full, 16) || 0;
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+function brighten(frac, mult) { return frac.map((c) => Math.min(1, c * mult)); }
+const ZC_GROUPS = ['blue', 'green', 'pink', 'yellow'];
+
+let postersReady = false;
+function ensurePosterFilters() {
+  if (postersReady || typeof document === 'undefined') return;
+  postersReady = true;
+  const cs = getComputedStyle(document.documentElement);
+  const shadow = hexToFrac(cs.getPropertyValue('--ink-0'));
+  const root = svg('svg', { width: 0, height: 0, style: 'position:absolute' });
+  const defs = svg('defs', { id: 'c7-poster-defs' });
+  root.appendChild(defs);
+  for (const g of ZC_GROUPS) {
+    const hi = brighten(hexToFrac(cs.getPropertyValue(`--zc-${g}`)), 1.12);
+    const filter = svg('filter', { id: `c7-animal-duo-${g}`, 'color-interpolation-filters': 'sRGB' });
+    filter.appendChild(svg('feColorMatrix', { type: 'matrix', values: '0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0' }));
+    const gammaXfer = svg('feComponentTransfer');
+    ['R', 'G', 'B'].forEach((ch) => gammaXfer.appendChild(svg(`feFunc${ch}`, { type: 'gamma', amplitude: 1, exponent: 0.7, offset: 0 })));
+    filter.appendChild(gammaXfer);
+    const mapXfer = svg('feComponentTransfer');
+    ['R', 'G', 'B'].forEach((ch, i) => mapXfer.appendChild(svg(`feFunc${ch}`, { type: 'table', tableValues: `${shadow[i]} ${hi[i]}` })));
+    filter.appendChild(mapXfer);
+    defs.appendChild(filter);
+  }
+  document.body.appendChild(root);
+}
+
+/** A pill: the animal's poster-duotone photo (tinted to its trine colour) + its name. */
+export function animalChipHtml(animal) {
+  const g = zodiacGroup(animal);
+  const icon = animalIcon(animal);
+  if (!g || !icon) return animal;
+  ensurePosterFilters();
+  return `<span class="chip-icon zc-${g}"><span class="chip-icon-pic" style="filter:url(#c7-animal-duo-${g})">${icon}</span>${animal}</span>`;
+}
+
+/** A pill in the same shape: the sun sign's glyph (already flat, no filter needed) + its name. */
+export function signChipHtml(sign) {
+  const e = signElement(sign);
+  const glyph = signGlyph(sign);
+  if (!e || !glyph) return sign;
+  return `<span class="chip-icon ws-${e}"><span class="chip-icon-pic glyph">${glyph}</span>${sign}</span>`;
+}
+
 /**
  * The three facts under a face: life path (number), animal (picture), sun
  * sign (glyph). opts: { lifePath: {ok,value,master}, chinese: {ok,boundary,animal,element}, sun: {ok,cusp,sign} }.

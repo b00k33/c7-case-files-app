@@ -3,7 +3,7 @@ import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
-import { numberIcons, relationGlyph, barRow, emptyState, animalHtml, signHtml } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
@@ -484,7 +484,7 @@ function renderNumberPanels(root, people) {
       const lp = lifePath(d);
       const sun = sunSign(d);
       const ch = signFor(d);
-      return `<tr><td>${p.display_name}</td><td class="num">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</td><td>${sun.ok ? signHtml(sun.sign) : '—'}</td><td>${ch.ok && !ch.boundary ? animalHtml(ch.animal) : ch.boundary ? 'boundary' : '—'}</td></tr>`;
+      return `<tr><td>${p.display_name}</td><td class="num">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</td><td>${sun.ok ? signChipHtml(sun.sign) : '—'}</td><td>${ch.ok && !ch.boundary ? animalChipHtml(ch.animal) : ch.boundary ? 'boundary' : '—'}</td></tr>`;
     }).join('')}</tbody>`;
     gridSlot.appendChild(table);
     const key = document.createElement('div');
