@@ -501,9 +501,9 @@ function renderNumberPanels(root, people) {
  * that repeats, same-colour groups one after another in the key's order,
  * bigger cluster first inside a colour, one-offs collected under "No
  * repeats" in the same colour order) or by the colour group (trine /
- * element, in the key's order, exact repeats still running together inside
- * each colour). The choice sticks, like the tree's own toggles. Her ask,
- * 2026-09-03.
+ * element, in the key's order; inside each colour the repeats run first,
+ * bigger run first, then the one-offs together after them). The choice
+ * sticks, like the tree's own toggles. Her ask, 2026-09-03.
  */
 function renderGrid(gridSlot, ctlSlot, people) {
   gridSlot.innerHTML = '';
@@ -571,8 +571,16 @@ function renderGrid(gridSlot, ctlSlot, people) {
     const buckets = isAnimal ? TRINES : WESTERN_ELEMENTS;
     const bucketOf = isAnimal ? (f) => (f.animal ? zodiacGroup(f.animal) : null) : (f) => (f.sign ? signElement(f.sign) : null);
     for (const b of buckets) {
-      const members = facts.filter((f) => bucketOf(f) === b.key)
-        .sort((x, y) => order.indexOf(keyOf(x)) - order.indexOf(keyOf(y)) || byName(x, y));
+      const inBucket = facts.filter((f) => bucketOf(f) === b.key);
+      // inside a colour: the repeats first (bigger run first, then the wheel),
+      // then every one-off together after them (her call, 2026-09-03: "the
+      // no repeats group in animal trine one after another")
+      const count = new Map();
+      for (const f of inBucket) count.set(keyOf(f), (count.get(keyOf(f)) || 0) + 1);
+      const members = inBucket.sort((x, y) => {
+        const cx = count.get(keyOf(x)), cy = count.get(keyOf(y));
+        return ((cy > 1) - (cx > 1)) || (cx > 1 && cy > 1 ? cy - cx : 0) || order.indexOf(keyOf(x)) - order.indexOf(keyOf(y)) || byName(x, y);
+      });
       if (members.length) body += block(head(`gb-${b.key}`, '', b.name, b.members, members.length) + members.map(row).join(''));
     }
     const unknown = facts.filter((f) => !bucketOf(f)).sort(byName);
