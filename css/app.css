@@ -463,6 +463,26 @@ table.matrix td.diag { background: transparent; cursor: default; }
   .case-card .body { flex: 1; min-width: 0; }
 }
 
+/* ------------------------------------------------ family tree */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+.seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer; min-height: 28px; }
+.seg button.active { background: var(--ink-2); color: var(--brass); }
+.tree-wrap { background: var(--ink-1); border-radius: var(--r-lg); padding: var(--sp-3); }
+.tree-scroll { overflow-x: auto; overflow-y: hidden; padding: var(--sp-2) 0; }
+.tree { position: relative; margin: 0 auto; min-height: 60px; }
+.tree-lines { position: absolute; inset: 0; pointer-events: none; }
+.tree-node { position: absolute; text-align: center; cursor: pointer; }
+.tree-node .face { margin: 0 auto 4px; }
+.tree-node .face .initials { font-size: 13px; }
+.tree-node .name { font-size: 12px; color: var(--text); line-height: 1.15; }
+.tree-node .years { font-size: 10px; color: var(--text-3); margin-top: 2px; font-family: var(--font-mono); }
+.tree-node .tag { font-size: 10px; color: var(--brass); margin-top: 2px; }
+.tree-node.focus .face { box-shadow: 0 0 0 2px var(--brass); }
+.tree-node.focus .name { color: var(--brass); }
+.tree-node:hover .name { color: var(--brass); }
+.tree-more { display: block; margin: 0 auto; background: none; border: 1px dashed var(--ink-3); color: var(--text-3); font: inherit; font-size: 11px; border-radius: var(--r-sm); padding: 4px 12px; cursor: pointer; }
+.tree-more:hover { color: var(--brass); border-color: var(--brass); }
+
 /* ------------------------------------------------ profile picture */
 .avatar { width: 72px; height: 72px; border-radius: var(--r-lg); background: var(--ink-2); overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }

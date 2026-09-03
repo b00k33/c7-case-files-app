@@ -17,13 +17,21 @@ export function markOpened(caseId) {
   localStorage.setItem(OPENED_KEY, JSON.stringify(m));
 }
 
+/** The person a person-case is about: named like the case, else the first one created (relatives come later). */
+export function subjectOf(kase, people) {
+  if (!people.length) return null;
+  const name = kase.name.trim().toLowerCase();
+  return people.find((p) => p.display_name.trim().toLowerCase() === name)
+    || [...people].sort((a, b) => (a.created_at < b.created_at ? -1 : 1))[0];
+}
+
 /** Go into a case: person-case → the person's profile; family (or several people) → family overview. */
 export async function openCase(ctx, kase) {
   markOpened(kase.id);
   await ctx.setCaseId(kase.id);
   const people = await ctx.store.listPeople(kase.id);
   if (kase.kind === 'family' || (kase.kind !== 'person' && people.length > 1)) { ctx.navigate('#/family'); return; }
-  let p = people[0];
+  let p = subjectOf(kase, people);
   if (!p) p = await ctx.store.createPerson({ case_id: kase.id, display_name: kase.name, kind: 'person' });
   ctx.navigate(`#/subject/${p.id}`);
 }
@@ -112,7 +120,8 @@ export async function render(root, ctx) {
     `;
     // picture: the person's face, or up to three family faces
     const pic = card.querySelector('.pic');
-    const faces = sum.people.slice(0, c.kind === 'family' ? 3 : 1);
+    const subject = subjectOf(c, sum.people);
+    const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
     if (!faces.length) pic.innerHTML = `<span class="initials">${initials(c.name)}</span>`;
     else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
     else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
@@ -127,7 +136,8 @@ export async function render(root, ctx) {
       e.stopPropagation();
       markOpened(c.id); await ctx.setCaseId(c.id);
       const people = await store.listPeople(c.id);
-      ctx.navigate(people.length === 1 && c.kind !== 'family' ? `#/subject/${people[0].id}/import` : '#/import');
+      const subject = c.kind !== 'family' ? subjectOf(c, people) : null;
+      ctx.navigate(subject ? `#/subject/${subject.id}/import` : '#/import');
     });
     twoTapConfirm(card.querySelector('.delete-btn'), {
       confirmLabel: 'Really delete?',

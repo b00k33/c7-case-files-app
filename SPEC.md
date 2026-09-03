@@ -379,8 +379,21 @@ panel is allowed to show an observed count alone.
 4. Board — cork background, the year strip (personal year / universal year /
    record density, switchable), cards hung on string at their year, undated
    tray, string legend.
-5. Relations — node map, relation glyphs on the lines, repeating-number
-   panel, life-path grid.
+5. Relations — the family **tree** (2026-09-03, her eight popup answers):
+   generation rows, oldest on top; a face (photo, initials fallback), name
+   and years per person; spouses side by side joined by a line, children
+   hanging from a bar, siblings oldest → youngest; dotted lines for
+   unconfirmed links; godparents as a small tag plus a dotted curve. On a
+   profile's Relations tab the person is the focus (brass ring) and the
+   tree opens at their row ± 1 generation with "Up 1 / Down 1 / Expand
+   all" and "+ N above/below" chips; the family overview shows the whole
+   case. "Numbers" toggles the life-path/animal/sun tokens under each
+   face. Non-family links (business, associate, household) are listed
+   under the tree as "Other connections". The old circular **zodiac map**
+   stays as a toggle. Layout is pure (`js/tree.js`: generations by
+   relaxation over parent/spouse/sibling links, couple units, recursive
+   widths); the page only draws. Below: repeating-number panel and
+   life-path grid.
 6. Patterns — the pair matrix, selected-pair readout, children-vs-parents
    band, event-date numbers, findings with observed vs expected, control
    test.

@@ -44,6 +44,7 @@ const SHELL = [
   'js/pages/review.js',
   'js/pages/video.js',
   'js/pages/fun.js',
+  'js/tree.js',
   'js/pages/cases.js',
   'js/pages/family.js',
   'js/pages/people.js',
