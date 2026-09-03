@@ -2,7 +2,7 @@ import { lifePath, birthdayNumber, personalYear, universalYear, expression, soul
 import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
-import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor } from '../indicators.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
@@ -83,13 +83,9 @@ function chartPanel(person, status) {
   const chinese = signFor(person.birth_date);
   const sun = sunSign(person.birth_date);
 
-  const tokRow = document.createElement('div');
-  tokRow.className = 'token-row';
-  tokRow.style.gap = '10px';
-  tokRow.appendChild(makeToken('lifePath', { status, master: lp.master, value: lp.value }));
-  tokRow.appendChild(makeToken('personalYear', { status, master: py.master, value: py.value }));
-  tokRow.appendChild(makeToken('animalYear', { status, boundary: chinese.boundary, animal: chinese.animal, animalIndex: chinese.animalIndex, element: chinese.element }));
-  tokRow.appendChild(makeToken('sunSign', { status, cusp: sun.cusp, sign: sun.sign }));
+  // number · animal picture · sign glyph (her call, 2026-09-03 — no symbol tokens)
+  const tokRow = numberIcons({ lifePath: lp, chinese, sun }, { size: 'lg' });
+  tokRow.title = `Evidence status: ${status}`;
   el.appendChild(tokRow);
 
   const grid = document.createElement('div');

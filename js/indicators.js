@@ -94,6 +94,58 @@ export function signColor(sign) { const e = signElement(sign); return e ? `var(-
 export function animalHtml(animal) { const g = zodiacGroup(animal); return g ? `<span class="zc zc-${g}">${animal}</span>` : animal; }
 export function signHtml(sign) { const e = signElement(sign); return e ? `<span class="zc ws-${e}">${sign}</span>` : sign; }
 
+// Her call (2026-09-03): "show lp number as number, and use images/icons for
+// astrology" — the wheel/square tokens are gone from the tree, the map and
+// the profile header. The animal is its picture, the sign its classic
+// glyph, both carrying the colour code; the life path is just the number.
+const ANIMAL_ICON = { Rat: '🐀', Ox: '🐂', Tiger: '🐅', Rabbit: '🐇', Cat: '🐈', Dragon: '🐉', Snake: '🐍', Horse: '🐎', Goat: '🐐', Monkey: '🐒', Rooster: '🐓', Dog: '🐕', Pig: '🐖' };
+const SIGN_GLYPH = { Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋', Leo: '♌', Virgo: '♍', Libra: '♎', Scorpio: '♏', Sagittarius: '♐', Capricorn: '♑', Aquarius: '♒', Pisces: '♓' };
+export function animalIcon(animal) { return ANIMAL_ICON[animal] || null; }
+export function signGlyph(sign) { return SIGN_GLYPH[sign] || null; }
+
+/**
+ * The three facts under a face: life path (number), animal (picture), sun
+ * sign (glyph). opts: { lifePath: {ok,value,master}, chinese: {ok,boundary,animal,element}, sun: {ok,cusp,sign} }.
+ * Unknowns show as a hollow dash, never omitted (STYLE §5).
+ */
+export function numberIcons({ lifePath, chinese, sun }, { size = 'sm' } = {}) {
+  const row = document.createElement('div');
+  row.className = `num-icons num-${size}`;
+  const lp = document.createElement('span');
+  lp.className = 'ni-lp mono';
+  if (lifePath && lifePath.ok) { lp.textContent = `${lifePath.value}${lifePath.master ? '★' : ''}`; lp.title = `Life path ${lifePath.value}${lifePath.master ? ' (master)' : ''}`; }
+  else { lp.textContent = '—'; lp.classList.add('unknown'); lp.title = 'Life path — needs a full birth date'; }
+  row.appendChild(lp);
+
+  const an = document.createElement('span');
+  an.className = 'ni-animal';
+  if (chinese && chinese.ok && !chinese.boundary && animalIcon(chinese.animal)) {
+    an.textContent = animalIcon(chinese.animal);
+    an.style.borderColor = zodiacColor(chinese.animal) || 'var(--ink-3)';
+    an.title = `${chinese.animal}${chinese.element ? ' · ' + chinese.element : ''}`;
+  } else {
+    an.textContent = chinese && chinese.boundary ? '?' : '—';
+    an.classList.add('unknown');
+    an.title = chinese && chinese.boundary ? 'Animal year — near lunar new year, unresolved' : 'Animal year — needs a full birth date';
+  }
+  row.appendChild(an);
+
+  const su = document.createElement('span');
+  su.className = 'ni-sign';
+  if (sun && sun.ok && signGlyph(sun.sign)) {
+    su.textContent = signGlyph(sun.sign);
+    su.style.color = signColor(sun.sign) || 'var(--text-2)';
+    su.title = `${sun.sign}${sun.cusp ? ' (cusp)' : ''}`;
+    if (sun.cusp) su.classList.add('cusp');
+  } else {
+    su.textContent = '—';
+    su.classList.add('unknown');
+    su.title = 'Sun sign — needs a full birth date';
+  }
+  row.appendChild(su);
+  return row;
+}
+
 // kind: 'lifePath' | 'personalYear' | 'animalYear' | 'sunSign'
 // opts: { status, master, boundary, cusp, value, animal, animalIndex, element, sign }
 

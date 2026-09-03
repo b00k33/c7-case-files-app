@@ -201,3 +201,18 @@ would.
   sector/letter and the sign's abbreviation. Variables `--zc-*` and
   `--ws-*`, helpers `animalHtml()`/`signHtml()` in `js/indicators.js`. The
   life-path grid carries a one-line key.
+- **Number icons replace the symbol tokens (her call, 2026-09-03).** "Show
+  lp number as number, and use images/icons for astrology" — on the tree,
+  the zodiac map and the profile header the three facts read as
+  `4 · 🐓 · ♑`: the life path as a brass number (★ for a master number),
+  the animal as its picture inside a ring in its trine colour, the sun sign
+  as its classic glyph in its element colour (a small ½ marks a cusp).
+  Unknowns are a hollow dash, never omitted. §5's form-token table now
+  describes the legacy `makeToken` only; `numberIcons()` in
+  `js/indicators.js` is the live rule. Evidence status no longer colours
+  these; it lives on the profile's status chip and the chart panel.
+- **Tree viewing (2026-09-03).** Fit (on by default) shrinks the tree to
+  its box, never below half size; − / + zoom by hand and turn Fit off;
+  dragging pans; Expand puts the tree on the whole screen with the same
+  controls and ✕ / Escape to leave. Delete on a case card lives in the ⋯
+  menu, dimmed, two-tap — Import stays on the card.

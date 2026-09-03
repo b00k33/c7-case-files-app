@@ -113,7 +113,6 @@ export async function render(root, ctx) {
         <div class="badges"></div>
         <div class="row" style="gap:6px;margin-top:8px">
           <button class="btn btn-ghost btn-sm import-btn">Import</button>
-          <button class="btn btn-ghost btn-sm delete-btn">Delete</button>
         </div>
         <div class="menu-slot"></div>
       </div>
@@ -139,10 +138,6 @@ export async function render(root, ctx) {
       const subject = c.kind !== 'family' ? subjectOf(c, people) : null;
       ctx.navigate(subject ? `#/subject/${subject.id}/import` : '#/import');
     });
-    twoTapConfirm(card.querySelector('.delete-btn'), {
-      confirmLabel: 'Really delete?',
-      onConfirm: async () => { await store.softDeleteCase(c.id); if (c.id === ctx.caseId) await ctx.setCaseId(null); render(root, ctx); },
-    });
     card.querySelector('.menu-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       const slot = card.querySelector('.menu-slot');
@@ -154,8 +149,13 @@ export async function render(root, ctx) {
           <button class="btn btn-ghost btn-sm m-rename">Rename</button>
           <button class="btn btn-ghost btn-sm m-kind">${c.kind === 'family' ? 'Make it a person case' : 'Make it a family case'}</button>
           ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
+          <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
         </div>
         ${dups.total || flagged ? `<div class="mono" style="font-size:11px;color:var(--text-3);margin-top:6px">${[dups.claims.length ? `${dups.claims.length} claim${dups.claims.length === 1 ? '' : 's'}` : null, dups.evidenceCount ? `${dups.evidenceCount} evidence item${dups.evidenceCount === 1 ? '' : 's'} (same link)` : null, flagged || null].filter(Boolean).join(' · ')}</div>` : ''}`;
+      twoTapConfirm(slot.querySelector('.m-delete'), {
+        confirmLabel: 'Really delete this case?',
+        onConfirm: async () => { await store.softDeleteCase(c.id); if (c.id === ctx.caseId) await ctx.setCaseId(null); render(root, ctx); },
+      });
       if (dups.total) {
         twoTapConfirm(slot.querySelector('.m-dups'), {
           confirmLabel: `Really remove ${dups.total}?`,

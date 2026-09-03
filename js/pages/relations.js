@@ -3,7 +3,7 @@ import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
-import { makeToken, relationGlyph, barRow, emptyState, animalHtml, signHtml } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, animalHtml, signHtml } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
@@ -13,19 +13,13 @@ function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (c
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 
 const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map'
-const NUMBERS_KEY = 'c7-tree-numbers'; // '1' shows the three tokens under each face
+const NUMBERS_KEY = 'c7-tree-numbers'; // '1' shows number · animal · sign under each face
+const FIT_KEY = 'c7-tree-fit';         // '0' turns "Fit" off (on by default: she wants the whole tree)
 
-async function personStatus(store, personId) {
-  const links = await store.listLinksForTarget('person', personId);
-  const hasStrong = links.some((l) => ['two_plus', 'single'].includes(l.evidence_verification));
-  const hasDisputed = links.some((l) => ['disputed', 'dead_link'].includes(l.evidence_verification));
-  if (hasDisputed) return 'contradicted';
-  if (hasStrong) return 'sourced';
-  return 'drafted';
-}
-
-// per render: how far the tree is opened either side of the focus person
-const treeState = { up: 1, down: 1 };
+// per render: how far the tree is opened either side of the focus person, and the zoom
+const treeState = { up: 1, down: 1, scale: 1 };
+const MIN_FIT = 0.5;   // fit never shrinks below half size — names stay readable; beyond that it scrolls
+const ZOOM_MIN = 0.4, ZOOM_MAX = 1.6, ZOOM_STEP = 0.15;
 
 /**
  * render(root, ctx, focusId?) — on a profile's Relations tab the person is
@@ -92,11 +86,22 @@ export async function render(root, ctx, focusId = null) {
 
 // ------------------------------------------------------------------ tree --
 
-async function renderTree(slot, ctx, people, rels, focus, rerender) {
+function numbersFor(p) {
+  return { lifePath: lifePath(p.birth_date), chinese: signFor(p.birth_date), sun: sunSign(p.birth_date) };
+}
+
+/**
+ * The tree itself. opts.full = drawn inside the full-screen overlay (✕ to
+ * close instead of Expand). Fit shrinks the tree to the box (never below
+ * half size); − / + zoom by hand; dragging pans.
+ */
+async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
+  const { full = false } = opts;
   const numbers = localStorage.getItem(NUMBERS_KEY) === '1';
+  const fit = localStorage.getItem(FIT_KEY) !== '0';
   const up = focus ? treeState.up : Infinity;
   const down = focus ? treeState.down : Infinity;
-  const L = layoutTree(people, rels, { focusId: focus, up, down, nodeH: numbers ? 134 : 112 });
+  const L = layoutTree(people, rels, { focusId: focus, up, down, nodeH: numbers ? 142 : 112 });
   const shownGens = new Set(L.nodes.map((n) => n.gen)).size;
 
   const wrap = document.createElement('div');
@@ -109,10 +114,18 @@ async function renderTree(slot, ctx, people, rels, focus, rerender) {
         <button class="btn btn-ghost btn-sm" id="tree-down" ${L.hiddenBelow ? '' : 'disabled'}>Down 1</button>
         <button class="btn btn-ghost btn-sm" id="tree-all" ${L.hiddenAbove || L.hiddenBelow ? '' : 'disabled'}>Expand all</button>` : ''}
         <button class="btn btn-ghost btn-sm" id="tree-numbers">${numbers ? 'Numbers on' : 'Numbers off'}</button>
+        <span class="seg">
+          <button id="tree-fit" class="${fit ? 'active' : ''}" title="Shrink the tree to fit this box">Fit</button>
+          <button id="tree-zoom-out" title="Zoom out">−</button>
+          <button id="tree-zoom-in" title="Zoom in">+</button>
+        </span>
+        ${full
+          ? '<button class="btn btn-ghost btn-sm" id="tree-close">✕ Close</button>'
+          : '<button class="btn btn-ghost btn-sm" id="tree-expand" title="The tree on the whole screen">Expand</button>'}
       </div>
     </div>
     ${L.hiddenAbove ? `<button class="tree-more" id="tree-more-up">+ ${L.hiddenAbove} above</button>` : ''}
-    <div class="tree-scroll"><div class="tree" style="width:${L.width}px;height:${L.height}px"></div></div>
+    <div class="tree-scroll"><div class="tree-scale"><div class="tree" style="width:${L.width}px;height:${L.height}px"></div></div></div>
     ${L.hiddenBelow ? `<button class="tree-more" id="tree-more-down">+ ${L.hiddenBelow} below</button>` : ''}
   `;
   slot.appendChild(wrap);
@@ -174,19 +187,13 @@ async function renderTree(slot, ctx, people, rels, focus, rerender) {
       ${godTag.has(p.id) ? `<div class="tag">${godTag.get(p.id)}</div>` : ''}
     `;
     if (numbers) {
-      const tr = document.createElement('div');
-      tr.className = 'token-row';
-      tr.style.justifyContent = 'center';
-      tr.style.marginTop = '4px';
-      const status = await personStatus(ctx.store, p.id);
-      const lp = lifePath(p.birth_date), sun = sunSign(p.birth_date), ch = signFor(p.birth_date);
-      tr.appendChild(makeToken('lifePath', { status: lp.ok ? status : 'unknown', master: lp.master, value: lp.value }));
-      tr.appendChild(makeToken('animalYear', { status: ch.ok ? status : 'unknown', boundary: ch.boundary, animal: ch.animal, animalIndex: ch.animalIndex, element: ch.element }));
-      tr.appendChild(makeToken('sunSign', { status: sun.ok ? status : 'unknown', cusp: sun.cusp, sign: sun.sign }));
-      el.appendChild(tr);
+      const icons = numberIcons(numbersFor(p));
+      icons.style.justifyContent = 'center';
+      icons.style.marginTop = '4px';
+      el.appendChild(icons);
     }
     el.title = `${p.display_name} — open profile`;
-    el.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
+    el.addEventListener('click', () => { if (!scrollBox.dataset.dragged) ctx.navigate(`#/subject/${p.id}`); });
     tree.appendChild(el);
     const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
     if (src) {
@@ -198,17 +205,93 @@ async function renderTree(slot, ctx, people, rels, focus, rerender) {
     }
   }
 
+  // ---- scale: Fit, or the hand-set zoom ----
+  const scrollBox = wrap.querySelector('.tree-scroll');
+  const scaleBox = wrap.querySelector('.tree-scale');
+  const applyScale = () => {
+    const boxW = scrollBox.clientWidth || L.width;
+    const s = fit ? Math.max(MIN_FIT, Math.min(1, boxW / (L.width || 1))) : treeState.scale;
+    tree.style.transform = `scale(${s})`;
+    scaleBox.style.width = `${Math.round(L.width * s)}px`;
+    scaleBox.style.height = `${Math.round(L.height * s)}px`;
+    scaleBox.style.margin = L.width * s < boxW ? '0 auto' : '0';
+    wrap.dataset.scale = s.toFixed(2);
+    return s;
+  };
+  const s0 = applyScale();
+  if (fit && typeof ResizeObserver !== 'undefined') {
+    // re-fit only when the box's width really changed (window resized, rail
+    // collapsed) — never on its own content changes, which would loop
+    let lastW = scrollBox.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (!document.contains(scrollBox)) { ro.disconnect(); return; }
+      const w = scrollBox.clientWidth;
+      if (Math.abs(w - lastW) > 1) { lastW = w; applyScale(); }
+    });
+    ro.observe(wrap);
+  }
   // keep the focus in view when the tree is wider than the box
   const fn = L.nodes.find((n) => n.id === focus);
-  const scroll = wrap.querySelector('.tree-scroll');
-  if (fn) requestAnimationFrame(() => { scroll.scrollLeft = Math.max(0, fn.x - scroll.clientWidth / 2 + L.nodeW / 2); });
+  if (fn) requestAnimationFrame(() => { scrollBox.scrollLeft = Math.max(0, fn.x * s0 - scrollBox.clientWidth / 2 + (L.nodeW * s0) / 2); });
 
+  // ---- drag to pan (mouse or touch); a real drag never opens a profile ----
+  let drag = null;
+  scrollBox.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    drag = { x: ev.clientX, y: ev.clientY, left: scrollBox.scrollLeft, top: scrollBox.scrollTop, moved: false };
+    delete scrollBox.dataset.dragged;
+  });
+  scrollBox.addEventListener('pointermove', (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    scrollBox.classList.add('dragging');
+    scrollBox.dataset.dragged = '1';
+    scrollBox.scrollLeft = drag.left - dx;
+    scrollBox.scrollTop = drag.top - dy;
+  });
+  const endDrag = () => { drag = null; scrollBox.classList.remove('dragging'); setTimeout(() => delete scrollBox.dataset.dragged, 50); };
+  scrollBox.addEventListener('pointerup', endDrag);
+  scrollBox.addEventListener('pointercancel', endDrag);
+  scrollBox.addEventListener('pointerleave', endDrag);
+
+  // ---- controls ----
   wrap.querySelector('#tree-up')?.addEventListener('click', () => { treeState.up += 1; rerender(); });
   wrap.querySelector('#tree-down')?.addEventListener('click', () => { treeState.down += 1; rerender(); });
   wrap.querySelector('#tree-all')?.addEventListener('click', () => { treeState.up = 99; treeState.down = 99; rerender(); });
   wrap.querySelector('#tree-more-up')?.addEventListener('click', () => { treeState.up += 1; rerender(); });
   wrap.querySelector('#tree-more-down')?.addEventListener('click', () => { treeState.down += 1; rerender(); });
   wrap.querySelector('#tree-numbers').addEventListener('click', () => { localStorage.setItem(NUMBERS_KEY, numbers ? '0' : '1'); rerender(); });
+  wrap.querySelector('#tree-fit').addEventListener('click', () => { localStorage.setItem(FIT_KEY, fit ? '0' : '1'); if (fit) treeState.scale = parseFloat(wrap.dataset.scale) || 1; rerender(); });
+  const zoom = (dir) => {
+    const current = parseFloat(wrap.dataset.scale) || 1;
+    treeState.scale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((current + dir * ZOOM_STEP) * 100) / 100));
+    localStorage.setItem(FIT_KEY, '0');
+    rerender();
+  };
+  wrap.querySelector('#tree-zoom-out').addEventListener('click', () => zoom(-1));
+  wrap.querySelector('#tree-zoom-in').addEventListener('click', () => zoom(1));
+  wrap.querySelector('#tree-expand')?.addEventListener('click', () => openFullTree(ctx, people, rels, focus, rerender));
+  wrap.querySelector('#tree-close')?.addEventListener('click', () => opts.onClose && opts.onClose());
+}
+
+// the tree on the whole screen: its own overlay, same controls, ✕ or Escape to leave
+function openFullTree(ctx, people, rels, focus, rerenderPage) {
+  const overlay = document.createElement('div');
+  overlay.className = 'tree-full';
+  document.body.appendChild(overlay);
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  const close = () => { overlay.remove(); document.body.style.overflow = prevOverflow; document.removeEventListener('keydown', onKey); rerenderPage(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  const draw = async () => {
+    overlay.innerHTML = '';
+    const [freshPeople, freshRels] = await Promise.all([ctx.store.listPeople(ctx.caseId), ctx.store.listRelationships(ctx.caseId)]);
+    await renderTree(overlay, ctx, freshPeople, freshRels, focus, draw, { full: true, onClose: close });
+  };
+  draw();
 }
 
 // everything that isn't family: business, associate, household — listed, not drawn
@@ -236,7 +319,6 @@ function renderOthers(slot, ctx, people, rels, focus) {
 // ------------------------------------------------------------ zodiac map --
 
 async function renderZodiacMap(mapSlot, ctx, people, rels) {
-  const { store } = ctx;
   const mapEl = document.createElement('div');
   mapEl.className = 'rel-map';
   const svg = svgEl('svg', { class: 'rel-lines', viewBox: '0 0 100 100', preserveAspectRatio: 'none' });
@@ -275,10 +357,6 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
     node.className = 'rel-node';
     node.style.left = `${pos.x}%`;
     node.style.top = `${pos.y}%`;
-    const status = await personStatus(store, p.id);
-    const lp = lifePath(p.birth_date);
-    const sun = sunSign(p.birth_date);
-    const chinese = signFor(p.birth_date);
     node.innerHTML = `<div class="name">${p.display_name}</div>`;
     if (p.photo_path || p.photo_url) {
       const av = document.createElement('div');
@@ -293,14 +371,10 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
         av.appendChild(img);
       });
     }
-    const tr = document.createElement('div');
-    tr.className = 'token-row';
-    tr.style.justifyContent = 'center';
-    tr.style.marginTop = '4px';
-    tr.appendChild(makeToken('lifePath', { status: lp.ok ? status : 'unknown', master: lp.master, value: lp.value }));
-    tr.appendChild(makeToken('animalYear', { status: chinese.ok ? status : 'unknown', boundary: chinese.boundary, animal: chinese.animal, animalIndex: chinese.animalIndex, element: chinese.element }));
-    tr.appendChild(makeToken('sunSign', { status: sun.ok ? status : 'unknown', cusp: sun.cusp, sign: sun.sign }));
-    node.appendChild(tr);
+    const icons = numberIcons(numbersFor(p));
+    icons.style.justifyContent = 'center';
+    icons.style.marginTop = '4px';
+    node.appendChild(icons);
     node.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
     mapEl.appendChild(node);
   }

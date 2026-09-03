@@ -480,13 +480,30 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .zc-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--text-3); margin-top: var(--sp-2); }
 .zc-key .zc { font-weight: 400; }
 
+/* ------------------------------------------------ number icons (life path · animal · sign) */
+.num-icons { display: inline-flex; align-items: center; gap: 6px; }
+.num-icons .ni-lp { color: var(--brass); font-size: 13px; font-weight: 500; min-width: 14px; text-align: center; }
+.num-icons .ni-animal { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--ink-3); background: var(--ink-2); font-size: 14px; line-height: 1; }
+.num-icons .ni-sign { font-size: 16px; line-height: 1; min-width: 16px; text-align: center; }
+.num-icons .ni-sign.cusp::after { content: '½'; font-size: 8px; vertical-align: top; margin-left: 1px; color: var(--text-3); }
+.num-icons .unknown { color: var(--text-3); }
+.num-icons.num-lg .ni-lp { font-size: 16px; }
+.num-icons.num-lg .ni-animal { width: 30px; height: 30px; font-size: 18px; }
+.num-icons.num-lg .ni-sign { font-size: 20px; }
+
 /* ------------------------------------------------ family tree */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
 .seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer; min-height: 28px; }
 .seg button.active { background: var(--ink-2); color: var(--brass); }
 .tree-wrap { background: var(--ink-1); border-radius: var(--r-lg); padding: var(--sp-3); }
-.tree-scroll { overflow-x: auto; overflow-y: hidden; padding: var(--sp-2) 0; }
-.tree { position: relative; margin: 0 auto; min-height: 60px; }
+.tree-scroll { overflow: auto; padding: var(--sp-2) 0; cursor: grab; }
+.tree-scroll.dragging { cursor: grabbing; user-select: none; }
+.tree-scale { position: relative; margin: 0 auto; }
+.tree { position: relative; min-height: 60px; transform-origin: 0 0; }
+/* full-screen tree: the whole viewport, its own controls, ✕ to close */
+.tree-full { position: fixed; inset: 0; z-index: 60; background: var(--ink-0); padding: var(--sp-3); display: flex; flex-direction: column; }
+.tree-full .tree-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.tree-full .tree-scroll { flex: 1; min-height: 0; }
 .tree-lines { position: absolute; inset: 0; pointer-events: none; }
 .tree-node { position: absolute; text-align: center; cursor: pointer; }
 .tree-node .face { margin: 0 auto 4px; }
