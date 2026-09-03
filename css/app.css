@@ -485,7 +485,7 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .num-icons .ni-lp { color: var(--brass); font-size: 13px; font-weight: 500; min-width: 14px; text-align: center; }
 .num-icons .ni-animal { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--ink-3); background: var(--ink-2); font-size: 14px; line-height: 1; }
 .num-icons .ni-sign { font-size: 16px; line-height: 1; min-width: 16px; text-align: center; }
-.num-icons .ni-sign.cusp::after { content: '½'; font-size: 8px; vertical-align: top; margin-left: 1px; color: var(--text-3); }
+.num-icons .ni-sign.cusp::after { content: '½'; font-size: 10px; vertical-align: top; margin-left: 1px; color: var(--text-3); }
 .num-icons .unknown { color: var(--text-3); }
 .num-icons.num-lg .ni-lp { font-size: 16px; }
 .num-icons.num-lg .ni-animal { width: 30px; height: 30px; font-size: 18px; }
@@ -522,7 +522,8 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tree-group .mini .face .initials { font-size: 11px; }
 .tree-group .mini .name { font-size: 10px; color: var(--text); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tree-group .mini .name .lp { color: var(--brass); font-family: var(--font-mono); }
-.tree-group .mini .years { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); }
+.tree-group .mini .name .lp.unknown { color: var(--text-3); }
+.tree-group .mini .years { font-size: 10px; color: var(--text-3); font-family: var(--font-mono); }
 .tree-group .mini:hover .name { color: var(--brass); }
 .tree-confirm { fill: var(--ink-1); stroke: var(--brass); stroke-width: 1.5; cursor: pointer; pointer-events: all; }
 .tree-confirm:hover { fill: var(--brass); }

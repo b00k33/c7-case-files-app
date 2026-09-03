@@ -905,7 +905,8 @@ export async function seedExampleCase() {
   const { relation } = await import('./relations.js');
   const { signFor } = await import('./chinese.js');
   const { expectedCounts } = await import('./stats.js');
-  const mSign = signFor(mara.birth_date), wSign = signFor(wren.birth_date);
+  const { exactBirth } = await import('./person-dates.js');
+  const mSign = signFor(exactBirth(mara)), wSign = signFor(exactBirth(wren));
   if (mSign.ok && !mSign.boundary && wSign.ok && !wSign.boundary) {
     const kind = relation(mSign.animalIndex, wSign.animalIndex);
     const exp = expectedCounts(1);

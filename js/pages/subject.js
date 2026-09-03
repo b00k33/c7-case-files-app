@@ -2,7 +2,8 @@ import { lifePath, birthdayNumber, personalYear, universalYear, expression, soul
 import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
-import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, signHtml } from '../indicators.js';
+import { exactBirth } from '../person-dates.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
@@ -71,17 +72,18 @@ function chartPanel(person, status) {
     return el;
   }
 
-  const lp = lifePath(person.birth_date);
-  const bn = birthdayNumber(person.birth_date);
+  const birth = exactBirth(person); // never person.birth_date — see js/person-dates.js
+  const lp = lifePath(birth);
+  const bn = birthdayNumber(birth);
   const thisYear = new Date().getFullYear();
-  const py = personalYear(person.birth_date, thisYear);
+  const py = personalYear(birth, thisYear);
   const uy = universalYear(thisYear);
   const nameForCalc = person.name_at_birth || person.display_name;
   const expr = expression(nameForCalc);
   const su = soulUrge(nameForCalc);
   const pers = personality(nameForCalc);
-  const chinese = signFor(person.birth_date);
-  const sun = sunSign(person.birth_date);
+  const chinese = signFor(birth);
+  const sun = sunSign(birth);
 
   // number · animal picture · sign glyph (her call, 2026-09-03 — no symbol tokens)
   const tokRow = numberIcons({ lifePath: lp, chinese, sun }, { size: 'lg' });
@@ -111,8 +113,8 @@ function chartPanel(person, status) {
         <div>Life path ${lp.value}${lp.master ? ' (master)' : ''} — ${lp.parts.day}→${lp.parts.dayReduced} · ${lp.parts.month}→${lp.parts.monthReduced} · ${lp.parts.year}→${lp.parts.yearReduced} · = ${lp.value}</div>
         <div>Birthday number ${bn.value}${bn.master ? ' (master)' : ''}</div>
         <div>Personal year ${thisYear}: ${py.value}${py.master ? ' (master)' : ''} · Universal year: ${uy.value}${uy.master ? ' (master)' : ''}</div>
-        <div>${chinese.boundary ? 'Animal year: unresolved (near lunar new year, no CNY date on file for this year)' : `${chinese.animal} · ${chinese.element}`}</div>
-        <div>${sun.sign}${sun.cusp ? ' (cusp)' : ''}</div>
+        <div>${chinese.boundary ? 'Animal year: unresolved (near lunar new year, no CNY date on file for this year)' : `${animalHtml(chinese.animal)} · ${chinese.element}`}</div>
+        <div>${signHtml(sun.sign)}${sun.cusp ? ' (cusp)' : ''}</div>
       </div>
     </details>
   `;
@@ -489,8 +491,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
       const otherId = r.a_id === person.id ? r.b_id : r.a_id;
       const other = await store.getPerson(otherId);
       if (!other) continue;
-      const mySign = signFor(person.birth_date);
-      const otherSign = signFor(other.birth_date);
+      const mySign = signFor(exactBirth(person));
+      const otherSign = signFor(exactBirth(other));
       const unsettled = !(mySign.ok && !mySign.boundary && otherSign.ok && !otherSign.boundary);
       const kind = unsettled ? null : relation(mySign.animalIndex, otherSign.animalIndex);
 

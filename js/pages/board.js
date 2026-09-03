@@ -1,5 +1,6 @@
 import { universalYear, personalYear } from '../numerology.js';
 import { emptyState } from '../indicators.js';
+import { exactBirth } from '../person-dates.js';
 
 let stripMode = 'universal'; // 'universal' | 'density' | 'personal:<id>'
 
@@ -117,8 +118,8 @@ export async function render(root, ctx) {
       stripLabel = `${uy.value}${uy.master ? '★' : ''}`;
     } else if (stripMode === 'density') {
       stripLabel = String((byYear[y] || []).length);
-    } else if (refPerson && refPerson.birth_date) {
-      const py = personalYear(refPerson.birth_date, y);
+    } else if (refPerson && exactBirth(refPerson)) {
+      const py = personalYear(exactBirth(refPerson), y);
       stripLabel = py.ok ? `${py.value}${py.master ? '★' : ''}` : '—';
     } else {
       stripLabel = '—';

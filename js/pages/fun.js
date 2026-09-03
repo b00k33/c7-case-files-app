@@ -1,5 +1,6 @@
 import { signFor } from '../chinese.js';
 import { emptyState, animalHtml } from '../indicators.js';
+import { exactBirth } from '../person-dates.js';
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -84,7 +85,7 @@ export async function render(root, ctx) {
   const groups = {};
   const unresolved = [];
   for (const p of people) {
-    const sign = signFor(p.birth_date);
+    const sign = signFor(exactBirth(p)); // never p.birth_date — see js/person-dates.js
     if (!sign.ok || sign.boundary) { unresolved.push(p); continue; }
     (groups[sign.animal] = groups[sign.animal] || []).push({ person: p, sign });
   }

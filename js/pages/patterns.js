@@ -3,9 +3,10 @@ import { signFor } from '../chinese.js';
 import { relation } from '../relations.js';
 import { expectedCounts, expectedDigitCount } from '../stats.js';
 import { relationGlyph, barRow, emptyState, animalHtml } from '../indicators.js';
+import { exactBirth, exactEventDate } from '../person-dates.js';
 
 function resolvedSign(p) {
-  const s = signFor(p.birth_date);
+  const s = signFor(exactBirth(p)); // never p.birth_date — see js/person-dates.js
   return s.ok && !s.boundary ? s : null;
 }
 
@@ -160,7 +161,7 @@ export async function render(root, ctx) {
   } else {
     const counts = {};
     for (const e of datedEvents) {
-      const lp = lifePath(e.date);
+      const lp = lifePath(exactEventDate(e));
       if (lp.ok) counts[lp.value] = (counts[lp.value] || 0) + 1;
     }
     const n = datedEvents.length;

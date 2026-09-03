@@ -7,6 +7,7 @@ import { numberIcons, relationGlyph, barRow, emptyState, animalHtml, signHtml } 
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
+import { exactBirth } from '../person-dates.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
@@ -87,7 +88,10 @@ export async function render(root, ctx, focusId = null) {
 // ------------------------------------------------------------------ tree --
 
 function numbersFor(p) {
-  return { lifePath: lifePath(p.birth_date), chinese: signFor(p.birth_date), sun: sunSign(p.birth_date) };
+  // exactBirth, never p.birth_date — a month-precision date carries a
+  // placeholder day the file does not hold (see js/person-dates.js)
+  const d = exactBirth(p);
+  return { lifePath: lifePath(d), chinese: signFor(d), sun: sunSign(d) };
 }
 
 /**
@@ -103,12 +107,14 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   const down = focus ? treeState.down : Infinity;
   const L = layoutTree(people, rels, { focusId: focus, up, down, nodeH: numbers ? 142 : 112 });
   const shownGens = new Set(L.nodes.map((n) => n.gen)).size;
+  // a sibling block is one node but many people — the count must say people
+  const shownCount = L.nodes.reduce((n, x) => n + (x.group ? x.items.length : 1), 0);
 
   const wrap = document.createElement('div');
   wrap.className = 'tree-wrap';
   wrap.innerHTML = `
     <div class="row between wrap" style="gap:8px;margin-bottom:8px">
-      <span class="mono" style="font-size:11px;color:var(--text-3)">${L.nodes.length} of ${people.length} shown · ${shownGens} generation${shownGens === 1 ? '' : 's'}</span>
+      <span class="mono" style="font-size:11px;color:var(--text-3)">${shownCount} of ${people.length} shown · ${shownGens} generation${shownGens === 1 ? '' : 's'}</span>
       <div class="row wrap" style="gap:6px">
         ${focus ? `<button class="btn btn-ghost btn-sm" id="tree-up" ${L.hiddenAbove ? '' : 'disabled'}>Up 1</button>
         <button class="btn btn-ghost btn-sm" id="tree-down" ${L.hiddenBelow ? '' : 'disabled'}>Down 1</button>
@@ -185,9 +191,10 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
         m.className = 'mini';
         m.style.left = `${it.x}px`; m.style.top = `${it.y}px`;
         const years = yearsText(p);
-        const lp = numbers ? lifePath(p.birth_date) : null;
+        // the number is never omitted for a missing date — hollow dash, always (STYLE §5)
+        const lp = numbers ? lifePath(exactBirth(p)) : null;
         m.innerHTML = `<div class="face" style="width:${L.mini.face}px;height:${L.mini.face}px"><span class="initials">${initials(p.display_name)}</span></div>
-          <div class="name">${p.display_name.split(' ')[0]}${lp && lp.ok ? ` <span class="lp">${lp.value}${lp.master ? '★' : ''}</span>` : ''}</div>
+          <div class="name">${p.display_name.split(' ')[0]}${lp ? ` <span class="lp${lp.ok ? '' : ' unknown'}" title="${lp.ok ? 'Life path ' + lp.value : 'Life path — needs a full birth date'}">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</span>` : ''}</div>
           ${years ? `<div class="years">${years.slice(0, 4)}</div>` : ''}`;
         m.title = `${p.display_name}${years ? ' · ' + years : ''} — open profile`;
         m.addEventListener('click', () => { if (!scrollBox.dataset.dragged) ctx.navigate(`#/subject/${p.id}`); });
@@ -366,7 +373,7 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
     const a = positions[r.a_id], b = positions[r.b_id];
     if (!a || !b) continue;
     const pa = people.find((p) => p.id === r.a_id), pb = people.find((p) => p.id === r.b_id);
-    const sa = signFor(pa.birth_date), sb = signFor(pb.birth_date);
+    const sa = signFor(exactBirth(pa)), sb = signFor(exactBirth(pb));
     const unsettled = !(sa.ok && !sa.boundary && sb.ok && !sb.boundary);
     const kind = unsettled ? 'neutral' : relation(sa.animalIndex, sb.animalIndex);
 
@@ -416,7 +423,7 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
 
 function renderNumberPanels(root, people) {
   const repeatSlot = root.querySelector('#repeat-slot');
-  const withLifePath = people.map((p) => lifePath(p.birth_date)).filter((r) => r.ok);
+  const withLifePath = people.map((p) => lifePath(exactBirth(p))).filter((r) => r.ok);
   if (!withLifePath.length) {
     repeatSlot.appendChild(emptyState({ missing: 'No life paths to compare yet.', why: 'Nobody in this case has a full birth date on file.' }));
   } else {
@@ -438,9 +445,10 @@ function renderNumberPanels(root, people) {
     const table = document.createElement('table');
     table.className = 'dense';
     table.innerHTML = `<thead><tr><th>Person</th><th>Life path</th><th>Sun sign</th><th>Animal</th></tr></thead><tbody>${people.map((p) => {
-      const lp = lifePath(p.birth_date);
-      const sun = sunSign(p.birth_date);
-      const ch = signFor(p.birth_date);
+      const d = exactBirth(p);
+      const lp = lifePath(d);
+      const sun = sunSign(d);
+      const ch = signFor(d);
       return `<tr><td>${p.display_name}</td><td class="num">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</td><td>${sun.ok ? signHtml(sun.sign) : '—'}</td><td>${ch.ok && !ch.boundary ? animalHtml(ch.animal) : ch.boundary ? 'boundary' : '—'}</td></tr>`;
     }).join('')}</tbody>`;
     gridSlot.appendChild(table);
