@@ -163,7 +163,8 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // running the lookup twice must not draft everything twice (2026-09-02:
   // Dolly arrived with 14 claims for 7 facts) — an identical drafted
   // claim already in the queue is left alone
-  const existing = await store.listClaims(caseId, 'drafted');
+  // …and a fact she has already accepted (or rejected) is not asked again
+  const existing = await store.listClaims(caseId);
   const already = (targetType, targetId, field, value) => existing.some((c) => c.target_type === targetType && c.target_id === targetId && c.field === field && c.value === JSON.stringify(value));
   const claim = async (field, value, prop) => {
     if (already('person', personId, field, value)) return;
