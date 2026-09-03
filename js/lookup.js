@@ -313,8 +313,8 @@ export async function addPeopleFromWikidata(store, caseId, picks, onProgress = (
       const { picture } = await fillFromWikidata(store, caseId, person.id, pick.qid);
       if (picture) result.pictures += 1;
       if (pick.family) {
-        await insertFamily(store, caseId, person.id, pick.qid, (msg) => onProgress(`${i} of ${picks.length} — ${pick.label} · family: ${msg}`));
-        result.families += 1;
+        const fam = await insertFamily(store, caseId, person.id, pick.qid, (msg) => onProgress(`${i} of ${picks.length} — ${pick.label} · family: ${msg}`));
+        if (fam.total) result.families += 1; // "family inserted" only when Wikidata actually listed relatives
       }
     } catch (e) {
       result.failed.push(pick.label);

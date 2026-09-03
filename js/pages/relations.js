@@ -727,15 +727,18 @@ function paintMatches(results, rows, ctx) {
       const note = prog.firstElementChild;
       const r = await addPeopleFromWikidata(ctx.store, ctx.caseId, picks, (msg) => { note.textContent = `Adding people… ${msg}`; });
       const ok = r.created.length + r.filled.length;
-      const bits = [
-        r.created.length ? `${r.created.length} new with their profile${r.created.length === 1 ? '' : 's'}` : null,
+      const headline = [
+        r.created.length ? `${r.created.length} ${r.created.length === 1 ? 'person' : 'people'} added` : null,
         r.filled.length ? `${r.filled.length} already here, now filled in (${r.filled.join(', ')})` : null,
+      ].filter(Boolean).join(', ');
+      const bits = [
+        r.created.length ? `with their profile${r.created.length === 1 ? '' : 's'}` : null,
         r.pictures ? `${r.pictures} picture${r.pictures === 1 ? '' : 's'}` : null,
         r.families ? `${r.families} famil${r.families === 1 ? 'y' : 'ies'} inserted` : null,
         r.failed.length ? `couldn't read ${r.failed.join(', ')}` : null,
       ].filter(Boolean).join(' · ');
       results.innerHTML = `
-        <div class="inline-note" style="border-left-color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? `${ok} ${ok === 1 ? 'person' : 'people'} added — ${bits}. Everything cites Wikidata.` : `Nothing added — ${bits || 'the lookup failed'}.`} The tree and the grid behind this drawer are updated.</div>
+        <div class="inline-note" style="border-left-color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? `${headline}${bits ? ` — ${bits}` : ''}. Everything cites Wikidata.` : `Nothing added — ${bits || 'the lookup failed'}.`} The tree and the grid behind this drawer are updated.</div>
         <div class="row wrap" style="gap:12px;margin-top:16px"><button class="btn btn-primary" id="wk-done">Done</button><button class="btn btn-ghost" id="wk-more">Add more</button></div>
       `;
       results.querySelector('#wk-done').addEventListener('click', () => ctx.closeDrawer());
