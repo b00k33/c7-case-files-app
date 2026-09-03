@@ -112,14 +112,22 @@ export async function render(root, ctx) {
   }
 
   const claims = await store.listClaims(ctx.caseId, 'drafted');
-  if (cursor >= claims.length) cursor = 0;
+  // unconfirmed relationships join the queue (her ask, 2026-09-03: "allow
+  // for review") — Confirm / Skip / Remove / Question, one card each
+  const rels = (await store.listRelationships(ctx.caseId)).filter((r) => !r.confirmed);
+  const queue = [...claims.map((claim) => ({ claim })), ...rels.map((rel) => ({ rel }))];
+  if (cursor >= queue.length) cursor = 0;
   const dups = await store.findDuplicates(ctx.caseId);
+  const queueLabel = [
+    claims.length ? `${claims.length} drafted claim${claims.length === 1 ? '' : 's'}` : null,
+    rels.length ? `${rels.length} unconfirmed relationship${rels.length === 1 ? '' : 's'}` : null,
+  ].filter(Boolean).join(' · ') || 'Nothing';
 
   root.innerHTML = `
     <div class="stack">
       <div class="row between">
-        <span class="section-label">${claims.length} drafted claim${claims.length === 1 ? '' : 's'} in the queue</span>
-        ${claims.length ? `<div class="row" style="gap:8px">
+        <span class="section-label">${queueLabel} in the queue</span>
+        ${queue.length ? `<div class="row" style="gap:8px">
           <button class="btn btn-ghost btn-sm" id="bulk-accept">Accept all</button>
           <button class="btn btn-ghost btn-sm" id="bulk-reject">Reject all</button>
         </div>` : ''}
@@ -140,7 +148,7 @@ export async function render(root, ctx) {
   }
 
   const slot = root.querySelector('#review-slot');
-  if (!claims.length) {
+  if (!queue.length) {
     if (decidedThisSession > 0) {
       // the payoff: the dossier gets its stamp
       const tally = [
@@ -165,38 +173,88 @@ export async function render(root, ctx) {
   }
 
   // progress: fills as claims are decided this sitting
-  const totalThisSitting = decidedThisSession + claims.length;
+  const totalThisSitting = decidedThisSession + queue.length;
   const pct = Math.round((decidedThisSession / totalThisSitting) * 100);
   const progress = document.createElement('div');
   progress.className = 'review-progress';
   progress.innerHTML = `
     <div class="track"><div class="fill" style="width:${pct}%"></div></div>
-    <div class="counts"><span class="done">${decidedThisSession} decided</span><span>${claims.length} to go</span></div>
+    <div class="counts"><span class="done">${decidedThisSession} decided</span><span>${queue.length} to go</span></div>
   `;
   slot.appendChild(progress);
 
   twoTapConfirm(root.querySelector('#bulk-accept'), {
-    confirmLabel: `Really accept all ${claims.length}?`,
+    confirmLabel: `Really accept all ${queue.length}?`,
     onConfirm: async () => {
       for (const c of claims) await store.decideClaim(c.id, 'accepted');
-      decidedThisSession += claims.length;
-      sessionCounts.accepted += claims.length;
+      for (const r of rels) await store.upsertRelationship({ id: r.id, confirmed: 1 });
+      decidedThisSession += queue.length;
+      sessionCounts.accepted += queue.length;
       cursor = 0;
       render(root, ctx);
     },
   });
   twoTapConfirm(root.querySelector('#bulk-reject'), {
-    confirmLabel: `Really reject all ${claims.length}?`,
+    confirmLabel: `Really reject all ${queue.length}?`,
     onConfirm: async () => {
       for (const c of claims) await store.decideClaim(c.id, 'rejected');
-      decidedThisSession += claims.length;
-      sessionCounts.rejected += claims.length;
+      for (const r of rels) await store.deleteRelationship(r.id);
+      decidedThisSession += queue.length;
+      sessionCounts.rejected += queue.length;
       cursor = 0;
       render(root, ctx);
     },
   });
 
-  const claim = claims[cursor];
+  const item = queue[cursor];
+  if (item.rel) {
+    const r = item.rel;
+    const [a, b] = await Promise.all([store.getPerson(r.a_id), store.getPerson(r.b_id)]);
+    const dir = r.kind === 'parent' ? 'parent of' : r.kind === 'godparent' ? 'godparent of' : r.kind;
+    const card = document.createElement('div');
+    card.className = 'review-card';
+    card.style.setProperty('--claim-accent', 'var(--teal)');
+    card.innerHTML = `
+      <div class="section-label">${cursor + 1} of ${queue.length} · relationship${r.notes && /Wikidata/.test(r.notes) ? ' · from lookup' : ''}</div>
+      <div class="field-name" style="margin-top:6px"><span class="kind-glyph">◈</span>${r.kind}</div>
+      <div class="claim-title">${a?.display_name || '?'} — ${dir} — ${b?.display_name || '?'}</div>
+      <div class="claim-meta"><span class="meta-item"><span class="k">confidence</span>${r.confidence}</span>${r.start_date ? `<span class="meta-item"><span class="k">from</span>${fmtDate(r.start_date)}</span>` : ''}</div>
+      ${r.notes ? `<div class="claim-note mono">${r.notes}</div>` : ''}
+      <div class="claim-note" style="margin-top:12px">Confirming marks this line as confirmed on the tree and both profiles. Removing deletes the relationship — the people stay.</div>
+      <div class="review-actions">
+        <button class="btn btn-primary" id="act-accept"><span class="kbd">A</span> Confirm</button>
+        <button class="btn btn-ghost" id="act-skip"><span class="kbd">S</span> Skip</button>
+        <button class="btn btn-danger" id="act-reject"><span class="kbd">R</span> Remove</button>
+        <button class="btn btn-ghost" id="act-question"><span class="kbd">?</span> Question</button>
+      </div>
+    `;
+    slot.appendChild(card);
+    const done = (bucket) => { decidedThisSession++; sessionCounts[bucket]++; render(root, ctx); };
+    card.querySelector('#act-accept').addEventListener('click', async () => { await store.upsertRelationship({ id: r.id, confirmed: 1 }); done('accepted'); });
+    twoTapConfirm(card.querySelector('#act-reject'), { confirmLabel: 'Really remove?', onConfirm: async () => { await store.deleteRelationship(r.id); done('rejected'); } });
+    card.querySelector('#act-skip').addEventListener('click', () => { cursor = (cursor + 1) % queue.length; render(root, ctx); });
+    card.querySelector('#act-question').addEventListener('click', () => {
+      if (card.querySelector('.inline-form')) return;
+      card.querySelector('.review-actions').after(inlineNameForm({
+        label: "What's the open question?",
+        value: `Unclear: ${a?.display_name || '?'} ${dir} ${b?.display_name || '?'}`,
+        submitLabel: 'Raise question',
+        onSubmit: async (q) => { await store.createQuestion({ case_id: ctx.caseId, text: q }); cursor = (cursor + 1) % queue.length; sessionCounts.question++; render(root, ctx); },
+      }));
+    });
+    keyHandler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const key = e.key.toLowerCase();
+      if (key === 'a') card.querySelector('#act-accept').click();
+      else if (key === 's') card.querySelector('#act-skip').click();
+      else if (key === 'r') card.querySelector('#act-reject').click();
+      else if (key === '?') card.querySelector('#act-question').click();
+    };
+    window.addEventListener('keydown', keyHandler);
+    return () => { if (keyHandler) window.removeEventListener('keydown', keyHandler); };
+  }
+
+  const claim = item.claim;
   const value = JSON.parse(claim.value);
   const target = claim.target_id && claim.target_type === 'person' ? await store.getPerson(claim.target_id) : null;
   const desc = await describeClaim(store, claim, value);
@@ -206,7 +264,7 @@ export async function render(root, ctx) {
   card.className = 'review-card';
   card.style.setProperty('--claim-accent', style.accent);
   card.innerHTML = `
-    <div class="section-label">${cursor + 1} of ${claims.length} · from ${claim.origin}</div>
+    <div class="section-label">${cursor + 1} of ${queue.length} · from ${claim.origin}</div>
     <div class="field-name" style="margin-top:6px"><span class="kind-glyph">${style.glyph}</span>${claim.field}${target ? ' — ' + target.display_name : ''}</div>
     ${desc.title ? `<div class="claim-title">${desc.title}</div>` : ''}
     ${desc.meta?.length ? `<div class="claim-meta">${desc.meta.map((m) => `<span class="meta-item"><span class="k">${m.k}</span>${m.v}</span>`).join('')}</div>` : ''}
@@ -246,7 +304,7 @@ export async function render(root, ctx) {
     }));
   });
   card.querySelector('#act-skip').addEventListener('click', () => {
-    cursor = (cursor + 1) % claims.length;
+    cursor = (cursor + 1) % queue.length;
     render(root, ctx);
   });
   card.querySelector('#act-edit').addEventListener('click', () => {

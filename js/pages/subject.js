@@ -484,11 +484,45 @@ export async function render(root, ctx, personId, tab = 'profile') {
     }
   }
 
-  // relations
+  // relations — one line each. Confirming happens IN PLACE: the old handler
+  // re-rendered the whole page, which threw her back to the top ("when I
+  // confirm, the page skips to something else", 2026-09-03). "Confirm all"
+  // clears the unconfirmed ones in one tap; Review takes them one by one.
+  // The per-row confidence bar went: every row said 70, so it said nothing.
   const relEl = root.querySelector('#rel-list');
   if (!rels.length) {
     relEl.appendChild(emptyState({ missing: 'No relationships recorded.', why: 'Add family, household or associate links from the Relations map.', action: 'Go to Relations', onAction: () => ctx.navigate('#/relations') }));
   } else {
+    const bulk = document.createElement('div');
+    bulk.className = 'row wrap';
+    bulk.style.cssText = 'gap:8px;margin-bottom:6px';
+    bulk.innerHTML = `<button class="btn btn-ghost btn-sm" id="rel-confirm-all"></button><a class="btn btn-ghost btn-sm" href="#/review" style="text-decoration:none">Review them one by one</a>`;
+    relEl.appendChild(bulk);
+    const labelled = []; // [label element, relationship] — so Confirm all can repaint every row
+    const refreshBulk = () => {
+      const n = rels.filter((x) => !x.confirmed).length;
+      bulk.hidden = !n;
+      bulk.querySelector('#rel-confirm-all').textContent = `Confirm all ${n} unconfirmed`;
+    };
+    // the toggle is rebuilt on every flip so its listeners always match its state
+    const setToggle = (label, r) => {
+      const btn = document.createElement('button');
+      btn.className = `linklike rel-toggle${r.confirmed ? '' : ' brass'}`;
+      btn.title = r.confirmed ? 'Confirmed — tap twice to make it unconfirmed' : 'Unconfirmed — tap to confirm';
+      btn.textContent = r.confirmed ? 'confirmed ✓' : 'unconfirmed · confirm';
+      const old = label.querySelector('.rel-toggle');
+      if (old) old.replaceWith(btn); else label.appendChild(btn);
+      if (r.confirmed) {
+        twoTapConfirm(btn, { confirmLabel: 'Really un-confirm?', onConfirm: async () => { await store.upsertRelationship({ id: r.id, confirmed: 0 }); r.confirmed = 0; setToggle(label, r); refreshBulk(); } });
+      } else {
+        btn.addEventListener('click', async () => { await store.upsertRelationship({ id: r.id, confirmed: 1 }); r.confirmed = 1; setToggle(label, r); refreshBulk(); });
+      }
+    };
+    bulk.querySelector('#rel-confirm-all').addEventListener('click', async () => {
+      for (const r of rels) if (!r.confirmed) { await store.upsertRelationship({ id: r.id, confirmed: 1 }); r.confirmed = 1; }
+      for (const [label, r] of labelled) setToggle(label, r);
+      refreshBulk();
+    });
     for (const r of rels) {
       const otherId = r.a_id === person.id ? r.b_id : r.a_id;
       const other = await store.getPerson(otherId);
@@ -500,30 +534,29 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
       const row = document.createElement('div');
       row.className = 'row between';
+      row.style.gap = '8px';
       const dirLabel = r.kind === 'parent' ? (r.a_id === person.id ? 'parent of' : 'child of')
         : r.kind === 'godparent' ? (r.a_id === person.id ? 'godparent of' : 'godchild of')
         : r.kind;
       const wrap = document.createElement('div');
       wrap.className = 'row';
-      wrap.style.gap = '8px';
-      const glyph = relationGlyph(kind || 'neutral', { unsettled });
-      wrap.appendChild(glyph);
+      wrap.style.cssText = 'gap:8px;min-width:0;flex:1 1 auto';
+      wrap.appendChild(relationGlyph(kind || 'neutral', { unsettled }));
       const label = document.createElement('span');
-      // one tap confirms a dotted link; un-confirming asks twice (her Confirm control, 2026-09-03)
-      label.innerHTML = `<a href="#/subject/${other.id}" style="color:var(--text)">${other.display_name}</a> <span class="mono" style="color:var(--text-3);font-size:11px">${dirLabel} · </span>${r.confirmed
-        ? `<button class="linklike rel-toggle" title="Confirmed — tap twice to make it unconfirmed">confirmed ✓</button>`
-        : `<button class="linklike rel-toggle brass" title="Unconfirmed — tap to confirm">unconfirmed · confirm</button>`}`;
-      const toggle = label.querySelector('.rel-toggle');
-      if (r.confirmed) {
-        twoTapConfirm(toggle, { confirmLabel: 'Really un-confirm?', onConfirm: async () => { await store.upsertRelationship({ id: r.id, confirmed: 0 }); ctx.rerender(); } });
-      } else {
-        toggle.addEventListener('click', async () => { await store.upsertRelationship({ id: r.id, confirmed: 1 }); ctx.rerender(); });
-      }
+      label.innerHTML = `<a href="#/subject/${other.id}" style="color:var(--text)">${other.display_name}</a> <span class="mono" style="color:var(--text-3);font-size:11px">${dirLabel} · </span>`;
+      setToggle(label, r);
+      labelled.push([label, r]);
       wrap.appendChild(label);
       row.appendChild(wrap);
+      const conf = document.createElement('span');
+      conf.className = 'mono';
+      conf.style.cssText = 'font-size:11px;color:var(--text-3);flex:none';
+      conf.title = 'Confidence';
+      conf.textContent = r.confidence;
+      row.appendChild(conf);
       relEl.appendChild(row);
-      relEl.appendChild(barRow({ label: '', value: r.confidence, max: 100 })); // the bar says "confidence"; the label said it four times
     }
+    refreshBulk();
   }
 
   // timeline: events + linked evidence, merged and sorted
