@@ -5,6 +5,7 @@ import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
+import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
@@ -69,6 +70,7 @@ export async function render(root, ctx, focusId = null) {
         </div>
         <div class="row" style="gap:8px">
           <button class="btn btn-ghost btn-sm" id="add-person-btn">+ Person</button>
+          <button class="btn btn-ghost btn-sm" id="add-wiki-btn" title="Look up one or many people on Wikipedia and add them">+ From Wikipedia</button>
           <button class="btn btn-ghost btn-sm" id="add-rel-btn">+ Relationship</button>
         </div>
       </div>
@@ -91,6 +93,7 @@ export async function render(root, ctx, focusId = null) {
   `;
 
   root.querySelector('#add-person-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx)));
+  root.querySelector('#add-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')));
   root.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, people)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
 
@@ -601,27 +604,146 @@ function renderGrid(gridSlot, ctlSlot, people) {
 
 // ----------------------------------------------------------------- forms --
 
-function renderAddPerson(body, ctx) {
+/**
+ * The "+ Person" drawer: two ways in (her ask, 2026-09-03 — "both"). Type
+ * it in, as before; or look one or many names up on Wikipedia and add
+ * them together. The + From Wikipedia button opens the same drawer already
+ * in look-up mode.
+ */
+function renderAddPerson(body, ctx, mode = 'type') {
   body.innerHTML = `
-    <h3 class="title" style="margin-bottom:16px">Add a person</h3>
+    <h3 class="title" style="margin-bottom:12px">Add people</h3>
+    <span class="seg" style="margin-bottom:16px"><button data-m="type" class="${mode === 'type' ? 'active' : ''}">Type it in</button><button data-m="lookup" class="${mode === 'lookup' ? 'active' : ''}">Look up on Wikipedia</button></span>
+    <div id="ap-body"></div>
+  `;
+  body.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => renderAddPerson(body, ctx, b.dataset.m)));
+  const slot = body.querySelector('#ap-body');
+  if (mode === 'lookup') renderLookupBatch(slot, ctx);
+  else renderTypeIn(slot, ctx);
+}
+
+function renderTypeIn(slot, ctx) {
+  slot.innerHTML = `
     <div class="field"><label>Display name</label><input type="text" id="p-name"></div>
     <div class="field"><label>Kind</label><select id="p-kind"><option value="person">person</option><option value="household">household</option><option value="org">org</option></select></div>
     <div class="field"><label>Birth date (leave blank if unknown)</label><input type="date" id="p-bdate"></div>
     <button class="btn btn-primary" id="p-save">Add</button>
   `;
-  body.querySelector('#p-save').addEventListener('click', async () => {
-    const nameInput = body.querySelector('#p-name');
+  slot.querySelector('#p-save').addEventListener('click', async () => {
+    const nameInput = slot.querySelector('#p-name');
     const name = nameInput.value.trim();
     if (!name) { inlineNote(nameInput, 'A name is required.'); nameInput.focus(); return; }
     clearInlineNote(nameInput);
-    const bdate = body.querySelector('#p-bdate').value;
+    const bdate = slot.querySelector('#p-bdate').value;
     await ctx.store.createPerson({
-      case_id: ctx.caseId, display_name: name, kind: body.querySelector('#p-kind').value,
+      case_id: ctx.caseId, display_name: name, kind: slot.querySelector('#p-kind').value,
       birth_date: bdate || null, birth_precision: bdate ? 'day' : 'unknown',
     });
     ctx.closeDrawer();
     ctx.rerender();
   });
+  queueMicrotask(() => slot.querySelector('#p-name').focus());
+}
+
+/**
+ * Look-up mode: many names at once (a line or a comma each). Each name gets
+ * its best Wikidata match pre-picked with the description and item number
+ * to check it by, "change" for the other candidates, and a "+ family" tick
+ * that pulls their relatives too. A name with no record is reported and
+ * not added (her call). Nothing is saved until "Add N people".
+ */
+function renderLookupBatch(slot, ctx) {
+  slot.innerHTML = `
+    <div class="field"><label>Names — one per line, or separated by commas</label><textarea id="wk-names" placeholder="Daniel Radcliffe, Emma Watson…"></textarea></div>
+    <div class="row wrap" style="gap:12px"><button class="btn btn-primary" id="wk-search">Search Wikipedia</button><span style="font-size:11px;color:var(--text-3)">Nothing is saved yet — you check each match first.</span></div>
+    <div id="wk-results" style="margin-top:16px"></div>
+  `;
+  const textarea = slot.querySelector('#wk-names');
+  queueMicrotask(() => textarea.focus());
+  const names = () => [...new Set(textarea.value.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean))];
+  slot.querySelector('#wk-search').addEventListener('click', async () => {
+    const btn = slot.querySelector('#wk-search');
+    const results = slot.querySelector('#wk-results');
+    clearInlineNote(btn);
+    results.innerHTML = '';
+    const list = names();
+    if (!list.length) { inlineNote(btn, 'Type at least one name.'); textarea.focus(); return; }
+    btn.disabled = true;
+    const rows = [];
+    for (let i = 0; i < list.length; i++) {
+      btn.textContent = `Searching ${i + 1} of ${list.length}…`;
+      let matches = [];
+      try { matches = await searchPeople(list[i]); }
+      catch (e) { btn.disabled = false; btn.textContent = 'Search Wikipedia'; inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); return; }
+      rows.push({ name: list[i], matches, pick: matches[0] || null, family: false, include: !!matches[0], open: false });
+    }
+    btn.disabled = false; btn.textContent = 'Search Wikipedia';
+    paintMatches(results, rows, ctx);
+  });
+}
+
+function paintMatches(results, rows, ctx) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const paint = () => {
+    // the same item picked twice is one person — only the first row counts
+    const seen = new Set();
+    rows.forEach((r) => { r.dup = !!(r.pick && seen.has(r.pick.id)); if (r.pick) seen.add(r.pick.id); });
+    const found = rows.filter((r) => r.pick).length, missing = rows.length - found;
+    const chosen = rows.filter((r) => r.include && r.pick && !r.dup);
+    results.innerHTML = `
+      <div class="field"><label>${rows.length} name${rows.length === 1 ? '' : 's'} · ${found} matched${missing ? ` · ${missing} not on Wikidata` : ''}</label></div>
+      ${rows.map((r, i) => (r.pick ? `
+        <div class="wk-match ${r.include && !r.dup ? '' : 'skip'}">
+          <div class="wk-typed">${esc(r.name)}</div>
+          <div class="list-row">
+            <input type="checkbox" data-inc="${i}" ${r.include && !r.dup ? 'checked' : ''} ${r.dup ? 'disabled' : ''} title="Add this person">
+            <div class="main"><div class="title" style="font-size:13px">${esc(r.pick.label)}</div><div class="sub">${esc(r.pick.description) || 'no description'} · ${r.pick.id}${r.matches.length > 1 ? ` · <button class="linkish" data-alt="${i}">${r.open ? '✕ close' : 'change'}</button>` : ''}</div></div>
+            <span class="chip ${r.dup ? '' : 'brass'}">${r.dup ? 'same as above' : 'will add'}</span>
+          </div>
+          ${r.open ? `<div class="wk-alt">${r.matches.filter((m) => m.id !== r.pick.id).map((m) => `<div class="list-row" data-use="${i}:${m.id}"><div class="main"><div class="title" style="font-size:13px">${esc(m.label)}</div><div class="sub">${esc(m.description) || 'no description'} · ${m.id}</div></div><span class="chip">use this instead</span></div>`).join('')}</div>` : ''}
+          ${r.dup ? '' : `<div class="wk-opts"><label><input type="checkbox" data-fam="${i}" ${r.family ? 'checked' : ''}> + family — their relatives too, like Insert family</label></div>`}
+        </div>` : `
+        <div class="wk-match skip">
+          <div class="wk-typed">${esc(r.name)}</div>
+          <div class="list-row"><div class="main"><div class="title" style="font-size:13px">No match on Wikidata</div><div class="sub">Likely a private person — not added here; "Type it in" still works for them</div></div></div>
+        </div>`)).join('')}
+      <div class="row wrap" style="gap:12px;margin-top:16px"><button class="btn btn-primary" id="wk-add" ${chosen.length ? '' : 'disabled'}>Add ${chosen.length} ${chosen.length === 1 ? 'person' : 'people'}</button><span style="font-size:11px;color:var(--text-3)">Dates, birthplace, nationality, picture and a Wikipedia evidence item come with each, citing Wikidata.</span></div>
+      <div id="wk-progress"></div>
+    `;
+    results.querySelectorAll('[data-inc]').forEach((cb) => cb.addEventListener('change', () => { rows[+cb.dataset.inc].include = cb.checked; paint(); }));
+    results.querySelectorAll('[data-fam]').forEach((cb) => cb.addEventListener('change', () => { rows[+cb.dataset.fam].family = cb.checked; }));
+    results.querySelectorAll('[data-alt]').forEach((b) => b.addEventListener('click', () => { const r = rows[+b.dataset.alt]; r.open = !r.open; paint(); }));
+    results.querySelectorAll('[data-use]').forEach((el) => el.addEventListener('click', () => {
+      const [i, id] = el.dataset.use.split(':');
+      const r = rows[+i];
+      r.pick = r.matches.find((m) => m.id === id); r.open = false; r.include = true;
+      paint();
+    }));
+    results.querySelector('#wk-add').addEventListener('click', async () => {
+      const picks = chosen.map((r) => ({ name: r.name, qid: r.pick.id, label: r.pick.label, family: r.family }));
+      results.querySelectorAll('button, input').forEach((el) => { el.disabled = true; });
+      const prog = results.querySelector('#wk-progress');
+      prog.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Adding people…</div>';
+      const note = prog.firstElementChild;
+      const r = await addPeopleFromWikidata(ctx.store, ctx.caseId, picks, (msg) => { note.textContent = `Adding people… ${msg}`; });
+      const ok = r.created.length + r.filled.length;
+      const bits = [
+        r.created.length ? `${r.created.length} new with their profile${r.created.length === 1 ? '' : 's'}` : null,
+        r.filled.length ? `${r.filled.length} already here, now filled in (${r.filled.join(', ')})` : null,
+        r.pictures ? `${r.pictures} picture${r.pictures === 1 ? '' : 's'}` : null,
+        r.families ? `${r.families} famil${r.families === 1 ? 'y' : 'ies'} inserted` : null,
+        r.failed.length ? `couldn't read ${r.failed.join(', ')}` : null,
+      ].filter(Boolean).join(' · ');
+      results.innerHTML = `
+        <div class="inline-note" style="border-left-color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? `${ok} ${ok === 1 ? 'person' : 'people'} added — ${bits}. Everything cites Wikidata.` : `Nothing added — ${bits || 'the lookup failed'}.`} The tree and the grid behind this drawer are updated.</div>
+        <div class="row wrap" style="gap:12px;margin-top:16px"><button class="btn btn-primary" id="wk-done">Done</button><button class="btn btn-ghost" id="wk-more">Add more</button></div>
+      `;
+      results.querySelector('#wk-done').addEventListener('click', () => ctx.closeDrawer());
+      results.querySelector('#wk-more').addEventListener('click', () => renderLookupBatch(results.closest('#ap-body'), ctx));
+      ctx.rerender();
+    });
+  };
+  paint();
 }
 
 function renderAddRel(body, ctx, people) {

@@ -518,6 +518,18 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .ctl-sub { font-size: 10px; color: var(--text-3); }
 .ctl-sub button { background: none; border: none; color: var(--text-3); font: inherit; font-size: 10px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; padding: 0; min-height: 0; }
 .ctl-sub button.active { color: var(--brass); text-decoration: none; cursor: default; }
+/* "+ Person" drawer, look-up mode: one block per typed name */
+.wk-match { background: var(--ink-2); border-radius: var(--r-sm); margin-bottom: var(--sp-2); }
+.wk-match.skip { opacity: .55; }
+.wk-typed { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); padding: var(--sp-2) var(--sp-3) 0; }
+.wk-match .list-row { cursor: default; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.wk-match .list-row:hover { background: transparent; }
+.wk-alt { padding: 0 var(--sp-3) var(--sp-2) var(--sp-5); }
+.wk-alt .list-row { padding: 6px var(--sp-2); min-height: 0; cursor: pointer; }
+.wk-alt .list-row:hover { background: var(--ink-3); }
+.wk-opts { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; padding: 0 var(--sp-3) var(--sp-2); font-size: 11px; color: var(--text-3); }
+.wk-opts label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-size: 11px; color: var(--text-3); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 
 /* ------------------------------------------------ number icons (life path · animal · sign) */
 .num-icons { display: inline-flex; align-items: center; gap: 6px; }

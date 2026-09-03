@@ -209,12 +209,6 @@ export async function insertFamily(store, caseId, personId, qid, onProgress = ()
   const subject = await store.getPerson(personId);
   if (subject && !subject.wikidata_id) await store.updatePerson(personId, { wikidata_id: qid });
   const result = { created: [], linked: [], relationships: 0, pictures: 0, failed: [], total: relatives.length };
-  const dateFields = (b, d) => ({
-    birth_date: b && (b.precision === 'day' || b.precision === 'month') ? b.date : null,
-    birth_precision: b ? b.precision : 'unknown',
-    birth_year_min: b && b.precision === 'year' ? b.year : null, birth_year_max: b && b.precision === 'year' ? b.year : null,
-    death_date: d && d.precision === 'day' ? d.date : null, death_precision: d && d.precision === 'day' ? 'day' : 'unknown',
-  });
   let i = 0;
   for (const rel of relatives) {
     i += 1;
@@ -242,28 +236,88 @@ export async function insertFamily(store, caseId, personId, qid, onProgress = ()
     // their own profile — skipped when the case already holds a filled-in person
     if (existed && (person.birth_place || person.photo_path || person.nationality)) continue;
     try {
-      const f = await fetchProfile(rel.qid);
-      const own = (prop) => `Source: Wikidata ${f.wikidataUrl} (${prop})${f.wikiUrl ? ` · Wikipedia ${f.wikiUrl}` : ''}`;
-      const patch = {};
-      const applied = [];
-      const fresh = await store.getPerson(person.id);
-      if (f.birth && !fresh.birth_date && !fresh.birth_year_min) { Object.assign(patch, dateFields(f.birth, null), { death_date: fresh.death_date, death_precision: fresh.death_precision }); applied.push(['birth', f.birth, P.birth]); }
-      if (f.death && f.death.precision === 'day' && !fresh.death_date) { patch.death_date = f.death.date; patch.death_precision = 'day'; applied.push(['death', f.death, P.death]); }
-      if (f.birthPlace && !fresh.birth_place) { patch.birth_place = f.birthPlace; applied.push(['birth_place', f.birthPlace, P.birthPlace]); }
-      if (f.nationality.length && !fresh.nationality) { patch.nationality = f.nationality.join(', '); applied.push(['nationality', patch.nationality, P.citizenship]); }
-      if (f.gender && !fresh.gender) { patch.gender = f.gender.charAt(0).toUpperCase() + f.gender.slice(1); applied.push(['gender', patch.gender, P.gender]); }
-      if (f.occupations.length && !fresh.occupation) { patch.occupation = f.occupations.join(', '); applied.push(['occupation', patch.occupation, P.occupation]); }
-      if (Object.keys(patch).length) await store.updatePerson(person.id, patch);
-      for (const [field, value, prop] of applied) {
-        await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: person.id, field, value, origin: 'lookup', rationale: own(prop) });
-      }
-      await ensureWikipediaEvidence(store, caseId, person.id, f);
-      if (f.photoUrl && !fresh.photo_path) {
-        const ok = await savePhotoFromUrl(store, person.id, f.photoUrl);
-        if (ok) result.pictures += 1;
-      }
+      const { picture } = await fillFromWikidata(store, caseId, person.id, rel.qid);
+      if (picture) result.pictures += 1;
     } catch (e) {
       result.failed.push(rel.name);
+    }
+  }
+  return result;
+}
+
+// Wikidata's honest date shape → the person columns (no day/month invented)
+function dateFields(b, d) {
+  return {
+    birth_date: b && (b.precision === 'day' || b.precision === 'month') ? b.date : null,
+    birth_precision: b ? b.precision : 'unknown',
+    birth_year_min: b && b.precision === 'year' ? b.year : null, birth_year_max: b && b.precision === 'year' ? b.year : null,
+    death_date: d && d.precision === 'day' ? d.date : null, death_precision: d && d.precision === 'day' ? 'day' : 'unknown',
+  };
+}
+
+/**
+ * Fill one person straight from their Wikidata item — dates, birthplace,
+ * nationality, gender, occupation, picture, and their Wikipedia article
+ * linked as evidence — touching only fields still blank, every applied
+ * fact recorded as an accepted claim citing its property. Shared by Insert
+ * family and the family page's batch add.
+ */
+export async function fillFromWikidata(store, caseId, personId, qid) {
+  const f = await fetchProfile(qid);
+  const own = (prop) => `Source: Wikidata ${f.wikidataUrl} (${prop})${f.wikiUrl ? ` · Wikipedia ${f.wikiUrl}` : ''}`;
+  const patch = {};
+  const applied = [];
+  const fresh = await store.getPerson(personId);
+  if (f.birth && !fresh.birth_date && !fresh.birth_year_min) { Object.assign(patch, dateFields(f.birth, null), { death_date: fresh.death_date, death_precision: fresh.death_precision }); applied.push(['birth', f.birth, P.birth]); }
+  if (f.death && f.death.precision === 'day' && !fresh.death_date) { patch.death_date = f.death.date; patch.death_precision = 'day'; applied.push(['death', f.death, P.death]); }
+  if (f.birthPlace && !fresh.birth_place) { patch.birth_place = f.birthPlace; applied.push(['birth_place', f.birthPlace, P.birthPlace]); }
+  if (f.nationality.length && !fresh.nationality) { patch.nationality = f.nationality.join(', '); applied.push(['nationality', patch.nationality, P.citizenship]); }
+  if (f.gender && !fresh.gender) { patch.gender = f.gender.charAt(0).toUpperCase() + f.gender.slice(1); applied.push(['gender', patch.gender, P.gender]); }
+  if (f.occupations.length && !fresh.occupation) { patch.occupation = f.occupations.join(', '); applied.push(['occupation', patch.occupation, P.occupation]); }
+  if (!fresh.wikidata_id) patch.wikidata_id = qid;
+  if (Object.keys(patch).length) await store.updatePerson(personId, patch);
+  for (const [field, value, prop] of applied) {
+    await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field, value, origin: 'lookup', rationale: own(prop) });
+  }
+  await ensureWikipediaEvidence(store, caseId, personId, f);
+  let picture = false;
+  if (f.photoUrl && !fresh.photo_path) picture = await savePhotoFromUrl(store, personId, f.photoUrl);
+  return { applied: applied.map(([field]) => field), picture };
+}
+
+/**
+ * Batch add from the family page (her ask, 2026-09-03: "add multiple, e.g.
+ * Daniel Radcliffe, Emma Watson"): every pick is a name she has already
+ * matched to a Wikidata item. Someone already in the case — same item, or
+ * same name — is filled in rather than duplicated; a pick with `family`
+ * set also pulls their relatives, exactly as Insert family does. Facts go
+ * straight in (her call), each recorded as an accepted claim citing Wikidata.
+ */
+export async function addPeopleFromWikidata(store, caseId, picks, onProgress = () => {}) {
+  const result = { created: [], filled: [], pictures: 0, families: 0, failed: [], total: picks.length };
+  let i = 0;
+  for (const pick of picks) {
+    i += 1;
+    onProgress(`${i} of ${picks.length} — ${pick.label}`);
+    try {
+      const people = await store.listPeople(caseId);
+      const byName = (n) => people.find((p) => p.display_name.trim().toLowerCase() === String(n || '').trim().toLowerCase());
+      let person = store.findPersonByWikidata(caseId, pick.qid) || byName(pick.label) || byName(pick.name);
+      if (person) {
+        if (!person.wikidata_id) await store.updatePerson(person.id, { wikidata_id: pick.qid });
+        result.filled.push(person.display_name);
+      } else {
+        person = await store.createPerson({ case_id: caseId, kind: 'person', display_name: pick.label, ...dateFields(null, null), wikidata_id: pick.qid, notes: `Wikidata https://www.wikidata.org/wiki/${pick.qid}` });
+        result.created.push(pick.label);
+      }
+      const { picture } = await fillFromWikidata(store, caseId, person.id, pick.qid);
+      if (picture) result.pictures += 1;
+      if (pick.family) {
+        await insertFamily(store, caseId, person.id, pick.qid, (msg) => onProgress(`${i} of ${picks.length} — ${pick.label} · family: ${msg}`));
+        result.families += 1;
+      }
+    } catch (e) {
+      result.failed.push(pick.label);
     }
   }
   return result;
