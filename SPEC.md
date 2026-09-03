@@ -437,6 +437,25 @@ panel is allowed to show an observed count alone.
 7. Import — describe a topic / paste text / look up a record. Everything
    drafted, at zero confidence, into the queue. The unverified lock cannot be
    turned off.
+7b. **Questions & theories (2026-09-03, her ask: "in fiction I have
+   questions about the world and research theories I like").** A
+   "Questions" tab in the case workspace (and `#/questions` for a family
+   case — the case card's "N open" badge and the family page's Questions
+   button open it). A question is about the world / the case, or about a
+   person (the profile's Open questions panel lists that person's own,
+   with "+ Ask about <name>" adding one in place). Under each question
+   sit its theories — each with evidence attached from the case's own
+   items or by pasting a link (which becomes an evidence item, source =
+   the host) and a "why it convinces me" line. ★ marks the theories she
+   leans towards, as many as she likes (chip: "★ leaning · N"). "Mark
+   answered…" asks which theory settled it and which evidence proves it
+   (chip: green "answered"; the theory reads as won). Nothing here ever
+   reaches a profile or Review — a theory is never a fact. Questions
+   raised from Review land on the same page. Storage: the `question` table
+   with `parent_id` (a theory), `person_id`, `pick`, `answer_id`,
+   `created_at`; evidence via `evidence_link` target_type 'question'. On
+   the phone the cards start collapsed. Filter All / Open / ★ Leaning /
+   Answered, remembered.
 8. Review — one claim at a time (and, since v54, one unconfirmed
    relationship at a time: Confirm / Skip / Remove / Question — her ask
    2026-09-03 "allow for review"), keyboard A / S / E / R / ?, bulk actions,
@@ -581,7 +600,7 @@ promise; every pick must land on a page. Twenty-eight questions later:
   row, then the Relations map with its + Person / + Relationship). The
   rail switcher does the same; "lands on the Dashboard" is retired.
 - **The profile carries the case's workspace as tabs**: Profile ·
-  Evidence · Contradictions · Board · Relations · Import
+  Evidence · Contradictions · Questions · Board · Relations · Import
   (`#/subject/<id>/<tab>`). The tab pages are the same case-level
   modules mounted under the person's header; they re-render through
   `ctx.rerender()` so tabs stay tabs. Profile body order: basics strip,

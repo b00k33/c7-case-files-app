@@ -268,6 +268,11 @@ const ADDED_COLUMNS = [
   ['person', 'photo_url', 'TEXT'],       // where it came from (Wikipedia) or a remote fallback
   ['person', 'wikidata_id', 'TEXT'],     // the Wikidata item a lookup matched — so a relative is recognised by identity, not by spelling (2026-09-03)
   ['case_file', 'world', 'TEXT'],        // the fictional world this case is about, set at creation only; null = real research (2026-09-03)
+  ['question', 'parent_id', 'TEXT'],     // questions & theories (2026-09-03): a row with parent_id is a theory answering that question
+  ['question', 'person_id', 'TEXT'],     // what the question is about; null = the world / the case
+  ['question', 'pick', 'INTEGER DEFAULT 0'], // her ★ on a theory — as many as she likes
+  ['question', 'answer_id', 'TEXT'],     // the theory that settled the question (with resolved = 1)
+  ['question', 'created_at', 'TEXT'],
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

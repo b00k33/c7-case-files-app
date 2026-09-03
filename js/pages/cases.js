@@ -130,9 +130,10 @@ export async function render(root, ctx) {
     const badges = card.querySelector('.badges');
     if (sum.toReview) badges.innerHTML += `<span class="chip brass">${sum.toReview} to review</span>`;
     if (sum.inbox) badges.innerHTML += `<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`;
-    if (sum.questions) badges.innerHTML += `<span class="chip">${sum.questions} open</span>`;
+    if (sum.questions) badges.innerHTML += `<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`;
 
-    card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form')) return; openCase(ctx, c); });
+    card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open')) return; openCase(ctx, c); });
+    card.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
     card.querySelector('.import-btn').addEventListener('click', async (e) => {
       e.stopPropagation();
       markOpened(c.id); await ctx.setCaseId(c.id);

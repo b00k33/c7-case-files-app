@@ -144,10 +144,15 @@ CREATE TABLE claim (
   created_at TEXT NOT NULL, decided_at TEXT
 );
 
+-- a question, or (with parent_id) one theory answering it. person_id null =
+-- about the world / the case. pick = her ★ on a theory (many allowed).
+-- answer_id on a question = the theory that settled it (with resolved=1);
+-- the evidence that settled it is an evidence_link on the question itself.
 CREATE TABLE question (
   id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
   case_id TEXT REFERENCES case_file(id) ON DELETE CASCADE,
-  text TEXT NOT NULL, resolved INTEGER DEFAULT 0, notes TEXT
+  text TEXT NOT NULL, resolved INTEGER DEFAULT 0, notes TEXT,
+  parent_id TEXT, person_id TEXT, pick INTEGER DEFAULT 0, answer_id TEXT, created_at TEXT
 );
 
 CREATE TABLE finding (

@@ -357,6 +357,37 @@ table.dense td.num { font-family: var(--font-mono); }
 .zmap-tray { grid-column: 1 / -1; border-radius: var(--r-lg); padding: var(--sp-3); background: var(--ink-1); border: 1px dashed var(--line); }
 .zmap-key { font-size: 11px; color: var(--text-3); margin-top: var(--sp-2); }
 
+/* questions & theories (2026-09-03): a question card holds its theories; ★ = her pick */
+.q-card { background: var(--ink-1); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); }
+.q-head { display: flex; align-items: flex-start; gap: var(--sp-3); cursor: pointer; }
+.q-main { flex: 1 1 auto; min-width: 0; }
+.q-title { font-family: var(--font-title); font-size: 16px; }
+.q-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.q-caret { color: var(--text-3); font-size: 12px; flex: none; padding-top: 4px; }
+.q-body { margin-top: var(--sp-3); }
+.q-card.collapsed .q-body { display: none; }
+.about { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-3); }
+.about .mini { width: 18px; height: 18px; border-radius: 50%; background: var(--ink-3); display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-title); font-size: 9px; color: var(--brass); }
+.theories { display: flex; flex-direction: column; gap: var(--sp-2); }
+.theory { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--ink-2); border-left: 3px solid transparent; align-items: start; }
+.theory.pick { border-left-color: var(--brass); background: color-mix(in srgb, var(--brass) 8%, var(--ink-2)); }
+.theory.won { border-left-color: var(--green); background: color-mix(in srgb, var(--green) 8%, var(--ink-2)); }
+.theory .star { background: none; border: 0; padding: 0; font-size: 16px; color: var(--text-3); cursor: pointer; line-height: 1.2; }
+.theory.pick .star { color: var(--brass); }
+.theory.won .star { color: var(--green); }
+.t-text { font-size: 13px; color: var(--text); }
+.t-why { font-size: 12px; color: var(--text-2); margin-top: 2px; white-space: pre-wrap; }
+.ev { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; align-items: center; }
+.ev .chip { cursor: pointer; max-width: 100%; }
+.ev .chip .k { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+.ev .chip .x { color: var(--text-3); margin-left: 4px; }
+.ev .chip .x:hover { color: var(--red); }
+.ev-picker { margin-top: 6px; padding: var(--sp-2); background: var(--ink-1); border-radius: var(--r-sm); }
+.ev-picker .list-row { min-height: 32px; padding: 4px var(--sp-2); }
+.q-foot { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap; align-items: center; }
+.q-foot .hint { font-size: 11px; color: var(--text-3); margin-left: auto; }
+.chip.green { color: var(--green); }
+
 /* -------------------------------------------------------------- matrix */
 
 table.matrix { border-collapse: collapse; font-size: 11px; }

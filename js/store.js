@@ -61,7 +61,7 @@ export async function searchAll(q) {
 export async function caseSummary(caseId) {
   const people = await listPeople(caseId);
   const toReview = db.exec(`SELECT COUNT(*) AS n FROM claim WHERE case_id=? AND state='drafted'`, [caseId])[0]?.n || 0;
-  const questions = db.exec(`SELECT COUNT(*) AS n FROM question WHERE case_id=? AND resolved=0`, [caseId])[0]?.n || 0;
+  const questions = db.exec(`SELECT COUNT(*) AS n FROM question WHERE case_id=? AND resolved=0 AND parent_id IS NULL`, [caseId])[0]?.n || 0;
   const inbox = await countInbox(caseId);
   return { people, toReview, questions, inbox };
 }
@@ -428,6 +428,11 @@ export async function updateVideoMoment(id, patch) {
 
 export async function listLinksForEvidence(evidenceId) {
   return db.exec('SELECT * FROM evidence_link WHERE evidence_id=?', [evidenceId]);
+}
+
+export async function unlinkEvidence(linkId) {
+  db.run('DELETE FROM evidence_link WHERE id=?', [linkId]);
+  logChange('evidence_link', linkId, 'delete', {});
 }
 
 export async function listLinksForTarget(targetType, targetId) {
@@ -818,13 +823,13 @@ export async function decideClaim(id, decision, rationale) {
 // ------------------------------------------------------------- questions --
 
 export async function listQuestions(caseId) {
-  return db.exec('SELECT * FROM question WHERE case_id=? ORDER BY resolved, text', [caseId]);
+  return db.exec('SELECT * FROM question WHERE case_id=? ORDER BY resolved, created_at, text', [caseId]);
 }
 
 export async function createQuestion(obj) {
   const id = uuid();
-  db.run('INSERT INTO question (id,case_id,text,resolved,notes) VALUES (?,?,?,?,?)',
-    [id, obj.case_id, obj.text, obj.resolved ? 1 : 0, obj.notes || null]);
+  db.run('INSERT INTO question (id,case_id,text,resolved,notes,parent_id,person_id,pick,answer_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    [id, obj.case_id, obj.text, obj.resolved ? 1 : 0, obj.notes || null, obj.parent_id || null, obj.person_id || null, obj.pick ? 1 : 0, obj.answer_id || null, nowISO()]);
   logChange('question', id, 'insert', obj);
   return id;
 }
@@ -832,6 +837,27 @@ export async function createQuestion(obj) {
 export async function resolveQuestion(id, resolved = true) {
   db.run('UPDATE question SET resolved=? WHERE id=?', [resolved ? 1 : 0, id]);
   logChange('question', id, 'update', { resolved });
+}
+
+/** Any of text, notes, resolved, pick, answer_id, person_id on a question or a theory. */
+export async function updateQuestion(id, patch) {
+  const fields = ['text', 'notes', 'resolved', 'pick', 'answer_id', 'person_id'].filter((f) => f in patch);
+  if (!fields.length) return;
+  db.run(`UPDATE question SET ${fields.map((f) => `${f}=?`).join(',')} WHERE id=?`, [...fields.map((f) => patch[f]), id]);
+  logChange('question', id, 'update', patch);
+}
+
+/** A theory goes alone; a question takes its theories and every evidence link on them with it. */
+export async function deleteQuestion(id) {
+  const theories = db.exec('SELECT id FROM question WHERE parent_id=?', [id]).map((r) => r.id);
+  for (const tid of [...theories, id]) {
+    for (const l of db.exec(`SELECT id FROM evidence_link WHERE target_type='question' AND target_id=?`, [tid])) {
+      db.run('DELETE FROM evidence_link WHERE id=?', [l.id]);
+      logChange('evidence_link', l.id, 'delete', {});
+    }
+    db.run('DELETE FROM question WHERE id=?', [tid]);
+    logChange('question', tid, 'delete', {});
+  }
 }
 
 // -------------------------------------------------------------- findings --

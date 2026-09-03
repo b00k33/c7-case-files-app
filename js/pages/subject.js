@@ -140,10 +140,11 @@ function chartPanel(person, status) {
 // case-level pages, mounted here so she never leaves the profile
 const TABS = [
   ['profile', 'Profile'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
-  ['board', 'Board'], ['relations', 'Relations'], ['import', 'Import'],
+  ['questions', 'Questions'], ['board', 'Board'], ['relations', 'Relations'], ['import', 'Import'],
 ];
 const TAB_MODULES = {
   evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
+  questions: () => import('./questions.js'),
   board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
 };
 
@@ -269,7 +270,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
       <div class="grid-2">
         <div class="panel">
-          <div class="panel-title">Open questions</div>
+          <div class="row between" style="gap:8px;margin-bottom:var(--sp-3)">
+            <div class="panel-title" style="margin:0">Open questions</div>
+            <button class="btn btn-ghost btn-sm" id="ask-btn" title="A question about this person — it lands on the Questions tab with its theories">+ Ask about ${person.display_name.split(/\s+/)[0]}</button>
+          </div>
+          <div id="ask-slot"></div>
           <div id="question-list" class="stack" style="gap:2px"></div>
         </div>
         <div class="panel">
@@ -606,20 +611,51 @@ export async function render(root, ctx, personId, tab = 'profile') {
     root.querySelector('#contra-list').appendChild(more);
   }
 
-  // open questions (case-wide — the schema has no per-person link for questions)
+  // open questions — this person's own first; the rest of the case's are a
+  // count with a door to the Questions tab. "+ Ask" adds one in place (her
+  // Questions & theories, 2026-09-03).
   const qEl = root.querySelector('#question-list');
-  const open = questions.filter((q) => !q.resolved);
-  if (!open.length) {
-    qEl.appendChild(emptyState({ missing: 'No open questions for this case.', why: 'Questions raised during Review land here.' }));
+  const topLevel = questions.filter((q) => !q.parent_id && !q.resolved);
+  const mine = topLevel.filter((q) => q.person_id === person.id);
+  const others = topLevel.length - mine.length;
+  const theoryCount = (qid) => questions.filter((q) => q.parent_id === qid).length;
+  const questionRow = (q) => {
+    const row = document.createElement('div');
+    row.className = 'list-row';
+    const n = theoryCount(q.id);
+    const leaning = questions.some((t) => t.parent_id === q.id && t.pick);
+    row.innerHTML = `<div class="main"><div class="title" style="font-size:12px">${q.text}</div></div><span class="chip ${leaning ? 'brass' : ''}">${leaning ? '★ leaning' : n ? `${n} theor${n === 1 ? 'y' : 'ies'}` : 'open'}</span>`;
+    row.addEventListener('click', () => ctx.navigate(`#/subject/${person.id}/questions`));
+    return row;
+  };
+  if (!mine.length && !others) {
+    qEl.appendChild(emptyState({ missing: 'No open questions yet.', why: 'Ask one above, or raise one from Review — theories and their evidence live on the Questions tab.' }));
   } else {
-    for (const q of open) {
-      const row = document.createElement('div');
-      row.className = 'list-row';
-      row.style.cursor = 'default';
-      row.innerHTML = `<div class="main"><div class="title" style="font-size:12px">${q.text}</div></div>`;
-      qEl.appendChild(row);
+    for (const q of mine) qEl.appendChild(questionRow(q));
+    if (others) {
+      const more = document.createElement('div');
+      more.className = 'list-row';
+      more.innerHTML = `<div class="main"><div class="sub">${others} more about ${others === 1 ? 'the case or someone else' : 'the case and others'} →</div></div>`;
+      more.addEventListener('click', () => ctx.navigate(`#/subject/${person.id}/questions`));
+      qEl.appendChild(more);
     }
   }
+  root.querySelector('#ask-btn').addEventListener('click', () => {
+    const slot = root.querySelector('#ask-slot');
+    if (slot.querySelector('.inline-form')) return;
+    slot.appendChild(inlineNameForm({
+      placeholder: `What do you want to work out about ${person.display_name}?`,
+      submitLabel: 'Ask',
+      onSubmit: async (text) => {
+        const id = await store.createQuestion({ case_id: ctx.caseId, person_id: person.id, text });
+        slot.innerHTML = '';
+        const q = { id, text, person_id: person.id, resolved: 0 };
+        questions.push(q);
+        qEl.querySelector('.empty-state')?.remove();
+        qEl.prepend(questionRow(q));
+      },
+    }));
+  });
 
   // attached evidence list
   const evEl = root.querySelector('#evidence-list');

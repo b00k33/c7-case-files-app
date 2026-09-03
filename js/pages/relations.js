@@ -122,6 +122,7 @@ export async function render(root, ctx, focusId = null) {
           <button class="btn btn-ghost btn-sm" id="add-person-btn">+ Person</button>
           <button class="btn btn-ghost btn-sm" id="add-wiki-btn" title="Look up one or many people on Wikipedia and add them">+ From Wikipedia</button>
           <button class="btn btn-ghost btn-sm" id="add-rel-btn">+ Relationship</button>
+          <button class="btn btn-ghost btn-sm" id="questions-btn" title="The case's questions and the theories answering them">Questions</button>
         </div>
       </div>
       <div id="map-slot"></div>
@@ -145,6 +146,7 @@ export async function render(root, ctx, focusId = null) {
   root.querySelector('#add-person-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx)));
   root.querySelector('#add-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')));
   root.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
+  root.querySelector('#questions-btn').addEventListener('click', () => ctx.navigate('#/questions'));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
   const setGen = (a, b) => { localStorage.setItem(genKey, `${Math.min(a, b)},${Math.max(a, b)}`); render(root, ctx, focus); };
   root.querySelector('#gen-from')?.addEventListener('change', (e) => setGen(Number(e.target.value), genTo));
