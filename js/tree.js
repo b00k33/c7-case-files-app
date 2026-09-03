@@ -28,7 +28,11 @@ export function assignGenerations(people, rels) {
     let changed = false;
     for (const r of family) {
       const ga = gen.get(r.a_id), gb = gen.get(r.b_id);
-      if (r.kind === 'parent') {
+      if (r.kind === 'parent' || r.kind === 'godparent') {
+        // a godparent stands a generation above their godchild, same as a
+        // parent — without this a person whose only link is "godchild"
+        // stayed on row 0 among the grandparents (2026-09-03: Miley Cyrus,
+        // Dolly's godchild, drew level with Dolly's parents)
         if (gb < ga + 1) { gen.set(r.b_id, ga + 1); changed = true; }
       } else if (r.kind === 'spouse' || r.kind === 'sibling') {
         const m = Math.max(ga, gb);
