@@ -553,11 +553,20 @@ const PERSON_FIELDS = new Set([
   'gender', 'nationality', 'marital_status',
 ]);
 
-function relationshipExists(caseId, aId, bId, kind) {
+export function relationshipExists(caseId, aId, bId, kind) {
   return db.exec(
     'SELECT 1 FROM relationship WHERE case_id=? AND kind=? AND ((a_id=? AND b_id=?) OR (a_id=? AND b_id=?)) LIMIT 1',
     [caseId, kind, aId, bId, bId, aId]
   ).length > 0;
+}
+
+/** A fact applied directly (Insert family) still leaves its claim — already accepted — as the audit trail. */
+export async function createAcceptedClaim(obj) {
+  const id = await createClaim(obj);
+  const now = nowISO();
+  db.run("UPDATE claim SET state='accepted', decided_at=? WHERE id=?", [now, id]);
+  logChange('claim', id, 'update', { state: 'accepted', decided_at: now });
+  return id;
 }
 
 export async function deleteClaim(id) {

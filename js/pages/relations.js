@@ -142,7 +142,8 @@ export async function render(root, ctx) {
     const n = withLifePath.length;
     for (const v of values) {
       const expected = expectedDigitCount(n, 9);
-      repeatSlot.appendChild(barRow({ label: `Life path ${v}`, value: counts[v], max: Math.max(counts[v], expected, 1), display: `${counts[v]} (expect ${expected.toFixed(1)})` }));
+      // "chance would give" = people with a full birth date ÷ 9 possible numbers
+      repeatSlot.appendChild(barRow({ label: `Life path ${v}`, value: counts[v], max: Math.max(counts[v], expected, 1), display: `${counts[v]} · chance would give ${expected.toFixed(1)}` }));
     }
   }
 

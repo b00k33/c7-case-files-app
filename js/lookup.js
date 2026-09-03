@@ -153,6 +153,112 @@ export async function savePhotoFromUrl(store, personId, url) {
   }
 }
 
+/** One "Wikipedia: <name>" evidence item per article per case, linked to the person. */
+async function ensureWikipediaEvidence(store, caseId, personId, facts) {
+  const sources = await store.listSources();
+  let src = sources.find((s) => s.name === 'Wikipedia');
+  if (!src) src = await store.createSource({ name: 'Wikipedia', kind: 'secondary', agenda_note: 'Crowd-edited encyclopaedia; check the article\'s own citations for anything contested.' });
+  const url = facts.wikiUrl || facts.wikidataUrl;
+  let ev = (await store.listEvidence(caseId)).find((e) => !e.deleted_at && e.original_url === url && /^Wikipedia:/.test(e.title || ''));
+  if (!ev) {
+    ev = await store.createEvidence({
+      case_id: caseId, type: 'document', title: `Wikipedia: ${facts.label}`, source_id: src.id,
+      original_url: url, verification: 'single',
+      notes: [facts.description, facts.summary].filter(Boolean).join('\n\n') || null,
+      dated: new Date().toISOString().slice(0, 10),
+    });
+  }
+  const links = await store.listLinksForTarget('person', personId);
+  if (!links.some((l) => l.evidence_id === ev.id)) {
+    await store.linkEvidence({ evidence_id: ev.id, target_type: 'person', target_id: personId, note: 'from lookup' });
+  }
+  return ev;
+}
+
+const ROLE_PROP_ALL = { father: 'P22', mother: 'P25', sibling: 'P3373', child: 'P40', spouse: 'P26', godparent: 'P1290', godchild: 'P1290, reverse' };
+// [kind, a, b] for a relative of `subject` — for parent/godparent, A is the parent/godparent of B
+function directedRelationship(role, subject, other) {
+  return ({
+    father: ['parent', other, subject], mother: ['parent', other, subject], child: ['parent', subject, other],
+    sibling: ['sibling', subject, other], spouse: ['spouse', subject, other],
+    godparent: ['godparent', other, subject], godchild: ['godparent', subject, other],
+  })[role] || ['associate', subject, other];
+}
+
+/**
+ * "Insert family" (her ask, 2026-09-03 — straight in, no Review): every
+ * direct relative on the Wikidata item becomes a person in the case (or is
+ * matched to the person already there by name), gets the relationship,
+ * and — for anyone new or still bare — their own profile: dates,
+ * birthplace, nationality, gender, occupation, picture, and their
+ * Wikipedia article linked as evidence. Every applied fact is recorded as
+ * an accepted claim citing its Wikidata property, so the audit trail is
+ * the same as if she had accepted each one in Review.
+ */
+export async function insertFamily(store, caseId, personId, qid, onProgress = () => {}) {
+  onProgress('Reading the family…');
+  const facts = await fetchProfile(qid);
+  const relatives = (facts.relatives || []).filter((r) => r.name && !/^Q\d+$/.test(r.name));
+  const people = await store.listPeople(caseId);
+  const byName = (n) => people.find((p) => p.display_name.trim().toLowerCase() === n.trim().toLowerCase());
+  const result = { created: [], linked: [], relationships: 0, pictures: 0, failed: [], total: relatives.length };
+  const dateFields = (b, d) => ({
+    birth_date: b && (b.precision === 'day' || b.precision === 'month') ? b.date : null,
+    birth_precision: b ? b.precision : 'unknown',
+    birth_year_min: b && b.precision === 'year' ? b.year : null, birth_year_max: b && b.precision === 'year' ? b.year : null,
+    death_date: d && d.precision === 'day' ? d.date : null, death_precision: d && d.precision === 'day' ? 'day' : 'unknown',
+  });
+  let i = 0;
+  for (const rel of relatives) {
+    i += 1;
+    onProgress(`${i} of ${relatives.length} — ${rel.name}`);
+    let person = byName(rel.name);
+    const existed = !!person;
+    if (!person) {
+      person = await store.createPerson({ case_id: caseId, kind: 'person', display_name: rel.name, ...dateFields(rel.birth, rel.death), notes: `Wikidata https://www.wikidata.org/wiki/${rel.qid}` });
+      people.push(person);
+      result.created.push(rel.name);
+    } else {
+      result.linked.push(rel.name);
+    }
+    const cite = (prop) => `Source: Wikidata ${facts.wikidataUrl} (${prop})${facts.wikiUrl ? ` · Wikipedia ${facts.wikiUrl}` : ''}`;
+    const [kind, a, b] = directedRelationship(rel.role, personId, person.id);
+    if (!store.relationshipExists(caseId, a, b, kind)) {
+      await store.upsertRelationship({ case_id: caseId, a_id: a, b_id: b, kind, confidence: 70, confirmed: 0, notes: cite(ROLE_PROP_ALL[rel.role] || '') });
+      result.relationships += 1;
+    }
+    await store.createAcceptedClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'relative', value: { display_name: rel.name, qid: rel.qid, role: rel.role, of: personId, birth: rel.birth || null, death: rel.death || null }, origin: 'lookup', rationale: cite(ROLE_PROP_ALL[rel.role] || '') });
+
+    // their own profile — skipped when the case already holds a filled-in person
+    if (existed && (person.birth_place || person.photo_path || person.nationality)) continue;
+    try {
+      const f = await fetchProfile(rel.qid);
+      const own = (prop) => `Source: Wikidata ${f.wikidataUrl} (${prop})${f.wikiUrl ? ` · Wikipedia ${f.wikiUrl}` : ''}`;
+      const patch = {};
+      const applied = [];
+      const fresh = await store.getPerson(person.id);
+      if (f.birth && !fresh.birth_date && !fresh.birth_year_min) { Object.assign(patch, dateFields(f.birth, null), { death_date: fresh.death_date, death_precision: fresh.death_precision }); applied.push(['birth', f.birth, P.birth]); }
+      if (f.death && f.death.precision === 'day' && !fresh.death_date) { patch.death_date = f.death.date; patch.death_precision = 'day'; applied.push(['death', f.death, P.death]); }
+      if (f.birthPlace && !fresh.birth_place) { patch.birth_place = f.birthPlace; applied.push(['birth_place', f.birthPlace, P.birthPlace]); }
+      if (f.nationality.length && !fresh.nationality) { patch.nationality = f.nationality.join(', '); applied.push(['nationality', patch.nationality, P.citizenship]); }
+      if (f.gender && !fresh.gender) { patch.gender = f.gender.charAt(0).toUpperCase() + f.gender.slice(1); applied.push(['gender', patch.gender, P.gender]); }
+      if (f.occupations.length && !fresh.occupation) { patch.occupation = f.occupations.join(', '); applied.push(['occupation', patch.occupation, P.occupation]); }
+      if (Object.keys(patch).length) await store.updatePerson(person.id, patch);
+      for (const [field, value, prop] of applied) {
+        await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: person.id, field, value, origin: 'lookup', rationale: own(prop) });
+      }
+      await ensureWikipediaEvidence(store, caseId, person.id, f);
+      if (f.photoUrl && !fresh.photo_path) {
+        const ok = await savePhotoFromUrl(store, person.id, f.photoUrl);
+        if (ok) result.pictures += 1;
+      }
+    } catch (e) {
+      result.failed.push(rel.name);
+    }
+  }
+  return result;
+}
+
 /**
  * Turn fetched facts into drafted claims on `personId` (through Review), plus
  * one linked Wikipedia evidence item. Returns what was drafted.
@@ -173,24 +279,7 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   };
 
   // the citation exists even before anything is accepted
-  const sources = await store.listSources();
-  let src = sources.find((s) => s.name === 'Wikipedia');
-  if (!src) src = await store.createSource({ name: 'Wikipedia', kind: 'secondary', agenda_note: 'Crowd-edited encyclopaedia; check the article\'s own citations for anything contested.' });
-  // one Wikipedia item per article per case — a second lookup reuses it
-  const url = facts.wikiUrl || facts.wikidataUrl;
-  let ev = (await store.listEvidence(caseId)).find((e) => !e.deleted_at && e.original_url === url && /^Wikipedia:/.test(e.title || ''));
-  if (!ev) {
-    ev = await store.createEvidence({
-      case_id: caseId, type: 'document', title: `Wikipedia: ${facts.label}`, source_id: src.id,
-      original_url: url, verification: 'single',
-      notes: [facts.description, facts.summary].filter(Boolean).join('\n\n') || null,
-      dated: new Date().toISOString().slice(0, 10),
-    });
-  }
-  const links = await store.listLinksForTarget('person', personId);
-  if (!links.some((l) => l.evidence_id === ev.id)) {
-    await store.linkEvidence({ evidence_id: ev.id, target_type: 'person', target_id: personId, note: 'from lookup' });
-  }
+  const ev = await ensureWikipediaEvidence(store, caseId, personId, facts);
 
   // the article's picture: an identification aid, not a fact, so it's saved
   // directly — fetched once, stored as an asset (syncs, works offline), with

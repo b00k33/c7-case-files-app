@@ -5,7 +5,7 @@ import { relation } from '../relations.js';
 import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
-import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
+import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 
@@ -177,6 +177,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
   ctx.setTitle(person.display_name);
   localStorage.setItem('c7-last-subject', person.id); // the image inbox pre-fills this person
+  // a profile opened by link or bookmark makes its own case current — every
+  // save on this page (family, evidence, claims) lands where the person lives
+  if (person.case_id !== ctx.caseId) await ctx.setCaseId(person.case_id);
 
   const [aliases, addresses, rels, events, links, questions, status] = await Promise.all([
     store.listAliases(person.id),
@@ -230,6 +233,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div class="row" style="gap:8px">
             <input type="text" id="lk-name" value="${person.display_name.replace(/"/g, '&quot;')}" style="flex:1">
             <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>
+            <button class="btn btn-ghost btn-sm" id="lk-family" title="Parents, siblings, children, spouse, godchildren — straight into this case, with their profiles">Insert family</button>
           </div>
         </div>
         <div id="lk-results" class="stack" style="gap:4px"></div>
@@ -402,6 +406,44 @@ export async function render(root, ctx, personId, tab = 'profile') {
           if (facts.photoUrl) setTimeout(() => render(root, ctx, personId), 1200); // show the new picture
         } catch (e) {
           resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
+        }
+      });
+      resultsEl.appendChild(row);
+    }
+  });
+
+  // ---- Insert family: pick the Wikidata record, then everyone comes in with their profiles ----
+  root.querySelector('#lk-family').addEventListener('click', async () => {
+    const btn = root.querySelector('#lk-family');
+    const resultsEl = root.querySelector('#lk-results');
+    clearInlineNote(btn);
+    resultsEl.innerHTML = '';
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(root.querySelector('#lk-name').value); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = 'Insert family';
+    if (!matches.length) { inlineNote(btn, 'No match on Wikidata — a family can only be read from a public record.'); return; }
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Insert family from this ▸</span>`;
+      row.addEventListener('click', async () => {
+        resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="lk-progress">Reading the family…</div>';
+        const prog = resultsEl.querySelector('#lk-progress');
+        try {
+          const r = await insertFamily(store, ctx.caseId, person.id, m.id, (msg) => { prog.textContent = `Inserting family… ${msg}`; });
+          const bits = [
+            r.created.length ? `${r.created.length} new ${r.created.length === 1 ? 'person' : 'people'} with their profiles` : null,
+            r.linked.length ? `${r.linked.length} already here (${r.linked.join(', ')})` : null,
+            `${r.relationships} relationship${r.relationships === 1 ? '' : 's'} drawn`,
+            r.pictures ? `${r.pictures} picture${r.pictures === 1 ? '' : 's'}` : null,
+            r.failed.length ? `couldn't read ${r.failed.join(', ')}` : null,
+          ].filter(Boolean).join(' · ');
+          sessionStorage.setItem('c7-pi-result', r.total ? `Family inserted — ${bits}. Everything cites Wikidata; relationships arrive unconfirmed.` : 'Wikidata lists no relatives on that record.');
+          ctx.rerender();
+        } catch (e) {
+          resultsEl.innerHTML = `<div class="inline-note">Insert family failed — ${e.message}</div>`;
         }
       });
       resultsEl.appendChild(row);

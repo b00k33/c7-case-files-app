@@ -473,7 +473,17 @@ changed is where the app lives and how devices share it.
   evidence sharing one link (links and video moments move to the kept,
   oldest item); same-name people are only counted. Offered as a line above
   the Review queue and as "Clean up duplicates · N" in the case card's ⋯
-  menu, both two-tap.
+  menu, both two-tap. **Insert family (2026-09-03, her four popup
+  answers — "make it easy for me"):** the one deliberate exception to
+  "everything through Review". The button beside Look up on a profile
+  reads the person's Wikidata record and, for every direct relative,
+  creates the person (or matches the one already in the case by name),
+  draws the relationship (unconfirmed, 70, cited), then fills the new
+  person's own profile from their record — dates, birthplace,
+  nationality, gender, occupation, picture — and links their Wikipedia
+  article as evidence. Each applied fact is stored as an already-accepted
+  claim citing its property, so the audit trail matches a Review accept.
+  Existing, already-filled people are left alone. Direct family only.
   The only other third-party load is a YouTube thumbnail image for a linked video
   (`js/media.js`; an `<img>` from YouTube's image host, video id only,
   placeholder when offline). Nothing else; no automatic lookups.
