@@ -177,9 +177,19 @@ export function numberIcons({ lifePath, chinese, sun }, { size = 'sm' } = {}) {
   const an = document.createElement('span');
   an.className = 'ni-animal';
   if (chinese && chinese.ok && !chinese.boundary && animalIcon(chinese.animal)) {
-    an.textContent = animalIcon(chinese.animal);
     an.style.borderColor = zodiacColor(chinese.animal) || 'var(--ink-3)';
     an.title = `${chinese.animal}${chinese.element ? ' · ' + chinese.element : ''}`;
+    const g = zodiacGroup(chinese.animal);
+    if (g) {
+      ensurePosterFilters();
+      const pic = document.createElement('span');
+      pic.className = 'ni-animal-pic';
+      pic.style.filter = `url(#c7-animal-duo-${g})`;
+      pic.textContent = animalIcon(chinese.animal);
+      an.appendChild(pic);
+    } else {
+      an.textContent = animalIcon(chinese.animal);
+    }
   } else {
     an.textContent = chinese && chinese.boundary ? '?' : '—';
     an.classList.add('unknown');
