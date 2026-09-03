@@ -156,10 +156,9 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   svg.style.pointerEvents = 'none'; // lines never block taps on faces; the confirm dots opt back in
   tree.appendChild(svg);
   const stroke = (confirmed) => (confirmed ? 'var(--text-3)' : 'var(--ink-3)');
-  const ARC_RISE = 18; // a marriage across the row arcs this far over the faces between
   for (const e of L.edges) {
     let el = null;
-    if (e.kind === 'couple' && e.arc) el = svgEl('path', { d: `M${e.x1},${e.top} C${e.x1},${e.top - ARC_RISE} ${e.x2},${e.top - ARC_RISE} ${e.x2},${e.top}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
+    if (e.kind === 'couple' && e.arc) el = svgEl('path', { d: `M${e.x1},${e.top} C${e.x1},${e.top - e.rise} ${e.x2},${e.top - e.rise} ${e.x2},${e.top}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'couple') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'trunk') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
     else if (e.kind === 'bus') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
@@ -175,7 +174,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     const ids = e.relIds || (e.relId ? [e.relId] : []);
     if (!e.confirmed && !e.implied && ids.length) {
       const mx = e.kind === 'couple' || e.kind === 'bus' ? (e.x1 + e.x2) / 2 : (e.kind === 'drop' || e.kind === 'trunk' ? e.x : (e.x1 + e.x2) / 2);
-      const my = e.kind === 'couple' ? (e.arc ? e.top - ARC_RISE * 0.75 : e.y) : (e.y1 + e.y2) / 2;
+      const my = e.kind === 'couple' ? (e.arc ? e.top - e.rise * 0.75 : e.y) : (e.y1 + e.y2) / 2;
       const dot = svgEl('circle', { cx: mx, cy: my, r: 5, class: 'tree-confirm' });
       const t = svgEl('title'); t.textContent = `Confirm — ${e.label || 'this link'}`; dot.appendChild(t);
       dot.addEventListener('click', async (ev) => {

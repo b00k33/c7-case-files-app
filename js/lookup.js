@@ -204,6 +204,10 @@ export async function insertFamily(store, caseId, personId, qid, onProgress = ()
   const relatives = (facts.relatives || []).filter((r) => r.name && !/^Q\d+$/.test(r.name));
   const people = await store.listPeople(caseId);
   const byName = (n) => people.find((p) => p.display_name.trim().toLowerCase() === n.trim().toLowerCase());
+  // the subject is this item from now on, so a later lookup from a
+  // relative's side finds them by identity, whatever spelling she typed
+  const subject = await store.getPerson(personId);
+  if (subject && !subject.wikidata_id) await store.updatePerson(personId, { wikidata_id: qid });
   const result = { created: [], linked: [], relationships: 0, pictures: 0, failed: [], total: relatives.length };
   const dateFields = (b, d) => ({
     birth_date: b && (b.precision === 'day' || b.precision === 'month') ? b.date : null,
@@ -215,13 +219,16 @@ export async function insertFamily(store, caseId, personId, qid, onProgress = ()
   for (const rel of relatives) {
     i += 1;
     onProgress(`${i} of ${relatives.length} — ${rel.name}`);
-    let person = byName(rel.name);
+    // the same Wikidata item first (a name can be spelt many ways — "Henry
+    // VIII" and "Henry VIII of England" became two kings), the name second
+    let person = store.findPersonByWikidata(caseId, rel.qid) || byName(rel.name);
     const existed = !!person;
     if (!person) {
-      person = await store.createPerson({ case_id: caseId, kind: 'person', display_name: rel.name, ...dateFields(rel.birth, rel.death), notes: `Wikidata https://www.wikidata.org/wiki/${rel.qid}` });
+      person = await store.createPerson({ case_id: caseId, kind: 'person', display_name: rel.name, ...dateFields(rel.birth, rel.death), wikidata_id: rel.qid, notes: `Wikidata https://www.wikidata.org/wiki/${rel.qid}` });
       people.push(person);
       result.created.push(rel.name);
     } else {
+      if (!person.wikidata_id) { await store.updatePerson(person.id, { wikidata_id: rel.qid }); person.wikidata_id = rel.qid; }
       result.linked.push(rel.name);
     }
     const cite = (prop) => `Source: Wikidata ${facts.wikidataUrl} (${prop})${facts.wikiUrl ? ` · Wikipedia ${facts.wikiUrl}` : ''}`;
@@ -290,6 +297,9 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // a picture she chose herself is never replaced by the article's one
   const current = await store.getPerson(personId);
   if (facts.photoUrl && !(current && current.photo_path)) await savePhotoFromUrl(store, personId, facts.photoUrl);
+  // and the item itself: identity, not a fact, so it is kept directly — a
+  // relative's lookup then recognises this person however the name is spelt
+  if (current && !current.wikidata_id && facts.qid) await store.updatePerson(personId, { wikidata_id: facts.qid });
 
   if (facts.birth) await claim('birth', facts.birth, P.birth);
   if (facts.death && facts.death.precision === 'day') await claim('death', facts.death, P.death);

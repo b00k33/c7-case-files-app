@@ -34,6 +34,7 @@ CREATE TABLE person (
   gender TEXT, nationality TEXT,           -- profile basics (2026-09-02), free text
   marital_status TEXT,                     -- override only; normally derived from spouse relationships
   photo_path TEXT, photo_url TEXT,         -- profile picture: stored asset + where it came from
+  wikidata_id TEXT,                        -- 'Q38370': the item a lookup matched; relatives match on this before the name
   occupation TEXT, status TEXT DEFAULT 'active',    -- active|watch|cold|archived
   notes TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT

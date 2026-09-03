@@ -21,7 +21,6 @@ export const FAMILY_KINDS = new Set(['parent', 'spouse', 'sibling', 'godparent']
 export const GROUP_MIN = 4;      // fewer plain siblings than this stay as separate faces
 const GROUP_COLS = 4;
 const MINI_W = 64, MINI_H = 66, MINI_GAP = 6, GROUP_PAD = 8, GROUP_LABEL = 16;
-const ARC_PAD = 16;              // room above the top row for a marriage drawn as an arc
 
 function birthKey(p) {
   if (p.birth_date) { const t = Date.parse(p.birth_date); if (!Number.isNaN(t)) return t; }
@@ -288,7 +287,11 @@ export function layoutTree(people, rels, opts = {}) {
         const [i, j] = [idx.get(a.id), idx.get(b.id)].sort((p, q) => p - q);
         const base = { kind: 'couple', y: rowY(u.gen) + faceH / 2, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied, relId: r ? r.id : null, label: `${a.display_name} · ${b.display_name} · spouse` };
         if (j === i + 1) edges.push({ ...base, x1: mx + i * (nodeW + coupleGap) + nodeW, x2: mx + j * (nodeW + coupleGap) });
-        else edges.push({ ...base, arc: true, x1: mx + i * (nodeW + coupleGap) + nodeW / 2, x2: mx + j * (nodeW + coupleGap) + nodeW / 2, top: rowY(u.gen) });
+        else {
+          // a longer reach arcs higher, so six marriages nest like rainbows instead of merging
+          const span = (j - i) * (nodeW + coupleGap);
+          edges.push({ ...base, arc: true, rise: Math.min(44, 14 + span / 24), x1: mx + i * (nodeW + coupleGap) + nodeW / 2, x2: mx + j * (nodeW + coupleGap) + nodeW / 2, top: rowY(u.gen) });
+        }
       }
     }
     if (!u.children.length) return;
@@ -368,8 +371,8 @@ export function layoutTree(people, rels, opts = {}) {
     if (a && b && !a.group && !b.group) edges.push({ kind: 'god', x1: a.x + nodeW / 2, y1: a.y + faceH, x2: b.x + nodeW / 2, y2: b.y, confirmed: !!r.confirmed, relIds: [r.id], label: `${a.person.display_name} · godparent of ${b.person.display_name}` });
   }
 
-  // the topmost visible row becomes y = 0 (plus room for an arc over it)
-  const pad = edges.some((e) => e.arc) ? ARC_PAD : 0;
+  // the topmost visible row becomes y = 0 (plus room for the tallest arc over it)
+  const pad = edges.reduce((m, e) => (e.arc ? Math.max(m, Math.ceil(e.rise * 0.75 + 4)) : m), 0);
   const yShift = (nodes.length ? Math.min(...nodes.map((n) => n.y)) : 0) - pad;
   for (const n of nodes) n.y -= yShift;
   for (const e of edges) {

@@ -488,6 +488,13 @@ changed is where the app lives and how devices share it.
 - **Migration:** the first sign-in against an empty cloud uploads the whole
   local database once. Later devices pull instead, and an untouched
   example case is removed rather than duplicated.
+- **Identity, not spelling (2026-09-03).** `person.wikidata_id` records the
+  item a lookup matched. A relative's own lookup — either side, any later
+  time — recognises an existing person by this first, the name second, so
+  "Henry VIII" and "Henry VIII of England" from two different articles
+  become one king, not two. Set the moment a person is matched or created
+  through a lookup or Insert family; `findDuplicates` also flags two
+  people sharing one `wikidata_id` as one person under two spellings.
 - **Third-party lookups (her rule change, 2026-09-02):** the app may make
   read-only, user-triggered requests to Wikidata and Wikipedia (public APIs,
   no key; nothing sent but the searched name). Results never touch a record

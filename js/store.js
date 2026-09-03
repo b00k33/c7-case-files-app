@@ -138,19 +138,32 @@ export async function createPerson(obj) {
     `INSERT INTO person (id,case_id,kind,display_name,name_at_birth,ref_code,
        birth_date,birth_precision,birth_year_min,birth_year_max,birth_time,birth_time_precision,
        birth_place,birth_lat,birth_lng,birth_tz,death_date,death_precision,occupation,status,notes,
-       created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       wikidata_id,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       id, obj.case_id, obj.kind || 'person', obj.display_name, obj.name_at_birth || null, obj.ref_code || null,
       obj.birth_date || null, obj.birth_precision || 'unknown', obj.birth_year_min ?? null, obj.birth_year_max ?? null,
       obj.birth_time || null, obj.birth_time_precision || 'unknown',
       obj.birth_place || null, obj.birth_lat ?? null, obj.birth_lng ?? null, obj.birth_tz || null,
       obj.death_date || null, obj.death_precision || 'unknown', obj.occupation || null, obj.status || 'active', obj.notes || null,
-      now, now,
+      obj.wikidata_id || null, now, now,
     ]
   );
   logChange('person', id, 'insert', obj);
   return getPerson(id);
+}
+
+/**
+ * The person in this case already tied to a Wikidata item — by the stored
+ * id, or by the "Wikidata https://…/Qnnn" note earlier lookups left. Matching
+ * by identity first is what stops "Henry VIII" and "Henry VIII of England"
+ * becoming two people (2026-09-03, The Tudors).
+ */
+export function findPersonByWikidata(caseId, qid) {
+  if (!qid) return null;
+  const rows = db.exec('SELECT * FROM person WHERE case_id=? AND deleted_at IS NULL AND (wikidata_id=? OR notes LIKE ?) ORDER BY created_at', [caseId, qid, `%/wiki/${qid}%`]);
+  const re = new RegExp(`/wiki/${qid}(?!\\d)`);
+  return rows.find((p) => p.wikidata_id === qid || re.test(p.notes || '')) || null;
 }
 
 export async function updatePerson(id, patch) {
@@ -597,6 +610,10 @@ export async function findDuplicates(caseId) {
   const people = db.exec(
     'SELECT MIN(display_name) AS name, COUNT(*) AS n FROM person WHERE case_id=? AND deleted_at IS NULL GROUP BY lower(trim(display_name)) HAVING n > 1', [caseId]
   ).map((r) => ({ name: r.name, count: r.n }));
+  // two people tied to one Wikidata item are one person under two spellings
+  for (const r of db.exec("SELECT GROUP_CONCAT(display_name, ' / ') AS name, COUNT(*) AS n FROM person WHERE case_id=? AND deleted_at IS NULL AND wikidata_id IS NOT NULL GROUP BY wikidata_id HAVING n > 1", [caseId])) {
+    if (!people.some((p) => p.name === r.name)) people.push({ name: r.name, count: r.n });
+  }
   const evidenceCount = dupEvidence.reduce((n, g) => n + g.remove.length, 0);
   return { claims: dupClaims, evidence: dupEvidence, evidenceCount, people, total: dupClaims.length + evidenceCount };
 }
@@ -686,7 +703,9 @@ async function applyClaim(claim) {
     // relationship, unconfirmed and cited (her picks, 2026-09-03)
     const name = String(value.display_name || '').trim();
     if (!name || !value.of) return;
-    let person = db.exec('SELECT * FROM person WHERE case_id=? AND deleted_at IS NULL AND lower(trim(display_name))=lower(?) LIMIT 1', [claim.case_id, name])[0] || null;
+    // the same Wikidata item first, the same name second
+    let person = (value.qid && findPersonByWikidata(claim.case_id, value.qid))
+      || db.exec('SELECT * FROM person WHERE case_id=? AND deleted_at IS NULL AND lower(trim(display_name))=lower(?) LIMIT 1', [claim.case_id, name])[0] || null;
     if (!person) {
       const b = value.birth || null, d = value.death || null;
       person = await createPerson({
@@ -695,8 +714,11 @@ async function applyClaim(claim) {
         birth_precision: b ? b.precision : 'unknown',
         birth_year_min: b && b.precision === 'year' ? b.year : null, birth_year_max: b && b.precision === 'year' ? b.year : null,
         death_date: d && d.precision === 'day' ? d.date : null, death_precision: d && d.precision === 'day' ? 'day' : 'unknown',
+        wikidata_id: value.qid || null,
         notes: value.qid ? `Wikidata https://www.wikidata.org/wiki/${value.qid}` : null,
       });
+    } else if (value.qid && !person.wikidata_id) {
+      await updatePerson(person.id, { wikidata_id: value.qid });
     }
     const subject = value.of, other = person.id;
     const DIRECTED = { // [kind, a_id, b_id] — for parent/godparent, A is the parent/godparent of B

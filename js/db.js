@@ -266,6 +266,7 @@ const ADDED_COLUMNS = [
   ['video_moment', 'file_path', 'TEXT'], // a picture of the moment (2026-09-02)
   ['person', 'photo_path', 'TEXT'],      // profile picture as a stored asset (2026-09-02)
   ['person', 'photo_url', 'TEXT'],       // where it came from (Wikipedia) or a remote fallback
+  ['person', 'wikidata_id', 'TEXT'],     // the Wikidata item a lookup matched — so a relative is recognised by identity, not by spelling (2026-09-03)
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);
