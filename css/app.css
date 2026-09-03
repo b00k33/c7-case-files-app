@@ -463,6 +463,23 @@ table.matrix td.diag { background: transparent; cursor: default; }
   .case-card .body { flex: 1; min-width: 0; }
 }
 
+/* ------------------------------------------------ zodiac colour code (hers, 2026-09-03) */
+:root {
+  --zc-blue: #6f9cf0;   /* Snake · Ox · Rooster */
+  --zc-green: #5cb87a;  /* Dog · Tiger · Horse */
+  --zc-pink: #ec86b4;   /* Pig · Goat · Rabbit (Cat) */
+  --zc-yellow: #e8c34f; /* Rat · Dragon · Monkey */
+  --ws-air: #8fd0f5;    /* Gemini · Libra · Aquarius */
+  --ws-fire: #e8564e;   /* Aries · Leo · Sagittarius */
+  --ws-earth: #c99a4a;  /* Taurus · Virgo · Capricorn */
+  --ws-water: #4f74d6;  /* Cancer · Scorpio · Pisces */
+}
+.zc { font-weight: 500; }
+.zc-blue { color: var(--zc-blue); } .zc-green { color: var(--zc-green); } .zc-pink { color: var(--zc-pink); } .zc-yellow { color: var(--zc-yellow); }
+.ws-air { color: var(--ws-air); } .ws-fire { color: var(--ws-fire); } .ws-earth { color: var(--ws-earth); } .ws-water { color: var(--ws-water); }
+.zc-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--text-3); margin-top: var(--sp-2); }
+.zc-key .zc { font-weight: 400; }
+
 /* ------------------------------------------------ family tree */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
 .seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer; min-height: 28px; }

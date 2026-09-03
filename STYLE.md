@@ -192,3 +192,12 @@ would.
   strip is a horizontally scrollable row of text tabs, brass underline
   on the active one, no icons. The topbar back control is a bare ←,
   shown only inside a case.
+- **Zodiac colour code (hers, 2026-09-03).** Wherever an animal or sun
+  sign is printed it takes its group colour — Chinese animals by trine:
+  blue Snake·Ox·Rooster, green Dog·Tiger·Horse, pink Pig·Goat·Rabbit
+  (the Cat), yellow Rat·Dragon·Monkey; Western signs by element: air light
+  blue, fire red, earth yellow-brown, water dark blue. Tokens keep their
+  status colour on the ring and take the group colour on the animal's
+  sector/letter and the sign's abbreviation. Variables `--zc-*` and
+  `--ws-*`, helpers `animalHtml()`/`signHtml()` in `js/indicators.js`. The
+  life-path grid carries a one-line key.

@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor } from '../chinese.js';
 import { relation } from '../relations.js';
 import { expectedCounts, expectedDigitCount } from '../stats.js';
-import { relationGlyph, barRow, emptyState } from '../indicators.js';
+import { relationGlyph, barRow, emptyState, animalHtml } from '../indicators.js';
 
 function resolvedSign(p) {
   const s = signFor(p.birth_date);
@@ -87,7 +87,7 @@ export async function render(root, ctx) {
           card.innerHTML = `
             <div class="row between"><b>${rowP.display_name}</b> <span class="mono">×</span> <b>${colP.display_name}</b></div>
             <div class="mono" style="font-size:12px;color:var(--text-2);margin-top:6px">
-              ${unsettled ? 'One or both birth years are unsettled — no relation can be read.' : `${sa.animal} (${sa.element}) × ${sb.animal} (${sb.element}) → ${kind}`}
+              ${unsettled ? 'One or both birth years are unsettled — no relation can be read.' : `${animalHtml(sa.animal)} (${sa.element}) × ${animalHtml(sb.animal)} (${sb.element}) → ${kind}`}
             </div>
           `;
           readoutSlot.appendChild(card);

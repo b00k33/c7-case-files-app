@@ -2,7 +2,7 @@ import { lifePath, birthdayNumber, personalYear, universalYear, expression, soul
 import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
-import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
+import { makeToken, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor } from '../indicators.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
@@ -100,13 +100,14 @@ function chartPanel(person, status) {
   // stays one tap away under "show working", never lost
   const left = document.createElement('div');
   left.className = 'stack';
-  const big = (value, label, brass) => `<div><div class="title" style="font-size:22px;color:${brass ? 'var(--brass)' : 'var(--text)'}">${value}</div><div class="section-label">${label}</div></div>`;
+  // colour: brass for the life path; the animal and sun sign take her zodiac colour code
+  const big = (value, label, color) => `<div><div class="title" style="font-size:22px;color:${color === true ? 'var(--brass)' : (color || 'var(--text)')}">${value}</div><div class="section-label">${label}</div></div>`;
   left.innerHTML = `
     <div class="row wrap" style="gap:20px;align-items:flex-end">
       ${big(`${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
       ${big(`${py.value}${py.master ? '★' : ''}`, `${thisYear} year`)}
-      ${big(chinese.boundary ? '—' : chinese.animal, chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase())}
-      ${big(sun.sign, sun.cusp ? 'sun · cusp' : 'sun')}
+      ${big(chinese.boundary ? '—' : chinese.animal, chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase(), chinese.boundary ? null : zodiacColor(chinese.animal))}
+      ${big(sun.sign, sun.cusp ? 'sun · cusp' : 'sun', signColor(sun.sign))}
     </div>
     <details style="margin-top:4px">
       <summary style="cursor:pointer;font-size:11px;color:var(--text-3);list-style:none">show working ▸</summary>

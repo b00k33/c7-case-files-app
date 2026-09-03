@@ -68,6 +68,32 @@ export function barRow({ label, value, max = 100, display, colorVar }) {
 }
 
 // --- tokens --------------------------------------------------------------
+// ---------------------------------------------------------------- colour --
+// Her colour code (2026-09-03), applied wherever an animal or sun sign is
+// printed. Chinese animals by trine: blue Snake·Ox·Rooster, green
+// Dog·Tiger·Horse, pink Pig·Goat·Rabbit (the Cat, in the Vietnamese
+// zodiac), yellow Rat·Dragon·Monkey. Western signs by element: air light
+// blue, fire red, earth yellow-brown, water dark blue.
+const ZODIAC_GROUP = {
+  Snake: 'blue', Ox: 'blue', Rooster: 'blue',
+  Dog: 'green', Tiger: 'green', Horse: 'green',
+  Pig: 'pink', Goat: 'pink', Rabbit: 'pink', Cat: 'pink',
+  Rat: 'yellow', Dragon: 'yellow', Monkey: 'yellow',
+};
+const SIGN_ELEMENT = {
+  Gemini: 'air', Libra: 'air', Aquarius: 'air',
+  Aries: 'fire', Leo: 'fire', Sagittarius: 'fire',
+  Taurus: 'earth', Virgo: 'earth', Capricorn: 'earth',
+  Cancer: 'water', Scorpio: 'water', Pisces: 'water',
+};
+export function zodiacGroup(animal) { return ZODIAC_GROUP[animal] || null; }
+export function signElement(sign) { return SIGN_ELEMENT[sign] || null; }
+export function zodiacColor(animal) { const g = zodiacGroup(animal); return g ? `var(--zc-${g})` : null; }
+export function signColor(sign) { const e = signElement(sign); return e ? `var(--ws-${e})` : null; }
+/** Inline HTML for a coloured animal / sun-sign name. */
+export function animalHtml(animal) { const g = zodiacGroup(animal); return g ? `<span class="zc zc-${g}">${animal}</span>` : animal; }
+export function signHtml(sign) { const e = signElement(sign); return e ? `<span class="zc ws-${e}">${sign}</span>` : sign; }
+
 // kind: 'lifePath' | 'personalYear' | 'animalYear' | 'sunSign'
 // opts: { status, master, boundary, cusp, value, animal, animalIndex, element, sign }
 
@@ -112,21 +138,24 @@ export function makeToken(kind, opts = {}) {
     // twelve-spoke wheel, one sector filled at animalIndex
     group.appendChild(ring(10, 10, 8, color));
     const idx = opts.animalIndex ?? -1;
+    // the ring keeps the status colour; the animal's own sector and letter take the trine colour
+    const zc = (status !== 'unknown' && zodiacColor(opts.animal)) || color;
     for (let i = 0; i < 12; i++) {
       const a0 = (i / 12) * Math.PI * 2 - Math.PI / 2;
       const x1 = 10 + Math.cos(a0) * 3, y1 = 10 + Math.sin(a0) * 3;
       const x2 = 10 + Math.cos(a0) * 8, y2 = 10 + Math.sin(a0) * 8;
-      group.appendChild(svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-width': idx === i ? 2.2 : 0.7, opacity: idx === i ? 1 : 0.45 }));
+      group.appendChild(svg('line', { x1, y1, x2, y2, stroke: idx === i ? zc : color, 'stroke-width': idx === i ? 2.2 : 0.7, opacity: idx === i ? 1 : 0.45 }));
     }
     if (opts.element) {
-      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 7, fill: color, 'font-family': 'var(--font-mono)' });
+      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 7, fill: zc, 'font-family': 'var(--font-mono)' });
       label.textContent = opts.element[0];
       group.appendChild(label);
     }
   } else if (kind === 'sunSign') {
     group.appendChild(svg('rect', { x: 2.5, y: 2.5, width: 15, height: 15, rx: 3, fill: 'none', stroke: color, 'stroke-width': 1.6 }));
     if (opts.sign) {
-      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 6.2, fill: color, 'font-family': 'var(--font-mono)' });
+      const wc = (status !== 'unknown' && signColor(opts.sign)) || color;
+      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 6.2, fill: wc, 'font-family': 'var(--font-mono)' });
       label.textContent = opts.sign.slice(0, 3).toUpperCase();
       group.appendChild(label);
     }

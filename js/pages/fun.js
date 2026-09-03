@@ -1,5 +1,5 @@
 import { signFor } from '../chinese.js';
-import { emptyState } from '../indicators.js';
+import { emptyState, animalHtml } from '../indicators.js';
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -106,7 +106,7 @@ export async function render(root, ctx) {
     const entries = groups[sign];
     const panel = document.createElement('div');
     panel.className = 'panel';
-    panel.innerHTML = `<div class="panel-title">${sign} <span class="mono" style="color:var(--text-3);font-size:11px">· ${entries.length} ${entries.length === 1 ? 'person' : 'people'}</span></div>`;
+    panel.innerHTML = `<div class="panel-title">${animalHtml(sign)} <span class="mono" style="color:var(--text-3);font-size:11px">· ${entries.length} ${entries.length === 1 ? 'person' : 'people'}</span></div>`;
     const list = document.createElement('div');
     list.className = 'stack';
     list.style.gap = '2px';
@@ -117,7 +117,7 @@ export async function render(root, ctx) {
       row.innerHTML = `
         <div class="main">
           <div class="title">${person.display_name}</div>
-          <div class="sub mono">${s.element} ${s.animal}</div>
+          <div class="sub mono">${s.element} ${animalHtml(s.animal)}</div>
         </div>
         ${tags.length ? `<div class="row wrap" style="gap:4px;max-width:220px;justify-content:flex-end">${tags.map((t) => `<span class="chip brass">${t.name}</span>`).join('')}</div>` : ''}
       `;

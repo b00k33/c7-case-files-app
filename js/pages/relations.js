@@ -3,7 +3,7 @@ import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
-import { makeToken, relationGlyph, barRow, emptyState } from '../indicators.js';
+import { makeToken, relationGlyph, barRow, emptyState, animalHtml, signHtml } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS } from '../tree.js';
@@ -321,9 +321,14 @@ function renderNumberPanels(root, people) {
       const lp = lifePath(p.birth_date);
       const sun = sunSign(p.birth_date);
       const ch = signFor(p.birth_date);
-      return `<tr><td>${p.display_name}</td><td class="num">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</td><td>${sun.ok ? sun.sign : '—'}</td><td>${ch.ok && !ch.boundary ? ch.animal : ch.boundary ? 'boundary' : '—'}</td></tr>`;
+      return `<tr><td>${p.display_name}</td><td class="num">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</td><td>${sun.ok ? signHtml(sun.sign) : '—'}</td><td>${ch.ok && !ch.boundary ? animalHtml(ch.animal) : ch.boundary ? 'boundary' : '—'}</td></tr>`;
     }).join('')}</tbody>`;
     gridSlot.appendChild(table);
+    const key = document.createElement('div');
+    key.className = 'zc-key';
+    key.innerHTML = `<span><span class="zc zc-blue">Snake · Ox · Rooster</span></span><span><span class="zc zc-green">Dog · Tiger · Horse</span></span><span><span class="zc zc-pink">Pig · Goat · Rabbit</span></span><span><span class="zc zc-yellow">Rat · Dragon · Monkey</span></span>
+      <span><span class="zc ws-air">air</span> · <span class="zc ws-fire">fire</span> · <span class="zc ws-earth">earth</span> · <span class="zc ws-water">water</span></span>`;
+    gridSlot.appendChild(key);
   }
 }
 
