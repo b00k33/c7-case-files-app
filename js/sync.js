@@ -31,7 +31,7 @@ let session = null;
 let running = false;
 let timer = null;
 let tableColumns = {};    // table -> [column names]
-let state = { status: 'off', pending: 0, lastSync: null, error: null };
+let state = { status: 'off', pending: 0, lastSync: null, error: null, pulledAt: null };
 const listeners = new Set();
 
 function setState(patch) {
@@ -219,9 +219,12 @@ export async function syncNow() {
   setState({ status: 'syncing', error: null });
   try {
     await migrateIfFirst();
-    await pull();
+    const pulled = await pull();
+    // what arrived is written to storage NOW, not on the 2s timer — on the
+    // phone the app is often closed before a timer fires (2026-09-03)
+    if (pulled) { try { await db.persist(); } catch (_) { /* the timer will retry */ } }
     await push();
-    setState({ status: 'idle', pending: pendingCount(), lastSync: Date.now(), error: null });
+    setState({ status: 'idle', pending: pendingCount(), lastSync: Date.now(), error: null, pulledAt: pulled ? Date.now() : state.pulledAt });
   } catch (e) {
     setState({ status: 'error', pending: pendingCount(), error: String(e && e.message || e) });
   } finally {
@@ -270,6 +273,14 @@ export async function initSync() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && pendingCount() > 0) syncNow();
   });
+}
+
+/** Forget the pull cursor and fetch the whole cloud again — the recovery for a device that shows less than the cloud holds. */
+export async function repullAll() {
+  if (!db.isReady()) return;
+  ensureLocalTables();
+  metaSet('last_pull', '1970-01-01T00:00:00Z');
+  await syncNow();
 }
 
 export async function signIn(email, password) {

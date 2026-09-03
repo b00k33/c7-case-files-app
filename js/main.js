@@ -371,9 +371,31 @@ function renderSyncChip(s) {
 sync.subscribe(renderSyncChip);
 // after each successful sync, push any queued image copies to the cloud
 sync.subscribe((s) => { if (s.status === 'idle') import('./assets.js').then((m) => m.flushUploads()).catch(() => {}); });
+// when a pull brought something in, the page she is looking at shows it —
+// unless she is mid-typing or has a drawer open (2026-09-03: the phone sat
+// on a Cases page with one card while five more had already arrived)
+let lastPulledAt = null;
+sync.subscribe((s) => {
+  if (!s.pulledAt || s.pulledAt === lastPulledAt) return;
+  lastPulledAt = s.pulledAt;
+  const a = document.activeElement;
+  const typing = a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+  if (typing || drawer.classList.contains('open')) return;
+  refreshCaseContext();
+  renderRoute();
+});
 setInterval(() => renderSyncChip(sync.getState()), 30000); // keep "Xm ago" honest
 
 syncChip.addEventListener('click', () => ctx.openDrawer((body) => renderSyncDrawer(body)));
+
+// "3 cases · 21 people" — what this device's own database holds right now
+function deviceCounts() {
+  try {
+    const c = db.exec("SELECT COUNT(*) AS n FROM case_file WHERE deleted_at IS NULL AND kind != 'fun'")[0]?.n || 0;
+    const p = db.exec('SELECT COUNT(*) AS n FROM person WHERE deleted_at IS NULL')[0]?.n || 0;
+    return `${c} case${c === 1 ? '' : 's'} · ${p} ${p === 1 ? 'person' : 'people'}`;
+  } catch (_) { return '—'; }
+}
 
 function renderSyncDrawer(body) {
   const user = sync.currentUser();
@@ -413,15 +435,23 @@ function renderSyncDrawer(body) {
       <div class="row between"><span class="section-label">Status</span><span class="mono">${s.status === 'error' ? 'problem — see below' : s.status}</span></div>
       <div class="row between"><span class="section-label">Last synced</span><span class="mono">${s.lastSync ? elapsed(s.lastSync) : 'not yet'}</span></div>
       <div class="row between"><span class="section-label">Waiting to upload</span><span class="mono">${s.pending || 0}</span></div>
+      <div class="row between"><span class="section-label">This device holds</span><span class="mono">${deviceCounts()}</span></div>
     </div>
     ${s.error ? `<div class="inline-note" style="margin-top:12px">${s.error}</div>` : ''}
-    <div class="row" style="gap:8px;margin-top:20px">
+    <div class="row wrap" style="gap:8px;margin-top:20px">
       <button class="btn btn-primary btn-sm" id="sy-now">Sync now</button>
+      <button class="btn btn-ghost btn-sm" id="sy-repull" title="Forget what this device thinks it has already fetched and read the whole cloud again">Re-pull everything</button>
       <button class="btn btn-ghost btn-sm" id="sy-out">Sign out</button>
     </div>
   `;
   body.querySelector('#sy-now').addEventListener('click', async () => {
     await sync.syncNow();
+    renderSyncDrawer(body);
+  });
+  body.querySelector('#sy-repull').addEventListener('click', async () => {
+    const b = body.querySelector('#sy-repull');
+    b.disabled = true; b.textContent = 'Re-pulling…';
+    await sync.repullAll();
     renderSyncDrawer(body);
   });
   body.querySelector('#sy-out').addEventListener('click', async () => {
