@@ -8,7 +8,7 @@ import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
 
 function fmtLongDate(iso) {
   if (!iso) return null;
