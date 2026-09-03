@@ -266,10 +266,12 @@ export async function render(root, ctx) {
       // original value rather than losing them.
       if (newValue && typeof newValue === 'object') newValue = { ...idFields(value), ...newValue };
       await store.decideClaim(claim.id, 'rejected', 'superseded by an edited value');
-      await store.createClaim({ case_id: claim.case_id, target_type: claim.target_type, target_id: claim.target_id, field: claim.field, value: newValue, origin: claim.origin, rationale: claim.rationale });
-      const fresh = await store.listClaims(ctx.caseId, 'drafted');
-      const idx = fresh.findIndex((c) => c.field === claim.field && c.target_id === claim.target_id);
-      await store.decideClaim(fresh[idx].id, 'accepted');
+      // accept the claim we just made, by its id. Searching the queue for
+      // the first match on field + person accepted a DIFFERENT drafted
+      // claim whenever one existed — her edit stayed in the queue and the
+      // old value went in instead (review, 2026-09-03).
+      const newId = await store.createClaim({ case_id: claim.case_id, target_type: claim.target_type, target_id: claim.target_id, field: claim.field, value: newValue, origin: claim.origin, rationale: claim.rationale });
+      await store.decideClaim(newId, 'accepted');
       decidedThisSession++; // one claim resolved, even though it took a reject+re-accept internally
       sessionCounts.accepted++;
       render(root, ctx);

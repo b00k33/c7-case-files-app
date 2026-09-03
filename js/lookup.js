@@ -51,9 +51,12 @@ function parseWdTime(v) {
 }
 
 function values(claims, prop) {
-  return (claims[prop] || [])
-    .filter((c) => c.rank !== 'deprecated' && c.mainsnak && c.mainsnak.datavalue)
-    .map((c) => c.mainsnak.datavalue.value);
+  const usable = (claims[prop] || []).filter((c) => c.rank !== 'deprecated' && c.mainsnak && c.mainsnak.datavalue);
+  // Wikidata marks the statement it considers current as "preferred"; when
+  // any exist, the normal-rank ones are superseded and must not be read
+  // (review, 2026-09-03: a corrected birth date could lose to the old one)
+  const preferred = usable.filter((c) => c.rank === 'preferred');
+  return (preferred.length ? preferred : usable).map((c) => c.mainsnak.datavalue.value);
 }
 
 /** One Wikidata item → the facts we know how to draft, labels resolved. */
@@ -284,7 +287,9 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // the article's picture: an identification aid, not a fact, so it's saved
   // directly — fetched once, stored as an asset (syncs, works offline), with
   // its Wikipedia origin kept; if the bytes can't be read, the URL alone
-  await savePhotoFromUrl(store, personId, facts.photoUrl);
+  // a picture she chose herself is never replaced by the article's one
+  const current = await store.getPerson(personId);
+  if (facts.photoUrl && !(current && current.photo_path)) await savePhotoFromUrl(store, personId, facts.photoUrl);
 
   if (facts.birth) await claim('birth', facts.birth, P.birth);
   if (facts.death && facts.death.precision === 'day') await claim('death', facts.death, P.death);
