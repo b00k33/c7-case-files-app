@@ -7,7 +7,7 @@ import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
 
 function fmtLongDate(iso) {
   if (!iso) return null;
@@ -509,7 +509,16 @@ export async function render(root, ctx, personId, tab = 'profile') {
       const glyph = relationGlyph(kind || 'neutral', { unsettled });
       wrap.appendChild(glyph);
       const label = document.createElement('span');
-      label.innerHTML = `<a href="#/subject/${other.id}" style="color:var(--text)">${other.display_name}</a> <span class="mono" style="color:var(--text-3);font-size:11px">${dirLabel}${r.confirmed ? '' : ' · unconfirmed'}</span>`;
+      // one tap confirms a dotted link; un-confirming asks twice (her Confirm control, 2026-09-03)
+      label.innerHTML = `<a href="#/subject/${other.id}" style="color:var(--text)">${other.display_name}</a> <span class="mono" style="color:var(--text-3);font-size:11px">${dirLabel} · </span>${r.confirmed
+        ? `<button class="linklike rel-toggle" title="Confirmed — tap twice to make it unconfirmed">confirmed ✓</button>`
+        : `<button class="linklike rel-toggle brass" title="Unconfirmed — tap to confirm">unconfirmed · confirm</button>`}`;
+      const toggle = label.querySelector('.rel-toggle');
+      if (r.confirmed) {
+        twoTapConfirm(toggle, { confirmLabel: 'Really un-confirm?', onConfirm: async () => { await store.upsertRelationship({ id: r.id, confirmed: 0 }); ctx.rerender(); } });
+      } else {
+        toggle.addEventListener('click', async () => { await store.upsertRelationship({ id: r.id, confirmed: 1 }); ctx.rerender(); });
+      }
       wrap.appendChild(label);
       row.appendChild(wrap);
       relEl.appendChild(row);

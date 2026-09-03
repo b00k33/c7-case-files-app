@@ -497,6 +497,11 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tree-node.focus .face { box-shadow: 0 0 0 2px var(--brass); }
 .tree-node.focus .name { color: var(--brass); }
 .tree-node:hover .name { color: var(--brass); }
+.tree-confirm { fill: var(--ink-1); stroke: var(--brass); stroke-width: 1.5; cursor: pointer; pointer-events: all; }
+.tree-confirm:hover { fill: var(--brass); }
+.linklike { background: none; border: 0; padding: 0; font: inherit; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); cursor: pointer; }
+.linklike.brass { color: var(--brass); }
+.linklike:hover { text-decoration: underline; }
 .tree-more { display: block; margin: 0 auto; background: none; border: 1px dashed var(--ink-3); color: var(--text-3); font: inherit; font-size: 11px; border-radius: var(--r-sm); padding: 4px 12px; cursor: pointer; }
 .tree-more:hover { color: var(--brass); border-color: var(--brass); }
 

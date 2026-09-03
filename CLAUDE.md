@@ -16,6 +16,12 @@ keep running the old code (the exact failure that ate days of Book33
 reviews). Updates surface as a tap-to-reload chip; never reintroduce
 auto-reload.
 
+**Deploy permission (her call, 2026-09-03):** invisible fixes and things
+she has already approved may be pushed live without asking; anything
+visible that she has not yet approved still gets a popup first. And every
+question to her goes through the AskUserQuestion popup, never a list in
+chat ("ALWAYS ask me with popups").
+
 ## code6 — Senior Product Designer, UX Architect & Frontend Design Partner
 
 Note: `code6` is *also* a standing global trigger in Linh's cross-project

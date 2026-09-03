@@ -393,7 +393,12 @@ panel is allowed to show an observed count alone.
    stays as a toggle. Layout is pure (`js/tree.js`: generations by
    relaxation over parent/spouse/sibling links, couple units, recursive
    widths); the page only draws. Below: repeating-number panel and
-   life-path grid.
+   life-path grid. **Confirm (2026-09-03):** a recorded-but-unconfirmed
+   link carries a small brass dot at its midpoint on the tree — one tap
+   confirms it; the profile's Relations panel shows "unconfirmed · confirm"
+   (one tap) or "confirmed ✓" (two taps to un-confirm). Implied links
+   (inferred from co-parents or siblings) have no dot: there is nothing
+   recorded to confirm until the relationship itself is added.
 6. Patterns — the pair matrix, selected-pair readout, children-vs-parents
    band, event-date numbers, findings with observed vs expected, control
    test.

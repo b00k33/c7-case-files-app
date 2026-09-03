@@ -119,6 +119,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender) {
 
   const tree = wrap.querySelector('.tree');
   const svg = svgEl('svg', { class: 'tree-lines', width: L.width, height: L.height, viewBox: `0 0 ${L.width} ${L.height}` });
+  svg.style.pointerEvents = 'none'; // lines never block taps on faces; the confirm dots opt back in
   tree.appendChild(svg);
   const stroke = (confirmed) => (confirmed ? 'var(--text-3)' : 'var(--ink-3)');
   for (const e of L.edges) {
@@ -132,6 +133,20 @@ async function renderTree(slot, ctx, people, rels, focus, rerender) {
     if ((e.kind === 'couple' || e.kind === 'drop') && !e.confirmed) el.setAttribute('stroke-dasharray', '4,4');
     if (e.kind === 'god') el.setAttribute('stroke-dasharray', '2,4');
     svg.appendChild(el);
+    // a recorded-but-unconfirmed link gets a small brass dot at its midpoint: one tap confirms it
+    const ids = e.relIds || (e.relId ? [e.relId] : []);
+    if (!e.confirmed && !e.implied && ids.length) {
+      const mx = e.kind === 'couple' || e.kind === 'bus' ? (e.x1 + e.x2) / 2 : (e.kind === 'drop' || e.kind === 'trunk' ? e.x : (e.x1 + e.x2) / 2);
+      const my = e.kind === 'couple' ? e.y : (e.y1 + e.y2) / 2;
+      const dot = svgEl('circle', { cx: mx, cy: my, r: 5, class: 'tree-confirm' });
+      const t = svgEl('title'); t.textContent = `Confirm — ${e.label || 'this link'}`; dot.appendChild(t);
+      dot.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        for (const id of ids) await ctx.store.upsertRelationship({ id, confirmed: 1 });
+        rerender();
+      });
+      svg.appendChild(dot);
+    }
   }
 
   // godparent tags per person

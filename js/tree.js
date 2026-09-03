@@ -130,7 +130,7 @@ export function layoutTree(people, rels, opts = {}) {
       const a = u.members[i - 1], b = u.members[i];
       const r = relOf.get(`${a.id}|${b.id}|spouse`);
       const isImplied = implied.has(`${a.id}|${b.id}`);
-      edges.push({ kind: 'couple', x1: mx + (i - 1) * (nodeW + coupleGap) + nodeW, x2: mx + i * (nodeW + coupleGap), y: rowY(u.gen) + faceH / 2, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied });
+      edges.push({ kind: 'couple', x1: mx + (i - 1) * (nodeW + coupleGap) + nodeW, x2: mx + i * (nodeW + coupleGap), y: rowY(u.gen) + faceH / 2, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied, relId: r ? r.id : null, label: `${a.display_name} · ${b.display_name} · spouse` });
     }
     if (!u.children.length) return;
     let cx = x + (u.w - childrenW(u)) / 2;
@@ -144,7 +144,8 @@ export function layoutTree(people, rels, opts = {}) {
         const n = nodeById.get(m.id);
         const r = ps.map((pid) => relOf.get(`${pid}|${m.id}|parent`)).find(Boolean);
         const isImplied = ps.every((pid) => implied.has(`${pid}|${m.id}`));
-        drops.push({ x: n.x + nodeW / 2, y2: n.y, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied });
+        const rels = ps.map((pid) => relOf.get(`${pid}|${m.id}|parent`)).filter(Boolean);
+        drops.push({ x: n.x + nodeW / 2, y2: n.y, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied, relIds: rels.map((x) => x.id), label: `${m.display_name} · child of ${ps.map((pid) => (byId.get(pid) || {}).display_name).filter(Boolean).join(' & ')}` });
       }
     }
     if (!drops.length) return;
@@ -153,7 +154,7 @@ export function layoutTree(people, rels, opts = {}) {
     edges.push({ kind: 'trunk', x: u.cx, y1: rowY(u.gen) + faceH, y2: busY });
     const xs = drops.map((d) => d.x).concat([u.cx]);
     edges.push({ kind: 'bus', x1: Math.min(...xs), x2: Math.max(...xs), y: busY });
-    for (const d of drops) edges.push({ kind: 'drop', x: d.x, y1: busY, y2: d.y2, confirmed: d.confirmed, implied: d.implied });
+    for (const d of drops) edges.push({ kind: 'drop', x: d.x, y1: busY, y2: d.y2, confirmed: d.confirmed, implied: d.implied, relIds: d.relIds, label: d.label });
     void parentIds;
   };
   let x = 0;
@@ -163,7 +164,7 @@ export function layoutTree(people, rels, opts = {}) {
   for (const r of rels) {
     if (r.kind !== 'godparent' || !vis.has(r.a_id) || !vis.has(r.b_id)) continue;
     const a = nodeById.get(r.a_id), b = nodeById.get(r.b_id);
-    if (a && b) edges.push({ kind: 'god', x1: a.x + nodeW / 2, y1: a.y + faceH, x2: b.x + nodeW / 2, y2: b.y, confirmed: !!r.confirmed });
+    if (a && b) edges.push({ kind: 'god', x1: a.x + nodeW / 2, y1: a.y + faceH, x2: b.x + nodeW / 2, y2: b.y, confirmed: !!r.confirmed, relIds: [r.id], label: `${a.person.display_name} · godparent of ${b.person.display_name}` });
   }
 
   // the topmost visible row becomes y = 0
