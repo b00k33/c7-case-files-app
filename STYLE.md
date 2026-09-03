@@ -202,8 +202,8 @@ would.
   `--ws-*`, helpers `animalHtml()`/`signHtml()` in `js/indicators.js`. The
   life-path grid carries a one-line key.
 - **Number icons replace the symbol tokens (her call, 2026-09-03).** "Show
-  lp number as number, and use images/icons for astrology" — on the tree,
-  the zodiac map and the profile header the three facts read as
+  lp number as number, and use images/icons for astrology" — on the tree
+  and the profile header the three facts read as
   `4 · 🐓 · ♑`: the life path as a brass number (★ for a master number),
   the animal as its picture inside a ring in its trine colour, the sun sign
   as its classic glyph in its element colour (a small ½ marks a cusp).

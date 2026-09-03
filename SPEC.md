@@ -379,8 +379,13 @@ panel is allowed to show an observed count alone.
    all" and "+ N above/below" chips; the family overview shows the whole
    case. "Numbers" toggles the life-path/animal/sun tokens under each
    face. Non-family links (business, associate, household) are listed
-   under the tree as "Other connections". The old circular **zodiac map**
-   stays as a toggle. Layout is pure (`js/tree.js`: generations by
+   under the tree as "Other connections". The **zodiac map** toggle
+   (redesigned 2026-09-03, her eight popup answers) is four trine zones —
+   Blue · Yellow / Green · Pink, clashing trines diagonal — each grouped by
+   exact animal with counts, a face and short name per person, no
+   connection lines ("the picture is simply who shares a trine"); people
+   without a settled birth year sit in a tray below; on the phone the
+   zones stack as bands. Layout is pure (`js/tree.js`: generations by
    relaxation over parent/spouse/sibling links, couple units, recursive
    widths); the page only draws. **Sibling groups (2026-09-03, her ask):**
    when a couple has four or more children who carry nothing but "child

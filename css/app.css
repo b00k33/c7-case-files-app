@@ -332,15 +332,28 @@ table.dense td.num { font-family: var(--font-mono); }
 
 /* ------------------------------------------------------------ relations */
 
-.rel-map { position: relative; background: var(--ink-1); border-radius: var(--r-lg); overflow: hidden; min-height: 420px; }
-.rel-node {
-  position: absolute; background: var(--ink-2); border-radius: var(--r-lg); padding: var(--sp-2) var(--sp-3);
-  cursor: pointer; font-size: 12px; transform: translate(-50%,-50%); min-width: 96px; text-align: center;
-}
-.rel-node .name { color: var(--text); }
-.rel-node .node-avatar { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin: 0 auto 6px; background: var(--ink-2); border: 2px solid var(--ink-3); }
-.rel-node .node-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.rel-lines { position: absolute; inset: 0; pointer-events: none; }
+/* zodiac map (2026-09-03, her pick): four trine zones grouped by animal, no lines;
+   a 2×2 on the desktop that stacks into bands on the phone */
+.zmap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+@media (max-width: 640px) { .zmap { grid-template-columns: minmax(0, 1fr); } }
+.zmap-zone { border-radius: var(--r-lg); padding: var(--sp-3); background: color-mix(in srgb, var(--zone) 6%, var(--ink-1)); border: 1px solid color-mix(in srgb, var(--zone) 35%, transparent); }
+.zmap-zone[data-zone="blue"] { --zone: var(--zc-blue); }
+.zmap-zone[data-zone="green"] { --zone: var(--zc-green); }
+.zmap-zone[data-zone="pink"] { --zone: var(--zc-pink); }
+.zmap-zone[data-zone="yellow"] { --zone: var(--zc-yellow); }
+.zmap-zone-title { display: flex; align-items: baseline; gap: var(--sp-1); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--zone, var(--text-3)); font-weight: 600; margin-bottom: var(--sp-3); }
+.zmap-zone-title .n { font-family: var(--font-mono); font-weight: 400; color: var(--text-3); }
+.zmap-animals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.zmap-animal-head { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-2); margin-bottom: var(--sp-2); }
+.zmap-animal-head .n { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+.zmap-animal-head.empty { opacity: .45; }
+.zmap-people { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-1); }
+.zmap-person { width: 52px; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; text-align: center; }
+.zmap-face { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: var(--ink-2); border: 2px solid var(--zone, var(--ink-3)); display: flex; align-items: center; justify-content: center; font-family: var(--font-title); font-size: 12px; color: var(--brass); }
+.zmap-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.zmap-person .nm { font-size: 10px; color: var(--text-2); line-height: 1.15; max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zmap-tray { grid-column: 1 / -1; border-radius: var(--r-lg); padding: var(--sp-3); background: var(--ink-1); border: 1px dashed var(--line); }
+.zmap-key { font-size: 11px; color: var(--text-3); margin-top: var(--sp-2); }
 
 /* -------------------------------------------------------------- matrix */
 

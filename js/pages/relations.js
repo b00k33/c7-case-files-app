@@ -1,9 +1,8 @@
 import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
-import { relation } from '../relations.js';
 import { expectedDigitCount } from '../stats.js';
-import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
+import { numberIcons, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl } from '../assets.js';
@@ -101,7 +100,7 @@ export async function render(root, ctx, focusId = null) {
   if (!people.length) {
     mapSlot.appendChild(emptyState({ missing: 'No people in this case yet.', why: 'Add the first person to start the tree.', action: '+ Person', onAction: () => ctx.openDrawer((body) => renderAddPerson(body, ctx)) }));
   } else if (view === 'map') {
-    await renderZodiacMap(mapSlot, ctx, people, rels);
+    await renderZodiacMap(mapSlot, ctx, people);
   } else {
     await renderTree(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
     renderOthers(root.querySelector('#others-slot'), ctx, people, rels, focus);
@@ -413,67 +412,80 @@ function renderOthers(slot, ctx, people, rels, focus) {
 
 // ------------------------------------------------------------ zodiac map --
 
-async function renderZodiacMap(mapSlot, ctx, people, rels) {
-  const mapEl = document.createElement('div');
-  mapEl.className = 'rel-map';
-  const svg = svgEl('svg', { class: 'rel-lines', viewBox: '0 0 100 100', preserveAspectRatio: 'none' });
-  mapEl.appendChild(svg);
+// Her redesign (2026-09-03, eight popup answers): four trine zones, each
+// grouped by exact animal with counts, no connection lines — the picture
+// is simply who shares a trine. Inside a zone everyone is in harmony by
+// definition; the zones sit so the clashing trines are diagonal (Blue ↔
+// Pink, Yellow ↔ Green). A face (photo, initials fallback) and a short
+// name per person; tap opens the profile. People without a settled birth
+// year sit in a tray below, never placed by guesswork. Plain HTML, so on
+// the phone the four zones simply stack as bands.
+const MAP_ZONES = ['blue', 'yellow', 'green', 'pink'];
 
-  const n = people.length;
-  const positions = {};
-  people.forEach((p, i) => {
-    const angle = (i / Math.max(n, 1)) * Math.PI * 2 - Math.PI / 2;
-    positions[p.id] = { x: 50 + 36 * Math.cos(angle), y: 50 + 36 * Math.sin(angle) };
-  });
+// "Catherine of Aragon" → "Catherine A." · "Henry VIII" → "Henry VIII" · "Dolly" → "Dolly"
+function shortName(name) {
+  const words = String(name || '').replace(/[(),]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return words[0] || '';
+  const last = words[words.length - 1];
+  return /^[IVXLC]+$/.test(last) || /^\d/.test(last) ? `${words[0]} ${last}` : `${words[0]} ${last[0]}.`;
+}
 
-  for (const r of rels) {
-    const a = positions[r.a_id], b = positions[r.b_id];
-    if (!a || !b) continue;
-    const pa = people.find((p) => p.id === r.a_id), pb = people.find((p) => p.id === r.b_id);
-    const sa = signFor(exactBirth(pa)), sb = signFor(exactBirth(pb));
-    const unsettled = !(sa.ok && !sa.boundary && sb.ok && !sb.boundary);
-    const kind = unsettled ? 'neutral' : relation(sa.animalIndex, sb.animalIndex);
-
-    const line = svgEl('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: r.confirmed ? 'var(--line)' : 'var(--text-3)', 'stroke-width': 0.4 });
-    if (!r.confirmed) line.setAttribute('stroke-dasharray', '1.2,1');
-    svg.appendChild(line);
-
-    const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
-    const glyphHolder = document.createElement('div');
-    glyphHolder.style.cssText = `position:absolute;left:${midX}%;top:${midY}%;transform:translate(-50%,-50%);background:var(--ink-1);border-radius:3px;`;
-    glyphHolder.appendChild(relationGlyph(kind, { unsettled }));
-    glyphHolder.title = `${r.kind}${unsettled ? ' — one birth year unsettled' : ' — ' + kind}`;
-    mapEl.appendChild(glyphHolder);
+function mapPersonNode(p, ctx) {
+  const node = document.createElement('div');
+  node.className = 'zmap-person';
+  node.title = p.display_name;
+  node.innerHTML = `<div class="zmap-face">${initials(p.display_name)}</div><div class="nm">${shortName(p.display_name)}</div>`;
+  const face = node.querySelector('.zmap-face');
+  if (p.photo_path || p.photo_url) {
+    (p.photo_path ? resolveAssetUrl(p.photo_path, 'image/jpeg') : Promise.resolve(null)).then((u) => {
+      const src = u || p.photo_url;
+      if (!src) return;
+      const img = document.createElement('img');
+      img.alt = ''; img.src = src;
+      img.addEventListener('load', () => { face.textContent = ''; face.appendChild(img); });
+    });
   }
+  node.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
+  return node;
+}
 
-  for (const p of people) {
-    const pos = positions[p.id];
-    const node = document.createElement('div');
-    node.className = 'rel-node';
-    node.style.left = `${pos.x}%`;
-    node.style.top = `${pos.y}%`;
-    node.innerHTML = `<div class="name">${p.display_name}</div>`;
-    if (p.photo_path || p.photo_url) {
-      const av = document.createElement('div');
-      av.className = 'node-avatar';
-      node.prepend(av);
-      (p.photo_path ? resolveAssetUrl(p.photo_path, 'image/jpeg') : Promise.resolve(null)).then((u) => {
-        const src = u || p.photo_url;
-        if (!src) { av.remove(); return; }
-        const img = document.createElement('img');
-        img.alt = ''; img.src = src;
-        img.addEventListener('error', () => av.remove());
-        av.appendChild(img);
-      });
+async function renderZodiacMap(mapSlot, ctx, people) {
+  const facts = people.map((p) => { const ch = signFor(exactBirth(p)); return { p, animal: ch.ok && !ch.boundary ? ch.animal : null }; });
+  const byName = (a, b) => a.p.display_name.localeCompare(b.p.display_name);
+  const wrap = document.createElement('div');
+  wrap.className = 'zmap';
+  for (const z of MAP_ZONES) {
+    const t = TRINES.find((x) => x.key === z);
+    const members = facts.filter((f) => f.animal && zodiacGroup(f.animal) === z);
+    const zone = document.createElement('div');
+    zone.className = 'zmap-zone';
+    zone.dataset.zone = z;
+    zone.innerHTML = `<div class="zmap-zone-title">${t.name} · ${t.members} <span class="n">· ${members.length}</span></div><div class="zmap-animals"></div>`;
+    const cols = zone.querySelector('.zmap-animals');
+    for (const a of ANIMALS.filter((x) => zodiacGroup(x) === z)) {
+      const mem = members.filter((f) => f.animal === a).sort(byName);
+      const col = document.createElement('div');
+      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}">${animalPicHtml(a)}${a}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
+      const list = col.querySelector('.zmap-people');
+      for (const f of mem) list.appendChild(mapPersonNode(f.p, ctx));
+      cols.appendChild(col);
     }
-    const icons = numberIcons(numbersFor(p));
-    icons.style.justifyContent = 'center';
-    icons.style.marginTop = '4px';
-    node.appendChild(icons);
-    node.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
-    mapEl.appendChild(node);
+    wrap.appendChild(zone);
   }
-  mapSlot.appendChild(mapEl);
+  const unsettled = facts.filter((f) => !f.animal).sort(byName);
+  if (unsettled.length) {
+    const tray = document.createElement('div');
+    tray.className = 'zmap-tray';
+    tray.innerHTML = `<div class="zmap-zone-title">Birth year unsettled — no animal yet <span class="n">· ${unsettled.length}</span></div><div class="zmap-people"></div>`;
+    const list = tray.querySelector('.zmap-people');
+    for (const f of unsettled) list.appendChild(mapPersonNode(f.p, ctx));
+    wrap.appendChild(tray);
+  }
+  mapSlot.appendChild(wrap);
+  const key = document.createElement('div');
+  key.className = 'zmap-key';
+  key.textContent = 'Inside a zone everyone is in harmony with each other · diagonal zones clash · tap a face to open the profile';
+  mapSlot.appendChild(key);
 }
 
 // --------------------------------------------------------- number panels --
