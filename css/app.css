@@ -334,7 +334,9 @@ table.dense td.num { font-family: var(--font-mono); }
 
 /* zodiac map (2026-09-03, her pick): four trine zones grouped by animal, no lines;
    a 2×2 on the desktop that stacks into bands on the phone */
-.zmap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+.zmap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); position: relative; }
+.zmap-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.zmap-clash { position: absolute; transform: translate(-50%, -50%); background: var(--ink-1); border-radius: 3px; padding: 1px; line-height: 0; }
 @media (max-width: 640px) { .zmap { grid-template-columns: minmax(0, 1fr); } }
 .zmap-zone { border-radius: var(--r-lg); padding: var(--sp-3); background: color-mix(in srgb, var(--zone) 6%, var(--ink-1)); border: 1px solid color-mix(in srgb, var(--zone) 35%, transparent); }
 .zmap-zone[data-zone="blue"] { --zone: var(--zc-blue); }

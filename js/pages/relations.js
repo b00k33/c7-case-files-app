@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { expectedDigitCount } from '../stats.js';
-import { numberIcons, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl } from '../assets.js';
@@ -465,7 +465,7 @@ async function renderZodiacMap(mapSlot, ctx, people) {
     for (const a of ANIMALS.filter((x) => zodiacGroup(x) === z)) {
       const mem = members.filter((f) => f.animal === a).sort(byName);
       const col = document.createElement('div');
-      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}">${animalPicHtml(a)}${a}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
+      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}" data-animal="${a}">${animalPicHtml(a)}${a}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
       const list = col.querySelector('.zmap-people');
       for (const f of mem) list.appendChild(mapPersonNode(f.p, ctx));
       cols.appendChild(col);
@@ -482,10 +482,45 @@ async function renderZodiacMap(mapSlot, ctx, people) {
     wrap.appendChild(tray);
   }
   mapSlot.appendChild(wrap);
+  // the clash lines follow the layout (2×2 on the desktop, bands on the phone)
+  new ResizeObserver(() => drawClashLines(wrap)).observe(wrap);
   const key = document.createElement('div');
   key.className = 'zmap-key';
-  key.textContent = 'Inside a zone everyone is in harmony with each other · diagonal zones clash · tap a face to open the profile';
+  key.textContent = 'Inside a zone everyone is in harmony with each other · a red ✕ line joins two animals that clash (Rat × Horse, Ox × Goat, Tiger × Monkey, Rabbit × Rooster, Dragon × Dog, Snake × Pig) when both are in this case · tap a face to open the profile';
   mapSlot.appendChild(key);
+}
+
+/**
+ * Her ask (2026-09-03, "include incompatible lines e.g. rat x horse"): a red
+ * line between the two animal groups that clash — the six opposite pairs —
+ * with the clash glyph at its midpoint, drawn only when both animals have
+ * someone in the case. Group to group, not person to person, so the map
+ * stays as quiet as she chose.
+ */
+function drawClashLines(wrap) {
+  wrap.querySelectorAll('.zmap-clash').forEach((e) => e.remove());
+  let svg = wrap.querySelector('.zmap-lines');
+  if (!svg) { svg = svgEl('svg', { class: 'zmap-lines' }); wrap.appendChild(svg); }
+  svg.innerHTML = '';
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!W || !H) return;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const r0 = wrap.getBoundingClientRect();
+  const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left - r0.left + r.width / 2, r.top - r0.top + r.height / 2]; };
+  for (let k = 0; k < 6; k++) {
+    const a = wrap.querySelector(`.zmap-animal-head[data-animal="${ANIMALS[k]}"]:not(.empty)`);
+    const b = wrap.querySelector(`.zmap-animal-head[data-animal="${ANIMALS[k + 6]}"]:not(.empty)`);
+    if (!a || !b) continue;
+    const [x1, y1] = centre(a), [x2, y2] = centre(b);
+    svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7 }));
+    const g = document.createElement('div');
+    g.className = 'zmap-clash';
+    g.style.left = `${(x1 + x2) / 2}px`;
+    g.style.top = `${(y1 + y2) / 2}px`;
+    g.title = `${ANIMALS[k]} × ${ANIMALS[k + 6]} — clash`;
+    g.appendChild(relationGlyph('clash'));
+    wrap.appendChild(g);
+  }
 }
 
 // --------------------------------------------------------- number panels --
