@@ -437,7 +437,9 @@ panel is allowed to show an observed count alone.
 7. Import — describe a topic / paste text / look up a record. Everything
    drafted, at zero confidence, into the queue. The unverified lock cannot be
    turned off.
-8. Review — one claim at a time, keyboard A / S / E / R / ?, bulk actions,
+8. Review — one claim at a time (and, since v54, one unconfirmed
+   relationship at a time: Confirm / Skip / Remove / Question — her ask
+   2026-09-03 "allow for review"), keyboard A / S / E / R / ?, bulk actions,
    projected confidence.
 9. Video — player, marked moments, source-kind rating, conflict flags,
    citation preview.
