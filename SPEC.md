@@ -556,3 +556,25 @@ promise; every pick must land on a page. Twenty-eight questions later:
   Zodiac, with "Dashboard (old)" dimmed until ~2026-09-09; phone tab bar
   Cases · People · Review · Inbox · Fun. `#/inbox` is the Evidence page
   opened on its Inbox view.
+
+## 11. Two rules the 2026-09-03 review turned up
+
+**Never calculate from a date the file does not hold.** The schema stores a
+date *plus its precision*: `1923-06-01` with `birth_precision` `month` means
+"June 1923" and the day is a placeholder. Every calculation module already
+refuses to guess when handed nothing — but handed the placeholder it answers
+confidently. So birth and death dates reach a calculation ONLY through
+`js/person-dates.js` (`exactBirth`, `exactDeath`, `exactEventDate`), which
+returns the date at day precision and null otherwise. Never read
+`person.birth_date` directly into `lifePath`, `signFor`, `sunSign`,
+`personalYear` or `birthdayNumber`.
+
+**The cloud's `updated_at` is not unique, so never page on it alone.**
+`push()` stamps a whole batch of 100 rows with one timestamp. Paging with
+`gt(lastSeen)` steps over every other row sharing that instant and never
+comes back for them (measured: 500 of 600 rows fetched, 100 lost). `pull()`
+pages with `gte` plus the set of ids already applied at the cursor instant,
+and raises a visible error rather than dropping records if a single instant
+ever exceeds one page. `applyRemote` upserts (never INSERT OR REPLACE, which
+blanks columns the sender did not carry) and reports whether anything really
+changed, so the overlap window cannot repaint her screen every cycle.
