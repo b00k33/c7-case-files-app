@@ -13,27 +13,17 @@ modules, cannot load WebAssembly, and cannot use the File System Access API.
 Chrome blocks all three. So a browser-based local app has to be served, even
 locally.
 
-Resolution: ship a one-double-click launcher next to the app.
-
-- `start.command` (macOS) — runs `python3 -m http.server 8777` in the app
-  folder and opens `http://localhost:8777`. Python 3 ships with macOS.
-- `start.bat` (Windows) — runs `serve.ps1` via PowerShell, which serves the
-  folder on the same port using .NET's `HttpListener`, and opens
-  `http://localhost:8777`. PowerShell ships with every Windows install, so
-  this needs nothing extra either (an earlier version shelled out to
-  `python`, which most Windows machines don't have — switched to avoid
-  that install step).
-
-Nothing else to install, on either platform. No npm, no build step, no
-bundler. Double-click, browser opens, app runs.
+Resolution, originally: a one-double-click launcher next to the app
+(`start.command` on macOS, `start.bat` + `serve.ps1` on Windows) serving
+the folder on `localhost:8777`. **Retired 2026-09-03**, once both devices
+ran from the cloud (§9): the app is served from GitHub Pages and installed
+as a PWA, so nothing local needs to be served any more. The files live on
+in git history only. Still no npm, no build step, no bundler.
 
 ## 2. Folder shape
 
 ```
 c7-case-files/
-  start.command            double-click launcher (mac)
-  start.bat                double-click launcher (windows)
-  serve.ps1                the windows launcher's local server (no installs needed)
   index.html                the only page
   css/
     tokens.css             colours, type, spacing — the design system
@@ -465,6 +455,11 @@ changed is where the app lives and how devices share it.
   (re-applying is harmless, missing is not). A change pushes ~3s after it
   lands in the outbox and when the tab goes hidden, not only on the
   minute tick — on the phone the app is closed long before a minute.
+  **Recovery (c7-v32):** the sync drawer shows "This device holds N cases
+  · N people" and offers **Re-pull everything** (resets the pull cursor
+  and fetches the whole cloud; last-writer-wins makes re-applying safe).
+  A pull that brings rows in persists them immediately and redraws the
+  current page, unless she is typing or a drawer is open.
 - **Migration:** the first sign-in against an empty cloud uploads the whole
   local database once. Later devices pull instead, and an untouched
   example case is removed rather than duplicated.
@@ -505,10 +500,12 @@ changed is where the app lives and how devices share it.
   The only other third-party load is a YouTube thumbnail image for a linked video
   (`js/media.js`; an `<img>` from YouTube's image host, video id only,
   placeholder when offline). Nothing else; no automatic lookups.
-- **The launcher (`start.bat` / `start.command`) is legacy.** The
-  localhost copy edits the same folder as the live app from a separate
-  origin — the two-live-masters trap — so it shows a steering notice to
-  the live URL. A "Download backup (.db)" button in the sync drawer
+- **The launcher is retired (2026-09-03).** `start.bat`, `serve.ps1` and
+  `start.command` were removed once both her devices ran from the cloud;
+  a localhost copy would edit the same folder as the live app from a
+  separate origin — the two-live-masters trap — which is why the app still
+  shows a steering notice to the live URL whenever it finds itself served
+  from localhost. A "Download backup (.db)" button in the sync drawer
   exports the whole database as one SQLite file from any device.
 
 ## 10. The Cases home (2026-09-02) — selecting a case takes you somewhere
