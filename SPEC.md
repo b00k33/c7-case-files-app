@@ -383,7 +383,9 @@ panel is allowed to show an observed count alone.
    (redesigned 2026-09-03, her eight popup answers) is four trine zones —
    Blue · Yellow / Green · Pink, clashing trines diagonal — each grouped by
    exact animal with counts, a face and short name per person, no
-   connection lines ("the picture is simply who shares a trine"); people
+   person-to-person lines ("the picture is simply who shares a trine") —
+   only a red ✕ line between two opposing animal groups (Rat × Horse …)
+   when both are present in the case (v51, her ask); people
    without a settled birth year sit in a tray below; on the phone the
    zones stack as bands. Layout is pure (`js/tree.js`: generations by
    relaxation over parent/spouse/sibling links, couple units, recursive
