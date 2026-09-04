@@ -456,6 +456,24 @@ panel is allowed to show an observed count alone.
    `created_at`; evidence via `evidence_link` target_type 'question'. On
    the phone the cards start collapsed. Filter All / Open / ★ Leaning /
    Answered, remembered.
+   **Theory timelines (2026-09-04, her ask: a fan analysis of Taylor
+   Swift's love life as dated entries with song references; eight popup
+   answers).** A theory can carry a timeline: entries are `event` rows
+   with `theory_id` set — never the record. "+ Entry" or "Paste a
+   timeline…", one line each: `date | what happened | with: Name | ♪ song,
+   ♪ song | "quote" · mm:ss`. The date keeps its honesty (2016-06-01 a
+   day, 2016-06 a month, 2016 a year, 2016–2017 a range); ♪ become song
+   chips (`event.songs`); `with:` names become people — found or created —
+   plus a theory-only partner link (`relationship.theory_id`) to the
+   question's person, drawn as a fine dashed violet curve on the tree
+   with no confirm dot, chipped "theory" on the profile and under Other
+   connections, never in Review, no clash line on the map; the source
+   link or pasted transcript becomes evidence on the theory (a YouTube
+   link a video item), and a timestamped quote becomes a moment on that
+   video, linked to the entry. The person's own timeline shows theory
+   events dimmed and chipped (her call). The messy transcript is read by
+   Claude in chat; the app only ever reads the clean lines. Board string
+   for theories: agreed (dashed, off by default), not yet built.
 8. Review — one claim at a time (and, since v54, one unconfirmed
    relationship at a time: Confirm / Skip / Remove / Question — her ask
    2026-09-03 "allow for review"), keyboard A / S / E / R / ?, bulk actions,

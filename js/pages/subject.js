@@ -599,7 +599,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           </div>
         </div>
       `;
-      card.appendChild(barRow({ label: 'confidence', value: conf, max: 100 }));
+      if (!item.theory) card.appendChild(barRow({ label: 'confidence', value: conf, max: 100 })); // a theory entry carries no confidence figure — it is not a claim
       if (item.evidenceId) card.addEventListener('click', () => ctx.navigate('#/evidence'));
       timelineEl.appendChild(card);
     }
