@@ -252,6 +252,18 @@ export async function render(root, ctx, personId = null) {
   // year, 2016–2017 a range. She pastes the transcript to Claude and pastes the
   // lines back here; the transcript itself is saved as evidence on the theory,
   // and a timestamped quote becomes a moment on the theory's video.
+  // ♪ chips borrow the real release date when a matching work (a 'release'
+  // event from Wikidata) is in the case — the theory's claim next to the date
+  // it hangs on (her call, 2026-09-04). No match, no date: the chip stays a title.
+  const normTitle = (s) => String(s || '').toLowerCase().replace(/^(album|single|song|ep)\s*[·:]\s*/i, '').replace(/\s*\(.*?\)\s*$/, '').replace(/[’'"“”…]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const releaseDateFor = (title) => {
+    const want = normTitle(title);
+    if (!want) return null;
+    const hit = data.events.find((e) => e.kind === 'release' && !e.theory_id && normTitle(e.title) === want);
+    return hit ? fmtEntryDate(hit) : null;
+  };
+  const songChip = (s) => { const d = releaseDateFor(s); return `<span class="song" title="${d ? 'released ' + esc(d) : 'no matching work in this case yet'}">${esc(s)}${d ? ` <span class="rel">· ${esc(d)}</span>` : ''}</span>`; };
+
   async function paintTimeline(slot, q, t, repaint) {
     const entries = data.events.filter((e) => e.theory_id === t.id).sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : 1));
     slot.innerHTML = `
@@ -273,7 +285,7 @@ export async function render(root, ctx, personId = null) {
         <span class="tl-date">${fmtEntryDate(e)}</span>
         <div style="min-width:0">
           <div class="tl-title">${esc(e.title)}</div>
-          ${withPeople.length || songs.length || e.notes ? `<div class="tl-sub">${withPeople.map((p) => `<a class="about" href="#/subject/${p.id}"><span class="mini">${initials(p.display_name)}</span>${esc(p.display_name)}</a>`).join('')}${songs.map((s) => `<span class="song">${esc(s)}</span>`).join('')}${e.notes ? `<span class="quote">${esc(e.notes)}${moment ? ` <a class="linkish" href="#/video/${moment.evidence_id}" title="Open the video at this moment">▶</a>` : ''}</span>` : ''}</div>` : ''}
+          ${withPeople.length || songs.length || e.notes ? `<div class="tl-sub">${withPeople.map((p) => `<a class="about" href="#/subject/${p.id}"><span class="mini">${initials(p.display_name)}</span>${esc(p.display_name)}</a>`).join('')}${songs.map(songChip).join('')}${e.notes ? `<span class="quote">${esc(e.notes)}${moment ? ` <a class="linkish" href="#/video/${moment.evidence_id}" title="Open the video at this moment">▶</a>` : ''}</span>` : ''}</div>` : ''}
         </div>
         <button class="linkish tl-del" title="Delete this entry">✕</button>`;
       twoTapConfirm(row.querySelector('.tl-del'), { confirmLabel: 'Really?', onConfirm: async () => { await store.deleteEvent(e.id); repaint(); } });
