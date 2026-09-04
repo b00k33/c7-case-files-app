@@ -5,7 +5,8 @@ import { emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
-import { searchPeople, fillFromWikidata, insertFamily, fetchWorks, addWorks } from '../lookup.js';
+import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
+import { fetchWorks, addWorks } from '../works.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
@@ -107,7 +108,8 @@ function wireCaseLookup(form, ctx, store) {
     if (works) {
       try {
         prog.textContent = 'Reading their works from Wikidata…';
-        const list = (await fetchWorks(m.id)).filter((w) => !w.shared); // duets / covers wait for the profile's picker, where they can be ticked
+        // duets / covers, dates before the career started, and compilations wait for the profile's picker, where they can be ticked
+        const list = (await fetchWorks(m.id)).filter((w) => !w.shared && !w.suspect && !w.compilation);
         const r = await addWorks(store, kase.id, person.id, list, (msg) => { prog.textContent = `Adding works… ${msg}`; });
         sessionStorage.setItem('c7-pi-result', `${r.added} work${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a release date)` : ''}.`);
       } catch (e) { prog.textContent = `Works could not be read (${e.message}) — + Works again from the profile.`; }

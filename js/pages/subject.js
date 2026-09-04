@@ -6,7 +6,8 @@ import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence,
 import { exactBirth } from '../person-dates.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
-import { searchPeople, fetchProfile, draftFromLookup, insertFamily, fetchWorks, addWorks, WORK_GROUPS } from '../lookup.js';
+import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
+import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
 
@@ -479,31 +480,37 @@ export async function render(root, ctx, personId, tab = 'profile') {
       try { works = await fetchWorks(m.id); }
       catch (e) { resultsEl.innerHTML = `<div class="inline-note">Works could not be read — ${e.message}</div>`; return; }
       if (!works.length) { resultsEl.innerHTML = '<div class="inline-note">Wikidata lists no albums, EPs, singles or songs on that record.</div>'; return; }
-      const existing = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
-      const on = new Set(WORK_GROUPS.map((g) => g.key));
-      // shared items (duets, covers, standards) start unticked: their date is the song's first release, not hers
-      const picked = new Set(works.filter((w) => !existing.has(w.qid) && !w.shared).map((w) => w.qid));
-      const countNew = () => works.filter((w) => on.has(w.group) && picked.has(w.qid) && !existing.has(w.qid)).length;
+      const existingIds = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
+      const isHere = (w) => w.memberQids.some((q) => existingIds.has(q));
+      const on = new Set(WORK_GROUPS.map((g) => g.key)); // every family on (her call); compilations & live are a sub-switch, off
+      let compOn = false;
+      const visible = (w) => [...w.families].some((f) => on.has(f)) && !(w.compilation && !compOn);
+      // shared (duets, covers, standards) and before-career dates start unticked — their date is not hers
+      const picked = new Set(works.filter((w) => !isHere(w) && !w.shared && !w.suspect).map((w) => w.qid));
+      const counts = countByFamily(works);
+      const countNew = () => works.filter((w) => visible(w) && picked.has(w.qid) && !isHere(w)).length;
       const paint = () => {
-        const shown = works.filter((w) => on.has(w.group));
-        const already = works.filter((w) => existing.has(w.qid)).length;
+        const shown = works.filter(visible);
+        const already = works.filter(isHere).length;
         const n = countNew();
         resultsEl.innerHTML = `
           <div class="row wrap" style="gap:6px;margin:8px 0;align-items:center">
-            ${WORK_GROUPS.map((g) => { const c = works.filter((w) => w.group === g.key).length; return c ? `<button type="button" class="chip ${on.has(g.key) ? 'brass' : ''}" data-g="${g.key}" style="cursor:pointer;border:0" title="${on.has(g.key) ? 'Hide' : 'Show'} ${g.label.toLowerCase()}">${g.label} · ${c}</button>` : ''; }).join('')}
+            ${WORK_GROUPS.map((g) => (counts[g.key] ? `<button type="button" class="chip ${on.has(g.key) ? 'brass' : ''}" data-g="${g.key}" style="cursor:pointer;border:0" title="${on.has(g.key) ? 'Hide' : 'Show'} ${g.label.toLowerCase()}">${g.label} · ${counts[g.key]}</button>` : '')).join('')}
+            ${counts.compilation ? `<button type="button" class="chip ${compOn ? 'brass' : ''}" data-comp="1" style="cursor:pointer;border:0" title="Compilations, live, box sets and video albums — off by default so the studio albums stand out">Compilations &amp; live · ${counts.compilation}</button>` : ''}
             ${already ? `<span class="mono" style="font-size:11px;color:var(--text-3);margin-left:auto">${already} already here</span>` : ''}
           </div>
           <div class="stack" style="gap:2px;max-height:320px;overflow:auto">
-            ${shown.map((w) => `<label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer"><input type="checkbox" data-w="${w.qid}" ${existing.has(w.qid) ? 'checked disabled' : picked.has(w.qid) ? 'checked' : ''}><span class="mono" style="font-size:11px;color:var(--text-3);width:82px;flex:none">${w.date || w.year || '—'}</span><span class="main" style="font-size:12px">${w.label}</span>${w.shared ? '<span class="chip" title="Several performers on this record — the date is the song’s first release, not necessarily hers">shared</span>' : ''}<span class="chip">${w.typeLabel}</span></label>`).join('')}
+            ${shown.map((w) => `<label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer"><input type="checkbox" data-w="${w.qid}" ${isHere(w) ? 'checked disabled' : picked.has(w.qid) ? 'checked' : ''}><span class="mono" style="font-size:11px;color:var(--text-3);width:82px;flex:none">${w.display || '—'}</span><span class="main" style="font-size:12px">${w.label}</span>${w.dateSource === 'album' ? '<span class="chip" title="No release date of its own — this is the album’s">via album</span>' : ''}${w.shared ? '<span class="chip" title="Several performers on this record — the date is the song’s first release, not necessarily hers">shared</span>' : ''}${w.suspect ? '<span class="chip" style="color:var(--red)" title="Dated before the career started — Wikidata is probably wrong here">before career start?</span>' : ''}<span class="chip">${w.typeLabel}</span></label>`).join('')}
           </div>
           <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center"><button class="btn btn-primary btn-sm" id="wk-add" ${n ? '' : 'disabled'}>Add ${n} work${n === 1 ? '' : 's'}</button><span style="font-size:11px;color:var(--text-3)">Each becomes a release on the timeline and the Board, citing Wikidata; the date keeps its real precision.</span></div>`;
         resultsEl.querySelectorAll('[data-g]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.g; if (on.has(k)) on.delete(k); else on.add(k); paint(); }));
+        resultsEl.querySelector('[data-comp]')?.addEventListener('click', () => { compOn = !compOn; paint(); });
         resultsEl.querySelectorAll('[data-w]').forEach((cb) => cb.addEventListener('change', () => {
           if (cb.checked) picked.add(cb.dataset.w); else picked.delete(cb.dataset.w);
           const nn = countNew(); const ab = resultsEl.querySelector('#wk-add'); ab.disabled = !nn; ab.textContent = `Add ${nn} work${nn === 1 ? '' : 's'}`;
         }));
         resultsEl.querySelector('#wk-add').addEventListener('click', async () => {
-          const list = works.filter((w) => on.has(w.group) && picked.has(w.qid) && !existing.has(w.qid));
+          const list = works.filter((w) => visible(w) && picked.has(w.qid) && !isHere(w));
           resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="wk-prog">Adding works…</div>';
           const prog = resultsEl.querySelector('#wk-prog');
           const r = await addWorks(store, ctx.caseId, person.id, list, (msg) => { prog.textContent = `Adding works… ${msg}`; });

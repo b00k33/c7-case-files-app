@@ -16,6 +16,7 @@
 
 import { emptyState } from '../indicators.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
+import { normTitle } from '../works.js';
 
 const FILTER_KEY = 'c7-q-filter'; // all | open | leaning | answered
 
@@ -255,11 +256,11 @@ export async function render(root, ctx, personId = null) {
   // ♪ chips borrow the real release date when a matching work (a 'release'
   // event from Wikidata) is in the case — the theory's claim next to the date
   // it hangs on (her call, 2026-09-04). No match, no date: the chip stays a title.
-  const normTitle = (s) => String(s || '').toLowerCase().replace(/^(album|single|song|ep)\s*[·:]\s*/i, '').replace(/\s*\(.*?\)\s*$/, '').replace(/[’'"“”…]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const stripKind = (s) => String(s || '').replace(/^(Album|Single|Song|EP|Compilation|Live album|Box set|Video album|Remix album)\s*·\s*/i, '');
   const releaseDateFor = (title) => {
     const want = normTitle(title);
     if (!want) return null;
-    const hit = data.events.find((e) => e.kind === 'release' && !e.theory_id && normTitle(e.title) === want);
+    const hit = data.events.find((e) => e.kind === 'release' && !e.theory_id && normTitle(stripKind(e.title)) === want);
     return hit ? fmtEntryDate(hit) : null;
   };
   const songChip = (s) => { const d = releaseDateFor(s); return `<span class="song" title="${d ? 'released ' + esc(d) : 'no matching work in this case yet'}">${esc(s)}${d ? ` <span class="rel">· ${esc(d)}</span>` : ''}</span>`; };

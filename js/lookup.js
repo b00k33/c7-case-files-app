@@ -12,7 +12,7 @@ const P = { birth: 'P569', death: 'P570', birthPlace: 'P19', citizenship: 'P27',
 // the person AND the relationship exist. Godchildren are recorded on the
 // child's side in Wikidata, so they need the reverse query below.
 const REL = { father: 'P22', mother: 'P25', sibling: 'P3373', child: 'P40', godparent: 'P1290', spouse: 'P26' };
-const SPARQL = 'https://query.wikidata.org/sparql';
+export const SPARQL = 'https://query.wikidata.org/sparql';
 
 // Wikidata gives country names; a nationality field reads better as a demonym
 const DEMONYM = {
@@ -25,7 +25,7 @@ const DEMONYM = {
   'Kingdom of Great Britain': 'British', 'Kingdom of France': 'French', 'Russian Empire': 'Russian', 'Soviet Union': 'Soviet',
 };
 
-async function getJSON(url) {
+export async function getJSON(url) {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Lookup failed (${res.status})`);
   return res.json();
@@ -323,88 +323,8 @@ export async function addPeopleFromWikidata(store, caseId, picks, onProgress = (
   return result;
 }
 
-// --- a musician's works (her ask, 2026-09-04: "songs released dates, album
-// release dates etc.") — albums, EPs, singles, songs by performer (P175),
-// each with its earliest publication date (P577). SPARQL first for the
-// list, then the entity API for the picked ones so each date keeps its
-// real precision (day / month / year), exactly like a birth date.
-const WORK_TYPES = {
-  Q208569: ['album', 'Album'], Q482994: ['album', 'Album'], Q222910: ['album', 'Compilation'], Q209939: ['album', 'Live album'],
-  Q169930: ['ep', 'EP'], Q134556: ['single', 'Single'], Q7366: ['song', 'Song'],
-};
-const WORK_RANK = { album: 0, ep: 1, single: 2, song: 3 };
-export const WORK_GROUPS = [
-  { key: 'album', label: 'Albums' }, { key: 'ep', label: 'EPs' }, { key: 'single', label: 'Singles' }, { key: 'song', label: 'Songs' },
-];
-// ?np counts the performers on the item: more than one means a duet, a cover
-// or a standard she also sang — its P577 is the SONG's first release, not hers,
-// so the picker marks it "shared" and leaves it unticked
-const WORKS_QUERY = (qid) => `SELECT ?work ?workLabel ?type ?date (COUNT(DISTINCT ?p) AS ?np) WHERE {
-  ?work wdt:P175 wd:${qid} ; wdt:P31 ?type ; wdt:P175 ?p .
-  VALUES ?type { ${Object.keys(WORK_TYPES).map((q) => 'wd:' + q).join(' ')} }
-  OPTIONAL { ?work wdt:P577 ?date }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
-} GROUP BY ?work ?workLabel ?type ?date LIMIT 1500`;
-
-/** Every work Wikidata lists for the performer: [{ qid, label, group, typeLabel, date (rough, ISO or null), year }], one row per item. */
-export async function fetchWorks(qid) {
-  const data = await getJSON(`${SPARQL}?format=json&query=${encodeURIComponent(WORKS_QUERY(qid))}`);
-  const byId = new Map();
-  for (const b of (data.results && data.results.bindings) || []) {
-    const id = /Q\d+$/.exec(b.work.value)?.[0];
-    const type = /Q\d+$/.exec(b.type.value)?.[0];
-    if (!id || !WORK_TYPES[type]) continue;
-    const [group, typeLabel] = WORK_TYPES[type];
-    const date = b.date ? b.date.value.slice(0, 10) : null;
-    const shared = b.np ? parseInt(b.np.value, 10) > 1 : false;
-    const cur = byId.get(id);
-    if (!cur) byId.set(id, { qid: id, label: b.workLabel ? b.workLabel.value : id, group, typeLabel, date, shared });
-    else {
-      if (shared) cur.shared = true;
-      if (WORK_RANK[group] < WORK_RANK[cur.group]) { cur.group = group; cur.typeLabel = typeLabel; }
-      if (date && (!cur.date || date < cur.date)) cur.date = date; // several releases: the earliest
-    }
-  }
-  return [...byId.values()].filter((w) => !/^Q\d+$/.test(w.label))
-    .map((w) => ({ ...w, year: w.date ? parseInt(w.date.slice(0, 4), 10) : null }))
-    .sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
-}
-
-/**
- * Add the picked works to the person as 'release' events — the record,
- * citing Wikidata (P577) as an accepted claim, one per work; a work already
- * in the case (same Wikidata item) is left alone. Dates come from the
- * entity API so precision is honest. Returns { added, skipped, undated }.
- */
-export async function addWorks(store, caseId, personId, works, onProgress = () => {}) {
-  const existing = new Set((await store.listEventsForCase(caseId)).map((e) => e.wikidata_id).filter(Boolean));
-  const todo = works.filter((w) => !existing.has(w.qid));
-  const result = { added: 0, skipped: works.length - todo.length, undated: 0 };
-  for (let i = 0; i < todo.length; i += 50) {
-    const chunk = todo.slice(i, i + 50);
-    onProgress(`${Math.min(i + 50, todo.length)} of ${todo.length}`);
-    let ents = {};
-    try { ents = (await getJSON(`${WD}?action=wbgetentities&ids=${chunk.map((w) => w.qid).join('|')}&props=claims&format=json&origin=*`)).entities || {}; } catch (_) { /* fall back to the rough date */ }
-    for (const w of chunk) {
-      const claims = ents[w.qid] && ents[w.qid].claims ? ents[w.qid].claims : {};
-      const times = values(claims, 'P577').map(parseWdTime).filter(Boolean).sort((a, b) => (a.date || `${a.year}`) < (b.date || `${b.year}`) ? -1 : 1);
-      const t = times[0] || (w.date ? { date: w.date, precision: 'day', year: w.year } : null);
-      if (!t) result.undated++;
-      const title = `${w.typeLabel} · ${w.label}`;
-      const cite = `Source: Wikidata https://www.wikidata.org/wiki/${w.qid} (P577)`;
-      const id = await store.createEvent({
-        case_id: caseId, person_id: personId, title, kind: 'release',
-        date: t && (t.precision === 'day' || t.precision === 'month') ? t.date : null,
-        date_precision: t ? t.precision : 'unknown',
-        date_year_min: t ? t.year : null, date_year_max: t ? t.year : null,
-        notes: cite, wikidata_id: w.qid,
-      });
-      await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'release', value: { event_id: id, title, qid: w.qid, date: t }, origin: 'lookup', rationale: cite });
-      result.added++;
-    }
-  }
-  return result;
-}
+// A musician's works (albums, EPs, singles, songs with release dates) live in
+// js/works.js — fetchWorks / addWorks / WORK_GROUPS.
 
 /**
  * Turn fetched facts into drafted claims on `personId` (through Review), plus
