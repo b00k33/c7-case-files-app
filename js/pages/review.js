@@ -114,7 +114,7 @@ export async function render(root, ctx) {
   const claims = await store.listClaims(ctx.caseId, 'drafted');
   // unconfirmed relationships join the queue (her ask, 2026-09-03: "allow
   // for review") — Confirm / Skip / Remove / Question, one card each
-  const rels = (await store.listRelationships(ctx.caseId)).filter((r) => !r.confirmed);
+  const rels = (await store.listRelationships(ctx.caseId)).filter((r) => !r.confirmed && !r.theory_id); // theory links are never up for confirming
   const queue = [...claims.map((claim) => ({ claim })), ...rels.map((rel) => ({ rel }))];
   if (cursor >= queue.length) cursor = 0;
   const dups = await store.findDuplicates(ctx.caseId);

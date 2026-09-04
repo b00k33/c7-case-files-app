@@ -505,7 +505,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
     relEl.appendChild(bulk);
     const labelled = []; // [label element, relationship] — so Confirm all can repaint every row
     const refreshBulk = () => {
-      const n = rels.filter((x) => !x.confirmed).length;
+      const n = rels.filter((x) => !x.confirmed && !x.theory_id).length;
       bulk.hidden = !n;
       bulk.querySelector('#rel-confirm-all').textContent = `Confirm all ${n} unconfirmed`;
     };
@@ -524,7 +524,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       }
     };
     bulk.querySelector('#rel-confirm-all').addEventListener('click', async () => {
-      for (const r of rels) if (!r.confirmed) { await store.upsertRelationship({ id: r.id, confirmed: 1 }); r.confirmed = 1; }
+      for (const r of rels) if (!r.confirmed && !r.theory_id) { await store.upsertRelationship({ id: r.id, confirmed: 1 }); r.confirmed = 1; }
       for (const [label, r] of labelled) setToggle(label, r);
       refreshBulk();
     });
@@ -548,9 +548,14 @@ export async function render(root, ctx, personId, tab = 'profile') {
       wrap.style.cssText = 'gap:8px;min-width:0;flex:1 1 auto';
       wrap.appendChild(relationGlyph(kind || 'neutral', { unsettled }));
       const label = document.createElement('span');
-      label.innerHTML = `<a href="#/subject/${other.id}" style="color:var(--text)">${other.display_name}</a> <span class="mono" style="color:var(--text-3);font-size:11px">${dirLabel} · </span>`;
-      setToggle(label, r);
-      labelled.push([label, r]);
+      label.innerHTML = `<a href="#/subject/${other.id}" style="color:var(--text)">${other.display_name}</a> <span class="mono" style="color:var(--text-3);font-size:11px">${dirLabel}${r.theory_id ? '' : ' · '}</span>`;
+      if (r.theory_id) {
+        // a theory link: named, never confirmed — it belongs to a theory timeline, not the record
+        label.insertAdjacentHTML('beforeend', ' <span class="chip violet" title="From a theory timeline — not the record, never up for confirming">theory</span>');
+      } else {
+        setToggle(label, r);
+        labelled.push([label, r]);
+      }
       wrap.appendChild(label);
       row.appendChild(wrap);
       const conf = document.createElement('span');
@@ -569,7 +574,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const timelineItems = [];
   for (const e of events) {
     const evLinks = await store.listLinksForTarget('event', e.id);
-    timelineItems.push({ kind: 'event', date: e.date || (e.date_year_min ? `${e.date_year_min}` : null), title: e.title, sub: e.kind, links: evLinks });
+    // a theory-timeline event shows here dimmed and marked (her call, 2026-09-04) — visible in context, never counted as the record
+    timelineItems.push({ kind: 'event', date: e.date || (e.date_year_min ? `${e.date_year_min}` : null), title: e.theory_id ? `${e.title} <span class="chip violet" title="From a theory timeline — not the record">theory</span>` : e.title, sub: e.theory_id ? (e.songs ? `♪ ${e.songs}` : 'theory') : e.kind, links: evLinks, theory: !!e.theory_id });
   }
   for (const l of links) {
     timelineItems.push({ kind: 'evidence', date: null, title: l.evidence_title, sub: `${l.evidence_type} · ${verificationLabel(l.evidence_verification)}`, verification: l.evidence_verification, evidenceId: l.evidence_id });

@@ -370,6 +370,13 @@ export function layoutTree(people, rels, opts = {}) {
     const a = nodeById.get(r.a_id), b = nodeById.get(r.b_id);
     if (a && b && !a.group && !b.group) edges.push({ kind: 'god', x1: a.x + nodeW / 2, y1: a.y + faceH, x2: b.x + nodeW / 2, y2: b.y, confirmed: !!r.confirmed, relIds: [r.id], label: `${a.person.display_name} · godparent of ${b.person.display_name}` });
   }
+  // theory links (2026-09-04): from a theory timeline, never the record —
+  // a fine dashed curve between the two faces, no confirm dot (implied)
+  for (const r of rels) {
+    if (!r.theory_id || !vis.has(r.a_id) || !vis.has(r.b_id)) continue;
+    const a = nodeById.get(r.a_id), b = nodeById.get(r.b_id);
+    if (a && b && !a.group && !b.group) edges.push({ kind: 'theory', x1: a.x + nodeW / 2, y1: a.y + faceH / 2, x2: b.x + nodeW / 2, y2: b.y + faceH / 2, confirmed: false, implied: true, relIds: [r.id], label: `${a.person.display_name} · ${r.kind} of ${b.person.display_name} — a theory` });
+  }
 
   // the topmost visible row becomes y = 0 (plus room for the tallest arc over it)
   const pad = edges.reduce((m, e) => (e.arc ? Math.max(m, Math.ceil(e.rise * 0.75 + 4)) : m), 0);

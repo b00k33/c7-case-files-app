@@ -387,6 +387,28 @@ table.dense td.num { font-family: var(--font-mono); }
 .q-foot { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap; align-items: center; }
 .q-foot .hint { font-size: 11px; color: var(--text-3); margin-left: auto; }
 .chip.green { color: var(--green); }
+.chip.violet { color: var(--violet); }
+
+/* theory timelines (2026-09-04): dated entries under a theory — never the record */
+.tl { margin-top: var(--sp-2); border-top: 1px dashed var(--line); padding-top: var(--sp-2); }
+.tl-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 4px; }
+.tl-head .section-label { color: var(--violet); }
+.tl-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: var(--sp-2); padding: 5px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); font-size: 12.5px; align-items: baseline; }
+.tl-row:last-child { border-bottom: 0; }
+.tl-date { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.tl-title { color: var(--text); }
+.tl-sub { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; font-size: 11.5px; color: var(--text-2); align-items: center; }
+.tl-sub .song { color: var(--violet); }
+.tl-sub .song::before { content: '♪ '; }
+.tl-sub .quote { color: var(--text-3); font-style: italic; }
+.tl-foot { display: flex; gap: var(--sp-3); margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.tl-foot .hint { font-size: 11px; color: var(--text-3); margin-left: auto; }
+.tl-pastebox { margin-top: 6px; padding: var(--sp-2) var(--sp-3); background: var(--ink-1); border-radius: var(--r-sm); }
+.tl-pastebox .tl-fmt { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
+.tl-pastebox textarea { width: 100%; font-family: var(--font-mono); font-size: 12px; min-height: 110px; }
+.tl-pastebox .tl-preview { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+.tl-del { color: var(--text-3); }
+@media (max-width: 640px) { .tl-row { grid-template-columns: 72px minmax(0, 1fr) auto; } }
 
 /* -------------------------------------------------------------- matrix */
 

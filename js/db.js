@@ -273,6 +273,10 @@ const ADDED_COLUMNS = [
   ['question', 'pick', 'INTEGER DEFAULT 0'], // her ★ on a theory — as many as she likes
   ['question', 'answer_id', 'TEXT'],     // the theory that settled the question (with resolved = 1)
   ['question', 'created_at', 'TEXT'],
+  ['event', 'theory_id', 'TEXT'],        // theory timelines (2026-09-04): an event that belongs to a theory, never to the record
+  ['event', 'songs', 'TEXT'],            // "Getaway Car · Delicate" — the song references an entry cites
+  ['event', 'with_ids', 'TEXT'],         // the people an entry names ("with: Calvin Harris"), comma-joined person ids
+  ['relationship', 'theory_id', 'TEXT'], // a theory-only link (dashed on the tree, never confirmed, never in Review)
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

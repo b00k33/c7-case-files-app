@@ -246,6 +246,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     else if (e.kind === 'drop') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'far') el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'god' && godparents) el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--brass)', 'stroke-width': 1, opacity: 0.6 });
+    else if (e.kind === 'theory') { el = svgEl('path', { d: `M${e.x1},${e.y1} C${(e.x1 + e.x2) / 2},${e.y1} ${(e.x1 + e.x2) / 2},${e.y2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--violet)', 'stroke-width': 1.2, opacity: 0.75, 'stroke-dasharray': '1.5,4' }); const t = svgEl('title'); t.textContent = e.label; el.appendChild(t); }
     if (!el) continue;
     if ((e.kind === 'couple' || e.kind === 'drop') && !e.confirmed) el.setAttribute('stroke-dasharray', '4,4');
     if (e.kind === 'far') el.setAttribute('stroke-dasharray', e.confirmed ? '6,3' : '3,4'); // always broken: it reaches across the tree
@@ -464,7 +465,7 @@ function renderOthers(slot, ctx, people, rels, focus) {
     const other = focus ? (a.id === focus ? b : a) : null;
     const row = document.createElement('div');
     row.className = 'list-row';
-    row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${other ? other.display_name : `${a.display_name} · ${b.display_name}`}</div><div class="sub">${r.kind}${r.confirmed ? '' : ' · unconfirmed'}${r.notes ? ' · ' + r.notes : ''}</div></div>`;
+    row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${other ? other.display_name : `${a.display_name} · ${b.display_name}`}</div><div class="sub">${r.kind}${r.theory_id ? '' : r.confirmed ? '' : ' · unconfirmed'}${r.notes ? ' · ' + r.notes : ''}</div></div>${r.theory_id ? '<span class="chip violet" title="A theory link — from a theory timeline, not the record">theory</span>' : ''}`;
     row.addEventListener('click', () => ctx.navigate(`#/subject/${(other || a).id}`));
     list.appendChild(row);
   }
@@ -573,7 +574,7 @@ function drawClashLines(wrap, facts, rels) {
   const nameOf = new Map(facts.map((f) => [f.p.id, f.p.display_name]));
   const seen = new Set();
   for (const r of rels || []) {
-    if (!['parent', 'spouse', 'sibling'].includes(r.kind)) continue;
+    if (r.theory_id || !['parent', 'spouse', 'sibling'].includes(r.kind)) continue; // the record only — a theory link draws no clash line
     const a = animalOf.get(r.a_id), b = animalOf.get(r.b_id);
     if (!a || !b || Math.abs(ANIMALS.indexOf(a) - ANIMALS.indexOf(b)) !== 6) continue;
     const key = [r.a_id, r.b_id].sort().join(':');
