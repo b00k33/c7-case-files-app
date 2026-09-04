@@ -2,9 +2,10 @@
 // IS the home: picture cards, most recently opened first, tap to go straight
 // in (a person-case opens the person's profile; a family-case its overview).
 import { emptyState } from '../indicators.js';
-import { inlineNameForm, twoTapConfirm } from '../ui.js';
+import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
+import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
@@ -37,6 +38,73 @@ export async function openCase(ctx, kase) {
 }
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
+
+/**
+ * "Look up on Wikipedia" inside the + New form (her ask, 2026-09-04): search
+ * the typed name, show the matches, and "Create from this" makes the case
+ * AND the person, filled straight from Wikidata — dates, birthplace,
+ * nationality, picture, Wikipedia evidence — with an optional "+ family"
+ * that brings the relatives in, then lands on the profile. Same machinery
+ * as the family page's batch add; Create alone still makes a bare case.
+ */
+function wireCaseLookup(form, ctx, store) {
+  const rowEl = form.querySelector('.row');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost btn-sm if-wiki';
+  btn.textContent = 'Look up on Wikipedia';
+  btn.title = 'Find this person on Wikipedia and create the case from the record — dates, picture, evidence come with it';
+  rowEl.insertBefore(btn, rowEl.querySelector('.if-cancel'));
+  const results = document.createElement('div');
+  results.className = 'if-wiki-results';
+  form.appendChild(results);
+
+  btn.addEventListener('click', async () => {
+    const name = form.querySelector('input[type="text"]').value.trim();
+    clearInlineNote(btn);
+    results.innerHTML = '';
+    if (!name) { inlineNote(btn, 'Type the name first.'); form.querySelector('input[type="text"]').focus(); return; }
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(name); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = 'Look up on Wikipedia';
+    if (!matches.length) { if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person; Create makes the case by name.'); return; }
+    results.innerHTML = `
+      <div class="row wrap" style="gap:12px;margin-top:8px;align-items:center">
+        <span class="section-label">Create the case from a Wikipedia record</span>
+        <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-family"> + family — their relatives too, like Insert family</label>
+      </div>`;
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Create from this ▸</span>`;
+      row.addEventListener('click', () => createFromWikidata(m));
+      results.appendChild(row);
+    }
+  });
+
+  async function createFromWikidata(m) {
+    const kind = form.querySelector('.if-choice')?.value || 'person';
+    const worldCheck = form.querySelector('.if-fictional');
+    const world = worldCheck?.checked ? (form.querySelector('.if-world').value.trim() || 'Fictional') : null;
+    const family = !!form.querySelector('.if-family')?.checked;
+    results.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="cw-progress">Creating the case…</div>';
+    const prog = results.querySelector('#cw-progress');
+    const kase = await store.createCase({ name: m.label, kind, world });
+    await ctx.setCaseId(kase.id);
+    markOpened(kase.id);
+    const person = await store.createPerson({ case_id: kase.id, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
+    prog.textContent = 'Filling in from Wikidata — dates, picture, evidence…';
+    try { await fillFromWikidata(store, kase.id, person.id, m.id); }
+    catch (e) { prog.textContent = `The case is made; the record could not be read (${e.message}). Look up again from the profile.`; }
+    if (family) {
+      try { await insertFamily(store, kase.id, person.id, m.id, (msg) => { prog.textContent = `Inserting family… ${msg}`; }); }
+      catch (e) { prog.textContent = `Family could not be read (${e.message}) — Insert family again from the profile.`; }
+    }
+    ctx.navigate(kind === 'family' ? '#/family' : `#/subject/${person.id}`);
+  }
+}
 
 async function faceEl(person, size) {
   const el = document.createElement('div');
@@ -78,7 +146,7 @@ export async function render(root, ctx) {
   root.querySelector('#new-case-btn').addEventListener('click', () => {
     const slot = root.querySelector('#new-case-slot');
     if (slot.querySelector('.inline-form')) return;
-    slot.appendChild(inlineNameForm({
+    const form = inlineNameForm({
       placeholder: 'Who or what is this case about?',
       choices: CASE_KINDS,
       withFictional: true,
@@ -87,7 +155,9 @@ export async function render(root, ctx) {
         markOpened(kase.id);
         if (kind === 'person') sessionStorage.setItem('c7-offer-lookup', '1'); // the new profile offers Look up
       },
-    }));
+    });
+    slot.appendChild(form);
+    wireCaseLookup(form, ctx, store);
   });
 
   const grid = root.querySelector('#case-grid');
