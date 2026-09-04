@@ -713,6 +713,22 @@ promise; every pick must land on a page. Twenty-eight questions later:
   returning to Cases. No breadcrumb.
 - **People** (`js/pages/people.js`): everyone in every case, searchable,
   tap → profile.
+- **Cases/People as a database, desktop only (v62, 2026-09-04, her ask —
+  "change cases to database"):** `STYLE.md`'s own "tables over scattered
+  cards" law had never actually been built. Both pages now carry a
+  Table/Cards (People: Table/List) toggle in the header, `localStorage`
+  per device (`c7-cases-view`, `c7-people-view`), defaulting to Table.
+  Cases table columns: Name (face thumb), Kind, Era, People count,
+  Attention (the same badges as a card), Last opened; sortable by Name /
+  People / Last opened, click a header to sort, click again to reverse
+  (`c7-cases-sort`). People table: Name, Case (chip coloured by the
+  case's kind), Occupation, Nationality; sortable by Name / Case
+  (`c7-people-sort`). A row's Import/⋯ actions fade in on hover and are
+  the exact same `wireCaseMenu`/`wireImportBtn` the card view calls — no
+  behaviour can drift between the two views. Row click opens the
+  case/person exactly as a card does. Below 640px the toggle is hidden
+  and the view is forced to Cards/List regardless of the stored
+  preference — a dense table has nowhere to go on a phone.
 - A brand-new person-case **offers** Look up on the fresh profile (one
   tap to run it, never automatic). Launch reopens the last route
   (`localStorage c7-last-hash`).

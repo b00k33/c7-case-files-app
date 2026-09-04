@@ -528,6 +528,23 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tab-strip a .n { color: var(--brass); font-family: var(--font-mono); font-size: 11px; margin-left: 4px; }
 #back-btn { margin-right: var(--sp-2); font-size: 16px; padding: 0 8px; }
 
+/* ------------------------------------------------------- database table */
+/* desktop-only (STYLE.md: "tables over scattered cards") — the toggle
+   itself hides on narrow screens so mobile always keeps the cards */
+.view-toggle { display: inline-flex; background: var(--ink-2); border-radius: 20px; padding: 2px; flex: none; }
+.view-toggle button { border: none; background: none; padding: 4px 12px; font-size: 11px; border-radius: 20px; color: var(--text-3); cursor: pointer; }
+.view-toggle button.on { background: var(--brass); color: #211a0c; font-weight: 600; }
+.table-scroll { overflow-x: auto; }
+table.dense th.sortable { cursor: pointer; user-select: none; }
+table.dense th.sortable:hover { color: var(--text-2); }
+table.dense th .arrow { color: var(--brass); margin-left: 3px; }
+table.dense td .rowname { display: flex; align-items: center; gap: 10px; }
+table.dense td.actions { text-align: right; }
+table.dense tr .row-actions { display: inline-flex; gap: 4px; opacity: 0; }
+table.dense tr:hover .row-actions { opacity: 1; }
+table.dense tr .row-actions button { padding: 0 6px; min-height: 24px; font-size: 11px; }
+@media (max-width: 640px) { .view-toggle { display: none; } }
+
 /* ------------------------------------------------------- event case */
 .event-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
 .event-badge { display: inline-block; background: var(--ink-3); color: var(--violet); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-family: var(--font-mono); }

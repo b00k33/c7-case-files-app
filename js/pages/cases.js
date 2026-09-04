@@ -15,6 +15,38 @@ const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, th
 // any case starting as a person (2026-09-04, her screenshot)
 const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case' };
 const otherKinds = (kind) => Object.keys(KIND_LABEL).filter((k) => k !== (KIND_LABEL[kind] ? kind : 'person'));
+const KIND_SHORT = { person: 'Person', family: 'Family', event: 'Event' };
+
+// the database table (v62, 2026-09-04, her ask — "change cases to
+// database"): STYLE.md already calls for "tables over scattered cards" on
+// desktop; the card grid never actually did that. A Table/Cards toggle,
+// remembered per device; mobile always keeps the cards (the CSS hides the
+// toggle under 640px, and boot forces 'cards' there regardless of the
+// stored pick, since a dense table has nowhere to go on a phone).
+const VIEW_KEY = 'c7-cases-view';
+const SORT_KEY = 'c7-cases-sort';
+function isNarrow() { return window.matchMedia('(max-width: 640px)').matches; }
+function getView() {
+  if (isNarrow()) return 'cards';
+  return localStorage.getItem(VIEW_KEY) === 'cards' ? 'cards' : 'table';
+}
+function setView(v) { localStorage.setItem(VIEW_KEY, v); }
+function getSort() {
+  try { return JSON.parse(localStorage.getItem(SORT_KEY)) || { key: 'opened', dir: 'desc' }; }
+  catch (_) { return { key: 'opened', dir: 'desc' }; }
+}
+function setSort(s) { localStorage.setItem(SORT_KEY, JSON.stringify(s)); }
+function timeAgo(ms) {
+  if (!ms) return '—';
+  const m = Math.floor((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return `${Math.floor(d / 7)}w ago`;
+}
 
 function openedMap() {
   try { return JSON.parse(localStorage.getItem(OPENED_KEY) || '{}'); } catch (_) { return {}; }
@@ -164,11 +196,204 @@ async function faceEl(person, size) {
   return el;
 }
 
+/** One small circular thumb for a table row — the case's subject face, or the violet Event mark. */
+async function rowThumbEl(c, people) {
+  if (c.kind === 'event') {
+    const el = document.createElement('div');
+    el.className = 'face';
+    el.style.cssText = 'width:26px;height:26px;background:linear-gradient(155deg,#362f57,#1c1930)';
+    el.innerHTML = `<span class="initials" style="color:var(--violet);font-size:10px">${initials(c.name)}</span>`;
+    return el;
+  }
+  const subject = subjectOf(c, people);
+  return faceEl(subject || { display_name: c.name }, 26);
+}
+
+/**
+ * The ⋯ menu — rename, kind-switch, duplicates, delete — shared by the
+ * card and the table row so both stay in sync with one implementation.
+ */
+function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
+  menuBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    const dups = await store.findDuplicates(c.id);
+    const flagged = dups.people.length ? `${dups.people.length} same-name ${dups.people.length === 1 ? 'person' : 'people'} (${dups.people.map((p) => p.name).join(', ')}) — not removed` : '';
+    slot.innerHTML = `
+      <div class="row wrap" style="gap:6px;margin-top:8px">
+        <button class="btn btn-ghost btn-sm m-rename">Rename</button>
+        ${otherKinds(c.kind).map((k) => `<button class="btn btn-ghost btn-sm m-kind" data-kind="${k}">Make it ${KIND_LABEL[k]}</button>`).join('')}
+        ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
+        <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
+      </div>
+      ${dups.total || flagged ? `<div class="mono" style="font-size:11px;color:var(--text-3);margin-top:6px">${[dups.claims.length ? `${dups.claims.length} claim${dups.claims.length === 1 ? '' : 's'}` : null, dups.evidenceCount ? `${dups.evidenceCount} evidence item${dups.evidenceCount === 1 ? '' : 's'} (same link)` : null, flagged || null].filter(Boolean).join(' · ')}</div>` : ''}`;
+    twoTapConfirm(slot.querySelector('.m-delete'), {
+      confirmLabel: 'Really delete this case?',
+      onConfirm: async () => { await store.softDeleteCase(c.id); if (c.id === ctx.caseId) await ctx.setCaseId(null); onChanged(); },
+    });
+    if (dups.total) {
+      twoTapConfirm(slot.querySelector('.m-dups'), {
+        confirmLabel: `Really remove ${dups.total}?`,
+        onConfirm: async () => { await store.removeDuplicates(c.id); onChanged(); },
+      });
+    }
+    slot.querySelector('.m-rename').addEventListener('click', () => {
+      slot.innerHTML = '';
+      slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name }); onChanged(); } }));
+    });
+    for (const btn of slot.querySelectorAll('.m-kind')) {
+      btn.addEventListener('click', async () => {
+        const kind = btn.dataset.kind;
+        await store.updateCase(c.id, { kind });
+        if (kind === 'event') await dropPlaceholderPerson(store, c);
+        onChanged();
+      });
+    }
+  });
+}
+
+function wireImportBtn(btn, c, ctx, store) {
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    markOpened(c.id); await ctx.setCaseId(c.id);
+    const people = await store.listPeople(c.id);
+    const subject = c.kind !== 'family' ? subjectOf(c, people) : null;
+    ctx.navigate(subject ? `#/subject/${subject.id}/import` : '#/import');
+  });
+}
+
+async function buildCaseCard(c, sum, ctx, store, onChanged) {
+  const card = document.createElement('div');
+  card.className = 'case-card';
+  card.innerHTML = `
+    <div class="pic"></div>
+    <div class="body">
+      <div class="row between" style="align-items:flex-start;gap:6px">
+        <div class="title">${c.name}</div>
+        <button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind">⋯</button>
+      </div>
+      <div class="badges"></div>
+      <div class="row" style="gap:6px;margin-top:8px">
+        <button class="btn btn-ghost btn-sm import-btn">Import</button>
+      </div>
+      <div class="menu-slot"></div>
+    </div>
+  `;
+  // picture: the person's face, up to three family faces, or the violet Event mark
+  const pic = card.querySelector('.pic');
+  if (c.world) pic.innerHTML = `<span class="fic-ribbon">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>`;
+  if (c.kind === 'event') {
+    pic.classList.add('event');
+    pic.innerHTML += `<span class="event-ribbon">Event</span><span class="initials">${initials(c.name)}</span>`;
+  } else {
+    const subject = subjectOf(c, sum.people);
+    const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
+    if (!faces.length) pic.innerHTML += `<span class="initials">${initials(c.name)}</span>`;
+    else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
+    else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
+  }
+  // badges only when there is something
+  const badges = card.querySelector('.badges');
+  if (sum.toReview) badges.innerHTML += `<span class="chip brass">${sum.toReview} to review</span>`;
+  if (sum.inbox) badges.innerHTML += `<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`;
+  if (sum.questions) badges.innerHTML += `<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`;
+
+  card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open')) return; openCase(ctx, c); });
+  card.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
+  wireImportBtn(card.querySelector('.import-btn'), c, ctx, store);
+  wireCaseMenu(card.querySelector('.menu-btn'), card.querySelector('.menu-slot'), c, ctx, store, onChanged);
+  return card;
+}
+
+async function buildCaseRow(c, sum, opened, ctx, store, onChanged) {
+  const tr = document.createElement('tr');
+  const era = c.era_start || c.era_end ? `${c.era_start || '?'}–${c.era_end || '?'}` : '—';
+  const kindClass = c.kind === 'event' ? 'violet' : c.kind === 'family' ? 'brass' : '';
+  const badges = [];
+  if (sum.toReview) badges.push(`<span class="chip brass">${sum.toReview} to review</span>`);
+  if (sum.inbox) badges.push(`<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`);
+  if (sum.questions) badges.push(`<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`);
+  const lastOpened = opened[c.id] || Date.parse(c.updated_at) || 0;
+  tr.innerHTML = `
+    <td><div class="rowname"><div class="thumb-slot"></div>${c.name}${c.world ? ` <span class="chip violet">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>` : ''}</div></td>
+    <td><span class="chip ${kindClass}">${KIND_SHORT[c.kind] || 'Person'}</span></td>
+    <td class="num">${era}</td>
+    <td class="num">${sum.people.length}</td>
+    <td>${badges.join('')}</td>
+    <td class="num">${timeAgo(lastOpened)}</td>
+    <td class="actions"><div class="row-actions"><button class="btn btn-ghost btn-sm import-btn">Import</button><button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind">⋯</button></div></td>
+  `;
+  tr.querySelector('.thumb-slot').replaceWith(await rowThumbEl(c, sum.people));
+  const menuRow = document.createElement('tr');
+  const menuTd = document.createElement('td');
+  menuTd.colSpan = 7;
+  menuTd.className = 'menu-slot';
+  menuRow.appendChild(menuTd);
+  menuRow.style.display = 'none';
+
+  tr.addEventListener('click', (e) => { if (e.target.closest('button, .q-open')) return; openCase(ctx, c); });
+  tr.querySelector('.q-open')?.addEventListener('click', async (e) => { e.stopPropagation(); markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
+  wireImportBtn(tr.querySelector('.import-btn'), c, ctx, store);
+  wireCaseMenu(tr.querySelector('.menu-btn'), menuTd, c, ctx, store, onChanged);
+  // the menu slot only needs to exist while open — hide/show its row with it
+  const mo = new MutationObserver(() => { menuRow.style.display = menuTd.children.length ? '' : 'none'; });
+  mo.observe(menuTd, { childList: true });
+  return [tr, menuRow];
+}
+
+async function buildTable(withSums, opened, sortState, ctx, store, onChanged) {
+  const wrap = document.createElement('div');
+  wrap.className = 'panel table-scroll';
+  const arrow = (key) => (sortState.key === key ? `<span class="arrow">${sortState.dir === 'asc' ? '▴' : '▾'}</span>` : '');
+  const table = document.createElement('table');
+  table.className = 'dense';
+  table.innerHTML = `
+    <thead><tr>
+      <th class="sortable" data-sort="name">Name${arrow('name')}</th>
+      <th>Kind</th>
+      <th>Era</th>
+      <th class="sortable" data-sort="people">People${arrow('people')}</th>
+      <th>Attention</th>
+      <th class="sortable" data-sort="opened">Last opened${arrow('opened')}</th>
+      <th></th>
+    </tr></thead>
+    <tbody></tbody>
+  `;
+  const tbody = table.querySelector('tbody');
+  for (const { c, sum } of withSums) {
+    const [tr, menuRow] = await buildCaseRow(c, sum, opened, ctx, store, onChanged);
+    tbody.appendChild(tr);
+    tbody.appendChild(menuRow);
+  }
+  for (const th of table.querySelectorAll('th.sortable')) {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      setSort(sortState.key === key ? { key, dir: sortState.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'name' ? 'asc' : 'desc' });
+      onChanged();
+    });
+  }
+  wrap.appendChild(table);
+  return wrap;
+}
+
 export async function render(root, ctx) {
   const { store } = ctx;
   const opened = openedMap();
-  const cases = (await store.listCases()).filter((c) => c.kind !== 'fun')
-    .sort((a, b) => (opened[b.id] || 0) - (opened[a.id] || 0) || (a.updated_at < b.updated_at ? 1 : -1));
+  const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
+  const withSums = await Promise.all(cases.map(async (c) => ({ c, sum: await store.caseSummary(c.id) })));
+
+  const view = getView();
+  const sortState = getSort();
+  const sortValue = ({ c, sum }, key) => {
+    if (key === 'name') return c.name.toLowerCase();
+    if (key === 'people') return sum.people.length;
+    return opened[c.id] || Date.parse(c.updated_at) || 0;
+  };
+  withSums.sort((a, b) => {
+    const av = sortValue(a, sortState.key), bv = sortValue(b, sortState.key);
+    const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+    return sortState.dir === 'asc' ? cmp : -cmp;
+  });
 
   root.innerHTML = `
     <div class="stack">
@@ -177,11 +402,15 @@ export async function render(root, ctx) {
           <span class="ic">⌕</span>
           <input type="search" id="all-search" placeholder="Search everything — people, evidence, quotes, in any case">
         </div>
+        <div class="view-toggle" id="view-toggle">
+          <button type="button" data-view="table" class="${view === 'table' ? 'on' : ''}">Table</button>
+          <button type="button" data-view="cards" class="${view === 'cards' ? 'on' : ''}">Cards</button>
+        </div>
         <button class="btn btn-primary" id="new-case-btn">+ New</button>
       </div>
       <div id="new-case-slot"></div>
       <div id="search-results"></div>
-      <div id="case-grid" class="case-grid"></div>
+      <div id="cases-body"></div>
     </div>
   `;
 
@@ -202,100 +431,25 @@ export async function render(root, ctx) {
     wireCaseLookup(form, ctx, store);
   });
 
-  const grid = root.querySelector('#case-grid');
+  for (const btn of root.querySelectorAll('#view-toggle button')) {
+    btn.addEventListener('click', () => { setView(btn.dataset.view); render(root, ctx); });
+  }
+
+  const body = root.querySelector('#cases-body');
   if (!cases.length) {
-    grid.appendChild(emptyState({
+    body.appendChild(emptyState({
       missing: 'No case files yet.',
-      why: 'A case is about one person, or a family. Everything you attach — evidence, relations, contradictions — lives inside it.',
+      why: 'A case is about one person, a family, or a major event. Everything you attach — evidence, relations, contradictions — lives inside it.',
       action: '+ New case',
       onAction: () => root.querySelector('#new-case-btn').click(),
     }));
-  }
-
-  for (const c of cases) {
-    const sum = await store.caseSummary(c.id);
-    const card = document.createElement('div');
-    card.className = 'case-card';
-    card.innerHTML = `
-      <div class="pic"></div>
-      <div class="body">
-        <div class="row between" style="align-items:flex-start;gap:6px">
-          <div class="title">${c.name}</div>
-          <button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind">⋯</button>
-        </div>
-        <div class="badges"></div>
-        <div class="row" style="gap:6px;margin-top:8px">
-          <button class="btn btn-ghost btn-sm import-btn">Import</button>
-        </div>
-        <div class="menu-slot"></div>
-      </div>
-    `;
-    // picture: the person's face, up to three family faces, or the violet Event mark
-    const pic = card.querySelector('.pic');
-    if (c.world) pic.innerHTML = `<span class="fic-ribbon">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>`;
-    if (c.kind === 'event') {
-      pic.classList.add('event');
-      pic.innerHTML += `<span class="event-ribbon">Event</span><span class="initials">${initials(c.name)}</span>`;
-    } else {
-      const subject = subjectOf(c, sum.people);
-      const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
-      if (!faces.length) pic.innerHTML += `<span class="initials">${initials(c.name)}</span>`;
-      else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
-      else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
-    }
-    // badges only when there is something
-    const badges = card.querySelector('.badges');
-    if (sum.toReview) badges.innerHTML += `<span class="chip brass">${sum.toReview} to review</span>`;
-    if (sum.inbox) badges.innerHTML += `<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`;
-    if (sum.questions) badges.innerHTML += `<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`;
-
-    card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open')) return; openCase(ctx, c); });
-    card.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
-    card.querySelector('.import-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      markOpened(c.id); await ctx.setCaseId(c.id);
-      const people = await store.listPeople(c.id);
-      const subject = c.kind !== 'family' ? subjectOf(c, people) : null;
-      ctx.navigate(subject ? `#/subject/${subject.id}/import` : '#/import');
-    });
-    card.querySelector('.menu-btn').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const slot = card.querySelector('.menu-slot');
-      if (slot.children.length) { slot.innerHTML = ''; return; }
-      const dups = await store.findDuplicates(c.id);
-      const flagged = dups.people.length ? `${dups.people.length} same-name ${dups.people.length === 1 ? 'person' : 'people'} (${dups.people.map((p) => p.name).join(', ')}) — not removed` : '';
-      slot.innerHTML = `
-        <div class="row wrap" style="gap:6px;margin-top:8px">
-          <button class="btn btn-ghost btn-sm m-rename">Rename</button>
-          ${otherKinds(c.kind).map((k) => `<button class="btn btn-ghost btn-sm m-kind" data-kind="${k}">Make it ${KIND_LABEL[k]}</button>`).join('')}
-          ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
-          <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
-        </div>
-        ${dups.total || flagged ? `<div class="mono" style="font-size:11px;color:var(--text-3);margin-top:6px">${[dups.claims.length ? `${dups.claims.length} claim${dups.claims.length === 1 ? '' : 's'}` : null, dups.evidenceCount ? `${dups.evidenceCount} evidence item${dups.evidenceCount === 1 ? '' : 's'} (same link)` : null, flagged || null].filter(Boolean).join(' · ')}</div>` : ''}`;
-      twoTapConfirm(slot.querySelector('.m-delete'), {
-        confirmLabel: 'Really delete this case?',
-        onConfirm: async () => { await store.softDeleteCase(c.id); if (c.id === ctx.caseId) await ctx.setCaseId(null); render(root, ctx); },
-      });
-      if (dups.total) {
-        twoTapConfirm(slot.querySelector('.m-dups'), {
-          confirmLabel: `Really remove ${dups.total}?`,
-          onConfirm: async () => { await store.removeDuplicates(c.id); render(root, ctx); },
-        });
-      }
-      slot.querySelector('.m-rename').addEventListener('click', () => {
-        slot.innerHTML = '';
-        slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name }); render(root, ctx); } }));
-      });
-      for (const btn of slot.querySelectorAll('.m-kind')) {
-        btn.addEventListener('click', async () => {
-          const kind = btn.dataset.kind;
-          await store.updateCase(c.id, { kind });
-          if (kind === 'event') await dropPlaceholderPerson(store, c);
-          render(root, ctx);
-        });
-      }
-    });
-    grid.appendChild(card);
+  } else if (view === 'table') {
+    body.appendChild(await buildTable(withSums, opened, sortState, ctx, store, () => render(root, ctx)));
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'case-grid';
+    for (const { c, sum } of withSums) grid.appendChild(await buildCaseCard(c, sum, ctx, store, () => render(root, ctx)));
+    body.appendChild(grid);
   }
 
   // search everything, live
@@ -307,7 +461,7 @@ export async function render(root, ctx) {
     timer = setTimeout(async () => {
       const q = input.value.trim();
       resultsEl.innerHTML = '';
-      grid.style.display = q ? 'none' : '';
+      body.style.display = q ? 'none' : '';
       if (!q) return;
       const hits = await store.searchAll(q);
       if (!hits.length) { resultsEl.appendChild(emptyState({ missing: `No matches for “${q}”.`, why: 'Searched case names, people, evidence titles and notes, and video quotes.' })); return; }
