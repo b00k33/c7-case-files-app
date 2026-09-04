@@ -585,6 +585,22 @@ changed is where the app lives and how devices share it.
   article as evidence. Each applied fact is stored as an already-accepted
   claim citing its property, so the audit trail matches a Review accept.
   Existing, already-filled people are left alone. Direct family only.
+- **A lookup corrects an unformatted name (v61, 2026-09-04, her ask — "make
+  sure future cases can use correct spelling from wikipedia" after
+  finding "jk rowling" in her own data):** `fillFromWikidata` now sets
+  `display_name` to the item's Wikidata label when the CURRENT name has no
+  real capitalisation at all — all-lowercase or all-caps, the shape of a
+  name typed in a hurry — recorded as an accepted claim like any other
+  applied fact. An already-properly-cased name that's simply shorter or
+  different ("Henry VIII" vs Wikidata's "Henry VIII of England", "King
+  Charles" vs "Charles III") is a deliberate choice and is never touched.
+  Same audit turned up a real bug in `fetchProfile`: it asked Wikidata for
+  `languages=en` only, so any item whose label lives solely under `mul`
+  (the "same in every language" code — J. K. Rowling's own item among
+  them) came back unlabelled, silently falling back to its bare
+  Q-number. Fixed to `en|mul` with English
+  preferred when both exist — this was quietly breaking relative names,
+  citations and now the name-fix above for any such item, not just hers.
   The only other third-party load is a YouTube thumbnail image for a linked video
   (`js/media.js`; an `<img>` from YouTube's image host, video id only,
   placeholder when offline). Nothing else; no automatic lookups.

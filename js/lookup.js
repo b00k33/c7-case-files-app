@@ -25,6 +25,18 @@ const DEMONYM = {
   'Kingdom of Great Britain': 'British', 'Kingdom of France': 'French', 'Russian Empire': 'Russian', 'Soviet Union': 'Soviet',
 };
 
+/**
+ * True when a typed name carries no real capitalisation at all — "jk
+ * rowling", "HENRY VIII" — the shape of a name typed in a hurry, not a
+ * deliberate editorial choice. "Henry VIII" and "King Charles" (an
+ * intentional shorter name than Wikidata's "Charles III") both stay
+ * untouched: they're already properly cased, just a different name.
+ */
+function looksUnformatted(name) {
+  const letters = String(name || '').replace(/[^a-zA-Z]/g, '');
+  return letters.length > 0 && (letters === letters.toLowerCase() || letters === letters.toUpperCase());
+}
+
 export async function getJSON(url) {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Lookup failed (${res.status})`);
@@ -59,9 +71,18 @@ function values(claims, prop) {
   return (preferred.length ? preferred : usable).map((c) => c.mainsnak.datavalue.value);
 }
 
+// a growing share of items (J. K. Rowling's own among them) carry their
+// label only under "mul" — the same name in every language, so Wikidata
+// stops duplicating it per-language — never under "en" at all (2026-09-04,
+// the reason a lookup's own subject came back unlabelled)
+function pickLabel(labelsObj, fallbackId) {
+  if (!labelsObj) return fallbackId;
+  return (labelsObj.en && labelsObj.en.value) || (labelsObj.mul && labelsObj.mul.value) || fallbackId;
+}
+
 /** One Wikidata item → the facts we know how to draft, labels resolved. */
 export async function fetchProfile(qid) {
-  const data = await getJSON(`${WD}?action=wbgetentities&ids=${qid}&props=claims|sitelinks|labels|descriptions&languages=en&format=json&origin=*`);
+  const data = await getJSON(`${WD}?action=wbgetentities&ids=${qid}&props=claims|sitelinks|labels|descriptions&languages=en|mul&format=json&origin=*`);
   const ent = data.entities && data.entities[qid];
   if (!ent || ent.missing !== undefined) throw new Error('That record could not be read.');
   const claims = ent.claims || {};
@@ -94,9 +115,9 @@ export async function fetchProfile(qid) {
   const idList = [...ids];
   for (let i = 0; i < idList.length; i += 50) {
     const chunk = idList.slice(i, i + 50);
-    const ld = await getJSON(`${WD}?action=wbgetentities&ids=${chunk.join('|')}&props=labels|claims&languages=en&format=json&origin=*`);
+    const ld = await getJSON(`${WD}?action=wbgetentities&ids=${chunk.join('|')}&props=labels|claims&languages=en|mul&format=json&origin=*`);
     for (const [id, e] of Object.entries(ld.entities || {})) {
-      labels[id] = e.labels && e.labels.en ? e.labels.en.value : id;
+      labels[id] = pickLabel(e.labels, id);
       relClaims[id] = e.claims || {};
     }
   }
@@ -117,7 +138,7 @@ export async function fetchProfile(qid) {
 
   return {
     qid,
-    label: ent.labels && ent.labels.en ? ent.labels.en.value : qid,
+    label: pickLabel(ent.labels, qid),
     description: ent.descriptions && ent.descriptions.en ? ent.descriptions.en.value : '',
     wikidataUrl: `https://www.wikidata.org/wiki/${qid}`,
     wikiUrl, summary, photoUrl,
@@ -268,6 +289,10 @@ export async function fillFromWikidata(store, caseId, personId, qid) {
   const patch = {};
   const applied = [];
   const fresh = await store.getPerson(personId);
+  // a name typed in a hurry ("jk rowling") gets Wikidata's own spelling —
+  // an already-cased name that's just shorter ("Henry VIII", "King Charles")
+  // is a deliberate choice and stays untouched (her ask, 2026-09-04)
+  if (f.label && f.label !== fresh.display_name && looksUnformatted(fresh.display_name)) { patch.display_name = f.label; applied.push(['display_name', f.label, 'label']); }
   if (f.birth && !fresh.birth_date && !fresh.birth_year_min) { Object.assign(patch, dateFields(f.birth, null), { death_date: fresh.death_date, death_precision: fresh.death_precision }); applied.push(['birth', f.birth, P.birth]); }
   if (f.death && f.death.precision === 'day' && !fresh.death_date) { patch.death_date = f.death.date; patch.death_precision = 'day'; applied.push(['death', f.death, P.death]); }
   if (f.birthPlace && !fresh.birth_place) { patch.birth_place = f.birthPlace; applied.push(['birth_place', f.birthPlace, P.birthPlace]); }
