@@ -671,11 +671,14 @@ promise; every pick must land on a page. Twenty-eight questions later:
   — the same case-level pages Evidence/Board/etc. already are, mounted
   under the event header exactly as they mount under a person's on the
   profile. The Cases-home card gets a violet "Event" ribbon instead of a
-  face; the "⋯" kind-switcher now cycles person → family → event →
-  person, and switching a case to Event drops its auto-created
-  placeholder person if it still looks untouched (blank fields, same
-  name as the case) — how the existing "World War 1" case (made before
-  Event existed) gets fixed up, in place, with its evidence kept.
+  face; the "⋯" menu's kind-switcher offers the two kinds a case ISN'T
+  as two direct one-click buttons (v60 — a person → family → event →
+  person *cycle* hid "event" a click deep behind "family" for any case
+  starting as a person, her screenshot), and switching a case to Event
+  drops its auto-created placeholder person if it still looks untouched
+  (blank fields, same name as the case) — how the existing "World War 1"
+  case (made before Event existed) gets fixed up, in place, with its
+  evidence kept.
 - **Tapping a case goes in** (`openCase`): a person-case opens the
   person's profile (creating the person from the case name if the case
   is empty); a family-case — or an old research-kind case with several

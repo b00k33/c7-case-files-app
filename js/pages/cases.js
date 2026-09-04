@@ -10,9 +10,11 @@ import { fetchWorks, addWorks } from '../works.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
-// the "⋯" menu's kind-switcher cycles person → family → event → person
-const KIND_CYCLE_NEXT = { person: 'family', family: 'event', event: 'person' };
-const KIND_CYCLE_LABEL = { person: 'Make it a family case', family: 'Make it an event case', event: 'Make it a person case' };
+// the "⋯" menu's kind-switcher offers the two kinds a case ISN'T, each one
+// click away — a cycle button hid "event" a click deep behind "family" for
+// any case starting as a person (2026-09-04, her screenshot)
+const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case' };
+const otherKinds = (kind) => Object.keys(KIND_LABEL).filter((k) => k !== (KIND_LABEL[kind] ? kind : 'person'));
 
 function openedMap() {
   try { return JSON.parse(localStorage.getItem(OPENED_KEY) || '{}'); } catch (_) { return {}; }
@@ -265,7 +267,7 @@ export async function render(root, ctx) {
       slot.innerHTML = `
         <div class="row wrap" style="gap:6px;margin-top:8px">
           <button class="btn btn-ghost btn-sm m-rename">Rename</button>
-          <button class="btn btn-ghost btn-sm m-kind">${KIND_CYCLE_LABEL[c.kind] || KIND_CYCLE_LABEL.person}</button>
+          ${otherKinds(c.kind).map((k) => `<button class="btn btn-ghost btn-sm m-kind" data-kind="${k}">Make it ${KIND_LABEL[k]}</button>`).join('')}
           ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
           <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
         </div>
@@ -284,12 +286,14 @@ export async function render(root, ctx) {
         slot.innerHTML = '';
         slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name }); render(root, ctx); } }));
       });
-      slot.querySelector('.m-kind').addEventListener('click', async () => {
-        const kind = KIND_CYCLE_NEXT[c.kind] || 'family';
-        await store.updateCase(c.id, { kind });
-        if (kind === 'event') await dropPlaceholderPerson(store, c);
-        render(root, ctx);
-      });
+      for (const btn of slot.querySelectorAll('.m-kind')) {
+        btn.addEventListener('click', async () => {
+          const kind = btn.dataset.kind;
+          await store.updateCase(c.id, { kind });
+          if (kind === 'event') await dropPlaceholderPerson(store, c);
+          render(root, ctx);
+        });
+      }
     });
     grid.appendChild(card);
   }
