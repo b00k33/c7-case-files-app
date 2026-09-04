@@ -19,16 +19,17 @@ const ROUTES = {
   contradictions: () => import('./pages/contradictions.js'),
   cases: () => import('./pages/cases.js'),
   family: () => import('./pages/family.js'),
+  event: () => import('./pages/event.js'),
   people: () => import('./pages/people.js'),
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
 const TITLES = {
   dashboard: 'Dashboard (old)', evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
-  fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', people: 'People', inbox: 'Inbox',
+  fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', people: 'People', inbox: 'Inbox',
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav
-const INSIDE_CASE = new Set(['subject', 'family', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
+const INSIDE_CASE = new Set(['subject', 'family', 'event', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
 const HOME_ROUTE = 'cases';
 
 const connectRoot = document.getElementById('connect-root');
@@ -82,14 +83,14 @@ document.getElementById('case-rail-select')?.addEventListener('change', async (e
       const form = inlineNameForm({
         placeholder: 'Who or what is this case about?',
         submitLabel: 'Create',
-        choices: [{ value: 'person', label: 'A person' }, { value: 'family', label: 'A family / household' }],
+        choices: [{ value: 'person', label: 'A person' }, { value: 'family', label: 'A family / household' }, { value: 'event', label: 'A major event' }],
         withFictional: true,
         onSubmit: async (name, kind, world) => {
           const { createCaseOfKind } = await import('./pages/dashboard.js');
           form.remove();
           sel.style.display = '';
           if (kind === 'person') sessionStorage.setItem('c7-offer-lookup', '1');
-          await createCaseOfKind(store, ctx, name, kind, world); // navigates: person file, or the family
+          await createCaseOfKind(store, ctx, name, kind, world); // navigates: person file, the family, or the event overview
           refreshCaseContext();
         },
         onCancel: () => { sel.style.display = ''; refreshCaseContext(); },

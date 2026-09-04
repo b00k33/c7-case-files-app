@@ -10,6 +10,10 @@ import { fetchWorks, addWorks } from '../works.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
+// the "⋯" menu's kind-switcher cycles person → family → event → person
+const KIND_CYCLE_NEXT = { person: 'family', family: 'event', event: 'person' };
+const KIND_CYCLE_LABEL = { person: 'Make it a family case', family: 'Make it an event case', event: 'Make it a person case' };
+
 function openedMap() {
   try { return JSON.parse(localStorage.getItem(OPENED_KEY) || '{}'); } catch (_) { return {}; }
 }
@@ -27,15 +31,30 @@ export function subjectOf(kase, people) {
     || [...people].sort((a, b) => (a.created_at < b.created_at ? -1 : 1))[0];
 }
 
-/** Go into a case: person-case → the person's profile; family (or several people) → family overview. */
+/** Go into a case: person-case → the person's profile; family (or several people) → family overview; event → its own overview. */
 export async function openCase(ctx, kase) {
   markOpened(kase.id);
   await ctx.setCaseId(kase.id);
+  if (kase.kind === 'event') { ctx.navigate('#/event'); return; }
   const people = await ctx.store.listPeople(kase.id);
   if (kase.kind === 'family' || (kase.kind !== 'person' && people.length > 1)) { ctx.navigate('#/family'); return; }
   let p = subjectOf(kase, people);
   if (!p) p = await ctx.store.createPerson({ case_id: kase.id, display_name: kase.name, kind: 'person' });
   ctx.navigate(`#/subject/${p.id}`);
+}
+
+/**
+ * Converting a case to Event drops its auto-created "subject" person if it
+ * still looks untouched — her call on World War 1 (2026-09-04): keep the
+ * case and its evidence, but the placeholder person that only ever existed
+ * to give a person-case a profile has no reason to survive the switch.
+ */
+async function dropPlaceholderPerson(store, kase) {
+  const people = await store.listPeople(kase.id);
+  if (people.length !== 1) return;
+  const p = people[0];
+  const blank = !p.birth_date && !p.death_date && !p.notes && !p.photo_path && !p.photo_url && !p.wikidata_id && !p.occupation && !p.nationality;
+  if (blank && p.display_name.trim().toLowerCase() === kase.name.trim().toLowerCase()) await store.softDeletePerson(p.id);
 }
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
@@ -59,6 +78,15 @@ function wireCaseLookup(form, ctx, store) {
   const results = document.createElement('div');
   results.className = 'if-wiki-results';
   form.appendChild(results);
+  // this searches Wikidata for a person — no fit for "a major event" (2026-09-04)
+  const kindSelect = form.querySelector('.if-choice');
+  const syncWikiVisibility = () => {
+    const isEvent = kindSelect?.value === 'event';
+    btn.style.display = isEvent ? 'none' : '';
+    if (isEvent) results.innerHTML = '';
+  };
+  kindSelect?.addEventListener('change', syncWikiVisibility);
+  syncWikiVisibility();
 
   btn.addEventListener('click', async () => {
     const name = form.querySelector('input[type="text"]').value.trim();
@@ -200,14 +228,19 @@ export async function render(root, ctx) {
         <div class="menu-slot"></div>
       </div>
     `;
-    // picture: the person's face, or up to three family faces
+    // picture: the person's face, up to three family faces, or the violet Event mark
     const pic = card.querySelector('.pic');
     if (c.world) pic.innerHTML = `<span class="fic-ribbon">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>`;
-    const subject = subjectOf(c, sum.people);
-    const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
-    if (!faces.length) pic.innerHTML += `<span class="initials">${initials(c.name)}</span>`;
-    else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
-    else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
+    if (c.kind === 'event') {
+      pic.classList.add('event');
+      pic.innerHTML += `<span class="event-ribbon">Event</span><span class="initials">${initials(c.name)}</span>`;
+    } else {
+      const subject = subjectOf(c, sum.people);
+      const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
+      if (!faces.length) pic.innerHTML += `<span class="initials">${initials(c.name)}</span>`;
+      else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
+      else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
+    }
     // badges only when there is something
     const badges = card.querySelector('.badges');
     if (sum.toReview) badges.innerHTML += `<span class="chip brass">${sum.toReview} to review</span>`;
@@ -232,7 +265,7 @@ export async function render(root, ctx) {
       slot.innerHTML = `
         <div class="row wrap" style="gap:6px;margin-top:8px">
           <button class="btn btn-ghost btn-sm m-rename">Rename</button>
-          <button class="btn btn-ghost btn-sm m-kind">${c.kind === 'family' ? 'Make it a person case' : 'Make it a family case'}</button>
+          <button class="btn btn-ghost btn-sm m-kind">${KIND_CYCLE_LABEL[c.kind] || KIND_CYCLE_LABEL.person}</button>
           ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
           <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
         </div>
@@ -252,7 +285,9 @@ export async function render(root, ctx) {
         slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name }); render(root, ctx); } }));
       });
       slot.querySelector('.m-kind').addEventListener('click', async () => {
-        await store.updateCase(c.id, { kind: c.kind === 'family' ? 'person' : 'family' });
+        const kind = KIND_CYCLE_NEXT[c.kind] || 'family';
+        await store.updateCase(c.id, { kind });
+        if (kind === 'event') await dropPlaceholderPerson(store, c);
         render(root, ctx);
       });
     });

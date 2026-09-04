@@ -506,6 +506,9 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .case-card .pic.multi .face { margin-left: -10px; border: 2px solid var(--ink-1); }
 .case-card .pic.multi .face:first-child { margin-left: 0; }
 .case-card .pic > .initials { font-family: var(--font-title); font-size: 26px; color: var(--brass); }
+.case-card .pic.event { background: linear-gradient(155deg, #362f57, #1c1930); }
+.case-card .pic.event > .initials { color: var(--violet); }
+.event-ribbon { position: absolute; top: 8px; left: 8px; z-index: 1; background: var(--violet); color: var(--ink-0); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 20px; }
 .case-card .body { padding: var(--sp-2) var(--sp-3) var(--sp-3); }
 .case-card .title { font-family: var(--font-title); font-size: 15px; color: var(--text); }
 .case-card .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-height: 0; }
@@ -524,6 +527,16 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tab-strip a.active { color: var(--brass); border-bottom-color: var(--brass); }
 .tab-strip a .n { color: var(--brass); font-family: var(--font-mono); font-size: 11px; margin-left: 4px; }
 #back-btn { margin-right: var(--sp-2); font-size: 16px; padding: 0 8px; }
+
+/* ------------------------------------------------------- event case */
+.event-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.event-badge { display: inline-block; background: var(--ink-3); color: var(--violet); border-radius: 20px; padding: 2px 10px; font-size: 11px; font-family: var(--font-mono); }
+.event-era { color: var(--text-3); }
+.event-era .val { color: var(--violet); }
+.event-era button { color: var(--text-3); }
+.tl-entry { position: relative; padding-left: 16px; }
+.tl-entry::before { content: ''; position: absolute; left: 3px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--violet); }
+.tl-entry .tl-date { color: var(--violet); }
 @media (max-width: 640px) {
   .case-grid { grid-template-columns: 1fr; }
   .case-card { flex-direction: row; align-items: stretch; }

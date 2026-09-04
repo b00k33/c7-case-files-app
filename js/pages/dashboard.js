@@ -13,21 +13,26 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-// what a case is about (her call, 2026-09-02): a person, or a family
+// what a case is about (her call, 2026-09-02; event added 2026-09-04): a
+// person, a family, or a major event that is neither ("World War 1")
 export const CASE_KINDS = [
   { value: 'person', label: 'A person' },
   { value: 'family', label: 'A family / household' },
+  { value: 'event', label: 'A major event' },
 ];
-export const CASE_KIND_LABEL = { person: 'person', family: 'family', research: 'research', history: 'history', fun: 'fun' };
+export const CASE_KIND_LABEL = { person: 'person', family: 'family', event: 'event', research: 'research', history: 'history', fun: 'fun' };
 
 // creating a person-case also creates the person, so their file (and Look
-// up) exists immediately — no empty case, no extra step
+// up) exists immediately — no empty case, no extra step. An event-case
+// starts on its own overview instead — no auto-created "subject" person.
 export async function createCaseOfKind(store, ctx, name, kind, world) {
   const kase = await store.createCase({ name, kind: kind || 'person', world: world || null });
   await ctx.setCaseId(kase.id);
   if ((kind || 'person') === 'person') {
     const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
     ctx.navigate(`#/subject/${p.id}`);
+  } else if (kind === 'event') {
+    ctx.navigate('#/event');
   } else {
     ctx.navigate('#/family');
   }

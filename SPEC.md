@@ -647,12 +647,42 @@ promise; every pick must land on a page. Twenty-eight questions later:
   "Best date" = genuinely earlier wins, overlapping ranges → the more
   precise. A recording with no date takes its album's ("via album"). A
   single query carrying it all ran 40–65 s and hit the service's limit.
+- **A third case kind: Event (v59, 2026-09-04, her diagnosis — "i added
+  world war 1. it is neither family or person. its a major event"; 8
+  popup answers):** `+ New` → "A major event" makes a case with no
+  auto-created subject person; it opens on its own overview instead
+  (`js/pages/event.js`, `#/event/<tab>`). Header: an editable era
+  (`case_file.era_start/era_end`, click to set) and a violet "Major
+  event" badge — violet being the palette's own "historical subjects"
+  colour. **Key figures**: the case's own person roster (own records,
+  full profile fields, same as a family-case — not shared across cases),
+  each a face card that opens their profile; "+ Add figure" adds one by
+  name, and once they exist their profile's own Look up / + Works /
+  Insert family work exactly as they do anywhere. **Timeline**: a flat,
+  chronologically-sorted list of `event` rows scoped to the case
+  (`case_id` set, `person_id` left null); each entry has a title, a
+  loosely-typed date ("1914-06-28", "1914-08", "1914" or "1914-1918",
+  parsed to the precision she actually gave — never a guessed day), a
+  place, notes, and any number of key figures via `with_ids` (the same
+  comma-joined-ids column the theory timelines already use for "with:
+  Name" — several figures per entry, e.g. a battle with more than one
+  commander). Edit/delete inline, same two-tap delete as everywhere
+  else. Tabs: Overview · Evidence · Contradictions · Questions · Board
+  — the same case-level pages Evidence/Board/etc. already are, mounted
+  under the event header exactly as they mount under a person's on the
+  profile. The Cases-home card gets a violet "Event" ribbon instead of a
+  face; the "⋯" kind-switcher now cycles person → family → event →
+  person, and switching a case to Event drops its auto-created
+  placeholder person if it still looks untouched (blank fields, same
+  name as the case) — how the existing "World War 1" case (made before
+  Event existed) gets fixed up, in place, with its evidence kept.
 - **Tapping a case goes in** (`openCase`): a person-case opens the
   person's profile (creating the person from the case name if the case
   is empty); a family-case — or an old research-kind case with several
   people — opens the **family overview** (`js/pages/family.js`: faces
-  row, then the Relations map with its + Person / + Relationship). The
-  rail switcher does the same; "lands on the Dashboard" is retired.
+  row, then the Relations map with its + Person / + Relationship); an
+  event-case opens its own overview. The rail switcher does the same;
+  "lands on the Dashboard" is retired.
 - **The profile carries the case's workspace as tabs**: Profile ·
   Evidence · Contradictions · Questions · Board · Relations · Import
   (`#/subject/<id>/<tab>`). The tab pages are the same case-level
