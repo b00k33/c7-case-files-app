@@ -736,6 +736,26 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 }
 .board-card.evidence { border-top: 2px solid var(--red); }
 .board-card.evidence .tag { font-family: var(--font-mono); font-size: 9px; color: var(--red); text-transform: uppercase; letter-spacing: .06em; }
+.board-card.milestone { border-top: 2px solid var(--teal); }
+
+/* ------------------------------------------------------ commercial tab */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.milestone-chip { gap: 6px; }
+.conf-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.conf-dot.green { background: var(--green); }
+.conf-dot.amber { background: var(--amber); }
+.conf-dot.red { background: var(--red); }
+
+/* --------------------------------------------------------- compare view */
+.compare-strip { overflow-x: auto; padding-bottom: 4px; }
+.compare-axis { position: relative; height: 18px; min-width: 480px; border-bottom: 1px solid var(--ink-3); margin-bottom: 8px; }
+.compare-axis span { position: absolute; top: 0; font-size: 10px; color: var(--text-3); transform: translateX(-50%); }
+.compare-lane { display: flex; align-items: center; gap: 12px; min-width: 480px; margin-bottom: 14px; }
+.compare-who { width: 120px; flex: none; font-size: 12.5px; font-weight: 500; }
+.compare-track { position: relative; flex: 1; height: 20px; border-bottom: 1px solid var(--ink-3); }
+.compare-dot { position: absolute; top: 6px; width: 8px; height: 8px; border-radius: 50%; transform: translateX(-50%); cursor: default; }
+.compare-dot.release { background: var(--text-3); }
+.compare-dot.milestone { background: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 20%, transparent); }
 
 /* ------------------------------------------ popup replacements (no modals) */
 .btn-armed { background: var(--red) !important; color: var(--ink-0) !important; border-color: var(--red) !important; }

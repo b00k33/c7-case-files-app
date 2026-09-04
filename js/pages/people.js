@@ -74,6 +74,7 @@ export async function render(root, ctx) {
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
         <div class="search-box" style="flex:1;min-width:220px"><span class="ic">⌕</span><input type="search" id="people-search" placeholder="Find a person in any case"></div>
+        <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
         <div class="view-toggle" id="view-toggle">
           <button type="button" data-view="table" class="${view === 'table' ? 'on' : ''}">Table</button>
           <button type="button" data-view="list" class="${view === 'list' ? 'on' : ''}">List</button>

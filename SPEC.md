@@ -737,7 +737,52 @@ promise; every pick must land on a page. Twenty-eight questions later:
   Cases · People · Review · Inbox · Fun. `#/inbox` is the Evidence page
   opened on its Inbox view.
 
-## 11. Two rules the 2026-09-03 review turned up
+## 12. Commercial milestones and the Compare view (v63, 2026-09-05)
+
+Her ask — "brand analysis", mapping the *timing* of a musician's
+commercial/financial success against their release history (Zara Larsson,
+Lily Allen were the trigger, but this is a general capability, not
+one-offs). Twelve popup answers landed on: dated facts only, no numeric
+value field (most of this — deal size, streaming counts — isn't reliably
+numeric); reuse the existing sourced/single/disputed system rather than
+inventing a new confidence model; and build all three of the mocked
+options (Board dots, a per-person tab, a multi-artist compare view).
+
+- **Four categories, stored as plain `event.kind`** (`js/milestone-
+  kinds.js`): `chart`, `certification`, `award`, `deal` — no schema
+  change. Because Board already reads every row in the `event` table
+  regardless of kind, a milestone shows on the year-strip for free the
+  moment it's created; `js/pages/board.js` gives it a teal top border and
+  its category as the sub-label instead of the raw kind string.
+- **A "Commercial" tab** on the person profile (`js/pages/commercial.js`,
+  after Import): a read-only Releases row (existing `release` events),
+  then milestones grouped by category, each a chip with a confidence dot
+  (green/amber/red, from the same `evidence.verification` → `evidence_
+  link` pipeline the rest of the app already uses — **no new confidence
+  model**) and a two-tap delete.
+- **Bulk paste entry** (`js/milestone-parse.js`): she pastes several
+  dated facts from one article, one per line ("2014 - certified gold in
+  the UK"); `parseMilestoneText` extracts the date (reusing `profile-
+  parse.js`'s `parseDate`) and guesses a category by keyword before
+  showing an editable preview — kind dropdown + title per row, remove any
+  row — she confirms before Save. One source note (a name or URL) and one
+  confidence tier apply to the whole pasted batch: if given, one
+  `evidence` row (`type:'note'`) is created and `evidence_link`ed to every
+  milestone in the batch; if left blank, the milestones save as
+  `drafted`/zero confidence, same as any other unsourced fact in C7.
+- **Compare** (`js/pages/compare.js`, `#/compare`, linked from People and
+  from the Commercial tab): pick any number of people across every case
+  (not just musicians), toggle **Calendar year** (the real-world moment
+  each hit a milestone) or **Years since debut** (their own timeline
+  zeroed at their earliest dated release/milestone — a late starter isn't
+  penalised) — her explicit correction: this is *not* about comparing
+  artists to each other as people, only about laying their timing side by
+  side. Each person's lane shows release dots (grey) and milestone dots
+  (teal); the picked list and axis choice persist per device
+  (`c7-compare-people`, `c7-compare-axis`). This is the first view in C7
+  that reads across more than one case at once.
+
+## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a
 date *plus its precision*: `1923-06-01` with `birth_precision` `month` means

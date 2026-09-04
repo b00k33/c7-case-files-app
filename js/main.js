@@ -21,12 +21,14 @@ const ROUTES = {
   family: () => import('./pages/family.js'),
   event: () => import('./pages/event.js'),
   people: () => import('./pages/people.js'),
+  compare: () => import('./pages/compare.js'),
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
 const TITLES = {
   dashboard: 'Dashboard (old)', evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
   fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', people: 'People', inbox: 'Inbox',
+  compare: 'Compare',
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav
 const INSIDE_CASE = new Set(['subject', 'family', 'event', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);

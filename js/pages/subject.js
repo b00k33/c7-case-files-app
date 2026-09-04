@@ -142,11 +142,13 @@ function chartPanel(person, status) {
 const TABS = [
   ['profile', 'Profile'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
   ['questions', 'Questions'], ['board', 'Board'], ['relations', 'Relations'], ['import', 'Import'],
+  ['commercial', 'Commercial'],
 ];
 const TAB_MODULES = {
   evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
   questions: () => import('./questions.js'),
   board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
+  commercial: () => import('./commercial.js'),
 };
 
 export async function render(root, ctx, personId, tab = 'profile') {

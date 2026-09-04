@@ -1,6 +1,7 @@
 import { universalYear, personalYear } from '../numerology.js';
 import { emptyState } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
+import { isMilestoneKind, MILESTONE_KIND_LABEL } from '../milestone-kinds.js';
 
 let stripMode = 'universal'; // 'universal' | 'density' | 'personal:<id>'
 
@@ -152,7 +153,9 @@ export async function render(root, ctx) {
         card.addEventListener('click', () => ctx.navigate('#/evidence'));
         evidencePos[ev.id] = { x, y: yPos + 28 };
       } else {
-        card.innerHTML = `<div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${ev.date || y} · ${ev.kind || ''}</div>`;
+        const milestone = isMilestoneKind(ev.kind);
+        if (milestone) card.classList.add('milestone');
+        card.innerHTML = `<div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${ev.date || y} · ${milestone ? MILESTONE_KIND_LABEL[ev.kind] : (ev.kind || '')}</div>`;
         card.addEventListener('click', () => { if (ev.person_id) ctx.navigate(`#/subject/${ev.person_id}`); });
       }
       cardsLayer.appendChild(card);
