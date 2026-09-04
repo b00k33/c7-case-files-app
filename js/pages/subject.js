@@ -640,7 +640,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
   for (const e of events) {
     const evLinks = await store.listLinksForTarget('event', e.id);
     // a theory-timeline event shows here dimmed and marked (her call, 2026-09-04) — visible in context, never counted as the record
-    timelineItems.push({ kind: 'event', date: e.date || (e.date_year_min ? `${e.date_year_min}` : null), title: e.theory_id ? `${e.title} <span class="chip violet" title="From a theory timeline — not the record">theory</span>` : e.title, sub: e.theory_id ? (e.songs ? `♪ ${e.songs}` : 'theory') : e.kind, links: evLinks, theory: !!e.theory_id });
+    // dates print at their real precision — a month-precision release must never read as the 1st of the month
+    const when = e.date_precision === 'day' && e.date ? fmtLongDate(e.date)
+      : e.date_precision === 'month' && e.date ? new Date(`${e.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+      : e.date_year_min ? (e.date_year_max && e.date_year_max !== e.date_year_min ? `${e.date_year_min}–${e.date_year_max}` : String(e.date_year_min))
+      : (e.date ? fmtLongDate(e.date) : null);
+    timelineItems.push({ kind: 'event', date: e.date || (e.date_year_min ? `${e.date_year_min}` : null), when, title: e.theory_id ? `${e.title} <span class="chip violet" title="From a theory timeline — not the record">theory</span>` : e.title, sub: e.theory_id ? (e.songs ? `♪ ${e.songs}` : 'theory') : (e.kind === 'release' ? 'release · Wikidata' : e.kind), links: evLinks, theory: !!e.theory_id, release: e.kind === 'release' });
   }
   for (const l of links) {
     timelineItems.push({ kind: 'evidence', date: null, title: l.evidence_title, sub: `${l.evidence_type} · ${verificationLabel(l.evidence_verification)}`, verification: l.evidence_verification, evidenceId: l.evidence_id });
@@ -660,11 +665,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
         <div class="row between">
           <div>
             <div>${item.title}</div>
-            <div class="mono" style="color:var(--text-3);font-size:11px">${item.date ? item.date + ' · ' : ''}${item.sub}</div>
+            <div class="mono" style="color:var(--text-3);font-size:11px">${item.when || item.date ? (item.when || item.date) + ' · ' : ''}${item.sub}</div>
           </div>
         </div>
       `;
-      if (!item.theory) card.appendChild(barRow({ label: 'confidence', value: conf, max: 100 })); // a theory entry carries no confidence figure — it is not a claim
+      if (!item.theory && !item.release) card.appendChild(barRow({ label: 'confidence', value: conf, max: 100 })); // a theory entry is not a claim; a release already cites Wikidata
       if (item.evidenceId) card.addEventListener('click', () => ctx.navigate('#/evidence'));
       timelineEl.appendChild(card);
     }
