@@ -618,6 +618,22 @@ promise; every pick must land on a page. Twenty-eight questions later:
   nationality, picture, Wikipedia evidence — with an optional "+ family"
   that inserts the relatives, then lands on the profile (a family case on
   its overview). Plain Create still makes a bare case by name.
+- **Musicians' works (v58, 2026-09-04, her ask; four popup answers):** "+
+  Works" on the profile's Look-up block, and a "+ works" tick in the
+  Cases-page flow. `fetchWorks(qid)` lists the performer's works (P175)
+  with type — album / compilation / live album / EP / single / song — and
+  the earliest publication date (P577) via SPARQL; the picker shows type
+  toggles (all on) and ticked rows; `addWorks()` turns each into a
+  'release' event on the person — the record, an accepted claim citing
+  P577 — reading the picked items through the entity API so the date
+  keeps its real precision (day / month / year), never an invented day.
+  A work already in the case (same Wikidata item, `event.wikidata_id`)
+  is left alone. Items with several performers (duets, covers,
+  standards) are marked "shared" and start unticked — their P577 is the
+  song's first release, not hers — and the Cases-page tick skips them.
+  Releases read "release · Wikidata" on the profile timeline with no
+  confidence bar, and hang on the Board like any dated event. A ♪ chip
+  on a theory entry shows the matching release's date.
 - **Tapping a case goes in** (`openCase`): a person-case opens the
   person's profile (creating the person from the case name if the case
   is empty); a family-case — or an old research-kind case with several

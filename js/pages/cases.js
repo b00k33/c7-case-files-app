@@ -107,7 +107,7 @@ function wireCaseLookup(form, ctx, store) {
     if (works) {
       try {
         prog.textContent = 'Reading their works from Wikidata…';
-        const list = await fetchWorks(m.id);
+        const list = (await fetchWorks(m.id)).filter((w) => !w.shared); // duets / covers wait for the profile's picker, where they can be ticked
         const r = await addWorks(store, kase.id, person.id, list, (msg) => { prog.textContent = `Adding works… ${msg}`; });
         sessionStorage.setItem('c7-pi-result', `${r.added} work${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a release date)` : ''}.`);
       } catch (e) { prog.textContent = `Works could not be read (${e.message}) — + Works again from the profile.`; }

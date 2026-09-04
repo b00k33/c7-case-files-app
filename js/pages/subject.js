@@ -481,7 +481,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
       if (!works.length) { resultsEl.innerHTML = '<div class="inline-note">Wikidata lists no albums, EPs, singles or songs on that record.</div>'; return; }
       const existing = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
       const on = new Set(WORK_GROUPS.map((g) => g.key));
-      const picked = new Set(works.filter((w) => !existing.has(w.qid)).map((w) => w.qid));
+      // shared items (duets, covers, standards) start unticked: their date is the song's first release, not hers
+      const picked = new Set(works.filter((w) => !existing.has(w.qid) && !w.shared).map((w) => w.qid));
       const countNew = () => works.filter((w) => on.has(w.group) && picked.has(w.qid) && !existing.has(w.qid)).length;
       const paint = () => {
         const shown = works.filter((w) => on.has(w.group));
@@ -493,7 +494,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
             ${already ? `<span class="mono" style="font-size:11px;color:var(--text-3);margin-left:auto">${already} already here</span>` : ''}
           </div>
           <div class="stack" style="gap:2px;max-height:320px;overflow:auto">
-            ${shown.map((w) => `<label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer"><input type="checkbox" data-w="${w.qid}" ${existing.has(w.qid) ? 'checked disabled' : picked.has(w.qid) ? 'checked' : ''}><span class="mono" style="font-size:11px;color:var(--text-3);width:82px;flex:none">${w.date || w.year || '—'}</span><span class="main" style="font-size:12px">${w.label}</span><span class="chip">${w.typeLabel}</span></label>`).join('')}
+            ${shown.map((w) => `<label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer"><input type="checkbox" data-w="${w.qid}" ${existing.has(w.qid) ? 'checked disabled' : picked.has(w.qid) ? 'checked' : ''}><span class="mono" style="font-size:11px;color:var(--text-3);width:82px;flex:none">${w.date || w.year || '—'}</span><span class="main" style="font-size:12px">${w.label}</span>${w.shared ? '<span class="chip" title="Several performers on this record — the date is the song’s first release, not necessarily hers">shared</span>' : ''}<span class="chip">${w.typeLabel}</span></label>`).join('')}
           </div>
           <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center"><button class="btn btn-primary btn-sm" id="wk-add" ${n ? '' : 'disabled'}>Add ${n} work${n === 1 ? '' : 's'}</button><span style="font-size:11px;color:var(--text-3)">Each becomes a release on the timeline and the Board, citing Wikidata; the date keeps its real precision.</span></div>`;
         resultsEl.querySelectorAll('[data-g]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.g; if (on.has(k)) on.delete(k); else on.add(k); paint(); }));

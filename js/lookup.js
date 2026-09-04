@@ -336,12 +336,15 @@ const WORK_RANK = { album: 0, ep: 1, single: 2, song: 3 };
 export const WORK_GROUPS = [
   { key: 'album', label: 'Albums' }, { key: 'ep', label: 'EPs' }, { key: 'single', label: 'Singles' }, { key: 'song', label: 'Songs' },
 ];
-const WORKS_QUERY = (qid) => `SELECT ?work ?workLabel ?type ?date WHERE {
-  ?work wdt:P175 wd:${qid} ; wdt:P31 ?type .
+// ?np counts the performers on the item: more than one means a duet, a cover
+// or a standard she also sang — its P577 is the SONG's first release, not hers,
+// so the picker marks it "shared" and leaves it unticked
+const WORKS_QUERY = (qid) => `SELECT ?work ?workLabel ?type ?date (COUNT(DISTINCT ?p) AS ?np) WHERE {
+  ?work wdt:P175 wd:${qid} ; wdt:P31 ?type ; wdt:P175 ?p .
   VALUES ?type { ${Object.keys(WORK_TYPES).map((q) => 'wd:' + q).join(' ')} }
   OPTIONAL { ?work wdt:P577 ?date }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
-} LIMIT 1500`;
+} GROUP BY ?work ?workLabel ?type ?date LIMIT 1500`;
 
 /** Every work Wikidata lists for the performer: [{ qid, label, group, typeLabel, date (rough, ISO or null), year }], one row per item. */
 export async function fetchWorks(qid) {
@@ -353,9 +356,11 @@ export async function fetchWorks(qid) {
     if (!id || !WORK_TYPES[type]) continue;
     const [group, typeLabel] = WORK_TYPES[type];
     const date = b.date ? b.date.value.slice(0, 10) : null;
+    const shared = b.np ? parseInt(b.np.value, 10) > 1 : false;
     const cur = byId.get(id);
-    if (!cur) byId.set(id, { qid: id, label: b.workLabel ? b.workLabel.value : id, group, typeLabel, date });
+    if (!cur) byId.set(id, { qid: id, label: b.workLabel ? b.workLabel.value : id, group, typeLabel, date, shared });
     else {
+      if (shared) cur.shared = true;
       if (WORK_RANK[group] < WORK_RANK[cur.group]) { cur.group = group; cur.typeLabel = typeLabel; }
       if (date && (!cur.date || date < cur.date)) cur.date = date; // several releases: the earliest
     }
