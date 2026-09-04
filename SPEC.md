@@ -611,6 +611,13 @@ promise; every pick must land on a page. Twenty-eight questions later:
   Delete is two-tap. One search box searches everything across every
   case (`store.searchAll`: case names, people, evidence titles/notes,
   video quotes) and each hit opens in its own case.
+- **+ New can start from Wikipedia (v57, 2026-09-04, her ask):** beside
+  Create, "Look up on Wikipedia" searches the typed name and lists the
+  matches (description · item number); "Create from this" makes the case
+  and the person filled straight from Wikidata — dates, birthplace,
+  nationality, picture, Wikipedia evidence — with an optional "+ family"
+  that inserts the relatives, then lands on the profile (a family case on
+  its overview). Plain Create still makes a bare case by name.
 - **Tapping a case goes in** (`openCase`): a person-case opens the
   person's profile (creating the person from the case name if the case
   is empty); a family-case — or an old research-kind case with several
