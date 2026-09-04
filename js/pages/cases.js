@@ -5,7 +5,7 @@ import { emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl } from '../assets.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
-import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
+import { searchPeople, fillFromWikidata, insertFamily, fetchWorks, addWorks } from '../lookup.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
@@ -74,6 +74,7 @@ function wireCaseLookup(form, ctx, store) {
       <div class="row wrap" style="gap:12px;margin-top:8px;align-items:center">
         <span class="section-label">Create the case from a Wikipedia record</span>
         <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-family"> + family — their relatives too, like Insert family</label>
+        <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-works"> + works — albums, EPs, singles and songs with release dates (for a musician)</label>
       </div>`;
     for (const m of matches) {
       const row = document.createElement('div');
@@ -89,6 +90,7 @@ function wireCaseLookup(form, ctx, store) {
     const worldCheck = form.querySelector('.if-fictional');
     const world = worldCheck?.checked ? (form.querySelector('.if-world').value.trim() || 'Fictional') : null;
     const family = !!form.querySelector('.if-family')?.checked;
+    const works = !!form.querySelector('.if-works')?.checked;
     results.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="cw-progress">Creating the case…</div>';
     const prog = results.querySelector('#cw-progress');
     const kase = await store.createCase({ name: m.label, kind, world });
@@ -101,6 +103,14 @@ function wireCaseLookup(form, ctx, store) {
     if (family) {
       try { await insertFamily(store, kase.id, person.id, m.id, (msg) => { prog.textContent = `Inserting family… ${msg}`; }); }
       catch (e) { prog.textContent = `Family could not be read (${e.message}) — Insert family again from the profile.`; }
+    }
+    if (works) {
+      try {
+        prog.textContent = 'Reading their works from Wikidata…';
+        const list = await fetchWorks(m.id);
+        const r = await addWorks(store, kase.id, person.id, list, (msg) => { prog.textContent = `Adding works… ${msg}`; });
+        sessionStorage.setItem('c7-pi-result', `${r.added} work${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a release date)` : ''}.`);
+      } catch (e) { prog.textContent = `Works could not be read (${e.message}) — + Works again from the profile.`; }
     }
     ctx.navigate(kind === 'family' ? '#/family' : `#/subject/${person.id}`);
   }

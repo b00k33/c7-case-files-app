@@ -323,6 +323,84 @@ export async function addPeopleFromWikidata(store, caseId, picks, onProgress = (
   return result;
 }
 
+// --- a musician's works (her ask, 2026-09-04: "songs released dates, album
+// release dates etc.") — albums, EPs, singles, songs by performer (P175),
+// each with its earliest publication date (P577). SPARQL first for the
+// list, then the entity API for the picked ones so each date keeps its
+// real precision (day / month / year), exactly like a birth date.
+const WORK_TYPES = {
+  Q208569: ['album', 'Album'], Q482994: ['album', 'Album'], Q222910: ['album', 'Compilation'], Q209939: ['album', 'Live album'],
+  Q169930: ['ep', 'EP'], Q134556: ['single', 'Single'], Q7366: ['song', 'Song'],
+};
+const WORK_RANK = { album: 0, ep: 1, single: 2, song: 3 };
+export const WORK_GROUPS = [
+  { key: 'album', label: 'Albums' }, { key: 'ep', label: 'EPs' }, { key: 'single', label: 'Singles' }, { key: 'song', label: 'Songs' },
+];
+const WORKS_QUERY = (qid) => `SELECT ?work ?workLabel ?type ?date WHERE {
+  ?work wdt:P175 wd:${qid} ; wdt:P31 ?type .
+  VALUES ?type { ${Object.keys(WORK_TYPES).map((q) => 'wd:' + q).join(' ')} }
+  OPTIONAL { ?work wdt:P577 ?date }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+} LIMIT 1500`;
+
+/** Every work Wikidata lists for the performer: [{ qid, label, group, typeLabel, date (rough, ISO or null), year }], one row per item. */
+export async function fetchWorks(qid) {
+  const data = await getJSON(`${SPARQL}?format=json&query=${encodeURIComponent(WORKS_QUERY(qid))}`);
+  const byId = new Map();
+  for (const b of (data.results && data.results.bindings) || []) {
+    const id = /Q\d+$/.exec(b.work.value)?.[0];
+    const type = /Q\d+$/.exec(b.type.value)?.[0];
+    if (!id || !WORK_TYPES[type]) continue;
+    const [group, typeLabel] = WORK_TYPES[type];
+    const date = b.date ? b.date.value.slice(0, 10) : null;
+    const cur = byId.get(id);
+    if (!cur) byId.set(id, { qid: id, label: b.workLabel ? b.workLabel.value : id, group, typeLabel, date });
+    else {
+      if (WORK_RANK[group] < WORK_RANK[cur.group]) { cur.group = group; cur.typeLabel = typeLabel; }
+      if (date && (!cur.date || date < cur.date)) cur.date = date; // several releases: the earliest
+    }
+  }
+  return [...byId.values()].filter((w) => !/^Q\d+$/.test(w.label))
+    .map((w) => ({ ...w, year: w.date ? parseInt(w.date.slice(0, 4), 10) : null }))
+    .sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
+}
+
+/**
+ * Add the picked works to the person as 'release' events — the record,
+ * citing Wikidata (P577) as an accepted claim, one per work; a work already
+ * in the case (same Wikidata item) is left alone. Dates come from the
+ * entity API so precision is honest. Returns { added, skipped, undated }.
+ */
+export async function addWorks(store, caseId, personId, works, onProgress = () => {}) {
+  const existing = new Set((await store.listEventsForCase(caseId)).map((e) => e.wikidata_id).filter(Boolean));
+  const todo = works.filter((w) => !existing.has(w.qid));
+  const result = { added: 0, skipped: works.length - todo.length, undated: 0 };
+  for (let i = 0; i < todo.length; i += 50) {
+    const chunk = todo.slice(i, i + 50);
+    onProgress(`${Math.min(i + 50, todo.length)} of ${todo.length}`);
+    let ents = {};
+    try { ents = (await getJSON(`${WD}?action=wbgetentities&ids=${chunk.map((w) => w.qid).join('|')}&props=claims&format=json&origin=*`)).entities || {}; } catch (_) { /* fall back to the rough date */ }
+    for (const w of chunk) {
+      const claims = ents[w.qid] && ents[w.qid].claims ? ents[w.qid].claims : {};
+      const times = values(claims, 'P577').map(parseWdTime).filter(Boolean).sort((a, b) => (a.date || `${a.year}`) < (b.date || `${b.year}`) ? -1 : 1);
+      const t = times[0] || (w.date ? { date: w.date, precision: 'day', year: w.year } : null);
+      if (!t) result.undated++;
+      const title = `${w.typeLabel} · ${w.label}`;
+      const cite = `Source: Wikidata https://www.wikidata.org/wiki/${w.qid} (P577)`;
+      const id = await store.createEvent({
+        case_id: caseId, person_id: personId, title, kind: 'release',
+        date: t && (t.precision === 'day' || t.precision === 'month') ? t.date : null,
+        date_precision: t ? t.precision : 'unknown',
+        date_year_min: t ? t.year : null, date_year_max: t ? t.year : null,
+        notes: cite, wikidata_id: w.qid,
+      });
+      await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'release', value: { event_id: id, title, qid: w.qid, date: t }, origin: 'lookup', rationale: cite });
+      result.added++;
+    }
+  }
+  return result;
+}
+
 /**
  * Turn fetched facts into drafted claims on `personId` (through Review), plus
  * one linked Wikipedia evidence item. Returns what was drafted.

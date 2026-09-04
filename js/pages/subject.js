@@ -6,7 +6,7 @@ import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence,
 import { exactBirth } from '../person-dates.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText } from '../profile-parse.js';
-import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
+import { searchPeople, fetchProfile, draftFromLookup, insertFamily, fetchWorks, addWorks, WORK_GROUPS } from '../lookup.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
 
@@ -233,6 +233,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div class="row" style="gap:8px">
             <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
             <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>
+            <button class="btn btn-ghost btn-sm" id="lk-works" title="Albums, EPs, singles and songs with their release dates — from Wikidata, as the record">+ Works</button>
             <button class="btn btn-ghost btn-sm" id="lk-family" title="Parents, siblings, children, spouse, godchildren — straight into this case, with their profiles">Insert family</button>
           </div>
         </div>
@@ -452,6 +453,70 @@ export async function render(root, ctx, personId, tab = 'profile') {
           resultsEl.innerHTML = `<div class="inline-note">Insert family failed — ${e.message}</div>`;
         }
       });
+      resultsEl.appendChild(row);
+    }
+  });
+
+  // ---- Works (her ask, 2026-09-04): albums / EPs / singles / songs with release
+  // dates, from the person's Wikidata item, as the record — pick the types, tick
+  // the works, Add; each becomes a 'release' event citing P577.
+  root.querySelector('#lk-works').addEventListener('click', async () => {
+    const btn = root.querySelector('#lk-works');
+    const resultsEl = root.querySelector('#lk-results');
+    clearInlineNote(btn);
+    resultsEl.innerHTML = '';
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(root.querySelector('#lk-name').value); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = '+ Works';
+    // the profile's own item comes first when it already knows one
+    if (person.wikidata_id && !matches.some((m) => m.id === person.wikidata_id)) matches.unshift({ id: person.wikidata_id, label: person.display_name, description: 'this profile’s own Wikidata record' });
+    if (!matches.length) { inlineNote(btn, 'No match on Wikidata — works can only be read from a public record.'); return; }
+    const showPicker = async (m) => {
+      resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Reading their works from Wikidata…</div>';
+      let works = [];
+      try { works = await fetchWorks(m.id); }
+      catch (e) { resultsEl.innerHTML = `<div class="inline-note">Works could not be read — ${e.message}</div>`; return; }
+      if (!works.length) { resultsEl.innerHTML = '<div class="inline-note">Wikidata lists no albums, EPs, singles or songs on that record.</div>'; return; }
+      const existing = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
+      const on = new Set(WORK_GROUPS.map((g) => g.key));
+      const picked = new Set(works.filter((w) => !existing.has(w.qid)).map((w) => w.qid));
+      const countNew = () => works.filter((w) => on.has(w.group) && picked.has(w.qid) && !existing.has(w.qid)).length;
+      const paint = () => {
+        const shown = works.filter((w) => on.has(w.group));
+        const already = works.filter((w) => existing.has(w.qid)).length;
+        const n = countNew();
+        resultsEl.innerHTML = `
+          <div class="row wrap" style="gap:6px;margin:8px 0;align-items:center">
+            ${WORK_GROUPS.map((g) => { const c = works.filter((w) => w.group === g.key).length; return c ? `<button type="button" class="chip ${on.has(g.key) ? 'brass' : ''}" data-g="${g.key}" style="cursor:pointer;border:0" title="${on.has(g.key) ? 'Hide' : 'Show'} ${g.label.toLowerCase()}">${g.label} · ${c}</button>` : ''; }).join('')}
+            ${already ? `<span class="mono" style="font-size:11px;color:var(--text-3);margin-left:auto">${already} already here</span>` : ''}
+          </div>
+          <div class="stack" style="gap:2px;max-height:320px;overflow:auto">
+            ${shown.map((w) => `<label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer"><input type="checkbox" data-w="${w.qid}" ${existing.has(w.qid) ? 'checked disabled' : picked.has(w.qid) ? 'checked' : ''}><span class="mono" style="font-size:11px;color:var(--text-3);width:82px;flex:none">${w.date || w.year || '—'}</span><span class="main" style="font-size:12px">${w.label}</span><span class="chip">${w.typeLabel}</span></label>`).join('')}
+          </div>
+          <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center"><button class="btn btn-primary btn-sm" id="wk-add" ${n ? '' : 'disabled'}>Add ${n} work${n === 1 ? '' : 's'}</button><span style="font-size:11px;color:var(--text-3)">Each becomes a release on the timeline and the Board, citing Wikidata; the date keeps its real precision.</span></div>`;
+        resultsEl.querySelectorAll('[data-g]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.g; if (on.has(k)) on.delete(k); else on.add(k); paint(); }));
+        resultsEl.querySelectorAll('[data-w]').forEach((cb) => cb.addEventListener('change', () => {
+          if (cb.checked) picked.add(cb.dataset.w); else picked.delete(cb.dataset.w);
+          const nn = countNew(); const ab = resultsEl.querySelector('#wk-add'); ab.disabled = !nn; ab.textContent = `Add ${nn} work${nn === 1 ? '' : 's'}`;
+        }));
+        resultsEl.querySelector('#wk-add').addEventListener('click', async () => {
+          const list = works.filter((w) => on.has(w.group) && picked.has(w.qid) && !existing.has(w.qid));
+          resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="wk-prog">Adding works…</div>';
+          const prog = resultsEl.querySelector('#wk-prog');
+          const r = await addWorks(store, ctx.caseId, person.id, list, (msg) => { prog.textContent = `Adding works… ${msg}`; });
+          sessionStorage.setItem('c7-pi-result', `${r.added} work${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a release date)` : ''}${r.skipped ? ` · ${r.skipped} already here` : ''}. Each cites Wikidata; they read on the timeline and the Board.`);
+          ctx.rerender();
+        });
+      };
+      paint();
+    };
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Their works ▸</span>`;
+      row.addEventListener('click', () => showPicker(m));
       resultsEl.appendChild(row);
     }
   });
