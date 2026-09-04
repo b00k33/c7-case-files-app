@@ -634,6 +634,19 @@ promise; every pick must land on a page. Twenty-eight questions later:
   Releases read "release · Wikidata" on the profile timeline with no
   confidence bar, and hang on the Board like any dated event. A ♪ chip
   on a theory entry shows the matching release's date.
+  *How the read works (`js/works.js`, from a four-agent Wikidata probe,
+  2026-09-04):* one light list query (items by P175 with P31 types, P7937
+  form, a rough date, labels in "en,mul" — 92 of Taylor's items have no
+  English label), then a VALUES-bounded detail query per 200 items
+  (performer count, P577 with its precision, tracklist/composition links,
+  album dates); one retry on 429/502/503/504; a 15-minute session cache
+  per artist. One song is up to five items (composition / recording /
+  single / song) — rows dedupe by their links, then by title, inside one
+  pool, never across the album and single/song pools; a song row that is
+  the same title as a single and undated or overlapping folds into it.
+  "Best date" = genuinely earlier wins, overlapping ranges → the more
+  precise. A recording with no date takes its album's ("via album"). A
+  single query carrying it all ran 40–65 s and hit the service's limit.
 - **Tapping a case goes in** (`openCase`): a person-case opens the
   person's profile (creating the person from the case name if the case
   is empty); a family-case — or an old research-kind case with several
