@@ -43,22 +43,32 @@ export const WORK_GROUPS = [
 const familyOf = (q) => FAMILY_ORDER.find((f) => FAMILY_QIDS[f].includes(q)) || null;
 const ALL_TYPE_QIDS = FAMILY_ORDER.flatMap((f) => FAMILY_QIDS[f]);
 
-const WORKS_QUERY = (qid, offset) => `SELECT ?item ?itemLabel ?typeQs ?formQs ?dates ?links ?albumDates ?np ?careerStart ?born WHERE {
-  { SELECT ?item (GROUP_CONCAT(DISTINCT ?tyQ; separator="|") AS ?typeQs) (GROUP_CONCAT(DISTINCT ?fQ; separator="|") AS ?formQs)
-           (GROUP_CONCAT(DISTINCT ?dp; separator="|") AS ?dates) (GROUP_CONCAT(DISTINCT ?lk; separator="|") AS ?links)
-           (GROUP_CONCAT(DISTINCT ?adp; separator="|") AS ?albumDates) (COUNT(DISTINCT ?perf) AS ?np) WHERE {
-      ?item wdt:P175 wd:${qid} ; wdt:P31 ?ty ; wdt:P175 ?perf .
+// Two queries, not one: a single query carrying the date-precision path, the
+// tracklist links and the album fallback inside the GROUP BY ran 40–65 s and
+// hit the service's 60 s limit (504) on 2026-09-04. The light list query takes
+// ~15 s for a prolific artist; the detail query, bounded by VALUES to 200
+// items, takes ~2 s a batch.
+const LIST_QUERY = (qid, offset) => `SELECT ?item ?itemLabel ?typeQs ?formQs ?rough ?careerStart ?born WHERE {
+  { SELECT ?item (GROUP_CONCAT(DISTINCT ?tyQ; separator="|") AS ?typeQs) (GROUP_CONCAT(DISTINCT ?fQ; separator="|") AS ?formQs) (MIN(?t) AS ?rough) WHERE {
+      ?item wdt:P175 wd:${qid} ; wdt:P31 ?ty .
       VALUES ?ty { ${ALL_TYPE_QIDS.map((q) => 'wd:' + q).join(' ')} }
       BIND(STRAFTER(STR(?ty), "entity/") AS ?tyQ)
       OPTIONAL { ?item wdt:P7937 ?f . BIND(STRAFTER(STR(?f), "entity/") AS ?fQ) }
-      OPTIONAL { ?item wdt:P577 ?t . ?item p:P577 ?st . ?st ps:P577 ?t ; psv:P577/wikibase:timePrecision ?pr . BIND(CONCAT(SUBSTR(STR(?t), 1, 10), "/", STR(?pr)) AS ?dp) }
-      OPTIONAL { ?item wdt:P2550|wdt:P658 ?comp . BIND(STRAFTER(STR(?comp), "entity/") AS ?lk) }
-      OPTIONAL { ?item wdt:P1433|wdt:P361|^wdt:P658 ?alb . ?alb wdt:P577 ?at . ?alb p:P577 ?ast . ?ast ps:P577 ?at ; psv:P577/wikibase:timePrecision ?apr . BIND(CONCAT(SUBSTR(STR(?at), 1, 10), "/", STR(?apr)) AS ?adp) }
+      OPTIONAL { ?item wdt:P577 ?t }
     } GROUP BY ?item }
   OPTIONAL { wd:${qid} wdt:P2031 ?careerStart . }
   OPTIONAL { wd:${qid} wdt:P569 ?born . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul" . }
 } LIMIT 1000${offset ? ' OFFSET ' + offset : ''}`;
+const DETAIL_QUERY = (qids) => `SELECT ?item (COUNT(DISTINCT ?perf) AS ?np) (GROUP_CONCAT(DISTINCT ?dp; separator="|") AS ?dates) (GROUP_CONCAT(DISTINCT ?lk; separator="|") AS ?links) (GROUP_CONCAT(DISTINCT ?adp; separator="|") AS ?albumDates) WHERE {
+  VALUES ?item { ${qids.map((q) => 'wd:' + q).join(' ')} }
+  ?item wdt:P175 ?perf .
+  OPTIONAL { ?item p:P577 ?st . ?st ps:P577 ?t ; psv:P577/wikibase:timePrecision ?pr . FILTER NOT EXISTS { ?st wikibase:rank wikibase:DeprecatedRank } BIND(CONCAT(SUBSTR(STR(?t), 1, 10), "/", STR(?pr)) AS ?dp) }
+  OPTIONAL { ?item wdt:P2550|wdt:P658 ?comp . BIND(STRAFTER(STR(?comp), "entity/") AS ?lk) }
+  OPTIONAL { ?item wdt:P1433|wdt:P361|^wdt:P658 ?alb . ?alb p:P577 ?ast . ?ast ps:P577 ?at ; psv:P577/wikibase:timePrecision ?apr . BIND(CONCAT(SUBSTR(STR(?at), 1, 10), "/", STR(?apr)) AS ?adp) }
+} GROUP BY ?item`;
+const CACHE_KEY = (qid) => `c7-works:${qid}`;
+const CACHE_MS = 15 * 60 * 1000; // the same artist twice in a sitting must not cost another minute
 
 // --- dates: {iso, prec} with the overlap rule ---------------------------
 const parseDp = (s) => { const [iso, p] = String(s).split('/'); return /^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? { iso, prec: parseInt(p, 10) || 11 } : null; };
@@ -97,10 +107,14 @@ export const normTitle = (s) => String(s || '').normalize('NFD').replace(/\p{Mn}
  *   families (Set), typeLabel, compilation, date {iso, prec} | null, display,
  *   dateSource ('item'|'album'|null), shared, suspect }.
  */
-export async function fetchWorks(qid) {
+export async function fetchWorks(qid, onProgress = () => {}) {
+  try { const c = JSON.parse(sessionStorage.getItem(CACHE_KEY(qid)) || 'null'); if (c && Date.now() - c.at < CACHE_MS) return c.rows.map((r) => ({ ...r, families: new Set(r.families) })); } catch (_) { /* no cache */ }
+  // the query service answers a transient 429 / 502 / 503 now and then (probe, 2026-09-04): one retry after 2 s
+  const ask = async (query) => { const url = `${SPARQL}?format=json&query=${encodeURIComponent(query)}`; try { return await getJSON(url); } catch (e) { if (!/\((429|502|503|504)\)/.test(e.message)) throw e; await new Promise((r) => setTimeout(r, 2000)); return getJSON(url); } };
+  onProgress('listing…');
   const bindings = [];
   for (let offset = 0; offset < 5000; offset += 1000) {
-    const data = await getJSON(`${SPARQL}?format=json&query=${encodeURIComponent(WORKS_QUERY(qid, offset))}`);
+    const data = await ask(LIST_QUERY(qid, offset));
     const b = (data.results && data.results.bindings) || [];
     bindings.push(...b);
     if (b.length < 1000) break;
@@ -110,9 +124,28 @@ export async function fetchWorks(qid) {
     qid: /Q\d+$/.exec(b.item.value)[0],
     label: b.itemLabel ? b.itemLabel.value : '',
     typeQs: split(b.typeQs), formQs: split(b.formQs),
-    dates: split(b.dates).map(parseDp).filter(Boolean), albumDates: split(b.albumDates).map(parseDp).filter(Boolean),
-    links: split(b.links), np: b.np ? parseInt(b.np.value, 10) : 1,
+    rough: b.rough ? b.rough.value.slice(0, 10) : null,
+    dates: [], albumDates: [], links: [], np: 1,
   }));
+  // the details, 200 items at a time: performer count, dates with precision, links, album dates
+  for (let i = 0; i < items.length; i += 200) {
+    const chunk = items.slice(i, i + 200);
+    onProgress(`details ${Math.min(i + 200, items.length)} of ${items.length}`);
+    let data = null;
+    try { data = await ask(DETAIL_QUERY(chunk.map((x) => x.qid))); } catch (_) { data = null; }
+    const byQ = new Map(((data && data.results && data.results.bindings) || []).map((b) => [/Q\d+$/.exec(b.item.value)[0], b]));
+    for (const x of chunk) {
+      const b = byQ.get(x.qid);
+      if (b) {
+        x.np = b.np ? parseInt(b.np.value, 10) : 1;
+        x.dates = split(b.dates).map(parseDp).filter(Boolean);
+        x.albumDates = split(b.albumDates).map(parseDp).filter(Boolean);
+        x.links = split(b.links);
+      }
+      // the detail batch failed or the item carries no precise date: fall back to the rough one, honestly marked year-precision
+      if (!x.dates.length && x.rough) x.dates = [{ iso: x.rough, prec: /-01-01$/.test(x.rough) ? 9 : 11 }];
+    }
+  }
   const first = bindings[0] || {};
   const careerStart = first.careerStart ? parseInt(first.careerStart.value.slice(0, 4), 10) : null;
   const born = first.born ? parseInt(first.born.value.slice(0, 4), 10) : null;
@@ -186,6 +219,7 @@ export async function fetchWorks(qid) {
     const ka = a.date ? dateRange(a.date)[0] : '9999', kb = b.date ? dateRange(b.date)[0] : '9999';
     return ka < kb ? -1 : ka > kb ? 1 : ((b.date && b.date.prec) || 0) - ((a.date && a.date.prec) || 0) || a.label.localeCompare(b.label);
   });
+  try { sessionStorage.setItem(CACHE_KEY(qid), JSON.stringify({ at: Date.now(), rows: rows.map((r) => ({ ...r, families: [...r.families] })) })); } catch (_) { /* storage full or blocked — fine */ }
   return rows;
 }
 

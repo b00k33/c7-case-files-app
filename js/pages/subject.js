@@ -475,9 +475,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
     if (person.wikidata_id && !matches.some((m) => m.id === person.wikidata_id)) matches.unshift({ id: person.wikidata_id, label: person.display_name, description: 'this profile’s own Wikidata record' });
     if (!matches.length) { inlineNote(btn, 'No match on Wikidata — works can only be read from a public record.'); return; }
     const showPicker = async (m) => {
-      resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Reading their works from Wikidata…</div>';
+      resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="wk-reading">Reading their works from Wikidata — up to a minute for a long catalogue when the service is busy…</div>';
+      const reading = resultsEl.querySelector('#wk-reading');
       let works = [];
-      try { works = await fetchWorks(m.id); }
+      try { works = await fetchWorks(m.id, (msg) => { if (reading.isConnected) reading.textContent = `Reading their works from Wikidata — ${msg}`; }); }
       catch (e) { resultsEl.innerHTML = `<div class="inline-note">Works could not be read — ${e.message}</div>`; return; }
       if (!works.length) { resultsEl.innerHTML = '<div class="inline-note">Wikidata lists no albums, EPs, singles or songs on that record.</div>'; return; }
       const existingIds = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
