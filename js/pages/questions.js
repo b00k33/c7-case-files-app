@@ -153,13 +153,13 @@ export async function render(root, ctx, personId = null) {
         <div class="q-menu-slot"></div>
       </div>
     `;
+    // declared before the theory rows are painted — they hand it to their timelines
+    const repaint = async () => { data = await load(); const fresh = data.questions.find((x) => x.id === q.id); if (!fresh) { card.remove(); paintCounts(); return; } const next = await paintCard(fresh, card); card.replaceWith(next); paintCounts(); };
     const tList = card.querySelector('.theories');
     if (!theories.length) {
       tList.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:2px 2px 6px">No theories yet — add the first, or leave it as a question you are still sitting with.</div>';
     }
     for (const t of theories) tList.appendChild(await paintTheory(q, t));
-
-    const repaint = async () => { data = await load(); const fresh = data.questions.find((x) => x.id === q.id); if (!fresh) { card.remove(); paintCounts(); return; } const next = await paintCard(fresh, card); card.replaceWith(next); paintCounts(); };
     card.querySelector('.q-head').addEventListener('click', (e) => {
       if (e.target.closest('a')) return;
       card.classList.toggle('collapsed');
