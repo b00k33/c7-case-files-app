@@ -1,7 +1,6 @@
 import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
-import { expectedDigitCount } from '../stats.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
@@ -606,11 +605,9 @@ function renderNumberPanels(root, people) {
     const counts = {};
     for (const r of withLifePath) counts[r.value] = (counts[r.value] || 0) + 1;
     const values = Object.keys(counts).map(Number).sort((a, b) => b - a);
-    const n = withLifePath.length;
+    const maxCount = Math.max(...Object.values(counts), 1);
     for (const v of values) {
-      const expected = expectedDigitCount(n, 9);
-      // "chance would give" = people with a full birth date ÷ 9 possible numbers
-      repeatSlot.appendChild(barRow({ label: `Life path ${v}`, value: counts[v], max: Math.max(counts[v], expected, 1), display: `${counts[v]} · chance would give ${expected.toFixed(1)}` }));
+      repeatSlot.appendChild(barRow({ label: `Life path ${v}`, value: counts[v], max: maxCount }));
     }
   }
 

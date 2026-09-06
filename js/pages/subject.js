@@ -1,4 +1,4 @@
-import { lifePath, birthdayNumber, personalYear, universalYear, expression, soulUrge, personality } from '../numerology.js';
+import { lifePath, birthdayNumber } from '../numerology.js';
 import { signFor } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
@@ -76,13 +76,7 @@ function chartPanel(person, status) {
   const birth = exactBirth(person); // never person.birth_date — see js/person-dates.js
   const lp = lifePath(birth);
   const bn = birthdayNumber(birth);
-  const thisYear = new Date().getFullYear();
-  const py = personalYear(birth, thisYear);
-  const uy = universalYear(thisYear);
-  const nameForCalc = person.name_at_birth || person.display_name;
-  const expr = expression(nameForCalc);
-  const su = soulUrge(nameForCalc);
-  const pers = personality(nameForCalc);
+  const dayBorn = parseInt(birth.slice(8, 10), 10);
   const chinese = signFor(birth);
   const sun = sunSign(birth);
 
@@ -91,47 +85,34 @@ function chartPanel(person, status) {
   tokRow.title = `Evidence status: ${status}`;
   el.appendChild(tokRow);
 
-  const grid = document.createElement('div');
-  grid.className = 'grid-2';
-  grid.style.marginTop = '16px';
-
+  // just the five she reads (her call, 2026-09-05: expression/soul urge/
+  // personality and personal-year removed — "i dont use these things")
+  const wrap = document.createElement('div');
+  wrap.className = 'stack';
+  wrap.style.marginTop = '16px';
   // the numbers read as numbers (audit 2026-09-01, her pick); the arithmetic
   // stays one tap away under "show working", never lost
-  const left = document.createElement('div');
-  left.className = 'stack';
   // colour: brass for the life path; the animal and sun sign take her zodiac colour code
   const big = (value, label, color) => `<div><div class="title" style="font-size:22px;color:${color === true ? 'var(--brass)' : (color || 'var(--text)')}">${value}</div><div class="section-label">${label}</div></div>`;
-  left.innerHTML = `
+  wrap.innerHTML = `
     <div class="row wrap" style="gap:20px;align-items:flex-end">
       ${big(`${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
-      ${big(`${py.value}${py.master ? '★' : ''}`, `${thisYear} year`)}
+      ${big(dayBorn, 'day born')}
       ${big(chinese.boundary ? '—' : animalLabel(chinese.animal), chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase(), chinese.boundary ? null : zodiacColor(chinese.animal))}
       ${big(sun.sign, sun.cusp ? 'sun · cusp' : 'sun', signColor(sun.sign))}
+      ${big(`${bn.value}${bn.master ? '★' : ''}`, 'lucky number')}
     </div>
     <details style="margin-top:4px">
       <summary style="cursor:pointer;font-size:11px;color:var(--text-3);list-style:none">show working ▸</summary>
       <div class="stack mono" style="font-size:12px;color:var(--text-2);margin-top:8px;gap:4px">
         <div>Life path ${lp.value}${lp.master ? ' (master)' : ''} — ${lp.parts.day}→${lp.parts.dayReduced} · ${lp.parts.month}→${lp.parts.monthReduced} · ${lp.parts.year}→${lp.parts.yearReduced} · = ${lp.value}</div>
-        <div>Birthday number ${bn.value}${bn.master ? ' (master)' : ''}</div>
-        <div>Personal year ${thisYear}: ${py.value}${py.master ? ' (master)' : ''} · Universal year: ${uy.value}${uy.master ? ' (master)' : ''}</div>
+        <div>Lucky number (birthday number) ${bn.value}${bn.master ? ' (master)' : ''} — from day ${dayBorn}</div>
         <div>${chinese.boundary ? 'Animal year: unresolved (near lunar new year, no CNY date on file for this year)' : `${animalHtml(chinese.animal)} · ${chinese.element}`}</div>
         <div>${signHtml(sun.sign)}${sun.cusp ? ' (cusp)' : ''}</div>
       </div>
     </details>
   `;
-  grid.appendChild(left);
-
-  const right = document.createElement('div');
-  right.className = 'stack';
-  if (expr.ok) {
-    right.appendChild(barRow({ label: 'Expression', value: expr.value, max: 33, colorVar: 'var(--violet)' }));
-    right.appendChild(barRow({ label: 'Soul urge', value: su.value, max: 33, colorVar: 'var(--violet)' }));
-    right.appendChild(barRow({ label: 'Personality', value: pers.value, max: 33, colorVar: 'var(--violet)' }));
-  } else {
-    right.appendChild(emptyState({ missing: 'No name to derive expression / soul urge / personality.', why: 'These need a name at birth (or display name).' }));
-  }
-  grid.appendChild(right);
-  el.appendChild(grid);
+  el.appendChild(wrap);
 
   return el;
 }

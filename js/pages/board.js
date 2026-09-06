@@ -1,9 +1,5 @@
-import { universalYear, personalYear } from '../numerology.js';
 import { emptyState } from '../indicators.js';
-import { exactBirth } from '../person-dates.js';
 import { isMilestoneKind, MILESTONE_KIND_LABEL } from '../milestone-kinds.js';
-
-let stripMode = 'universal'; // 'universal' | 'density' | 'personal:<id>'
 
 function cardYear(ev) {
   if (ev.date) return parseInt(ev.date.slice(0, 4), 10);
@@ -24,10 +20,9 @@ export async function render(root, ctx) {
     return;
   }
 
-  const [kase, events, people, contradictions] = await Promise.all([
+  const [kase, events, contradictions] = await Promise.all([
     store.getCase(ctx.caseId),
     store.listEventsForCase(ctx.caseId),
-    store.listPeople(ctx.caseId),
     store.listContradictionsForCase(ctx.caseId),
   ]);
 
@@ -51,22 +46,13 @@ export async function render(root, ctx) {
 
   root.innerHTML = `
     <div class="stack">
-      <div class="row wrap" style="gap:8px">
-        <select id="strip-mode">
-          <option value="universal">Universal year</option>
-          <option value="density">Record density</option>
-          ${people.map((p) => `<option value="personal:${p.id}">Personal year — ${p.display_name}</option>`).join('')}
-        </select>
-        <span class="row" style="gap:12px">
-          <span class="row" style="gap:4px"><span style="width:14px;height:2px;background:var(--brass);display:inline-block"></span><span class="mono" style="font-size:11px;color:var(--text-3)">sourced</span></span>
-          <span class="row" style="gap:4px"><span style="width:14px;height:2px;border-top:1px dashed var(--text-3);display:inline-block"></span><span class="mono" style="font-size:11px;color:var(--text-3)">drafted</span></span>
-        </span>
+      <div class="row wrap" style="gap:12px">
+        <span class="row" style="gap:4px"><span style="width:14px;height:2px;background:var(--brass);display:inline-block"></span><span class="mono" style="font-size:11px;color:var(--text-3)">sourced</span></span>
+        <span class="row" style="gap:4px"><span style="width:14px;height:2px;border-top:1px dashed var(--text-3);display:inline-block"></span><span class="mono" style="font-size:11px;color:var(--text-3)">drafted</span></span>
       </div>
       <div id="board-slot"></div>
     </div>
   `;
-  root.querySelector('#strip-mode').value = stripMode;
-  root.querySelector('#strip-mode').addEventListener('change', (e) => { stripMode = e.target.value; render(root, ctx); });
 
   const slot = root.querySelector('#board-slot');
 
@@ -100,32 +86,16 @@ export async function render(root, ctx) {
   strip.className = 'board-strip';
   strip.style.width = `${years.length * cellW}px`;
 
-  const refPersonId = stripMode.startsWith('personal:') ? stripMode.split(':')[1] : null;
-  const refPerson = refPersonId ? people.find((p) => p.id === refPersonId) : null;
-
   const byYear = {};
   for (const e of dated) {
     const y = cardYear(e);
     (byYear[y] = byYear[y] || []).push(e);
   }
-  const maxDensity = Math.max(1, ...Object.values(byYear).map((a) => a.length));
 
   for (const y of years) {
     const cell = document.createElement('div');
     cell.className = 'year-cell';
-    let stripLabel = '';
-    if (stripMode === 'universal') {
-      const uy = universalYear(y);
-      stripLabel = `${uy.value}${uy.master ? '★' : ''}`;
-    } else if (stripMode === 'density') {
-      stripLabel = String((byYear[y] || []).length);
-    } else if (refPerson && exactBirth(refPerson)) {
-      const py = personalYear(exactBirth(refPerson), y);
-      stripLabel = py.ok ? `${py.value}${py.master ? '★' : ''}` : '—';
-    } else {
-      stripLabel = '—';
-    }
-    cell.innerHTML = `<span class="yr">${y}</span><span class="strip-num">${stripLabel}</span>`;
+    cell.innerHTML = `<span class="yr">${y}</span>`;
     strip.appendChild(cell);
   }
 

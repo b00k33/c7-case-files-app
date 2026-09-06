@@ -315,6 +315,13 @@ Rules:
   double ring.
 - Show the working. `lifePath` returns `parts` so the UI can print
   `13→4 · 11→2 · 1981→1 · = 7`.
+- **The profile Chart panel only surfaces five things** (2026-09-05, her
+  call — "i dont use these things" re: expression/soul urge/personality
+  and personal year): life path, day born (the raw birth day, unreduced),
+  Chinese animal, sun sign, and "lucky number" (`birthdayNumber` under a
+  friendlier label). `expression`/`soulUrge`/`personality`/`personalYear`/
+  `universalYear` stay real, tested functions — just not rendered on the
+  Chart panel any more. Don't re-add them there without her asking.
 
 `chinese.js`
 
@@ -354,8 +361,14 @@ expectedCounts(nPairs) -> { clash: nPairs/12, trine: nPairs*2/12,
                             harmony: nPairs/12, same: nPairs/12 }
 ```
 
-Every pattern panel prints observed and expected, side by side, always. No
-panel is allowed to show an observed count alone.
+The Patterns page's relation-count panel (clash/trine/harmony/same, from
+`expectedCounts`) prints observed and expected side by side — that
+comparison is the whole point of a control test there. This does NOT
+extend to every numeric display in the app: the Relations page's life-path
+Repeats panel dropped its "chance would give X.X" comparison entirely
+(2026-09-05, her call — "remove chance, i dont use it") and now shows the
+observed count alone. Don't restore that comparison there, and don't add
+it anywhere she hasn't asked for it.
 
 ## 6. Pages
 
@@ -366,9 +379,13 @@ panel is allowed to show an observed count alone.
    attached evidence.
 3. Evidence — Grid / Board / Table toggle. Grid with filters; item drawer
    showing full provenance and chain of handling.
-4. Board — cork background, the year strip (personal year / universal year /
-   record density, switchable), cards hung on string at their year, undated
-   tray, string legend.
+4. Board — cork background, the plain year strip, cards hung on string at
+   their year, undated tray, string legend. The universal/personal-year/
+   density mode switcher was removed (2026-09-05, her call — "i dont
+   understand board... i dont use these things" about the numerology
+   overlay generally): the strip just labels each year, nothing else. A
+   commercial-milestone card (`js/milestone-kinds.js`) gets a teal top
+   border and its category as the sub-label instead of the raw kind.
 5. Relations — the family **tree** (2026-09-03, her eight popup answers):
    generation rows, oldest on top; a face (photo, initials fallback), name
    and years per person; spouses side by side joined by a line, children

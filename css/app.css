@@ -316,7 +316,6 @@ table.dense td.num { font-family: var(--font-mono); }
   display: flex; flex-direction: column; align-items: center; padding-top: var(--sp-3);
 }
 .year-cell .yr { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
-.year-cell .strip-num { font-family: var(--font-mono); font-size: 13px; color: var(--brass); margin-top: var(--sp-1); }
 .board-cards-layer { position: absolute; inset: 0; pointer-events: none; }
 .board-card {
   position: absolute; width: 150px; background: var(--ink-2); border-radius: var(--r-sm);
