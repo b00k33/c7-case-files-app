@@ -543,6 +543,11 @@ table.dense tr .row-actions { display: inline-flex; gap: 4px; opacity: 0; }
 table.dense tr:hover .row-actions { opacity: 1; }
 table.dense tr .row-actions button { padding: 0 6px; min-height: 24px; font-size: 11px; }
 @media (max-width: 640px) { .view-toggle { display: none; } }
+/* .axis-toggle reuses .view-toggle's pill styling but picks a data axis,
+   not a layout — Compare has no mobile fallback the way Table/List
+   defaults to cards, so unlike .view-toggle it must stay visible below
+   640px (found on a phone check, 2026-09-06: it was silently unreachable) */
+.axis-toggle { display: inline-flex !important; }
 
 /* ------------------------------------------------------- event case */
 .event-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }

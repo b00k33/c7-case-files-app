@@ -33,7 +33,7 @@ export async function render(root, ctx) {
       <div class="panel">
         <div class="row between wrap" style="gap:12px">
           <div class="panel-title" style="margin:0">Pick who to compare</div>
-          <div class="view-toggle" id="axis-toggle">
+          <div class="view-toggle axis-toggle" id="axis-toggle">
             <button type="button" data-axis="calendar" class="${axis === 'calendar' ? 'on' : ''}">Calendar year</button>
             <button type="button" data-axis="debut" class="${axis === 'debut' ? 'on' : ''}">Years since debut</button>
           </div>

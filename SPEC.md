@@ -858,6 +858,29 @@ compromise on quality" — see `CLAUDE.md`): this is exactly that trade in
 miniature, since removing the manual step also removes a way the data
 could quietly end up wrong.
 
+## 13c. Compare's axis toggle was invisible on a phone (v69, 2026-09-06)
+
+`.view-toggle` (the pill switcher shared by People's Table/List and Cases'
+grid/list) hides below 640px by CSS design — `@media (max-width: 640px)
+{ .view-toggle { display: none; } }` — because on those two pages mobile
+always has a fixed fallback (cards), so the switch has nothing to do
+there. Compare (v63) reused the same class for its Calendar-year/
+Years-since-debut axis switch without noticing that contract: Compare has
+no fallback axis, so on a phone the control just vanished with no way to
+reach "Years since debut" at all — a real functionality loss, not a
+cosmetic one. Caught in the code3 mobile check she asked for right after
+the v68 sweep.
+
+Fixed by giving Compare's toggle its own `.axis-toggle` class
+(`js/pages/compare.js`) with a scoped override
+(`.axis-toggle { display: inline-flex !important; }`, `css/app.css`)
+that keeps it visible at every width, leaving People/Cases' `.view-toggle`
+behaviour untouched. **The lesson for next time:** reusing a shared class
+for a new purpose means reading what its existing media queries assume,
+not just its visual styling — an invisible-on-mobile rule that's correct
+for a layout-view toggle is a bug for anything else hiding behind the same
+class name.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a
