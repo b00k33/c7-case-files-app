@@ -832,6 +832,32 @@ stays hers to make per-case, manually. Fun & Zodiac is different: it's
 explicitly "not research," so a fully automatic same-name merge is safe
 by design and doesn't need her confirmation.
 
+## 13b. Birth precision follows a typed date, everywhere (v68, 2026-09-06)
+
+Every path that saves a birth date except one already set `birth_precision`
+to `day` the instant a full date existed — quick-add on Relations/Fun/
+Import, the Wikidata lookup, even a claim landing through Review
+(`store.js`: `if (claim.field === 'birth_date') patch.birth_precision =
+'day'`). The one holdout was the person profile's full "Edit" form
+(`renderEditForm`, `js/pages/subject.js`): its "Birth precision" dropdown
+(day/month/year/range/unknown) exists because this is the only form that
+can also express month-only, year-only or a contested range — but that
+meant typing a real day here also required remembering to separately flip
+the dropdown to "day", something nothing else in the app asks for. Forget
+it and the date is right but the precision is stale, which is a real bug:
+`exactBirth()` (section 13's rule) then treats the day as unknown and every
+calculation silently drops it.
+
+Fixed to match the rest of the app: `#f-bdate`'s `change` handler now sets
+`#f-bprec` to `day` automatically whenever the field holds a value. The
+dropdown still exists and is still hers to set manually — but only for the
+cases it actually exists for (leaving the date blank and using month/year/
+range instead), not for the common case of typing an exact date. Caught in
+a code3 pass (her invocation, 2026-09-06 — "lazy but does not want to
+compromise on quality" — see `CLAUDE.md`): this is exactly that trade in
+miniature, since removing the manual step also removes a way the data
+could quietly end up wrong.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

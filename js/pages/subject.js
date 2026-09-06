@@ -753,7 +753,7 @@ function renderEditForm(body, ctx, person) {
     <div class="field"><label>Display name</label><input type="text" id="f-name" value="${esc(person.display_name)}"></div>
     <div class="field"><label>Name at birth</label><input type="text" id="f-nab" value="${esc(person.name_at_birth)}"></div>
     <div class="field"><label>Birth date</label><input type="date" id="f-bdate" value="${person.birth_date || ''}"></div>
-    <div class="field"><label>Birth precision</label>
+    <div class="field"><label>Birth precision — only needed when there's no exact day (a month, a year, or a contested range)</label>
       <select id="f-bprec">
         ${['day', 'month', 'year', 'range', 'unknown'].map((p) => `<option value="${p}" ${p === person.birth_precision ? 'selected' : ''}>${p}</option>`).join('')}
       </select>
@@ -773,6 +773,15 @@ function renderEditForm(body, ctx, person) {
     <div class="field"><label>Notes</label><textarea id="f-notes">${esc(person.notes)}</textarea></div>
     <button class="btn btn-primary" id="save-person-btn">Save</button>
   `;
+  // every other place a birth date gets entered in this app (quick-add,
+  // Wikidata lookup, claims review) sets precision to 'day' the moment a
+  // full date exists — never asks her to also flip a dropdown. This form
+  // was the one holdout, because it's the only place month/year/range
+  // precision can be set at all: match the rest of the app for the common
+  // case (a real day typed in), leave the dropdown for the uncommon one.
+  body.querySelector('#f-bdate').addEventListener('change', (e) => {
+    if (e.target.value) body.querySelector('#f-bprec').value = 'day';
+  });
   body.querySelector('#save-person-btn').addEventListener('click', async () => {
     const ddate = body.querySelector('#f-ddate').value || null;
     await ctx.store.updatePerson(person.id, {

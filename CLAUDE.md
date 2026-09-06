@@ -157,6 +157,45 @@ working toward the answer she just walked back.
 10. **Check the wider system** for inconsistencies the change created
     elsewhere.
 
+## code3 — the lazy-but-uncompromising lens (2026-09-06)
+
+Invoked with "code3". Her words: *"you are a master at making things easy
+and simple. think from the eyes of someone who is lazy but does not want to
+compromise on quality and efficiency."* This is a lens on top of code6, not
+a replacement — it names which side of every code6 trade-off to lean on
+when in doubt.
+
+**Read it as:** the person using this screen wants the outcome, not the
+chore of producing it. Every tap, field, decision or confirmation she
+doesn't strictly need to make is a tax — remove it — but never at the cost
+of the fact being right, the data being safe, or the result being worse.
+"Lazy" is about her effort, not about the app's rigor.
+
+**What this has already meant in practice on this project** (the pattern to
+keep extending, not a one-time cleanup):
+- Fun & Zodiac's duplicate people: no panel, no button, no confirm — folded
+  silently on render, a passive note after the fact (v67, her "thats too
+  complicated, make it easier").
+- Chart panel: five numbers she actually uses, not eight she has to mentally
+  filter past (v64).
+- Board: the timeline itself stayed, the numerology-strip switcher that
+  "does nothing for her" was cut, not relabeled (v64).
+
+**The other half — never compromised for ease:** sourcing/verification
+stays real, dates stay precise-or-marked-uncertain, nothing silently
+overwrites a fact she already confirmed, merges only fold true duplicates
+(same person, same name) never lossy guesses. Quality and efficiency are
+the floor code3 is not allowed to dig under.
+
+**How to apply going forward:** on every change on this project, before
+adding a field, a click, a confirmation step, or a page — ask whether she
+actually needs to be the one to do it, or whether the app can just know,
+default, infer, or act. Prefer zero-friction/automatic over manual/gated
+wherever the stakes are low (as they explicitly are on Fun & Zodiac, and as
+they usually are for anything reversible). Keep the code6 "ask before a
+visible redesign" gate for genuinely new UI — code3 is about cutting steps
+within a flow, not about skipping her review of a new one.
+
 **Don't make her become the UI designer.** She communicates intentions,
 preferences and frustrations in normal language; this ruleset fills in the
 technical and design gaps with real expertise. She describes the
