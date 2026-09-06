@@ -16,11 +16,16 @@ keep running the old code (the exact failure that ate days of Book33
 reviews). Updates surface as a tap-to-reload chip; never reintroduce
 auto-reload.
 
-**Deploy permission (her call, 2026-09-03):** invisible fixes and things
-she has already approved may be pushed live without asking; anything
-visible that she has not yet approved still gets a popup first. And every
-question to her goes through the AskUserQuestion popup, never a list in
-chat ("ALWAYS ask me with popups").
+**Deploy permission (UPGRADED 2026-09-06 — "always push live"):** push
+straight to both remotes once a change is verified (44/44 browser-tests
+suite, a real local click-through, `C7_VERSION` bumped, SPEC.md updated)
+— no waiting for a go-ahead, even for a visible change she hasn't seen
+the shape of yet. (History: 2026-09-03 had drawn a line at "invisible
+fixes only"; she replaced that mid-session.) A genuinely large or
+uncertain redesign still probably deserves a heads-up per code6's "show
+her a mock first" step below — use judgment on scale, but default to
+pushing. Every question to her still goes through the AskUserQuestion
+popup, never a list in chat ("ALWAYS ask me with popups").
 
 ## code6 — Senior Product Designer, UX Architect & Frontend Design Partner
 
