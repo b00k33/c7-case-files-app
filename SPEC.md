@@ -881,6 +881,48 @@ not just its visual styling — an invisible-on-mobile rule that's correct
 for a layout-view toggle is a bug for anything else hiding behind the same
 class name.
 
+## 13d. Duplicate CASES — flag + one-tap merge (v70, 2026-09-06)
+
+Her screenshot: two separate cases, "Michael Jackson" and "Michael
+jackson," each with its own person, evidence and events — created by
+mistake, and nothing on the Cases page could see it. Each case's own
+"⋯ → Clean up duplicates" (`findDuplicates`/`removeDuplicates`, section
+13a) only ever looks *inside that one case* — duplicate claims, duplicate
+evidence by URL, a same-name-person count it deliberately never removes.
+It has no way to compare two case files against each other.
+
+**Detection** (`findDuplicateCases`, `js/pages/cases.js`): every render of
+the Cases page groups all `kind:'person'` cases by their subject's name
+(`subjectOf`, case-insensitive, trimmed — the case's own name if it has no
+person yet). A group of 2+ is a duplicate set; the oldest case is treated
+as the original, every other case in the group gets a brass "Possible
+duplicate of `<name>` →" badge next to its other attention badges (to
+review / images / open questions), in both Cards and Table view. Family
+and event cases are never flagged this way — merging a family or an event
+isn't the same operation, and wasn't asked for.
+
+**Merge** (`store.mergeCase(keepCaseId, dupCaseId, keepPersonId,
+dupPersonId)`): the badge is a two-tap button (`twoTapConfirm`, so a stray
+tap can't merge anything). Confirming re-homes every case-scoped row
+(`person`, `relationship`, `event`, `evidence`, `claim`, `question`,
+`finding`, `contradiction` — everything in schema.sql that carries a
+`case_id`) from the duplicate case onto the kept one, then folds the two
+matching subject people into one with the existing `mergePerson` (section
+13a — aliases, addresses, events, contradictions, claims, evidence links,
+tags, relationships all consolidate; blank fields on the survivor backfill
+from the duplicate), then soft-deletes the now-empty case. Nothing is ever
+merged without her tapping the badge twice — this flags, it never
+auto-merges, unlike Fun & Zodiac's silent merge (section 13a), because a
+real investigation might genuinely have two different people sharing a
+name and that call has to stay hers.
+
+*(Found in passing, not fixed here — flagged separately: `createPerson`'s
+INSERT never actually writes `gender`, `nationality` or `marital_status`
+even though `mergePerson`'s backfill and the claims pipeline both expect
+those columns to exist on a freshly created person. No real code path
+calls `createPerson` with those fields today, so it's dormant, not an
+active bug — but worth closing so it doesn't become one.)*
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

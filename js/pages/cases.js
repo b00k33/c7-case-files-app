@@ -262,7 +262,52 @@ function wireImportBtn(btn, c, ctx, store) {
   });
 }
 
-async function buildCaseCard(c, sum, ctx, store, onChanged) {
+/**
+ * Same-named person-cases, cross-case (her screenshot, 2026-09-06: two
+ * "Michael Jackson" cases side by side) — the per-case "Clean up
+ * duplicates" menu only ever looked inside its own case, so it could never
+ * see this. Grouped by the subject's name (or the case's own name, for a
+ * bare case with no person yet), oldest case in the group is treated as
+ * the original; every other case in the group gets flagged with which one
+ * it would merge into. Family/event cases are never flagged this way —
+ * "one case, one person" is a person-case-only assumption.
+ */
+function findDuplicateCases(withSums) {
+  const groups = new Map();
+  for (const item of withSums) {
+    if (item.c.kind !== 'person') continue;
+    const subject = subjectOf(item.c, item.sum.people);
+    const name = (subject?.display_name || item.c.name).trim().toLowerCase();
+    if (!name) continue;
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push({ ...item, subject });
+  }
+  const dupOf = new Map(); // caseId -> { keepCase, keepPersonId, dupPersonId }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => (a.c.created_at || '') < (b.c.created_at || '') ? -1 : 1);
+    const [keep, ...rest] = group;
+    for (const dup of rest) {
+      dupOf.set(dup.c.id, { keepCase: keep.c, keepPersonId: keep.subject?.id || null, dupPersonId: dup.subject?.id || null });
+    }
+  }
+  return dupOf;
+}
+
+/** The "possible duplicate" badge, shared by the card and the table row — merges on a two-tap confirm. */
+function dupFlagHtml(dupInfo) {
+  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges everything on this case into ${dupInfo.keepCase.name} and removes this one">Possible duplicate of ${dupInfo.keepCase.name} →</button>`;
+}
+function wireDupFlag(el, dupCaseId, dupInfo, store, onChanged) {
+  const btn = el.querySelector('.dup-flag');
+  if (!btn || !dupInfo) return;
+  twoTapConfirm(btn, {
+    confirmLabel: `Merge into ${dupInfo.keepCase.name}?`,
+    onConfirm: async () => { await store.mergeCase(dupInfo.keepCase.id, dupCaseId, dupInfo.keepPersonId, dupInfo.dupPersonId); onChanged(); },
+  });
+}
+
+async function buildCaseCard(c, sum, ctx, store, onChanged, dupInfo) {
   const card = document.createElement('div');
   card.className = 'case-card';
   card.innerHTML = `
@@ -297,15 +342,17 @@ async function buildCaseCard(c, sum, ctx, store, onChanged) {
   if (sum.toReview) badges.innerHTML += `<span class="chip brass">${sum.toReview} to review</span>`;
   if (sum.inbox) badges.innerHTML += `<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`;
   if (sum.questions) badges.innerHTML += `<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`;
+  if (dupInfo) badges.innerHTML += dupFlagHtml(dupInfo);
 
   card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open')) return; openCase(ctx, c); });
   card.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
   wireImportBtn(card.querySelector('.import-btn'), c, ctx, store);
   wireCaseMenu(card.querySelector('.menu-btn'), card.querySelector('.menu-slot'), c, ctx, store, onChanged);
+  wireDupFlag(card, c.id, dupInfo, store, onChanged);
   return card;
 }
 
-async function buildCaseRow(c, sum, opened, ctx, store, onChanged) {
+async function buildCaseRow(c, sum, opened, ctx, store, onChanged, dupInfo) {
   const tr = document.createElement('tr');
   const era = c.era_start || c.era_end ? `${c.era_start || '?'}–${c.era_end || '?'}` : '—';
   const kindClass = c.kind === 'event' ? 'violet' : c.kind === 'family' ? 'brass' : '';
@@ -313,6 +360,7 @@ async function buildCaseRow(c, sum, opened, ctx, store, onChanged) {
   if (sum.toReview) badges.push(`<span class="chip brass">${sum.toReview} to review</span>`);
   if (sum.inbox) badges.push(`<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`);
   if (sum.questions) badges.push(`<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`);
+  if (dupInfo) badges.push(dupFlagHtml(dupInfo));
   const lastOpened = opened[c.id] || Date.parse(c.updated_at) || 0;
   tr.innerHTML = `
     <td><div class="rowname"><div class="thumb-slot"></div>${c.name}${c.world ? ` <span class="chip violet">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>` : ''}</div></td>
@@ -335,13 +383,14 @@ async function buildCaseRow(c, sum, opened, ctx, store, onChanged) {
   tr.querySelector('.q-open')?.addEventListener('click', async (e) => { e.stopPropagation(); markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
   wireImportBtn(tr.querySelector('.import-btn'), c, ctx, store);
   wireCaseMenu(tr.querySelector('.menu-btn'), menuTd, c, ctx, store, onChanged);
+  wireDupFlag(tr, c.id, dupInfo, store, onChanged);
   // the menu slot only needs to exist while open — hide/show its row with it
   const mo = new MutationObserver(() => { menuRow.style.display = menuTd.children.length ? '' : 'none'; });
   mo.observe(menuTd, { childList: true });
   return [tr, menuRow];
 }
 
-async function buildTable(withSums, opened, sortState, ctx, store, onChanged) {
+async function buildTable(withSums, opened, sortState, ctx, store, onChanged, dupOf) {
   const wrap = document.createElement('div');
   wrap.className = 'panel table-scroll';
   const arrow = (key) => (sortState.key === key ? `<span class="arrow">${sortState.dir === 'asc' ? '▴' : '▾'}</span>` : '');
@@ -361,7 +410,7 @@ async function buildTable(withSums, opened, sortState, ctx, store, onChanged) {
   `;
   const tbody = table.querySelector('tbody');
   for (const { c, sum } of withSums) {
-    const [tr, menuRow] = await buildCaseRow(c, sum, opened, ctx, store, onChanged);
+    const [tr, menuRow] = await buildCaseRow(c, sum, opened, ctx, store, onChanged, dupOf.get(c.id));
     tbody.appendChild(tr);
     tbody.appendChild(menuRow);
   }
@@ -381,6 +430,7 @@ export async function render(root, ctx) {
   const opened = openedMap();
   const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
   const withSums = await Promise.all(cases.map(async (c) => ({ c, sum: await store.caseSummary(c.id) })));
+  const dupOf = findDuplicateCases(withSums);
 
   const view = getView();
   const sortState = getSort();
@@ -444,11 +494,11 @@ export async function render(root, ctx) {
       onAction: () => root.querySelector('#new-case-btn').click(),
     }));
   } else if (view === 'table') {
-    body.appendChild(await buildTable(withSums, opened, sortState, ctx, store, () => render(root, ctx)));
+    body.appendChild(await buildTable(withSums, opened, sortState, ctx, store, () => render(root, ctx), dupOf));
   } else {
     const grid = document.createElement('div');
     grid.className = 'case-grid';
-    for (const { c, sum } of withSums) grid.appendChild(await buildCaseCard(c, sum, ctx, store, () => render(root, ctx)));
+    for (const { c, sum } of withSums) grid.appendChild(await buildCaseCard(c, sum, ctx, store, () => render(root, ctx), dupOf.get(c.id)));
     body.appendChild(grid);
   }
 

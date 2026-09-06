@@ -707,6 +707,36 @@ export async function mergePerson(keepId, dupId) {
 }
 
 /**
+ * Fold `dupCaseId` into `keepCaseId`: every case-scoped row (people,
+ * relationships, events, evidence, claims, questions, findings,
+ * contradictions) is re-homed to the kept case, the two matching subject
+ * people are folded into one with `mergePerson` (so it's one profile
+ * afterward, not two), and the now-empty case is soft-deleted. For two
+ * case files about the same person made by mistake — e.g. "Michael
+ * Jackson" and "Michael jackson" as separate cases (her screenshot,
+ * 2026-09-06) — never for two cases that might genuinely be different
+ * people; that call is the caller's (the Cases page only offers this for
+ * an exact, normalised name match, and it's a tap to confirm, not
+ * automatic).
+ */
+export async function mergeCase(keepCaseId, dupCaseId, keepPersonId, dupPersonId) {
+  if (keepCaseId === dupCaseId) return;
+  const keep = await getCase(keepCaseId), dup = await getCase(dupCaseId);
+  if (!keep || !dup) throw new Error('one of these cases no longer exists');
+
+  for (const table of ['person', 'relationship', 'event', 'evidence', 'claim', 'question', 'finding', 'contradiction']) {
+    for (const row of db.exec(`SELECT id FROM ${table} WHERE case_id=?`, [dupCaseId])) {
+      db.run(`UPDATE ${table} SET case_id=? WHERE id=?`, [keepCaseId, row.id]);
+      logChange(table, row.id, 'update', { case_id: keepCaseId });
+    }
+  }
+  if (keepPersonId && dupPersonId && keepPersonId !== dupPersonId) {
+    await mergePerson(keepPersonId, dupPersonId);
+  }
+  await softDeleteCase(dupCaseId);
+}
+
+/**
  * Apply an accepted claim's value to the actual data. This is the single
  * chokepoint where a drafted fact is allowed to become real.
  */
