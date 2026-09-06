@@ -799,6 +799,19 @@ options (Board dots, a per-person tab, a multi-artist compare view).
   (`c7-compare-people`, `c7-compare-axis`). This is the first view in C7
   that reads across more than one case at once.
 
+## 13a. Fun & Zodiac — no duplicate people (v65, 2026-09-05)
+
+`js/pages/fun.js`'s "+ Add" used to create a brand-new person every click,
+so retyping a name (to add a second trait, or a birth date noticed later)
+made a second entry with no way to merge them. "+ Add" now matches the
+typed name against everyone already in the Fun case, case-insensitively,
+trimmed; a match reuses that person instead of creating a new one — new
+traits merge onto the existing tags, a birth date fills in if the
+existing record didn't have one, and a clip/quote adds a new evidence
+item as before. An inline note says when this happened. This page has no
+rename/merge tool of its own (it's explicitly "not research," no review
+queue), so preventing the duplicate at entry time is the only guard.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

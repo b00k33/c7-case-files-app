@@ -1,6 +1,7 @@
 import { signFor } from '../chinese.js';
 import { emptyState, animalHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
+import { clearInlineNote } from '../ui.js';
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -24,6 +25,8 @@ async function findOrCreateTag(store, name) {
   return store.createTag(name);
 }
 
+let lastNote = null; // shown once, on the next render — a render() replaces the button an inline note would hang off
+
 export async function render(root, ctx) {
   const { store } = ctx;
   const kase = await getOrCreateFunCase(store);
@@ -45,13 +48,25 @@ export async function render(root, ctx) {
         <div class="field"><label>Clip link (optional)</label><input type="text" id="f-link" placeholder="https://..."></div>
         <div class="field"><label>Quote (optional)</label><input type="text" id="f-quote" placeholder="What they said"></div>
         <button class="btn btn-primary" id="f-add">+ Add</button>
+        <div id="f-note"></div>
       </div>
 
       <div id="sign-groups" class="stack" style="gap:16px"></div>
     </div>
   `;
 
+  if (lastNote) {
+    const note = document.createElement('div');
+    note.className = 'inline-note';
+    note.style.borderLeftColor = 'var(--brass)';
+    note.textContent = lastNote;
+    root.querySelector('#f-note').appendChild(note);
+    lastNote = null;
+  }
+
   root.querySelector('#f-add').addEventListener('click', async () => {
+    const btn = root.querySelector('#f-add');
+    clearInlineNote(btn);
     const name = root.querySelector('#f-name').value.trim();
     if (!name) return;
     const bdate = root.querySelector('#f-bdate').value || null;
@@ -59,10 +74,19 @@ export async function render(root, ctx) {
     const link = root.querySelector('#f-link').value.trim();
     const quote = root.querySelector('#f-quote').value.trim();
 
-    const person = await store.createPerson({
-      case_id: kase.id, display_name: name,
-      birth_date: bdate, birth_precision: bdate ? 'day' : 'unknown',
-    });
+    // re-adding a name folds into the existing entry rather than making a
+    // second one — a quick-capture page like this has no rename/merge tools,
+    // so the duplicate would otherwise just sit there forever
+    const existing = people.find((p) => p.display_name.trim().toLowerCase() === name.toLowerCase());
+    let person = existing;
+    if (person) {
+      if (bdate && !person.birth_date) await store.updatePerson(person.id, { birth_date: bdate, birth_precision: 'day' });
+    } else {
+      person = await store.createPerson({
+        case_id: kase.id, display_name: name,
+        birth_date: bdate, birth_precision: bdate ? 'day' : 'unknown',
+      });
+    }
 
     for (const t of traits) {
       const tagId = await findOrCreateTag(store, t);
@@ -78,6 +102,7 @@ export async function render(root, ctx) {
       if (quote) await store.createVideoMoment({ evidence_id: ev.id, t_ms: 0, quote, label: name });
     }
 
+    if (existing) lastNote = `${name} was already here — added this to their existing entry instead of making a new one.`;
     render(root, ctx);
   });
 
