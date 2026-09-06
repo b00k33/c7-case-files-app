@@ -799,7 +799,7 @@ options (Board dots, a per-person tab, a multi-artist compare view).
   (`c7-compare-people`, `c7-compare-axis`). This is the first view in C7
   that reads across more than one case at once.
 
-## 13a. Fun & Zodiac — no duplicate people (v65, 2026-09-05)
+## 13a. Fun & Zodiac — no duplicate people (v65/v66, 2026-09-05)
 
 `js/pages/fun.js`'s "+ Add" used to create a brand-new person every click,
 so retyping a name (to add a second trait, or a birth date noticed later)
@@ -808,9 +808,25 @@ typed name against everyone already in the Fun case, case-insensitively,
 trimmed; a match reuses that person instead of creating a new one — new
 traits merge onto the existing tags, a birth date fills in if the
 existing record didn't have one, and a clip/quote adds a new evidence
-item as before. An inline note says when this happened. This page has no
-rename/merge tool of its own (it's explicitly "not research," no review
-queue), so preventing the duplicate at entry time is the only guard.
+item as before. An inline note says when this happened.
+
+**Cleaning up duplicates that already exist (v66, her ask — "how do i
+filter duplicates?"):** the page now also scans its own people for
+same-name groups on every render and shows a "Duplicate names" panel
+above Add-someone, one row per group with a two-tap "Merge into one"
+button. This reuses `store.mergePerson(keepId, dupId)` — a thorough,
+pre-existing function (aliases, addresses, events, contradictions,
+claims, evidence links, tags, relationships all move to the survivor;
+any blank field on the survivor is filled from the duplicate; the
+duplicate is soft-deleted) that was written for the Wikidata-name-fix
+work but had never actually been wired to a button anywhere in the app
+until now. The oldest entry in each group is kept. Note this is
+deliberately looser than the Cases page's own "Clean up duplicates"
+(`findDuplicates`/`removeDuplicates`, `js/store.js`), which explicitly
+never merges same-name PEOPLE in a real research case — two people
+sharing a name there might genuinely be different people, so that call
+stays hers to make per-case. Fun & Zodiac is different: it's explicitly
+"not research," so an automatic same-name merge is safe by design.
 
 ## 13. Two rules the 2026-09-03 review turned up
 
