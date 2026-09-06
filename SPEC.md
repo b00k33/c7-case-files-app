@@ -799,7 +799,7 @@ options (Board dots, a per-person tab, a multi-artist compare view).
   (`c7-compare-people`, `c7-compare-axis`). This is the first view in C7
   that reads across more than one case at once.
 
-## 13a. Fun & Zodiac — no duplicate people (v65/v66, 2026-09-05)
+## 13a. Fun & Zodiac — no duplicate people (v65/v67, 2026-09-05)
 
 `js/pages/fun.js`'s "+ Add" used to create a brand-new person every click,
 so retyping a name (to add a second trait, or a birth date noticed later)
@@ -810,23 +810,27 @@ traits merge onto the existing tags, a birth date fills in if the
 existing record didn't have one, and a clip/quote adds a new evidence
 item as before. An inline note says when this happened.
 
-**Cleaning up duplicates that already exist (v66, her ask — "how do i
-filter duplicates?"):** the page now also scans its own people for
-same-name groups on every render and shows a "Duplicate names" panel
-above Add-someone, one row per group with a two-tap "Merge into one"
-button. This reuses `store.mergePerson(keepId, dupId)` — a thorough,
-pre-existing function (aliases, addresses, events, contradictions,
-claims, evidence links, tags, relationships all move to the survivor;
-any blank field on the survivor is filled from the duplicate; the
-duplicate is soft-deleted) that was written for the Wikidata-name-fix
-work but had never actually been wired to a button anywhere in the app
-until now. The oldest entry in each group is kept. Note this is
+**Existing duplicates are folded away silently, no button (v67 — her
+first cut, a "Duplicate names" panel with a two-tap Merge button per
+group, was "too complicated, make it easier"):** every render of the
+page scans its own people for same-name groups (case-insensitive,
+trimmed) and merges each group's extras into its oldest entry
+automatically, before anything is drawn — she never sees it happen
+unless it just did, in which case a one-line note says so ("Folded 1
+duplicate entry into the existing one — nothing lost, just tidied.").
+This reuses `store.mergePerson(keepId, dupId)` — a thorough, pre-existing
+function (aliases, addresses, events, contradictions, claims, evidence
+links, tags, relationships all move to the survivor; any blank field on
+the survivor is filled from the duplicate; the duplicate is
+soft-deleted) that was written for the Wikidata-name-fix work but had
+never actually been wired to anything in the app until now. Note this is
 deliberately looser than the Cases page's own "Clean up duplicates"
 (`findDuplicates`/`removeDuplicates`, `js/store.js`), which explicitly
 never merges same-name PEOPLE in a real research case — two people
 sharing a name there might genuinely be different people, so that call
-stays hers to make per-case. Fun & Zodiac is different: it's explicitly
-"not research," so an automatic same-name merge is safe by design.
+stays hers to make per-case, manually. Fun & Zodiac is different: it's
+explicitly "not research," so a fully automatic same-name merge is safe
+by design and doesn't need her confirmation.
 
 ## 13. Two rules the 2026-09-03 review turned up
 

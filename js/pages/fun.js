@@ -1,7 +1,7 @@
 import { signFor } from '../chinese.js';
 import { emptyState, animalHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
-import { clearInlineNote, twoTapConfirm } from '../ui.js';
+import { clearInlineNote } from '../ui.js';
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -30,18 +30,27 @@ let lastNote = null; // shown once, on the next render — a render() replaces t
 export async function render(root, ctx) {
   const { store } = ctx;
   const kase = await getOrCreateFunCase(store);
-  const people = await store.listPeople(kase.id);
 
-  // duplicates from before the add-form started merging on a name match —
-  // grouped case-insensitively, oldest entry is the one everything folds into
-  const dupGroups = {};
-  for (const p of people) {
-    const key = p.display_name.trim().toLowerCase();
-    (dupGroups[key] = dupGroups[key] || []).push(p);
+  // duplicates are folded away automatically, no button — this page is
+  // explicitly "not research" (her call, 2026-09-05: "thats too complicated,
+  // make it easier"), so a same-name match is just merged on sight rather
+  // than asking her to notice and confirm it. Oldest entry survives.
+  let mergedCount = 0;
+  {
+    const dupGroups = {};
+    for (const p of await store.listPeople(kase.id)) {
+      const key = p.display_name.trim().toLowerCase();
+      (dupGroups[key] = dupGroups[key] || []).push(p);
+    }
+    for (const group of Object.values(dupGroups)) {
+      if (group.length < 2) continue;
+      group.sort((a, b) => (a.created_at || '') < (b.created_at || '') ? -1 : 1);
+      const [keep, ...rest] = group;
+      for (const dup of rest) await store.mergePerson(keep.id, dup.id);
+      mergedCount += rest.length;
+    }
   }
-  const duplicates = Object.values(dupGroups)
-    .filter((g) => g.length > 1)
-    .map((g) => g.sort((a, b) => (a.created_at || '') < (b.created_at || '') ? -1 : 1));
+  const people = await store.listPeople(kase.id);
 
   root.innerHTML = `
     <div class="stack">
@@ -50,12 +59,6 @@ export async function render(root, ctx) {
           ✦ Just for fun — nothing on this page goes through Review. Add someone, note a trait, and see whether it clusters by sign.
         </p>
       </div>
-
-      ${duplicates.length ? `
-      <div class="panel" id="dup-panel">
-        <div class="panel-title">Duplicate names <span class="mono" style="color:var(--text-3);font-size:11px">· ${duplicates.length}</span></div>
-        <div class="stack" style="gap:6px;margin-top:8px" id="dup-list"></div>
-      </div>` : ''}
 
       <div class="panel">
         <div class="panel-title">Add someone</div>
@@ -72,25 +75,7 @@ export async function render(root, ctx) {
     </div>
   `;
 
-  if (duplicates.length) {
-    const dupList = root.querySelector('#dup-list');
-    for (const group of duplicates) {
-      const [keep, ...rest] = group;
-      const row = document.createElement('div');
-      row.className = 'row between';
-      row.style.gap = '8px';
-      row.innerHTML = `<span>${keep.display_name} <span class="mono" style="color:var(--text-3);font-size:11px">· ${group.length} copies</span></span><button class="btn btn-ghost btn-sm dup-merge">Merge into one</button>`;
-      twoTapConfirm(row.querySelector('.dup-merge'), {
-        confirmLabel: 'Merge — sure?',
-        onConfirm: async () => {
-          for (const dup of rest) await store.mergePerson(keep.id, dup.id);
-          lastNote = `Merged ${group.length} "${keep.display_name}" entries into one — all their traits and clips are on it now.`;
-          render(root, ctx);
-        },
-      });
-      dupList.appendChild(row);
-    }
-  }
+  if (mergedCount && !lastNote) lastNote = `Folded ${mergedCount} duplicate ${mergedCount === 1 ? 'entry' : 'entries'} into the existing ${mergedCount === 1 ? 'one' : 'ones'} — nothing lost, just tidied.`;
 
   if (lastNote) {
     const note = document.createElement('div');
