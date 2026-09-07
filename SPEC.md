@@ -923,6 +923,30 @@ those columns to exist on a freshly created person. No real code path
 calls `createPerson` with those fields today, so it's dormant, not an
 active bug — but worth closing so it doesn't become one.)*
 
+## 13e. The offline shell had fallen behind the app (v71, 2026-09-06)
+
+`sw.js`'s `SHELL` array precaches every file the app needs so it opens and
+works with no connection at all (the data was always offline-first — it
+lives in IndexedDB/the data folder — this is only about the app's own
+code). It's a hand-maintained list, and it wasn't updated when several
+pages shipped this week: `js/pages/event.js`, `js/pages/questions.js`,
+`js/pages/compare.js`, `js/pages/commercial.js`, `js/milestone-kinds.js`,
+`js/milestone-parse.js` and `js/works.js` all existed on disk and were
+real, reachable routes (`main.js`'s `ROUTES`, or a tab under the profile)
+but weren't in `SHELL` — so with no connection, opening Compare, an Event
+case, Questions, or a profile's Commercial tab would fail outright (a
+plain network error on the dynamic `import()`), while everything else in
+the app kept working fine. Her ask ("make the app function offline")
+caught a gap that had been silently growing since v63, not a
+never-worked feature.
+
+Fixed by diffing every `.js` file that actually exists in `js/` against
+`SHELL` (`find js -name "*.js"` vs. the array) rather than eyeballing it,
+so this is checked exhaustively rather than by memory next time. **The
+lesson: a new page module means a `SHELL` entry, every time — nothing
+else enforces this, and it fails silently (only offline, only on that one
+route) rather than loudly.**
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

@@ -16,6 +16,13 @@ keep running the old code (the exact failure that ate days of Book33
 reviews). Updates surface as a tap-to-reload chip; never reintroduce
 auto-reload.
 
+**Every new page module goes into `sw.js`'s `SHELL` array, same push.**
+Found missing for `compare.js`/`commercial.js`/`event.js`/`questions.js`/
+`milestone-*.js`/`works.js` (v71, 2026-09-06 — her "make the app function
+offline") — `SHELL` is hand-maintained, so a new file just silently isn't
+there offline until someone remembers. Before pushing, diff `js/` against
+`SHELL`: `find js -name "*.js" | sort` vs. the array, not by eye.
+
 **Deploy permission (UPGRADED 2026-09-06 — "always push live"):** push
 straight to both remotes once a change is verified (44/44 browser-tests
 suite, a real local click-through, `C7_VERSION` bumped, SPEC.md updated)
