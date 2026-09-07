@@ -1092,7 +1092,8 @@ computed by the app's own modules). Her answers, which now govern:
 - **Order:** ground + gold first (v74), the life map next as its own push
   with a preview she reacts to first.
 
-**The life map as built (2026-09-07, `js/lifemap.js`, on the Profile tab):**
+**The life map as built (v75, 2026-09-07 — she saw the preview and said
+"Go"; `js/lifemap.js`, on the Profile tab):**
 - `buildLifeLine()` — years from birth (or the first dated thing) to death
   (or now), each with `personalYear()` from `exactBirth()` only (never a
   placeholder date); marks from the person's events (`markKind()`: kind
