@@ -77,6 +77,14 @@ export async function openCase(ctx, kase) {
   ctx.navigate(`#/subject/${p.id}`);
 }
 
+/** Straight to what's waiting: a person-case's queue opens as the Review tab on the person, so she stays in their file. */
+export async function openReview(ctx, kase, sum) {
+  markOpened(kase.id);
+  await ctx.setCaseId(kase.id);
+  const p = kase.kind === 'person' ? subjectOf(kase, sum ? sum.people : await ctx.store.listPeople(kase.id)) : null;
+  ctx.navigate(p ? `#/subject/${p.id}/review` : '#/review');
+}
+
 /**
  * Converting a case to Event drops its auto-created "subject" person if it
  * still looks untouched — her call on World War 1 (2026-09-04): keep the
@@ -342,13 +350,16 @@ async function buildCaseCard(c, sum, ctx, store, onChanged, dupInfo) {
   }
   // badges only when there is something
   const badges = card.querySelector('.badges');
-  if (sum.toReview) badges.innerHTML += `<span class="chip brass">${sum.toReview} to review</span>`;
+  // "N to review" is a door, not a label — one tap lands in this case's
+  // Review queue (her ask, 2026-09-08: "i click on hp to review and i cant find it")
+  if (sum.toReview) badges.innerHTML += `<span class="chip brass rv-open" title="Tap to review them">${sum.toReview} to review →</span>`;
   if (sum.inbox) badges.innerHTML += `<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`;
   if (sum.questions) badges.innerHTML += `<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`;
   if (dupInfo) badges.innerHTML += dupFlagHtml(dupInfo);
 
-  card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open')) return; openCase(ctx, c); });
+  card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open, .rv-open')) return; openCase(ctx, c); });
   card.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
+  card.querySelector('.rv-open')?.addEventListener('click', () => openReview(ctx, c, sum));
   wireImportBtn(card.querySelector('.import-btn'), c, ctx, store);
   wireCaseMenu(card.querySelector('.menu-btn'), card.querySelector('.menu-slot'), c, ctx, store, onChanged);
   wireDupFlag(card, c.id, dupInfo, store, onChanged);
@@ -360,7 +371,7 @@ async function buildCaseRow(c, sum, opened, ctx, store, onChanged, dupInfo) {
   const era = c.era_start || c.era_end ? `${c.era_start || '?'}–${c.era_end || '?'}` : '—';
   const kindClass = c.kind === 'event' ? 'violet' : c.kind === 'family' ? 'brass' : '';
   const badges = [];
-  if (sum.toReview) badges.push(`<span class="chip brass">${sum.toReview} to review</span>`);
+  if (sum.toReview) badges.push(`<span class="chip brass rv-open" title="Tap to review them">${sum.toReview} to review →</span>`);
   if (sum.inbox) badges.push(`<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`);
   if (sum.questions) badges.push(`<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`);
   if (dupInfo) badges.push(dupFlagHtml(dupInfo));
@@ -382,8 +393,9 @@ async function buildCaseRow(c, sum, opened, ctx, store, onChanged, dupInfo) {
   menuRow.appendChild(menuTd);
   menuRow.style.display = 'none';
 
-  tr.addEventListener('click', (e) => { if (e.target.closest('button, .q-open')) return; openCase(ctx, c); });
+  tr.addEventListener('click', (e) => { if (e.target.closest('button, .q-open, .rv-open')) return; openCase(ctx, c); });
   tr.querySelector('.q-open')?.addEventListener('click', async (e) => { e.stopPropagation(); markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
+  tr.querySelector('.rv-open')?.addEventListener('click', (e) => { e.stopPropagation(); openReview(ctx, c, sum); });
   wireImportBtn(tr.querySelector('.import-btn'), c, ctx, store);
   wireCaseMenu(tr.querySelector('.menu-btn'), menuTd, c, ctx, store, onChanged);
   wireDupFlag(tr, c.id, dupInfo, store, onChanged);

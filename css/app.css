@@ -185,6 +185,9 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .chip.red { color: var(--red); }
 .chip.green { color: var(--green); }
 .chip.teal { color: var(--teal); }
+/* attention chips that are doors — "N to review →", "N open" — read as tappable */
+.chip.rv-open, .chip.q-open { cursor: pointer; box-shadow: var(--lift-2); }
+.chip.rv-open:hover, .chip.q-open:hover { background: var(--ink-2); }
 
 /* -------------------------------------------------------------- bar row */
 

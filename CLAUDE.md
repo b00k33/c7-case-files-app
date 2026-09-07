@@ -245,6 +245,14 @@ answered "show" to two rounds whose mocks sat in a sent file), and
 **"show" after the shape questions means stop asking** and build with
 the recommended options.
 
+**2026-09-08 — "i click on hp to review and i cant find it" (v78, SPEC
+§13j).** A count on a card ("11 to review") is a promise: tapping it must
+land on those eleven, not on the profile. Every attention chip is a door
+(`.rv-open`, `.q-open`), and whatever a chip counts must also be
+reachable from the page it opens — Review is now a tab on the person,
+with the same chip in the header. Rule to carry: **if the app shows a
+number, the number is tappable and leads to the things it counts.**
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

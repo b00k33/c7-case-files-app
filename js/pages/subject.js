@@ -144,9 +144,10 @@ const TABS = [
   ['profile', 'Profile'], ['relations', 'Relations'], ['commercial', 'Commercial'], ['board', 'Board'],
 ];
 const TABS_MORE = [
-  ['evidence', 'Evidence'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'],
+  ['review', 'Review'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'],
 ];
 const TAB_MODULES = {
+  review: () => import('./review.js'),
   evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
   questions: () => import('./questions.js'),
   board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
@@ -187,7 +188,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   if (person.case_id !== ctx.caseId) await ctx.setCaseId(person.case_id);
   const moreOpen = sessionStorage.getItem('c7-tabs-more') === '1' || TABS_MORE.some(([k]) => k === tab);
 
-  const [aliases, addresses, rels, events, links, questions, status] = await Promise.all([
+  const [aliases, addresses, rels, events, links, questions, status, summary] = await Promise.all([
     store.listAliases(person.id),
     store.listAddresses(person.id),
     store.listRelationshipsForPerson(person.id),
@@ -195,7 +196,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
     store.listLinksForTarget('person', person.id),
     store.listQuestions(ctx.caseId),
     evidenceStatusForPerson(store, person.id),
+    store.caseSummary(ctx.caseId),
   ]);
+  // what's waiting on her in this case sits in the header as a door, the
+  // same chip the Cases card shows — one tap, never a hunt (2026-09-08)
+  const toReview = summary ? summary.toReview : 0;
 
   root.innerHTML = `
     <div class="stack">
@@ -212,6 +217,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
                 ${person.occupation ? ` · <span style="color:var(--text-2)">${person.occupation}</span>` : ''}
               </div>
               <div class="row" style="gap:6px;flex:0 0 auto">
+                ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
                 ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
                 <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
               </div>
@@ -224,7 +230,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>
       </div>
 
-      <div class="tab-strip" id="tab-strip">${[...TABS, ...(moreOpen ? TABS_MORE : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : 'Evidence · Contradictions · Questions · Import'}">${moreOpen ? '‹' : '⋯'}</button></div>
+      <div class="tab-strip" id="tab-strip">${[...TABS, ...(moreOpen ? TABS_MORE : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : 'Review · Evidence · Contradictions · Questions · Import'}">${moreOpen ? '‹' : '⋯'}</button></div>
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
       <div id="pi-result"></div>
 
@@ -401,9 +407,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // any other tab: mount that page under the header and stop here
   if (tab !== 'profile') {
     const mod = await TAB_MODULES[tab]();
-    await mod.render(root.querySelector('#tab-body'), ctx, personId);
+    // a tab page may hand back an unmount (Review's key handler) — pass it up so the router calls it on leave
+    const unmount = await mod.render(root.querySelector('#tab-body'), ctx, personId);
     ctx.setTitle(person.display_name);
-    return;
+    return typeof unmount === 'function' ? unmount : undefined;
   }
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));

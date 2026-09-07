@@ -1200,6 +1200,26 @@ learned about asking, recorded in memory: the mock goes *inside* the
 popup as each option's preview, and "show" after the shape questions
 means stop asking.
 
+## 13j. "I click on hp to review and I can't find it" (v78, 2026-09-08)
+
+The Cases card said "11 to review" but the chip was a label: tapping it
+(or the card) opened the person's profile, where Review was not a tab at
+all — it lived only at `#/review`, behind the phone tab bar. Fix, code3
+style (one tap to the outcome, nothing new to learn):
+
+- **The chip is the door.** "N to review →" on the card and the table
+  row (`.rv-open`) opens the case and lands in its Review queue —
+  `openReview()` in cases.js. A person-case opens it *as the person's
+  Review tab* (`#/subject/<id>/review`) so she stays in their file; a
+  family or event case opens `#/review`.
+- **Review is a person tab** (first under ⋯; `TAB_MODULES.review`), and
+  the person header carries the same "N to review →" chip whenever the
+  case has drafted claims, hidden on the Review tab itself. Clearing the
+  queue clears the chip. The subject page passes a tab module's unmount
+  up to the router so Review's keyboard shortcuts never outlive the tab.
+- Attention chips that are doors ("N to review →", "N open") now read as
+  tappable: pointer cursor, `--lift-2`, hover tone.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a
