@@ -236,6 +236,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   svg.style.pointerEvents = 'none'; // lines never block taps on faces; the confirm dots opt back in
   tree.appendChild(svg);
   const stroke = (confirmed) => (confirmed ? 'var(--text-3)' : 'var(--ink-3)');
+  const relById = new Map(rels.map((r) => [r.id, r]));
   for (const e of L.edges) {
     let el = null;
     if (e.kind === 'couple' && e.arc) el = svgEl('path', { d: `M${e.x1},${e.top} C${e.x1},${e.top - e.rise} ${e.x2},${e.top - e.rise} ${e.x2},${e.top}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
@@ -265,6 +266,41 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
         rerender();
       });
       svg.appendChild(dot);
+    }
+    // the year they married (her ask, 2026-09-07): a real, recorded couple
+    // gets a small tap target at the same midpoint the confirm dot uses,
+    // offset above the line so the two never overlap — a known year shows
+    // as "m. 2005"; an unset one is a quiet dot rather than a blank
+    // invitation, since most couples on a tree will never have this filled
+    // in and the tree already has enough on it. Reuses relationship.start_date
+    // (already the schema's field for this, already used to order multiple
+    // marriages below) rather than inventing a new column — stored as
+    // YYYY-01-01, same "day is a placeholder" convention as a month-precision
+    // birth date, but only ever the year is displayed.
+    if (e.kind === 'couple' && e.relId && !e.implied) {
+      const rel = relById.get(e.relId);
+      if (rel) {
+        const mx = (e.x1 + e.x2) / 2;
+        const my = (e.arc ? e.top - e.rise : e.y) - 8;
+        const year = rel.start_date ? rel.start_date.slice(0, 4) : null;
+        const openEditor = (ev) => {
+          ev.stopPropagation();
+          if (scrollBox.dataset.dragged) return;
+          ctx.openDrawer((body) => renderEditMarriageYear(body, ctx, rel, e.label.replace(' · spouse', ''), rerender));
+        };
+        if (year) {
+          const t = svgEl('text', { x: mx, y: my, class: 'tree-marriage-year', 'text-anchor': 'middle' });
+          t.textContent = `m. ${year}`;
+          t.addEventListener('click', openEditor);
+          svg.appendChild(t);
+        } else {
+          const dot2 = svgEl('circle', { cx: mx, cy: my, r: 4, class: 'tree-marriage-empty' });
+          const t = svgEl('title'); t.textContent = `Add the year they married — ${e.label.replace(' · spouse', '')}`;
+          dot2.appendChild(t);
+          dot2.addEventListener('click', openEditor);
+          svg.appendChild(dot2);
+        }
+      }
     }
   }
 
@@ -882,5 +918,32 @@ function renderAddRel(body, ctx, people) {
     await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: a, b_id: b, kind: body.querySelector('#r-kind').value, confidence: 50, confirmed: 0 });
     ctx.closeDrawer();
     ctx.rerender();
+  });
+}
+
+/** The tiny "m. 2005" editor a tap on the tree's marriage marker opens — just the year, nothing else. */
+function renderEditMarriageYear(body, ctx, rel, coupleLabel, rerender) {
+  const current = rel.start_date ? rel.start_date.slice(0, 4) : '';
+  body.innerHTML = `
+    <h3 class="title" style="margin-bottom:16px">${coupleLabel}</h3>
+    <div class="field"><label>Year married</label><input type="number" id="my-year" value="${current}" placeholder="2005" style="max-width:120px"></div>
+    <div class="row" style="gap:8px">
+      <button class="btn btn-primary" id="my-save">Save</button>
+      ${current ? '<button class="btn btn-ghost" id="my-clear">Clear</button>' : ''}
+    </div>
+  `;
+  body.querySelector('#my-save').addEventListener('click', async () => {
+    const btn = body.querySelector('#my-save');
+    const raw = body.querySelector('#my-year').value.trim();
+    const y = parseInt(raw, 10);
+    if (!raw || !Number.isInteger(y) || y < 1000 || y > 3000) { inlineNote(btn, 'Enter a year, like 2005.'); return; }
+    await ctx.store.upsertRelationship({ id: rel.id, start_date: `${y}-01-01` });
+    ctx.closeDrawer();
+    rerender();
+  });
+  body.querySelector('#my-clear')?.addEventListener('click', async () => {
+    await ctx.store.upsertRelationship({ id: rel.id, start_date: null });
+    ctx.closeDrawer();
+    rerender();
   });
 }

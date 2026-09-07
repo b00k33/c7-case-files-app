@@ -448,6 +448,17 @@ it anywhere she hasn't asked for it.
    (one tap) or "confirmed ✓" (two taps to un-confirm). Implied links
    (inferred from co-parents or siblings) have no dot: there is nothing
    recorded to confirm until the relationship itself is added.
+   **Year of marriage (2026-09-07):** every real (non-implied) marriage
+   line carries a small tap target above its midpoint — a known year reads
+   as "m. 2005" in brass mono; an unknown one is a quiet low-opacity dot,
+   not a blank invitation, since most couples on a tree will never have
+   this filled in. Either opens a one-field drawer (year only — Save or
+   Clear) that writes `relationship.start_date` as `YYYY-01-01`, the same
+   "day is a placeholder, only the year is ever shown" convention a
+   month-precision birth date already uses. This is the schema's existing
+   field, already read internally to order a person's marriages left-to-
+   right — there had never been a UI to set it before, only to imply it
+   from ordering.
 6. Patterns — the pair matrix, selected-pair readout, children-vs-parents
    band, event-date numbers, findings with observed vs expected, control
    test.

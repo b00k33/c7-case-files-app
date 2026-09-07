@@ -683,6 +683,10 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .tree-group .mini:hover .name { color: var(--brass); }
 .tree-confirm { fill: var(--ink-1); stroke: var(--brass); stroke-width: 1.5; cursor: pointer; pointer-events: all; }
 .tree-confirm:hover { fill: var(--brass); }
+.tree-marriage-year { fill: var(--brass); font-family: var(--font-mono); font-size: 10px; cursor: pointer; pointer-events: all; }
+.tree-marriage-year:hover { opacity: .75; }
+.tree-marriage-empty { fill: var(--ink-1); stroke: var(--text-3); stroke-width: 1; opacity: .35; cursor: pointer; pointer-events: all; }
+.tree-marriage-empty:hover { opacity: .8; }
 .linklike { background: none; border: 0; padding: 0; font: inherit; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); cursor: pointer; }
 .linklike.brass { color: var(--brass); }
 .linklike:hover { text-decoration: underline; }
