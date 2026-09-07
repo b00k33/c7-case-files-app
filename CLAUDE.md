@@ -233,6 +233,18 @@ life line / circle lands in that sheet. Same-kind same-year marks
 collapse to one counted mark ("★ ×9") — a tower of nine Grammys pushed
 the ribbon off the screen on the first real pull.
 
+**2026-09-07, night — depth (v77, SPEC §13i, STYLE §1 "Depth").** "i like
+the dark theme more than light but just wish it had more dimension
+instead of being too plain and flat." Lifted layers on neutral charcoal,
+brighter night gold #e0a33a, every shadow a token (`--lift-1/2`,
+`--lift-btn`, `--press`, `--lift-face`, `--lift-mark`, `--sink`,
+`--ground`, `--rail-edge`) — never write an rgba shadow in app.css. Two
+asking rules learned the same night: **the mock goes inside the popup**
+(each AskUserQuestion option's `preview`, inline-styled HTML — she
+answered "show" to two rounds whose mocks sat in a sent file), and
+**"show" after the shape questions means stop asking** and build with
+the recommended options.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

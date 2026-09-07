@@ -21,7 +21,7 @@
     var t = pref === 'light' || pref === 'dark' ? pref : (mq.matches ? 'light' : 'dark');
     document.documentElement.dataset.theme = t;
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.content = t === 'light' ? '#efeae0' : '#1b1e24';
+    if (m) m.content = t === 'light' ? '#efeae0' : '#15181d';
   }
   apply();
   if (mq.addEventListener) mq.addEventListener('change', apply);

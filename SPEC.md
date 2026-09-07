@@ -1178,6 +1178,28 @@ awards, 4 homes, 1 school) added to the build:
 - **Board cards read the date at its precision** ("Nov 1996", not
   "1996-11-01"), like everything else on the person page.
 
+## 13i. "More dimension, not so plain and flat" (v77, 2026-09-07 night)
+
+"i like the dark theme more than light but just wish it had more
+dimension instead of being too plain and flat." Diagnosis: every surface
+was a solid fill in one hue, each a few percent lighter than the last,
+with no edge, no shadow and no light direction; the rail was the same
+shade as the panels, so nothing sat in front of anything.
+
+Asked against a guide of the same slice of Michael Jackson's page in
+four recipes (lifted layers · ambient light · glass · outlined), then the
+parts up close. Her eight answers: **A lifted layers · neutral charcoal ·
+medium · what-you-tap lifted more than its box · D brighter gold
+(#e0a33a) · edge-light + shadow · ribbon sunk, marks raised · faces
+ringed, cards lifted.** For the last five she typed "show" (= build it):
+rail sunk below the page · vignette ground · lift on hover, press on tap
+· Day gets the same depth in paper shadows · default theme unchanged
+(Follow phone). Built exactly so — tokens in `css/tokens.css`, one depth
+block at the end of `css/app.css`, STYLE §1 "Depth" table. Two things
+learned about asking, recorded in memory: the mock goes *inside* the
+popup as each option's preview, and "show" after the shape questions
+means stop asking.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

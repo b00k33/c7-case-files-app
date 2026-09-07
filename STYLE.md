@@ -17,22 +17,23 @@ keeps the same job. `index.html` stamps `data-theme="light|dark"` on
 
 ```
                  night (ink)   day (paper)
---ink-0          #1b1e24       #efeae0    page
---ink-1          #23272e       #f9f7f1    panels, rails, grouped areas
---ink-2          #2b3038       #ffffff    raised rows, cards, inputs
+--ink-0          #15181d       #efeae0    the ground (a vignette, --ground, sits behind it)
+--ink-rail       #111418       #e7e1d4    the nav rail / phone tab bar — sunk below the page
+--ink-1          #20242b       #f9f7f1    panels, grouped areas
+--ink-2          #2a2f38       #ffffff    raised rows, cards, inputs
 --ink-3          #353b45       #e6e0d3    hover, chips, pressed
 --line           #3d444f       #d6cfc0    used sparingly, mostly as a 1px inset shadow
 --text           #f1eee8       #1e2128
 --text-2         #b9bfc9       #4f5661
 --text-3         #8891a0       #7d8592
---brass          #c9922e       #a8731c    the accent — actions, the current thing, "sourced"
+--brass          #e0a33a       #a8731c    the accent — actions, the current thing, "sourced"
 --on-brass       #1b1e24       #ffffff    text on a brass surface
 --teal           #5fb3a6       #2f8a7d    links between things, secondary tags
 --green          #6faa6f       #4f8f4f    corroborated
 --amber          = brass       = brass    single-sourced, needs work
 --red            #d0705e       #b5503f    disputed, contradicted, dead
 --violet         #9a91d4       #6d63b3    master numbers, historical subjects
---shadow         dark, 45%     warm, 18%  the one drop shadow (drawer, search results)
+--shadow         dark, 50%     warm, 18%  the big drop shadow (drawer, search results)
 ```
 
 Her zodiac colour code (`--zc-*` trines, `--ws-*` elements) keeps the same
@@ -40,6 +41,36 @@ code on both grounds, each shade a step deeper on paper so it holds on
 white. **No raw hex in app.css** — every colour goes through a token, or
 the day ground silently breaks. The original single palette (#101216 page,
 #d9a54a brass) is retired: two steps too dark, and the brass read pale.
+The night gold went from #c9922e to #e0a33a on 2026-09-07 (her pick,
+"brighter").
+
+### Depth (2026-09-07 night — "more dimension, not so plain and flat")
+
+Dimension in a dark interface comes from light from above, shadow below,
+a deeper ground, and the accent catching light. Her recipe: **lifted
+layers** — the ground is the deepest thing (with a vignette), the rail
+sits below the page, each surface is a step lighter than what it sits on
+with a one-pixel light along its top and a shadow beneath. The things she
+taps are lifted more than the boxes that hold them. Every shadow is a
+token; app.css never writes an rgba shadow of its own.
+
+```
+                 what it is                          where
+--ground         vignette (lighter centre)           body::before, fixed
+--rail-edge      the hairline where rail meets page  #nav-rail, #tab-bar
+--lift-1         calm: 1px top light + 2px shadow    .panel .empty-state .stat-tile .board-wrap .tabs
+--lift-2         tappable: 1px top light + 4px shadow .card .lm-card .board-card .btn .nav-link.active
+--lift-2-hover   under her finger, raised 2px        .lm-card:hover .board-card:hover
+--lift-btn       the brass button                    .btn-primary
+--press          a button pressed (1px down)         .btn:active
+--lift-face      ring + shadow                       .face
+--lift-mark      a life-line mark                    .lm-mark .g
+--sink           a groove                            .lm-ribbon
+```
+
+Day carries the same tokens with warm paper shadows (rgba(50,40,20,…)),
+so one rule set gives both grounds their depth. Ghost buttons, chips,
+inputs and the tab strip stay flat — depth marks what does something.
 
 Group things with **background tone and space**, not with borders. If you
 find yourself drawing a box, try a tone change first. No nested boxes. No

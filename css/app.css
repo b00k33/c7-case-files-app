@@ -905,3 +905,38 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   #drawer.open { transform: translateY(0); }
   button, .btn, .nav-link, input, select, textarea { min-height: 44px; }
 }
+
+/* ---------------------------------------------------------------- depth
+   2026-09-07 night — "i like the dark theme more than light but just wish
+   it had more dimension instead of being too plain and flat." Her recipe
+   (SPEC §13i): lifted layers on neutral charcoal, medium, the things she
+   taps lifted more than the boxes that hold them; brighter gold; edge-
+   light + shadow; ribbon sunk, marks raised; faces ringed, cards lifted;
+   rail sunk below the page; a vignette ground; lift on hover, press on
+   tap; paper gets the same depth. Every shadow is a token from tokens.css
+   — this block never writes an rgba of its own. Later in the file than
+   the responsive rules on purpose: it adds depth, it never changes layout. */
+#topbar { background: transparent; }
+#nav-rail { background: var(--ink-rail); box-shadow: inset -1px 0 0 var(--rail-edge); }
+#tab-bar { background: var(--ink-rail); box-shadow: 0 -1px 0 var(--rail-edge); }
+.nav-link.active, .case-rail { box-shadow: var(--lift-2); }
+.panel, .empty-state, .stat-tile, .board-wrap, .tabs { box-shadow: var(--lift-1); }
+.card, .lm-card, .board-card, .tabs button.active { box-shadow: var(--lift-2); }
+.lm-card, .board-card, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.lm-card:hover, .board-card:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
+.lm-card-cmp:hover { transform: none; box-shadow: var(--lift-2); }
+.face-card:hover .face { transform: translateY(-2px); }
+.face { box-shadow: var(--lift-face); }
+.btn { box-shadow: var(--lift-2); transition: transform 80ms ease-out, box-shadow 80ms ease-out; }
+.btn-primary { box-shadow: var(--lift-btn); }
+.btn-ghost, .btn-danger, .tab-strip .tab-more { box-shadow: none; }
+.btn:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--press); }
+.btn-ghost:active:not(:disabled), .btn-danger:active:not(:disabled) { box-shadow: none; }
+.lm-ribbon { box-shadow: var(--sink); }
+.lm-mark .g { box-shadow: var(--lift-mark); }
+.lm-mark.on .g { box-shadow: 0 0 0 2px var(--brass), var(--lift-mark); }
+#drawer { box-shadow: var(--shadow); }
+@media (prefers-reduced-motion: reduce) {
+  .lm-card, .board-card, .btn, .face-card .face { transition: none; }
+  .lm-card:hover, .board-card:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
+}

@@ -3,28 +3,49 @@
    light"): paper by day, ink by night. index.html stamps data-theme on
    <html> before first paint — "light" | "dark" — from her pick in the
    sync drawer or, by default, the phone's own setting. Every colour in
-   app.css goes through these tokens so both grounds stay true. */
+   app.css goes through these tokens so both grounds stay true.
+
+   Depth since 2026-09-07 night ("i like the dark theme more … just wish
+   it had more dimension instead of being too plain and flat"): the
+   ground is the deepest thing, the rail sits below the page, every
+   surface is a step lighter than what it sits on with a hair of light
+   along its top and a shadow beneath — the things she taps (cards,
+   faces, marks, buttons) lifted more than the boxes that hold them.
+   Every shadow is a token here; app.css never writes an rgba shadow. */
 
 :root, :root[data-theme="dark"] {
   color-scheme: dark;
-  /* ground — night: lifted two steps from the old #101216, warmer */
-  --ink-0: #1b1e24;
-  --ink-1: #23272e;
-  --ink-2: #2b3038;
-  --ink-3: #353b45;
+  /* ground — night: neutral charcoal, a touch of blue */
+  --ink-0: #15181d;      /* the ground */
+  --ink-rail: #111418;   /* the nav rail / phone tab bar — sunk below the page */
+  --ink-1: #20242b;      /* panels */
+  --ink-2: #2a2f38;      /* cards, rows, inputs */
+  --ink-3: #353b45;      /* chips, hover */
   --line: #3d444f;
   --text: #f1eee8;
   --text-2: #b9bfc9;
   --text-3: #8891a0;
 
-  --brass: #c9922e;      /* antique gold — the accent */
+  --brass: #e0a33a;      /* gold — her pick: brighter (2026-09-07) */
   --on-brass: #1b1e24;   /* text on a brass surface */
   --teal: #5fb3a6;
   --green: #6faa6f;
-  --amber: #c9922e;
+  --amber: #e0a33a;
   --red: #d0705e;
   --violet: #9a91d4;
-  --shadow: 0 12px 32px rgba(0, 0, 0, .45), 0 0 0 1px var(--line);
+
+  /* depth — see the note above */
+  --ground: radial-gradient(120% 90% at 50% 30%, #1a1d23 0%, #101216 100%); /* vignette behind everything */
+  --rail-edge: rgba(255, 255, 255, .04);
+  --lift-1: inset 0 1px 0 rgba(255, 255, 255, .035), 0 2px 6px rgba(0, 0, 0, .2);          /* a panel: calm */
+  --lift-2: inset 0 1px 0 rgba(255, 255, 255, .06), 0 4px 10px rgba(0, 0, 0, .3);          /* a card, a button: what she taps */
+  --lift-2-hover: inset 0 1px 0 rgba(255, 255, 255, .08), 0 10px 22px rgba(0, 0, 0, .5);   /* … under her finger */
+  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 6px rgba(0, 0, 0, .35);        /* the brass button */
+  --press: inset 0 2px 3px rgba(0, 0, 0, .28);                                             /* a button pressed */
+  --lift-face: 0 0 0 2px rgba(255, 255, 255, .07), 0 4px 10px rgba(0, 0, 0, .45);          /* a face: ring + shadow */
+  --lift-mark: 0 3px 5px rgba(0, 0, 0, .5);                                                /* a life-line mark */
+  --sink: inset 0 2px 3px rgba(0, 0, 0, .55), inset 0 -1px 0 rgba(255, 255, 255, .05);     /* the ribbon's groove */
+  --shadow: 0 12px 32px rgba(0, 0, 0, .5), 0 0 0 1px var(--line);                          /* drawer, search results */
 
   /* her zodiac colour code — Chinese trines and Western elements */
   --zc-blue: #6f9cf0;   /* Snake · Ox · Rooster */
@@ -61,10 +82,12 @@
 
 /* day — ink on paper. The same jobs, not an inversion: page is the warm
    paper, panels a shade lighter, rows/cards/inputs white, chips a shade
-   darker than the page so they still read as pressed. */
+   darker than the page so they still read as pressed. The same depth,
+   with paper-coloured shadows (her pick, 2026-09-07). */
 :root[data-theme="light"] {
   color-scheme: light;
   --ink-0: #efeae0;
+  --ink-rail: #e7e1d4;
   --ink-1: #f9f7f1;
   --ink-2: #ffffff;
   --ink-3: #e6e0d3;
@@ -80,6 +103,17 @@
   --amber: #a8731c;
   --red: #b5503f;
   --violet: #6d63b3;
+
+  --ground: radial-gradient(120% 90% at 50% 30%, #f3efe6 0%, #e8e2d5 100%);
+  --rail-edge: rgba(50, 40, 20, .08);
+  --lift-1: 0 4px 12px rgba(50, 40, 20, .10), 0 0 0 1px rgba(50, 40, 20, .04);
+  --lift-2: 0 3px 8px rgba(50, 40, 20, .12), 0 0 0 1px rgba(50, 40, 20, .05);
+  --lift-2-hover: 0 10px 22px rgba(50, 40, 20, .2), 0 0 0 1px rgba(50, 40, 20, .06);
+  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .3), 0 2px 6px rgba(80, 60, 20, .25);
+  --press: inset 0 2px 3px rgba(80, 60, 20, .25);
+  --lift-face: 0 3px 8px rgba(50, 40, 20, .18);
+  --lift-mark: 0 2px 4px rgba(50, 40, 20, .2);
+  --sink: inset 0 2px 3px rgba(50, 40, 20, .18), inset 0 -1px 0 rgba(255, 255, 255, .6);
   --shadow: 0 12px 32px rgba(50, 40, 20, .18), 0 0 0 1px var(--line);
 
   /* the same code, each a step deeper so it holds on white */
@@ -103,6 +137,15 @@ body {
   font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+}
+/* the vignette: fixed behind everything, so panels sit in a lit room */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--ground);
+  pointer-events: none;
 }
 
 h1, h2, h3, .title {
