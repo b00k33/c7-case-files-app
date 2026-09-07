@@ -382,6 +382,20 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // and the item itself: identity, not a fact, so it is kept directly — a
   // relative's lookup then recognises this person however the name is spelt
   if (current && !current.wikidata_id && facts.qid) await store.updatePerson(personId, { wikidata_id: facts.qid });
+  // a name typed in a hurry ("andrew bustamante") takes Wikidata's own
+  // spelling here too — the rule fillFromWikidata already applies (v61),
+  // which this path had missed (her report, 2026-09-07). Identity, not a
+  // fact, so it's corrected directly, with an accepted claim as the audit
+  // trail; a properly-cased shorter name is still left alone.
+  let renamed = null;
+  if (current && facts.label && facts.label !== current.display_name && looksUnformatted(current.display_name)) {
+    await store.updatePerson(personId, { display_name: facts.label });
+    await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'display_name', value: facts.label, origin: 'lookup', rationale: cite('label') });
+    // a person-case named after them follows, so the card and the profile agree
+    const kase = await store.getCase(caseId);
+    if (kase && kase.kind === 'person' && kase.name.trim().toLowerCase() === current.display_name.trim().toLowerCase()) await store.updateCase(caseId, { name: facts.label });
+    renamed = facts.label;
+  }
 
   if (facts.birth) await claim('birth', facts.birth, P.birth);
   if (facts.death && facts.death.precision === 'day') await claim('death', facts.death, P.death);
@@ -400,5 +414,5 @@ export async function draftFromLookup(store, caseId, personId, facts) {
     await store.createClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'relative', value, origin: 'lookup', rationale: cite(ROLE_PROP[rel.role] || '') });
     drafted.push(rel.role);
   }
-  return { drafted, evidenceId: ev.id };
+  return { drafted, evidenceId: ev.id, renamed };
 }

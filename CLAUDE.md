@@ -203,6 +203,23 @@ they usually are for anything reversible). Keep the code6 "ask before a
 visible redesign" gate for genuinely new UI — code3 is about cutting steps
 within a flow, not about skipping her review of a new one.
 
+**2026-09-07 — the ask28 redesign is in flight (SPEC §13f).** Stage 1
+(quick wins on the current layout) shipped as v73; Stage 2 (People as
+home, one-screen person page with numbers + ±1 tree slice, 4-slot tab
+bar, instant tabs, scroll memory, one layout for both devices) is
+approved from the mock and still to build. Don't re-ask the 28 — the
+answers are in §13f; build Stage 2 to the mock.
+
+**Working rules learned the hard way this week:**
+- One `Edit` per file per message. Two edits to the same file in one
+  batch race each other and one silently lands on stale text; edit other
+  files in the same message instead, or do a full `Write` when the file
+  is entirely in context.
+- The local preview's service worker re-installs on every reload and
+  then serves the *cached* module — an edit made after that reload is
+  invisible until the SW and caches are cleared again. Clear both before
+  every verification reload, not just the first.
+
 **Don't make her become the UI designer.** She communicates intentions,
 preferences and frustrations in normal language; this ruleset fills in the
 technical and design gaps with real expertise. She describes the

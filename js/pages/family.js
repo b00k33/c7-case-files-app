@@ -1,7 +1,9 @@
 // Family overview — what a family-case opens on: the members as faces
 // (tap one → their profile), then the Relations map for the household.
+// Faces are decoded before the row is shown, so they arrive with the page
+// instead of popping in after it (Stage 1 of her redesign, 2026-09-07).
 import { emptyState } from '../indicators.js';
-import { resolveAssetUrl } from '../assets.js';
+import { resolveAssetUrl, preloadImage } from '../assets.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 
@@ -30,21 +32,22 @@ export async function render(root, ctx) {
   if (!people.length) {
     faces.appendChild(emptyState({ missing: 'No family members yet.', why: 'Add the first person below — the map fills in as you add relationships.' }));
   }
-  for (const p of people) {
+  const cards = await Promise.all(people.map(async (p) => {
     const f = document.createElement('div');
     f.className = 'face-card';
     f.innerHTML = `<div class="face" style="width:56px;height:56px"><span class="initials">${initials(p.display_name)}</span></div><div class="name">${p.display_name}</div>`;
     f.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
-    faces.appendChild(f);
     const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
-    if (src) {
+    if (src && await preloadImage(src)) {
       const img = document.createElement('img');
       img.alt = ''; img.src = src;
       img.addEventListener('load', () => f.querySelector('.initials')?.remove());
       img.addEventListener('error', () => img.remove());
       f.querySelector('.face').appendChild(img);
     }
-  }
+    return f;
+  }));
+  for (const f of cards) faces.appendChild(f);
 
   // the household's map, with its own + Person / + Relationship controls
   const relations = await import('./relations.js');

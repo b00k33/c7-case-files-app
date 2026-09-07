@@ -35,13 +35,15 @@ function logChange(entity, entityId, op, payload) {
 export async function searchAll(q) {
   const like = `%${q}%`;
   const cases = db.exec(
-    `SELECT id, name AS label, id AS case_id, name AS case_name FROM case_file
+    `SELECT id, name AS label, id AS case_id, name AS case_name, kind AS case_kind FROM case_file
      WHERE deleted_at IS NULL AND kind != 'fun' AND name LIKE ? ORDER BY name LIMIT 10`, [like]
   ).map((r) => ({ type: 'case', ...r }));
+  // Fun & Zodiac people are in the same pool (her call, 2026-09-07: "one
+  // pool of people") — case_kind lets the results mark them ✦
   const people = db.exec(
-    `SELECT p.id, p.display_name AS label, p.case_id, c.name AS case_name FROM person p
+    `SELECT p.id, p.display_name AS label, p.occupation AS sub, p.case_id, c.name AS case_name, c.kind AS case_kind FROM person p
      JOIN case_file c ON c.id = p.case_id
-     WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL AND c.kind != 'fun'
+     WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL
        AND (p.display_name LIKE ? OR p.name_at_birth LIKE ? OR p.notes LIKE ?) ORDER BY p.display_name LIMIT 20`, [like, like, like]
   ).map((r) => ({ type: 'person', ...r }));
   const evidence = db.exec(

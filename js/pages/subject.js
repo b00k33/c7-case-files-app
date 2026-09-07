@@ -120,10 +120,15 @@ function chartPanel(person, status) {
 // the profile's tabs (her redesign 2026-09-02): the case's whole workspace
 // lives under the person — Evidence, Board, Relations, Import are the same
 // case-level pages, mounted here so she never leaves the profile
+// the four she actually uses stay on the strip; the rest sit behind ⋯ and
+// come out with one tap (her ask28 answers, 2026-09-07). Landing on a
+// hidden tab (from a link, a search hit) shows them all so the strip never
+// hides the tab she is on.
 const TABS = [
-  ['profile', 'Profile'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
-  ['questions', 'Questions'], ['board', 'Board'], ['relations', 'Relations'], ['import', 'Import'],
-  ['commercial', 'Commercial'],
+  ['profile', 'Profile'], ['relations', 'Relations'], ['commercial', 'Commercial'], ['board', 'Board'],
+];
+const TABS_MORE = [
+  ['evidence', 'Evidence'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'],
 ];
 const TAB_MODULES = {
   evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
@@ -164,6 +169,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // a profile opened by link or bookmark makes its own case current — every
   // save on this page (family, evidence, claims) lands where the person lives
   if (person.case_id !== ctx.caseId) await ctx.setCaseId(person.case_id);
+  const moreOpen = sessionStorage.getItem('c7-tabs-more') === '1' || TABS_MORE.some(([k]) => k === tab);
 
   const [aliases, addresses, rels, events, links, questions, status] = await Promise.all([
     store.listAliases(person.id),
@@ -189,7 +195,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
                 ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip">${person.status}</span>
                 ${person.occupation ? ` · <span style="color:var(--text-2)">${person.occupation}</span>` : ''}
               </div>
-              <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
+              <div class="row" style="gap:6px;flex:0 0 auto">
+                ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
+                <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
+              </div>
             </div>
             <div class="basics-strip" id="basics-strip"></div>
             ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
@@ -198,12 +207,30 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>
       </div>
 
-      <div class="tab-strip" id="tab-strip">${TABS.map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
+      <div class="tab-strip" id="tab-strip">${[...TABS, ...(moreOpen ? TABS_MORE : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : 'Evidence · Contradictions · Questions · Import'}">${moreOpen ? '‹' : '⋯'}</button></div>
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
+      <div id="pi-result"></div>
+
       <div class="panel">
-        <div class="row between"><div class="panel-title" style="margin:0">Profile</div><button class="btn btn-ghost btn-sm" id="edit-person-btn-2">Edit</button></div>
+        <div class="panel-title">Chart</div>
+        <div id="chart-slot"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Timeline</div>
+        <div id="timeline-list" class="stack" style="gap:10px"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Profile</div>
         <div class="profile-grid" id="profile-grid"></div>
-        <div class="field" style="margin-top:16px">
+      </div>
+
+      <!-- everything that puts information ON a person lives behind "+ Add"
+           (her pick, 2026-09-07): this block is moved into the drawer when
+           she taps it, so the page itself only shows what she reads -->
+      <div id="add-tools" hidden>
+        <div class="field">
           <label>Import information — paste anything, it saves what it recognises</label>
           <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
         </div>
@@ -211,7 +238,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
           <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
         </div>
-        <div id="pi-result"></div>
         <div class="field" style="margin-top:16px">
           <label>Look up</label>
           <div class="row" style="gap:8px">
@@ -222,16 +248,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
           </div>
         </div>
         <div id="lk-results" class="stack" style="gap:4px"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">Timeline</div>
-        <div id="timeline-list" class="stack" style="gap:10px"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">Chart</div>
-        <div id="chart-slot"></div>
       </div>
 
       <div class="panel">
@@ -269,6 +285,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
       </div>`}
     </div>
   `;
+
+  // ⋯ shows the four quieter tabs; ‹ tucks them away again. Remembered for the session.
+  root.querySelector('#tab-more').addEventListener('click', () => {
+    sessionStorage.setItem('c7-tabs-more', moreOpen ? '0' : '1');
+    render(root, ctx, personId, tab);
+  });
 
   // profile picture: stored asset first, remote Wikipedia URL as fallback; tap to replace
   const avatar = root.querySelector('#avatar');
@@ -333,7 +355,24 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
-  root.querySelector('#edit-person-btn-2').addEventListener('click', openEdit);
+
+  // ---- "+ Add": everything that puts information on this person lives in
+  // one sheet (her pick, 2026-09-07) — paste, look up, insert family, works.
+  // The block is built with the page (its handlers are wired once, below)
+  // and moved into the drawer when she taps; results still land on the page.
+  const tools = root.querySelector('#add-tools');
+  const openAdd = () => ctx.openDrawer((body) => {
+    body.innerHTML = `<h3 class="title" style="margin-bottom:12px">Add to ${esc(person.display_name)}</h3>`;
+    tools.hidden = false;
+    body.appendChild(tools);
+  });
+  root.querySelector('#add-btn')?.addEventListener('click', openAdd);
+  // Enter in the Look up field looks up — not the sheet's first primary button (the paste save)
+  tools.querySelector('#lk-name').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); e.stopPropagation();
+    tools.querySelector('#lk-search').click();
+  });
 
   const grid = root.querySelector('#profile-grid');
   const row = (k, v) => `<span class="k">${k}</span><span class="v${v ? '' : ' empty'}">${v || '—'}</span>`;
@@ -349,10 +388,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
   ].join('');
 
   // ---- import information: paste, parse, save, report ----
-  root.querySelector('#pi-save').addEventListener('click', async () => {
-    const btn = root.querySelector('#pi-save');
-    const text = root.querySelector('#pi-text').value;
-    const resultEl = root.querySelector('#pi-result');
+  tools.querySelector('#pi-save').addEventListener('click', async () => {
+    const btn = tools.querySelector('#pi-save');
+    const text = tools.querySelector('#pi-text').value;
     clearInlineNote(btn);
     const parsed = parseProfileText(text);
     if (!parsed.recognised.length) {
@@ -364,17 +402,18 @@ export async function render(root, ctx, personId, tab = 'profile') {
     const saved = parsed.recognised.map((r) => `${r.label}: ${r.value}`).join(' · ');
     const skipped = parsed.unrecognised.length ? ` Not recognised (left alone): ${parsed.unrecognised.map((u) => `“${u}”`).join(', ')}` : '';
     sessionStorage.setItem('c7-pi-result', `Saved — ${saved}.${skipped}`);
+    ctx.closeDrawer(); // the sheet's job is done; the result reads on the page
     render(root, ctx, personId);
   });
   // ---- Wikipedia / Wikidata lookup: search, pick, draft through Review ----
-  root.querySelector('#lk-search').addEventListener('click', async () => {
-    const btn = root.querySelector('#lk-search');
-    const resultsEl = root.querySelector('#lk-results');
+  tools.querySelector('#lk-search').addEventListener('click', async () => {
+    const btn = tools.querySelector('#lk-search');
+    const resultsEl = tools.querySelector('#lk-results');
     clearInlineNote(btn);
     resultsEl.innerHTML = '';
     btn.disabled = true; btn.textContent = 'Searching…';
     let matches = [];
-    try { matches = await searchPeople(root.querySelector('#lk-name').value); }
+    try { matches = await searchPeople(tools.querySelector('#lk-name').value); }
     catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
     btn.disabled = false; btn.textContent = 'Look up';
     if (!matches.length) {
@@ -389,12 +428,13 @@ export async function render(root, ctx, personId, tab = 'profile') {
         resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Fetching facts and their sources…</div>';
         try {
           const facts = await fetchProfile(m.id);
-          const { drafted } = await draftFromLookup(store, ctx.caseId, person.id, facts);
+          const { drafted, renamed } = await draftFromLookup(store, ctx.caseId, person.id, facts);
           const n = drafted.length;
-          resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}), each citing Wikidata` : 'Nothing draftable on that record'} — a Wikipedia evidence item is linked to ${person.display_name}${facts.photoUrl ? ', and their picture is saved' : ''}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
-          // show the new picture — unless she has already moved on (the
-          // timer must never paint this profile over another page)
-          if (facts.photoUrl) setTimeout(() => { if (root.contains(resultsEl)) render(root, ctx, personId, tab); }, 1200);
+          resultsEl.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')}), each citing Wikidata` : 'Nothing draftable on that record'} — a Wikipedia evidence item is linked to ${renamed || person.display_name}${facts.photoUrl ? ', and their picture is saved' : ''}${renamed ? `; the name is now spelt “${renamed}”` : ''}. <a href="#/review" style="color:var(--brass)">Open Review →</a></div>`;
+          // show the new picture / the corrected name — unless she has already
+          // moved on (the timer must never paint this profile over another page)
+          if (renamed) await ctx.setCaseId(ctx.caseId); // the case chip / rail switcher may carry the corrected name too
+          if (facts.photoUrl || renamed) setTimeout(() => { if (location.hash.startsWith(`#/subject/${person.id}`)) { ctx.closeDrawer(); render(root, ctx, personId, tab); } }, 1200);
         } catch (e) {
           resultsEl.innerHTML = `<div class="inline-note">Lookup failed — ${e.message}</div>`;
         }
@@ -404,14 +444,14 @@ export async function render(root, ctx, personId, tab = 'profile') {
   });
 
   // ---- Insert family: pick the Wikidata record, then everyone comes in with their profiles ----
-  root.querySelector('#lk-family').addEventListener('click', async () => {
-    const btn = root.querySelector('#lk-family');
-    const resultsEl = root.querySelector('#lk-results');
+  tools.querySelector('#lk-family').addEventListener('click', async () => {
+    const btn = tools.querySelector('#lk-family');
+    const resultsEl = tools.querySelector('#lk-results');
     clearInlineNote(btn);
     resultsEl.innerHTML = '';
     btn.disabled = true; btn.textContent = 'Searching…';
     let matches = [];
-    try { matches = await searchPeople(root.querySelector('#lk-name').value); }
+    try { matches = await searchPeople(tools.querySelector('#lk-name').value); }
     catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
     btn.disabled = false; btn.textContent = 'Insert family';
     if (!matches.length) { inlineNote(btn, 'No match on Wikidata — a family can only be read from a public record.'); return; }
@@ -444,14 +484,14 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // ---- Works (her ask, 2026-09-04): albums / EPs / singles / songs with release
   // dates, from the person's Wikidata item, as the record — pick the types, tick
   // the works, Add; each becomes a 'release' event citing P577.
-  root.querySelector('#lk-works').addEventListener('click', async () => {
-    const btn = root.querySelector('#lk-works');
-    const resultsEl = root.querySelector('#lk-results');
+  tools.querySelector('#lk-works').addEventListener('click', async () => {
+    const btn = tools.querySelector('#lk-works');
+    const resultsEl = tools.querySelector('#lk-results');
     clearInlineNote(btn);
     resultsEl.innerHTML = '';
     btn.disabled = true; btn.textContent = 'Searching…';
     let matches = [];
-    try { matches = await searchPeople(root.querySelector('#lk-name').value); }
+    try { matches = await searchPeople(tools.querySelector('#lk-name').value); }
     catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
     btn.disabled = false; btn.textContent = '+ Works';
     // the profile's own item comes first when it already knows one
@@ -520,8 +560,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
     offer.className = 'inline-note';
     offer.style.borderLeftColor = 'var(--brass)';
     offer.innerHTML = `Public figure? <button class="btn btn-primary btn-sm" id="lk-offer" style="margin:0 6px">Look up ${person.display_name} on Wikipedia</button> <span style="color:var(--text-3)">— facts go to Review first, nothing is saved blind.</span>`;
-    root.querySelector('#lk-results').before(offer);
-    offer.querySelector('#lk-offer').addEventListener('click', () => { offer.remove(); root.querySelector('#lk-search').click(); root.querySelector('#lk-results').scrollIntoView({ block: 'center' }); });
+    root.querySelector('#pi-result').appendChild(offer); // on the page; the tap opens the "+ Add" sheet and looks up there
+    offer.querySelector('#lk-offer').addEventListener('click', () => { offer.remove(); openAdd(); tools.querySelector('#lk-search').click(); });
   }
 
   const lastResult = sessionStorage.getItem('c7-pi-result');

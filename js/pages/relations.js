@@ -4,7 +4,7 @@ import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
-import { resolveAssetUrl } from '../assets.js';
+import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
 
@@ -323,6 +323,25 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     godTag.set(id, parts.join(' · '));
   }
 
+  // faces are decoded before they go on a node, so the tree arrives with its
+  // pictures instead of them popping in one by one (her one "not smooth",
+  // 2026-09-07). All faces load side by side and the tree waits for the
+  // batch — at most preloadImage's 800 ms, never per face.
+  const faceJobs = [];
+  const loadFace = async (host, p) => {
+    const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
+    if (!src || !(await preloadImage(src))) return;
+    const face = host.querySelector('.face');
+    if (!face) return;
+    const img = document.createElement('img');
+    img.alt = ''; img.src = src;
+    img.addEventListener('error', () => img.remove());
+    const initialsEl = face.querySelector('.initials');
+    if (img.complete && img.naturalWidth) initialsEl?.remove();
+    else img.addEventListener('load', () => initialsEl?.remove());
+    face.appendChild(img);
+  };
+
   for (const n of L.nodes) {
     if (n.group) {
       // the sibling block: small faces in rows of four, one tap each opens the profile
@@ -344,14 +363,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
         m.title = `${p.display_name}${years ? ' · ' + years : ''} — open profile`;
         m.addEventListener('click', () => openProfile(p.id));
         g.appendChild(m);
-        const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
-        if (src) {
-          const img = document.createElement('img');
-          img.alt = ''; img.src = src;
-          img.addEventListener('load', () => m.querySelector('.initials')?.remove());
-          img.addEventListener('error', () => img.remove());
-          m.querySelector('.face').appendChild(img);
-        }
+        faceJobs.push(loadFace(m, p));
       }
       tree.appendChild(g);
       continue;
@@ -378,15 +390,9 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
     el.title = `${p.display_name} — open profile`;
     el.addEventListener('click', () => openProfile(p.id));
     tree.appendChild(el);
-    const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
-    if (src) {
-      const img = document.createElement('img');
-      img.alt = ''; img.src = src;
-      img.addEventListener('load', () => el.querySelector('.initials')?.remove());
-      img.addEventListener('error', () => img.remove());
-      el.querySelector('.face').appendChild(img);
-    }
+    faceJobs.push(loadFace(el, p));
   }
+  await Promise.all(faceJobs);
 
   // ---- scale: Fit, or the hand-set zoom ----
   const applyScale = () => {

@@ -5,7 +5,6 @@ import { seedExampleCase } from './store.js';
 import { inlineNameForm, inlineNote, clearInlineNote } from './ui.js';
 
 const ROUTES = {
-  dashboard: () => import('./pages/dashboard.js'),
   evidence: () => import('./pages/evidence.js'),
   board: () => import('./pages/board.js'),
   relations: () => import('./pages/relations.js'),
@@ -24,8 +23,10 @@ const ROUTES = {
   compare: () => import('./pages/compare.js'),
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
+// the old Dashboard route is gone (her pick, 2026-09-07) — pages/dashboard.js
+// stays only for createCaseOfKind / CASE_KINDS, which Cases and the rail use
 const TITLES = {
-  dashboard: 'Dashboard (old)', evidence: 'Evidence', board: 'Board', relations: 'Relations',
+  evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
   fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', people: 'People', inbox: 'Inbox',
   compare: 'Compare',
@@ -157,7 +158,33 @@ const ctx = {
   rerender() { renderRoute(); }, // pages re-render the current route in place (tabs stay tabs)
 };
 drawerBackdrop.addEventListener('click', ctx.closeDrawer);
-document.getElementById('back-btn').addEventListener('click', () => ctx.navigate(`#/${HOME_ROUTE}`));
+
+// ---- ← goes back to where she came from (her pick, 2026-09-07), never
+// blindly home. A stack of screens for this session; every tab on one
+// person counts as the same screen, so ← from a person's Relations tab
+// leaves that person, it doesn't step through their tabs. ----
+const NAV_KEY = 'c7-nav-stack';
+const screenOf = (hash) => { const m = /^#\/subject\/([^/]+)/.exec(hash || ''); return m ? `subject/${m[1]}` : (hash || `#/${HOME_ROUTE}`); };
+function navStack() { try { return JSON.parse(sessionStorage.getItem(NAV_KEY)) || []; } catch (_) { return []; } }
+function saveNavStack(st) { sessionStorage.setItem(NAV_KEY, JSON.stringify(st.slice(-40))); }
+let navFromBack = false;
+function recordNav(hash) {
+  if (navFromBack) { navFromBack = false; return; }
+  const st = navStack();
+  if (st.length && screenOf(st[st.length - 1]) === screenOf(hash)) st[st.length - 1] = hash; // a tab switch updates the screen, no new entry
+  else st.push(hash);
+  saveNavStack(st);
+}
+function goBack() {
+  const st = navStack();
+  const here = screenOf(location.hash);
+  while (st.length && screenOf(st[st.length - 1]) === here) st.pop();
+  const target = st.length ? st[st.length - 1] : null;
+  saveNavStack(st);
+  navFromBack = true;
+  ctx.navigate(target || `#/${HOME_ROUTE}`);
+}
+document.getElementById('back-btn').addEventListener('click', goBack);
 
 // "N images waiting" on the Evidence nav item (rail + tab bar)
 async function refreshInboxBadge() {
@@ -174,17 +201,76 @@ function setNavActive(route) {
   });
 }
 
+// ---- one search box, top of every page (her pick, 2026-09-07): results
+// as she types, every case, Fun included; a person opens as their family
+// slice (her pick), a Fun person as their profile (no family to show). ----
+const gsInput = document.getElementById('global-search-input');
+const gsResults = document.getElementById('global-search-results');
+const escapeHtml = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function hideSearch() { gsResults.hidden = true; gsResults.innerHTML = ''; }
+let gsTimer = null;
+async function runSearch() {
+  const q = gsInput.value.trim();
+  if (!q || !db.isReady()) { hideSearch(); return; }
+  let hits = await store.searchAll(q);
+  if (gsInput.value.trim() !== q) return; // she kept typing; a newer search is on its way
+  // the person is the unit (her pick): a person-case whose person is already
+  // a hit would only be the same row twice — the person row opens the same place
+  const personCaseIds = new Set(hits.filter((h) => h.type === 'person').map((h) => h.case_id));
+  hits = hits.filter((h) => !(h.type === 'case' && h.case_kind === 'person' && personCaseIds.has(h.case_id)));
+  gsResults.innerHTML = '';
+  if (!hits.length) {
+    gsResults.innerHTML = `<div class="empty-state" style="padding:12px"><p class="empty-missing" style="margin:0">No one matching “${escapeHtml(q)}”.</p><p class="empty-why" style="margin:4px 0 0">Names, birth names, notes, evidence titles and quotes, in every case.</p></div>`;
+    gsResults.hidden = false;
+    return;
+  }
+  const kindLabel = { person: 'person', case: 'case', evidence: 'evidence', moment: 'quote' };
+  for (const h of hits) {
+    const row = document.createElement('div');
+    row.className = 'list-row';
+    const fun = h.case_kind === 'fun';
+    // the second line never repeats the first: a person in their own case shows their occupation, not their name again
+    const where = fun ? '✦ Fun' : (h.case_name && h.case_name !== h.label ? h.case_name : null);
+    const sub = [kindLabel[h.type], h.sub, where].filter(Boolean).map(escapeHtml).join(' · ');
+    row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${escapeHtml(h.label || '(untitled)')}</div><div class="sub">${sub}</div></div>`;
+    row.addEventListener('click', () => openHit(h));
+    gsResults.appendChild(row);
+  }
+  gsResults.hidden = false;
+}
+async function openHit(h) {
+  hideSearch();
+  gsInput.value = '';
+  gsInput.blur();
+  const { markOpened, openCase } = await import('./pages/cases.js');
+  markOpened(h.case_id);
+  await ctx.setCaseId(h.case_id);
+  if (h.type === 'person') ctx.navigate(h.case_kind === 'fun' ? `#/subject/${h.id}` : `#/subject/${h.id}/relations`);
+  else if (h.type === 'moment') ctx.navigate(`#/video/${h.evidence_id}`);
+  else if (h.type === 'evidence') ctx.navigate('#/evidence');
+  else { const kase = await store.getCase(h.case_id); if (kase) openCase(ctx, kase); else ctx.navigate(`#/${HOME_ROUTE}`); }
+}
+gsInput.addEventListener('input', () => { clearTimeout(gsTimer); gsTimer = setTimeout(runSearch, 120); });
+gsInput.addEventListener('focus', () => { if (gsInput.value.trim()) runSearch(); });
+gsInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { gsInput.value = ''; hideSearch(); gsInput.blur(); }
+  if (e.key === 'Enter') { const first = gsResults.querySelector('.list-row'); if (first) first.click(); }
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('#global-search')) hideSearch(); });
+
 let currentUnmount = null;
 let redrawTimer = null; // a pull's redraw, waiting for her to finish what she is doing
 
 async function renderRoute() {
   clearTimeout(redrawTimer);
+  hideSearch();
   const hash = location.hash.replace(/^#\/?/, '');
   const [route, param, sub] = hash.split('/');
   const key = route || HOME_ROUTE;
   const loader = ROUTES[key] || ROUTES[HOME_ROUTE];
   if (key === 'inbox') localStorage.setItem('c7-evidence-view', 'inbox');
   if (ROUTES[key]) localStorage.setItem('c7-last-hash', location.hash); // launch reopens where she left off
+  recordNav(location.hash || `#/${HOME_ROUTE}`);
 
   setNavActive(INSIDE_CASE.has(key) ? 'cases' : key);
   document.getElementById('back-btn').style.display = INSIDE_CASE.has(key) ? '' : 'none';
@@ -285,8 +371,6 @@ async function boot() {
       if (!location.hash) location.hash = localStorage.getItem('c7-last-hash') || `#/${HOME_ROUTE}`;
       else renderRoute();
       sync.initSync(); // fire-and-forget — the app never waits on the network
-      maybeShowLegacyNotice();
-      renderInstallStrip(); // in case beforeinstallprompt fired before the shell existed
     } else {
       renderConnectScreen(state);
     }
@@ -294,52 +378,14 @@ async function boot() {
   await db.init();
 }
 
-// the launcher-served localhost copy is now the legacy path: it edits the
-// same folder as the live app but on a separate origin, so running both is
-// exactly the two-live-masters trap. Steer, don't block.
-function maybeShowLegacyNotice() {
-  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
-  if (sessionStorage.getItem('c7-legacy-notice-dismissed')) return;
-  const strip = document.createElement('div');
-  strip.className = 'legacy-strip';
-  strip.innerHTML = `
-    <span>This is the old local-only copy — it does not sync. The app now lives at
-    <a href="https://b00k33.github.io/c7-case-files-app/" style="color:var(--brass)">b00k33.github.io/c7-case-files-app</a>
-    — use that from now on, on every device.</span>
-    <button class="btn btn-ghost btn-sm" id="legacy-dismiss">✕</button>
-  `;
-  document.getElementById('main-col').prepend(strip);
-  strip.querySelector('#legacy-dismiss').addEventListener('click', () => {
-    sessionStorage.setItem('c7-legacy-notice-dismissed', '1');
-    strip.remove();
-  });
-}
-
-// ---- install: an explicit button, since the browser's own hint is easy to miss ----
+// ---- install: no strip above the page (her pick, 2026-09-07) — the
+// browser's install event is held and offered inside the sync dot's drawer ----
 // Chrome/Edge (phone and desktop) fire beforeinstallprompt when the app is
 // installable and not yet installed; we hold that event and fire it from our
-// own button. A brass strip shows until installed, then disappears for good.
+// own button in the drawer.
 let installPrompt = null;
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
-
-function renderInstallStrip() {
-  document.querySelector('.install-strip')?.remove();
-  if (isStandalone() || sessionStorage.getItem('c7-install-strip-dismissed')) return;
-  if (!installPrompt && !isIOS()) return;
-  const strip = document.createElement('div');
-  strip.className = 'install-strip';
-  strip.innerHTML = isIOS()
-    ? `<span>Install Case Files on this iPhone: tap <b>Share</b> then <b>Add to Home Screen</b>.</span><button class="btn btn-ghost btn-sm" id="install-dismiss">✕</button>`
-    : `<span>Install Case Files on this device — its own icon, opens instantly, works offline.</span>
-       <span class="row" style="gap:8px"><button class="btn btn-primary btn-sm" id="install-now">Install</button><button class="btn btn-ghost btn-sm" id="install-dismiss">✕</button></span>`;
-  document.getElementById('main-col').prepend(strip);
-  strip.querySelector('#install-now')?.addEventListener('click', () => triggerInstall());
-  strip.querySelector('#install-dismiss').addEventListener('click', () => {
-    sessionStorage.setItem('c7-install-strip-dismissed', '1');
-    strip.remove();
-  });
-}
 
 async function triggerInstall() {
   if (!installPrompt) return;
@@ -347,18 +393,13 @@ async function triggerInstall() {
   installPrompt = null;
   evt.prompt();
   try { await evt.userChoice; } catch (_) {}
-  renderInstallStrip();
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   installPrompt = e;
-  renderInstallStrip();
 });
-window.addEventListener('appinstalled', () => {
-  installPrompt = null;
-  renderInstallStrip();
-});
+window.addEventListener('appinstalled', () => { installPrompt = null; });
 
 // ---- cloud sync chip + account drawer ----
 function elapsed(ts) {
@@ -369,14 +410,21 @@ function elapsed(ts) {
   return `${Math.floor(m / 60)}h ago`;
 }
 
+// a pushed update that has downloaded and is waiting — surfaced in the sync
+// chip/dot and applied from the drawer, never as a strip over the page
+let updateWaiting = null;
+
 const syncChip = document.getElementById('sync-chip');
 function renderSyncChip(s) {
   syncChip.dataset.state = s.status;
-  if (s.status === 'off') syncChip.textContent = '⇅ sync off';
+  syncChip.dataset.update = updateWaiting ? '1' : '';
+  if (updateWaiting) syncChip.textContent = '⇅ update ready';
+  else if (s.status === 'off') syncChip.textContent = '⇅ sync off';
   else if (s.status === 'syncing') syncChip.textContent = '⇅ syncing…';
   else if (s.status === 'error') syncChip.textContent = '⇅ sync problem';
   else syncChip.textContent = s.pending > 0 ? `⇅ ${s.pending} waiting` : `⇅ synced ${elapsed(s.lastSync)}`;
-  syncChip.title = s.error || (sync.currentUser() ? `Signed in as ${sync.currentUser()}` : 'Not signed in — tap to set up sync');
+  syncChip.title = updateWaiting ? 'A new version of the app is ready — tap, then Update'
+    : (s.error || (sync.currentUser() ? `Signed in as ${sync.currentUser()}` : 'Not signed in — tap to set up sync'));
 }
 sync.subscribe(renderSyncChip);
 // after each successful sync, push any queued image copies to the cloud
@@ -396,6 +444,7 @@ function screenIsBusy() {
   for (const el of pageRoot.querySelectorAll('textarea, input:not([type]), input[type="text"], input[type="search"]')) {
     if (el.value && el.value.trim()) return true; // a paste, a search she is reading
   }
+  if (gsInput.value.trim()) return true;
   return false;
 }
 function redrawAfterPull() {
@@ -421,6 +470,24 @@ function deviceCounts() {
     const p = db.exec('SELECT COUNT(*) AS n FROM person WHERE deleted_at IS NULL')[0]?.n || 0;
     return `${c} case${c === 1 ? '' : 's'} · ${p} ${p === 1 ? 'person' : 'people'}`;
   } catch (_) { return '—'; }
+}
+
+// the waiting update, first thing in the drawer — tap applies it, nothing reloads on its own
+function insertUpdateButton(body) {
+  if (!updateWaiting) return;
+  const w = document.createElement('div');
+  w.style.margin = '0 0 20px';
+  w.innerHTML = `
+    <button class="btn btn-primary btn-sm" id="sy-update">Update ready — tap to reload</button>
+    <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">A new version downloaded in the background. It only switches over when you tap.</p>
+  `;
+  w.querySelector('#sy-update').addEventListener('click', () => {
+    const b = w.querySelector('#sy-update');
+    b.disabled = true; b.textContent = 'Updating…';
+    updateWaiting.postMessage('c7-skip-waiting');
+  });
+  const title = body.querySelector('h3');
+  if (title) title.after(w); else body.prepend(w);
 }
 
 function renderSyncDrawer(body) {
@@ -451,6 +518,7 @@ function renderSyncDrawer(body) {
         inlineNote(btn, String(e && e.message || e));
       }
     });
+    insertUpdateButton(body);
     appendBackupButton(body); // backup shouldn't require being signed in
     return;
   }
@@ -484,6 +552,7 @@ function renderSyncDrawer(body) {
     await sync.signOut();
     ctx.closeDrawer();
   });
+  insertUpdateButton(body);
   appendBackupButton(body);
 }
 
@@ -498,7 +567,7 @@ function appendBackupButton(body) {
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
     <p class="mono" style="color:var(--text-3);font-size:11px;margin:16px 0 0">App version ${window.C7_VERSION || 'unknown'}</p>
   `;
-  // permanent fallback for the install strip (which can be dismissed)
+  // the only place the install offer lives now (no strip over the page)
   if (!isStandalone() && (installPrompt || isIOS())) {
     const inst = document.createElement('div');
     inst.style.marginBottom = '16px';
@@ -530,29 +599,24 @@ boot();
 
 // ---- installable app: service worker + her chosen update flow ----
 // A new pushed version NEVER reloads over her work. The waiting worker sits
-// until she taps the "Update ready" chip; only then does it take over.
+// until she taps Update in the sync drawer; only then does it take over.
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  const chip = document.getElementById('update-chip');
-  const showChipFor = (worker) => {
-    // on the connect screen there is no work to protect and the chip lives
-    // inside the hidden app shell — apply the update straight away
+  const noteUpdate = (worker) => {
+    // on the connect screen there is no work to protect and no drawer to
+    // offer it from — apply the update straight away
     if (appShell.style.display === 'none') { worker.postMessage('c7-skip-waiting'); return; }
-    chip.style.display = '';
-    chip.addEventListener('click', () => {
-      chip.disabled = true;
-      chip.textContent = 'Updating…';
-      worker.postMessage('c7-skip-waiting');
-    }, { once: true });
+    updateWaiting = worker;
+    renderSyncChip(sync.getState());
   };
   navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
   navigator.serviceWorker.register('sw.js').then((reg) => {
-    if (reg.waiting) showChipFor(reg.waiting); // an update already downloaded earlier
+    if (reg.waiting) noteUpdate(reg.waiting); // an update already downloaded earlier
     reg.addEventListener('updatefound', () => {
       const fresh = reg.installing;
       if (!fresh) return;
       fresh.addEventListener('statechange', () => {
         // 'installed' + an existing controller = a new version is waiting
-        if (fresh.state === 'installed' && navigator.serviceWorker.controller) showChipFor(fresh);
+        if (fresh.state === 'installed' && navigator.serviceWorker.controller) noteUpdate(fresh);
       });
     });
   }).catch((e) => console.error('Service worker registration failed:', e));

@@ -86,6 +86,27 @@ export async function flushUploads() {
 const urlCache = new Map();
 
 /** Local first; otherwise fetch the cloud copy, keep it locally, serve it. Null if nowhere. */
+/**
+ * Decode a picture before it is put on the page, so faces arrive with the
+ * page instead of popping in after it (the one "not smooth" thing she
+ * notices, 2026-09-07). Resolves true when the image is ready — or after
+ * `ms`, so a slow network never holds a list hostage — and false when the
+ * source is broken, so the caller keeps the initials. The <img> the caller
+ * then creates hits the browser cache and paints at once.
+ */
+export function preloadImage(src, ms = 800) {
+  return new Promise((resolve) => {
+    if (!src) { resolve(false); return; }
+    let done = false;
+    const finish = (ok) => { if (!done) { done = true; resolve(ok); } };
+    const timer = setTimeout(() => finish(true), ms);
+    const img = new Image();
+    img.onload = () => { clearTimeout(timer); (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(() => finish(true)); };
+    img.onerror = () => { clearTimeout(timer); finish(false); };
+    img.src = src;
+  });
+}
+
 export async function resolveAssetUrl(filePath, mime) {
   if (!filePath) return null;
   if (urlCache.has(filePath)) return urlCache.get(filePath);

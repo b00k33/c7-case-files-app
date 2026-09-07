@@ -958,6 +958,80 @@ lesson: a new page module means a `SHELL` entry, every time — nothing
 else enforces this, and it fails silently (only offline, only on that one
 route) rather than loudly.**
 
+## 13f. "I don't enjoy using the app" — ask28 → Stage 1 quick wins (v73, 2026-09-07)
+
+Her words: *"i dont enjoy using the app, theres friction in what i want to
+see or search. its not smooth."* A 28-question round (AskUserQuestion
+popups, four at a time, with a friction map of the real screens as the
+visual guide) pinned down what she actually does and what gets in the way.
+The answers that now shape the app:
+
+- **What she opens it for:** the family tree, importing people, and their
+  numbers — on both phone and desktop. The friction was *getting to the
+  person*: a search box that only lived on Cases, results that landed on
+  the wrong tab, a ← that always went home, and pictures popping in after
+  the page.
+- **The person is the unit, not the case.** People — every case, Fun
+  included ("one pool of people") — is where she wants to land (Stage 2).
+  A search hit on a person opens *the tree with them focused*, not the
+  profile. She searches by name only.
+- **On the person:** the numbers AND a ±1 tree slice, side by side; of the
+  tabs she uses Relations, then Commercial/Board; everything that *puts*
+  information on a person (paste, look up, insert family, works) goes
+  behind one **+ Add** button; the page is one screen, same layout on both
+  devices; ← goes back to where she came from.
+- **Smoothness:** only pictures popping in bothered her; tabs should be
+  instant; scroll position remembered; never a strip over the page.
+- **Cut:** the old Dashboard route. Keep: Fun, Compare, To do.
+- **Order:** quick wins on the current layout first (this section), then
+  the People-home + one-screen person page redesign (Stage 2, mocked and
+  approved: `c7-redesign-mock.html` in the 2026-09-07 session).
+
+**Stage 1 — what shipped in v73, on the existing layout:**
+
+1. **One search box, top of every page** (`index.html` `#global-search`,
+   wired in `main.js`). Results as she types (120 ms debounce), every case,
+   Fun people marked ✦. A person opens `#/subject/<id>/relations` (a Fun
+   person their profile — no family to show); evidence/quotes/cases open
+   where they always did. Escape, a tap outside, or a route change hides
+   it; Enter opens the first hit. A person-kind case whose person is also a
+   hit is dropped (it would be the same row twice). `store.searchAll` now
+   includes Fun people and returns `case_kind` on people and cases. The
+   Cases and People pages lost their own search boxes (a count sits in the
+   space).
+2. **← goes back to where she came from** — a per-session screen stack
+   (`sessionStorage c7-nav-stack`), where every tab on one person counts
+   as one screen, so ← from a Relations tab leaves the person; with
+   nothing behind it, home.
+3. **Faces arrive with the page.** `assets.preloadImage(src, 800)` decodes
+   a picture (or gives up after 800 ms, or reports a broken source) before
+   the `<img>` goes in; Cases (`faceEl`), People, Family and the tree
+   (`loadFace`, all faces side by side, tree waits for the batch) all use
+   it. No more initials-then-photo flicker.
+4. **+ Add on the profile** — the paste box, Look up, + Works and Insert
+   family moved out of the page into a drawer titled "Add to <name>". The
+   block is built with the page (handlers wired once, scoped to `tools`)
+   and *moved* into the drawer; results (`#pi-result`) stay on the page and
+   the drawer closes when a save lands. Enter in the Look up field looks
+   up (it used to hit the drawer's first primary button — the paste save).
+5. **Profile tab order: Chart → Timeline → Profile grid** — the numbers
+   first, the facts grid last; the duplicate Edit button in the Profile
+   panel went (the header's one is enough).
+6. **Tabs: Profile · Relations · Commercial · Board · ⋯** — the other four
+   (Evidence, Contradictions, Questions, Import) open with one tap on ⋯,
+   remembered for the session (`c7-tabs-more`), and are always shown when
+   she lands on one of them.
+7. **No strips over the page.** Install lives only in the sync drawer;
+   the "old copy" notice is gone; a waiting update turns the sync chip
+   brass ("⇅ update ready") and the drawer's first button applies it —
+   still never on its own. `Dashboard (old)` left the rail and the routes
+   (`pages/dashboard.js` stays for `createCaseOfKind`/`CASE_KINDS`).
+
+Also in v73: a profile "Look up" corrects a lowercase name the same way
+Insert family already did (`draftFromLookup` returns `renamed`; the case is
+renamed too when it carried the same lowercase name) — her Andrew
+Bustamante report.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

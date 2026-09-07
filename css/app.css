@@ -81,23 +81,25 @@
   padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw;
 }
 .case-context:empty { display: none; }
-/* install nudge — shows only until the app is installed on this device */
-.install-strip {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap;
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--ink-2); border-left: 3px solid var(--brass); border-radius: 0;
-  color: var(--text-2); font-size: 12px;
+/* one search box, top of every page (Stage 1 of her redesign, 2026-09-07):
+   the install / update / old-copy strips that used to sit here are gone —
+   they live inside the sync dot's drawer now, so the page top is the page */
+#global-search { position: relative; padding: var(--sp-3) var(--sp-5) 0; flex: 0 0 auto; z-index: 60; }
+#global-search input { min-height: 40px; border-radius: var(--r-lg); font-size: 14px; }
+#global-search-results {
+  position: absolute; left: var(--sp-5); right: var(--sp-5); top: 100%; margin-top: var(--sp-1);
+  background: var(--ink-1); border-radius: var(--r-lg); padding: var(--sp-1);
+  max-height: 60vh; overflow: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, .55), 0 0 0 1px var(--line);
+}
+#global-search-results[hidden] { display: none; }
+#global-search-results .list-row { min-height: 44px; }
+@media (max-width: 640px) {
+  #global-search { padding: var(--sp-3) var(--sp-3) 0; }
+  #global-search-results { left: var(--sp-3); right: var(--sp-3); }
 }
 
-/* old-localhost-copy notice — steers to the live synced app */
-.legacy-strip {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--ink-2); border-left: 3px solid var(--amber); border-radius: 0;
-  color: var(--text-2); font-size: 12px;
-}
-
-/* cloud sync chip — always visible, tap opens the account drawer */
+/* cloud sync chip — always visible, tap opens the account drawer; a waiting
+   update turns it brass (the drawer holds the Update button) */
 .sync-chip {
   margin-right: var(--sp-3);
   background: var(--ink-2); color: var(--text-3);
@@ -107,14 +109,7 @@
 .sync-chip[data-state="idle"] { color: var(--green); }
 .sync-chip[data-state="syncing"] { color: var(--brass); animation: pulse 1.2s ease-in-out infinite; }
 .sync-chip[data-state="error"] { color: var(--red); }
-
-/* new-version-available chip — appears only when a pushed update is waiting */
-.update-chip {
-  margin-right: var(--sp-3);
-  background: var(--brass); color: var(--ink-0);
-  border: none; border-radius: var(--r-sm); cursor: pointer;
-  font-size: 11px; font-weight: 600; padding: 4px 10px;
-}
+.sync-chip[data-update="1"] { color: var(--ink-0); background: var(--brass); font-weight: 600; }
 #save-state { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: var(--sp-2); }
 #save-state[data-state="saving"] { color: var(--brass); animation: pulse 1.2s ease-in-out infinite; }
 #save-state[data-state="unsaved"] { color: var(--amber); }
@@ -525,6 +520,9 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tab-strip a { color: var(--text-2); text-decoration: none; padding: var(--sp-2) var(--sp-3); font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; }
 .tab-strip a.active { color: var(--brass); border-bottom-color: var(--brass); }
 .tab-strip a .n { color: var(--brass); font-family: var(--font-mono); font-size: 11px; margin-left: 4px; }
+/* the four tabs she uses stay; the rest sit behind ⋯ (her pick, 2026-09-07) */
+.tab-strip .tab-more { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--text-3); padding: var(--sp-2) var(--sp-3); font-size: 15px; line-height: 1; cursor: pointer; white-space: nowrap; }
+.tab-strip .tab-more:hover { color: var(--text); }
 #back-btn { margin-right: var(--sp-2); font-size: 16px; padding: 0 8px; }
 
 /* ------------------------------------------------------- database table */
@@ -818,7 +816,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   #topbar {
     padding: var(--sp-3);
     display: grid; grid-template-columns: auto 1fr auto; column-gap: 0; row-gap: 2px;
-    grid-template-areas: "back case status" "back title status" "update update update";
+    grid-template-areas: "back case status" "back title status";
     align-items: center;
   }
   #topbar .page-title { grid-area: title; font-size: 18px; line-height: 1.2; }
@@ -828,7 +826,6 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
     background: none; color: var(--brass); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
   }
   .case-context:empty { display: none !important; }
-  .update-chip { grid-area: update; margin: var(--sp-2) 0 0; justify-self: start; }
   /* a 44px tap target (the mobile button floor) drawing a 12px dot inside */
   .sync-chip {
     grid-area: status; margin: 0 0 0 var(--sp-3); padding: 0; font-size: 0; line-height: 0;

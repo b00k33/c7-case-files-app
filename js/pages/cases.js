@@ -3,7 +3,7 @@
 // in (a person-case opens the person's profile; a family-case its overview).
 import { emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote } from '../ui.js';
-import { resolveAssetUrl } from '../assets.js';
+import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
 import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks } from '../works.js';
@@ -186,10 +186,13 @@ async function faceEl(person, size) {
   el.style.width = el.style.height = `${size}px`;
   el.innerHTML = `<span class="initials">${initials(person.display_name)}</span>`;
   const src = person.photo_path ? await resolveAssetUrl(person.photo_path, 'image/jpeg') : person.photo_url;
-  if (src) {
+  // decoded before it is shown — the card arrives with its face, no pop-in (2026-09-07)
+  if (src && await preloadImage(src)) {
     const img = document.createElement('img');
     img.alt = ''; img.src = src;
-    img.addEventListener('load', () => el.querySelector('.initials')?.remove());
+    const initialsEl = el.querySelector('.initials');
+    if (img.complete && img.naturalWidth) initialsEl?.remove();
+    else img.addEventListener('load', () => initialsEl?.remove());
     img.addEventListener('error', () => img.remove());
     el.appendChild(img);
   }
@@ -448,10 +451,7 @@ export async function render(root, ctx) {
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
-        <div class="search-box" style="flex:1;min-width:220px">
-          <span class="ic">⌕</span>
-          <input type="search" id="all-search" placeholder="Search everything — people, evidence, quotes, in any case">
-        </div>
+        <span class="mono" style="font-size:12px;color:var(--text-3);flex:1;min-width:120px">${cases.length} case${cases.length === 1 ? '' : 's'}</span>
         <div class="view-toggle" id="view-toggle">
           <button type="button" data-view="table" class="${view === 'table' ? 'on' : ''}">Table</button>
           <button type="button" data-view="cards" class="${view === 'cards' ? 'on' : ''}">Cards</button>
@@ -459,7 +459,6 @@ export async function render(root, ctx) {
         <button class="btn btn-primary" id="new-case-btn">+ New</button>
       </div>
       <div id="new-case-slot"></div>
-      <div id="search-results"></div>
       <div id="cases-body"></div>
     </div>
   `;
@@ -502,36 +501,6 @@ export async function render(root, ctx) {
     body.appendChild(grid);
   }
 
-  // search everything, live
-  const input = root.querySelector('#all-search');
-  const resultsEl = root.querySelector('#search-results');
-  let timer = null;
-  input.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(async () => {
-      const q = input.value.trim();
-      resultsEl.innerHTML = '';
-      body.style.display = q ? 'none' : '';
-      if (!q) return;
-      const hits = await store.searchAll(q);
-      if (!hits.length) { resultsEl.appendChild(emptyState({ missing: `No matches for “${q}”.`, why: 'Searched case names, people, evidence titles and notes, and video quotes.' })); return; }
-      const panel = document.createElement('div');
-      panel.className = 'panel';
-      for (const h of hits) {
-        const row = document.createElement('div');
-        row.className = 'list-row';
-        row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${h.label || '(untitled)'}</div><div class="sub">${h.type}${h.sub ? ' · ' + h.sub : ''} · <span style="color:var(--brass)">${h.case_name}</span></div></div>`;
-        row.addEventListener('click', async () => {
-          const kase = (await store.listCases()).find((k) => k.id === h.case_id);
-          markOpened(h.case_id); await ctx.setCaseId(h.case_id);
-          if (h.type === 'person') ctx.navigate(`#/subject/${h.id}`);
-          else if (h.type === 'moment') ctx.navigate(`#/video/${h.evidence_id}`);
-          else if (h.type === 'evidence') ctx.navigate('#/evidence');
-          else if (kase) openCase(ctx, kase);
-        });
-        panel.appendChild(row);
-      }
-      resultsEl.appendChild(panel);
-    }, 200);
-  });
+  // (the page's own "Search everything" box left on 2026-09-07 — the one
+  // search box at the top of every page, in main.js, replaced it)
 }
