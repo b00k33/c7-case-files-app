@@ -8,24 +8,38 @@ that isn't covered below, add it here so the next build doesn't undo it.
 
 ## 1. Ground
 
-Dark, always. Not a light theme with the colours inverted — designed dark.
+Two grounds, one design (2026-09-07, her words: "it looks too dark. and the
+gold is too light"): **paper by day, ink by night**. The phone's setting
+picks by default; the sync drawer has Follow phone · Day · Night. Neither
+ground is the other inverted — each palette is chosen so the same token
+keeps the same job. `index.html` stamps `data-theme="light|dark"` on
+`<html>` before first paint; `css/tokens.css` holds both palettes.
 
 ```
---ink-0   #101216   page
---ink-1   #171a1f   panels, rails, grouped areas
---ink-2   #1e2229   raised rows, cards, inputs
---ink-3   #262b33   hover, chips, pressed
---line    #2b313a   used sparingly, mostly as a 1px inset shadow
---text    #e8e6e1
---text-2  #a7adb8
---text-3  #6f7783
---brass   #d9a54a   the accent — actions, the current thing, "sourced"
---teal    #5fb3a6   links between things, secondary tags
---green   #6faa6f   corroborated
---amber   #d9a54a   single-sourced, needs work
---red     #c96a5a   disputed, contradicted, dead
---violet  #8f86c9   master numbers, historical subjects
+                 night (ink)   day (paper)
+--ink-0          #1b1e24       #efeae0    page
+--ink-1          #23272e       #f9f7f1    panels, rails, grouped areas
+--ink-2          #2b3038       #ffffff    raised rows, cards, inputs
+--ink-3          #353b45       #e6e0d3    hover, chips, pressed
+--line           #3d444f       #d6cfc0    used sparingly, mostly as a 1px inset shadow
+--text           #f1eee8       #1e2128
+--text-2         #b9bfc9       #4f5661
+--text-3         #8891a0       #7d8592
+--brass          #c9922e       #a8731c    the accent — actions, the current thing, "sourced"
+--on-brass       #1b1e24       #ffffff    text on a brass surface
+--teal           #5fb3a6       #2f8a7d    links between things, secondary tags
+--green          #6faa6f       #4f8f4f    corroborated
+--amber          = brass       = brass    single-sourced, needs work
+--red            #d0705e       #b5503f    disputed, contradicted, dead
+--violet         #9a91d4       #6d63b3    master numbers, historical subjects
+--shadow         dark, 45%     warm, 18%  the one drop shadow (drawer, search results)
 ```
+
+Her zodiac colour code (`--zc-*` trines, `--ws-*` elements) keeps the same
+code on both grounds, each shade a step deeper on paper so it holds on
+white. **No raw hex in app.css** — every colour goes through a token, or
+the day ground silently breaks. The original single palette (#101216 page,
+#d9a54a brass) is retired: two steps too dark, and the brass read pale.
 
 Group things with **background tone and space**, not with borders. If you
 find yourself drawing a box, try a tone change first. No nested boxes. No

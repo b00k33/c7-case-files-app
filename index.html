@@ -4,11 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>C7 Case Files</title>
-<meta name="theme-color" content="#101216">
+<meta name="theme-color" content="#1b1e24">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="js/version.js"></script>
+<script>
+// paper by day, ink by night (her pick, 2026-09-07): the ground is stamped
+// on <html> before the first paint — her own pick from the sync drawer
+// (c7-theme: light | dark), else the phone's setting, live.
+(function () {
+  var mq = window.matchMedia('(prefers-color-scheme: light)');
+  function apply() {
+    var pref = null;
+    try { pref = localStorage.getItem('c7-theme'); } catch (e) {}
+    var t = pref === 'light' || pref === 'dark' ? pref : (mq.matches ? 'light' : 'dark');
+    document.documentElement.dataset.theme = t;
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.content = t === 'light' ? '#efeae0' : '#1b1e24';
+  }
+  apply();
+  if (mq.addEventListener) mq.addEventListener('change', apply);
+  window.c7ApplyTheme = apply;
+})();
+</script>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/app.css">
 </head>

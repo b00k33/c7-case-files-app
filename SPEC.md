@@ -1032,6 +1032,66 @@ Insert family already did (`draftFromLookup` returns `renamed`; the case is
 renamed too when it carried the same lowercase name) — her Andrew
 Bustamante report.
 
+## 13g. "It looks too dark, the gold is too light" — two grounds, and the life map (v74 →, 2026-09-07)
+
+Her words, right after Stage 1 went live: *"improve the design. it looks
+too dark. and the gold is too light. the visual design is also too plain,
+too many words. i like visual displays. i want to be able to see person,
+what things they did (their significant dates/years), who they married,
+who their family are, whats the astrological compatibility/incompatibility
+they have with when they do things why did it fail or was successful."*
+
+Sixteen questions against a mock (`c7-visual-redesign-guide.html`: three
+grounds, four golds, a "life map" of Michael Jackson with every number
+computed by the app's own modules). Her answers, which now govern:
+
+**Ground & gold (shipped v74):**
+- **Both grounds — paper by day, ink by night**, following the phone's
+  setting by default; Follow phone · Day · Night in the sync drawer
+  (`localStorage c7-theme`; `index.html` stamps `data-theme` before first
+  paint). STYLE §1 holds both palettes. The night ground is two steps
+  lighter and warmer than the old one.
+- **Gold: antique `#c9922e` on ink, old gold `#a8731c` on paper** — the
+  brass was too pale. `--on-brass` is the text on a brass surface.
+- **Her zodiac colour code keeps its code, shades tuned per ground** (a
+  step deeper on paper); the values moved from app.css to tokens.css.
+- **Words: short labels stay visible**; sentences (rationale, source,
+  gloss) move behind a tap. Panel titles go where an eyebrow will do.
+
+**The life map — the person page (next push, previewed first):**
+- **It IS the person page**: replaces the Profile tab's Chart / Timeline /
+  Profile-grid panels; the facts grid sits behind a "details" tap;
+  Relations · Commercial · Board stay as tabs.
+- **Life line: a ribbon on the page, the year list on tap.** Every year
+  from birth coloured by their personal year (gold 1·8, teal 3·5, red 7·9,
+  violet 11·22, grey 2·4·6); marks above it for what they did (♪ release
+  · ♥ married · ✕ divorced · ⚖ trial · ⚠ crisis · ✝ died · milestones);
+  on the phone the ribbon fits the screen and crowded marks stack in rows.
+- **Worked / failed: infer where the record says so, she tags the rest.**
+  A divorce ends a marriage; a chart #1, award or certification = worked;
+  a death = end; anything else stays grey until she taps ✓ or ✕ on the
+  mark. Never a guess dressed as a fact.
+- **The "why" line on a mark:** their personal year with the GG33
+  lean-in/caution gloss; the calendar year's animal against theirs
+  (trine · clash · harmony · same · neutral); for a marriage the two
+  people's animals and life-path tier; and the two sun signs (shown, no
+  verdict — the app has no Western compatibility rule of its own).
+- **The circle: cards on the page, the tree one tap away.** Spouse cards
+  carry married year → ended year with both personal years; family cards
+  carry the relation. Verdicts are **glyph + one word chip, coloured**
+  (STYLE §5 glyphs: // clash, △ trine, linked rings harmony, = same).
+- **Three systems count:** Chinese animals, the GG33 life-path tiers
+  (best · good · neutral · enemy, master/slave 1×6 as its own chip), and
+  Western elements as a third, lighter chip (fire+air, earth+water get on;
+  fire+water, earth+air clash — the classic pairing, flagged as not GG33).
+- **"Compare with…"** from the person page opens the search and shows the
+  same verdict chips for anyone in any case (Fun included) without adding
+  a relationship.
+- **Cases and People lists** get the same treatment: face + name + the
+  three tokens, no kind/count text; attention badges stay.
+- **Order:** ground + gold first (v74), the life map next as its own push
+  with a preview she reacts to first.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

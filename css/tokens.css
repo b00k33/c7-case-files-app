@@ -1,22 +1,40 @@
-/* C7 Case Files — design tokens. Self-contained; see STYLE.md. */
+/* C7 Case Files — design tokens. Self-contained; see STYLE.md.
+   Two grounds since 2026-09-07 ("it looks too dark. and the gold is too
+   light"): paper by day, ink by night. index.html stamps data-theme on
+   <html> before first paint — "light" | "dark" — from her pick in the
+   sync drawer or, by default, the phone's own setting. Every colour in
+   app.css goes through these tokens so both grounds stay true. */
 
-:root {
-  /* ground */
-  --ink-0: #101216;
-  --ink-1: #171a1f;
-  --ink-2: #1e2229;
-  --ink-3: #262b33;
-  --line: #2b313a;
-  --text: #e8e6e1;
-  --text-2: #a7adb8;
-  --text-3: #6f7783;
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  /* ground — night: lifted two steps from the old #101216, warmer */
+  --ink-0: #1b1e24;
+  --ink-1: #23272e;
+  --ink-2: #2b3038;
+  --ink-3: #353b45;
+  --line: #3d444f;
+  --text: #f1eee8;
+  --text-2: #b9bfc9;
+  --text-3: #8891a0;
 
-  --brass: #d9a54a;
+  --brass: #c9922e;      /* antique gold — the accent */
+  --on-brass: #1b1e24;   /* text on a brass surface */
   --teal: #5fb3a6;
   --green: #6faa6f;
-  --amber: #d9a54a;
-  --red: #c96a5a;
-  --violet: #8f86c9;
+  --amber: #c9922e;
+  --red: #d0705e;
+  --violet: #9a91d4;
+  --shadow: 0 12px 32px rgba(0, 0, 0, .45), 0 0 0 1px var(--line);
+
+  /* her zodiac colour code — Chinese trines and Western elements */
+  --zc-blue: #6f9cf0;   /* Snake · Ox · Rooster */
+  --zc-green: #5cb87a;  /* Dog · Tiger · Horse */
+  --zc-pink: #ec86b4;   /* Pig · Goat · Rabbit (Cat) */
+  --zc-yellow: #e8c34f; /* Rat · Dragon · Monkey */
+  --ws-air: #8fd0f5;    /* Gemini · Libra · Aquarius */
+  --ws-fire: #e8564e;   /* Aries · Leo · Sagittarius */
+  --ws-earth: #c99a4a;  /* Taurus · Virgo · Capricorn */
+  --ws-water: #4f74d6;  /* Cancer · Scorpio · Pisces */
 
   /* type — declared per STYLE.md, with honest system fallbacks so the app
      needs no internet connection to render correctly */
@@ -39,6 +57,40 @@
   --r-lg: 8px;
 
   --focus: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--brass);
+}
+
+/* day — ink on paper. The same jobs, not an inversion: page is the warm
+   paper, panels a shade lighter, rows/cards/inputs white, chips a shade
+   darker than the page so they still read as pressed. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink-0: #efeae0;
+  --ink-1: #f9f7f1;
+  --ink-2: #ffffff;
+  --ink-3: #e6e0d3;
+  --line: #d6cfc0;
+  --text: #1e2128;
+  --text-2: #4f5661;
+  --text-3: #7d8592;
+
+  --brass: #a8731c;      /* old gold */
+  --on-brass: #ffffff;
+  --teal: #2f8a7d;
+  --green: #4f8f4f;
+  --amber: #a8731c;
+  --red: #b5503f;
+  --violet: #6d63b3;
+  --shadow: 0 12px 32px rgba(50, 40, 20, .18), 0 0 0 1px var(--line);
+
+  /* the same code, each a step deeper so it holds on white */
+  --zc-blue: #3b6fd6;
+  --zc-green: #2f8a4a;
+  --zc-pink: #c9498a;
+  --zc-yellow: #b8901a;
+  --ws-air: #2f8fc4;
+  --ws-fire: #c93a30;
+  --ws-earth: #9a6f1a;
+  --ws-water: #2f4fa8;
 }
 
 * { box-sizing: border-box; }
@@ -88,7 +140,7 @@ button, input, select, textarea {
   border-radius: var(--r-sm);
 }
 
-::selection { background: var(--brass); color: var(--ink-0); }
+::selection { background: var(--brass); color: var(--on-brass); }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

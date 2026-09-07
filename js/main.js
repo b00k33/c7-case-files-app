@@ -580,6 +580,24 @@ function appendBackupButton(body) {
     inst.querySelector('#sy-install')?.addEventListener('click', () => triggerInstall());
     wrap.prepend(inst);
   }
+  // appearance — paper by day, ink by night (her pick, 2026-09-07); "Follow
+  // phone" is the default and needs no pick. index.html stamps the ground.
+  const themePick = localStorage.getItem('c7-theme') || 'auto';
+  const look = document.createElement('div');
+  look.style.marginBottom = '16px';
+  look.innerHTML = `
+    <div class="section-label" style="margin-bottom:8px">Appearance</div>
+    <div class="row wrap" style="gap:6px">
+      ${[['auto', 'Follow phone'], ['light', 'Day'], ['dark', 'Night']].map(([v, l]) => `<button type="button" class="chip ${themePick === v ? 'brass' : ''}" data-theme-pick="${v}" style="border:0;cursor:pointer">${l}</button>`).join('')}
+    </div>
+  `;
+  look.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', () => {
+    const v = b.dataset.themePick;
+    if (v === 'auto') localStorage.removeItem('c7-theme'); else localStorage.setItem('c7-theme', v);
+    if (window.c7ApplyTheme) window.c7ApplyTheme();
+    renderSyncDrawer(body);
+  }));
+  wrap.prepend(look);
   wrap.querySelector('#sy-backup').addEventListener('click', () => {
     const bytes = db.exportBytes();
     const blob = new Blob([bytes], { type: 'application/x-sqlite3' });

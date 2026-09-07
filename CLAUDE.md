@@ -210,6 +210,17 @@ bar, instant tabs, scroll memory, one layout for both devices) is
 approved from the mock and still to build. Don't re-ask the 28 — the
 answers are in §13f; build Stage 2 to the mock.
 
+**2026-09-07, later — two grounds and the life map (SPEC §13g).** "It
+looks too dark, the gold is too light, too plain, too many words." Sixteen
+answers against a mock: paper by day / ink by night (v74, Follow phone ·
+Day · Night in the sync drawer), antique gold on ink / old gold on paper,
+and the person page becomes a *life map* (ribbon of years coloured by
+personal year, marks for what they did with ✓/✕ outcomes, the "why" line
+from personal year + year-animal + the pair's animals and GG33 life-path
+tier, spouse/family cards with glyph + word verdicts). Build the life map
+to §13g and show a preview first; don't re-ask. STYLE §1 now has both
+palettes — never a raw hex in app.css, every colour through a token.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other
