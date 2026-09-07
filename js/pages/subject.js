@@ -10,6 +10,7 @@ import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lo
 import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
+import { buildLifeLine, renderLifeLine, renderWhyCard, renderCircle, renderCompare, tokensHtml } from '../lifemap.js';
 
 function fmtLongDate(iso) {
   if (!iso) return null;
@@ -201,6 +202,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
               </div>
             </div>
             <div class="basics-strip" id="basics-strip"></div>
+            <div class="lm-tokens" id="lm-tokens">${tokensHtml(person)}</div>
             ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
             ${person.notes ? `<p style="margin-top:8px;color:var(--text-3);font-size:12px">${person.notes}</p>` : ''}
           </div>
@@ -211,14 +213,38 @@ export async function render(root, ctx, personId, tab = 'profile') {
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
       <div id="pi-result"></div>
 
+      <!-- the life map (her ask, 2026-09-07 — SPEC §13g): the person as a
+           picture. Years coloured by personal year, marks for what they did,
+           the why of a mark on tap; then the circle — married, family — with
+           the compatibility on each card. The old Chart / Profile grid /
+           lists sit behind "Details". -->
       <div class="panel">
-        <div class="panel-title">Chart</div>
-        <div id="chart-slot"></div>
+        <div class="row between wrap" style="gap:8px">
+          <span class="section-label">Life line · tap a mark</span>
+          <button type="button" class="linklike" id="year-list-btn">year list ▸</button>
+        </div>
+        <div id="life-line"></div>
+        <div id="why-slot"></div>
+        <div id="year-list" hidden><div id="timeline-list" class="stack" style="gap:10px;margin-top:12px"></div></div>
       </div>
 
       <div class="panel">
-        <div class="panel-title">Timeline</div>
-        <div id="timeline-list" class="stack" style="gap:10px"></div>
+        <div class="row between wrap" style="gap:8px">
+          <span class="section-label">Married · family</span>
+          <span class="row" style="gap:6px">
+            <button type="button" class="btn btn-ghost btn-sm" id="compare-btn" title="Anyone, any case — the same verdicts, no relationship added">Compare with…</button>
+            <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">Tree →</a>
+          </span>
+        </div>
+        <div id="compare-slot"></div>
+        <div id="circle" class="lm-circle"></div>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-sm" id="details-btn" style="align-self:flex-start">Details ▸</button>
+      <div id="details" class="stack" hidden>
+      <div class="panel">
+        <div class="panel-title">Chart</div>
+        <div id="chart-slot"></div>
       </div>
 
       <div class="panel">
@@ -282,6 +308,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div class="panel-title">Attached evidence</div>
           <div id="evidence-list" class="stack" style="gap:2px"></div>
         </div>
+      </div>
       </div>`}
     </div>
   `;
@@ -355,6 +382,50 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
+
+  // ---- the life map: the ribbon, the why of a mark, the circle, compare ----
+  const peopleInCase = await store.listPeople(ctx.caseId);
+  const lifeData = buildLifeLine({ person, events, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() });
+  const lifeEl = root.querySelector('#life-line');
+  const whySlot = root.querySelector('#why-slot');
+  const openPerson = (id) => ctx.navigate(`#/subject/${id}`);
+  const showWhy = (m) => renderWhyCard(whySlot, m, lifeData, {
+    person, people: peopleInCase,
+    onOutcome: async (mark, oc) => {
+      // her tag wins over the record's inference; the ribbon and the card redraw in place
+      await store.setEventOutcome(mark.event.id, oc);
+      Object.assign(lifeData, buildLifeLine({ person, events, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
+      renderLifeLine(lifeEl, lifeData, { onPick: showWhy });
+      const again = lifeData.marks.find((x) => x.id === mark.id);
+      if (again) {
+        lifeEl.querySelector(`.lm-mark[data-id="${CSS.escape(again.id)}"]`)?.classList.add('on');
+        showWhy(again);
+      }
+    },
+  });
+  renderLifeLine(lifeEl, lifeData, { onPick: showWhy });
+  renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson });
+  root.querySelector('#compare-btn').addEventListener('click', () => {
+    const slot = root.querySelector('#compare-slot');
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    renderCompare(slot, { person, store, onOpen: openPerson });
+  });
+  root.querySelector('#year-list-btn').addEventListener('click', () => {
+    const yl = root.querySelector('#year-list');
+    yl.hidden = !yl.hidden;
+    root.querySelector('#year-list-btn').textContent = yl.hidden ? 'year list ▸' : 'year list ▾';
+  });
+  // the old panels (chart numbers, facts grid, contradictions, addresses,
+  // questions, evidence) one tap away — remembered for the session
+  const det = root.querySelector('#details');
+  const detBtn = root.querySelector('#details-btn');
+  const setDetails = (open) => {
+    det.hidden = !open;
+    detBtn.textContent = open ? 'Details ▾' : 'Details ▸';
+    sessionStorage.setItem('c7-details-open', open ? '1' : '0');
+  };
+  setDetails(sessionStorage.getItem('c7-details-open') === '1');
+  detBtn.addEventListener('click', () => setDetails(det.hidden));
 
   // ---- "+ Add": everything that puts information on this person lives in
   // one sheet (her pick, 2026-09-07) — paste, look up, insert family, works.

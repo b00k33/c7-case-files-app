@@ -480,6 +480,26 @@ export async function untagTarget(tagId, targetType, targetId) {
   logChange('tagging', `${tagId}:${targetType}:${targetId}`, 'delete', {});
 }
 
+// ---- the life map's "worked / failed" on an event rides the tag system
+// too (her pick, 2026-09-07): tags 'outcome:worked' / 'outcome:failed' on
+// target_type 'event' — no schema change, and the tagging table already
+// syncs. One outcome per event; setting one clears the other. ----
+export async function listEventOutcomes() {
+  const map = new Map();
+  for (const r of db.exec(`SELECT tg.target_id AS id, t.name AS name FROM tagging tg JOIN tag t ON t.id = tg.tag_id WHERE tg.target_type='event' AND t.name LIKE 'outcome:%'`)) {
+    map.set(r.id, r.name.slice('outcome:'.length));
+  }
+  return map;
+}
+
+export async function setEventOutcome(eventId, outcome) {
+  for (const name of ['outcome:worked', 'outcome:failed']) {
+    const tag = (await listTags()).find((t) => t.name === name);
+    if (tag) await untagTarget(tag.id, 'event', eventId);
+  }
+  if (outcome === 'worked' || outcome === 'failed') await tagTarget(await ensureTag(`outcome:${outcome}`), 'event', eventId);
+}
+
 // ---- the image inbox rides the tag system: 'inbox' marks unsorted
 // evidence, 'purpose:<kind>' records why an image was kept ----
 

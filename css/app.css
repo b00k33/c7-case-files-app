@@ -635,6 +635,67 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .num-icons.num-lg .ni-animal { width: 30px; height: 30px; font-size: 18px; }
 .num-icons.num-lg .ni-sign { font-size: 20px; }
 
+/* ------------------------------------------------ the life map (her ask, 2026-09-07 — SPEC §13g) */
+.lm-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin-top: var(--sp-3); align-items: center; }
+.lm-tokens .tk { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
+.lm-tokens .tk .big { font-family: var(--font-mono); font-size: 20px; line-height: 1; color: var(--brass); font-weight: 600; }
+.lm-tokens .dim, .lm-why .dim, .lm-legend .dim { color: var(--text-3); }
+.lm-life { position: relative; margin-top: var(--sp-2); }
+.lm-marks { position: relative; height: 36px; }
+.lm-mark { position: absolute; bottom: calc(var(--row, 0) * 30px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--text-2); }
+.lm-mark .g { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--text-3); display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; background: var(--ink-2); }
+.lm-mark .y { font-size: 10px; color: var(--text-3); }
+.lm-mark.lm-o-worked .g { border-color: var(--green); color: var(--green); }
+.lm-mark.lm-o-failed .g, .lm-mark.lm-o-end .g { border-color: var(--red); color: var(--red); }
+.lm-mark.on .g { box-shadow: 0 0 0 2px var(--brass); }
+.lm-mark:hover .g { background: var(--ink-3); }
+.lm-ribbon { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--ink-3); }
+.lm-ribbon i { flex: 1 1 0; display: block; min-width: 0; }
+.lm-t-gold { background: var(--brass); }
+.lm-t-teal { background: var(--teal); }
+.lm-t-red { background: color-mix(in srgb, var(--red) 70%, var(--ink-3)); }
+.lm-t-violet { background: var(--violet); }
+.lm-t-grey, .lm-t-none { background: var(--ink-3); }
+.lm-axis { position: relative; height: 16px; font-size: 10px; color: var(--text-3); margin-top: 4px; }
+.lm-axis span { position: absolute; transform: translateX(-50%); }
+.lm-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-3); font-size: 11px; color: var(--text-2); }
+.lm-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.lm-legend b { width: 14px; height: 8px; border-radius: 4px; display: inline-block; }
+.lm-legend .lm-key { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text-3); display: inline-block; }
+.lm-legend .lm-key.lm-o-worked { border-color: var(--green); }
+.lm-legend .lm-key.lm-o-failed { border-color: var(--red); }
+.lm-py { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; font-family: var(--font-mono); font-size: 12px; font-weight: 600; flex: none; }
+.lm-py.lm-t-gold { color: var(--brass); background: none; }
+.lm-py.lm-t-teal { color: var(--teal); background: none; }
+.lm-py.lm-t-red { color: var(--red); background: none; }
+.lm-py.lm-t-violet { color: var(--violet); background: none; }
+.lm-py.lm-t-grey, .lm-py.lm-t-none { color: var(--text-2); background: none; }
+.lm-why { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2) var(--sp-3); align-items: center; margin-top: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-lg); background: var(--ink-2); font-size: 12px; }
+.lm-why .k { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+.lm-why .line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); min-width: 0; }
+.lm-v { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: var(--r-sm); background: var(--ink-3); color: var(--text-2); white-space: nowrap; border: 0; line-height: 16px; }
+.lm-v svg { width: 14px; height: 14px; }
+.lm-v-best, .lm-v-trine { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+.lm-v-good, .lm-v-harmony, .lm-v-getson { background: color-mix(in srgb, var(--teal) 20%, transparent); color: var(--teal); }
+.lm-v-enemy, .lm-v-bad, .lm-v-clash { background: color-mix(in srgb, var(--red) 20%, transparent); color: var(--red); }
+.lm-v-same, .lm-v-fifty { background: color-mix(in srgb, var(--brass) 20%, transparent); color: var(--brass); }
+.lm-v-master, .lm-v-slave { background: color-mix(in srgb, var(--violet) 20%, transparent); color: var(--violet); }
+.lm-v-neutral, .lm-v-unknown { background: var(--ink-3); color: var(--text-2); }
+.lm-v-el { font-weight: 500; opacity: .85; }
+button.lm-tag { cursor: pointer; opacity: .6; }
+button.lm-tag.on, button.lm-tag:hover { opacity: 1; }
+button.lm-tag.on { box-shadow: 0 0 0 1px currentColor; }
+.lm-circle { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--sp-2); margin-top: var(--sp-3); }
+.lm-card { display: flex; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border-radius: var(--r-lg); background: var(--ink-2); cursor: pointer; min-width: 0; }
+.lm-card:hover { background: var(--ink-3); }
+.lm-card-body { min-width: 0; flex: 1; }
+.lm-card .who { font-family: var(--font-title); font-size: 15px; line-height: 1.15; }
+.lm-card .rel { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.lm-verdicts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.lm-card-cmp { margin-top: var(--sp-2); cursor: default; }
+.lm-card-cmp .who { cursor: pointer; }
+.lm-card-cmp .who:hover { color: var(--brass); }
+
 /* ------------------------------------------------ family tree */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
 .seg button { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer; min-height: 28px; }

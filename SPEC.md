@@ -1092,6 +1092,41 @@ computed by the app's own modules). Her answers, which now govern:
 - **Order:** ground + gold first (v74), the life map next as its own push
   with a preview she reacts to first.
 
+**The life map as built (2026-09-07, `js/lifemap.js`, on the Profile tab):**
+- `buildLifeLine()` — years from birth (or the first dated thing) to death
+  (or now), each with `personalYear()` from `exactBirth()` only (never a
+  placeholder date); marks from the person's events (`markKind()`: kind
+  first, then a title pattern for trial / crisis / divorce), from spouse
+  relationships' `start_date`/`end_date` when no event says so, and from
+  `death_date`. Inference: milestone kinds → worked, divorce → failed,
+  death → end, a marriage followed by a divorce → failed. Her tag wins.
+- **Outcomes ride the tag system**: `outcome:worked` / `outcome:failed` on
+  `target_type='event'` (`store.listEventOutcomes`, `store.setEventOutcome`)
+  — no schema change, and `tagging` already syncs. One per event.
+- `renderLifeLine()` — ribbon of `<i>` per year (tone class), marks as
+  `<button>`s positioned by year and stacked into rows by a greedy pass
+  (30 px minimum, re-run by ResizeObserver), a decade axis, the legend.
+- `renderWhyCard()` — what · their year (PY ring + gloss · the year's
+  animal against theirs) · the two (spouse: `verdictChips`) · judge (✓ ✕
+  toggle; "from the record — tap to overrule" when inferred).
+- `verdictChips(a, b)` — animals via `relation()` with the STYLE §5 glyph;
+  her GG33 tier via `lpTier()` (table in the module, read from the page
+  person's side — the source table is not symmetric, e.g. 1→11 best but
+  11→1 not listed); Western elements via `elementPair()` as a lighter
+  chip. Missing birth dates → an honest "needs both birth dates" chip.
+- `renderCircle()` — spouse cards (♥ year · ✕ year · PY a → b) then
+  parents, children, siblings, god-relations; tap opens their profile.
+- `renderCompare()` — a search box in the circle; a pick shows a card with
+  the chips, "compared, not related", dismissable.
+- The header carries `tokensHtml()`: the life path as a number, the animal
+  chip + element, the sun-sign chip. Chart (five numbers), Profile grid,
+  Contradictions, Addresses/Relations, Questions/Evidence sit behind
+  **Details ▸** (`sessionStorage c7-details-open`); the old Timeline is the
+  **year list ▸** under the ribbon.
+- Lesson from the build: sql.js writes persist on a debounce — reloading
+  the page right after seeding lost every row but the first. Wait for the
+  save state to read "saved" before any reload.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a
