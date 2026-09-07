@@ -26,6 +26,7 @@ const SHELL = [
   'js/profile-parse.js',
   'js/lookup.js',
   'js/lifemap.js',
+  'js/life-events.js',
   'js/media.js',
   'js/version.js',
   'js/schema.sql',

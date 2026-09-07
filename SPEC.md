@@ -1128,6 +1128,56 @@ computed by the app's own modules). Her answers, which now govern:
   the page right after seeding lost every row but the first. Wait for the
   save state to read "saved" before any reload.
 
+## 13h. "I don't know how the board works — it's all empty" (v76, 2026-09-07)
+
+The Board (and now the life line) draw the case's **events**; the app had
+no plain way to make one. Events came only from + Works (releases), the
+Commercial tab (milestones), a theory timeline, or the Import page's form
+by way of Review — and "Look up" never read dated life events from
+Wikidata. So every board was empty, and the empty state's button went to
+Relations. Her two answers:
+
+- **Add an event, one tap, in the + Add sheet**: what · kind · date
+  (`parseDate`: "14 Nov 1996", "Nov 1996", "1996" — precision kept honest,
+  a year-only date stores `date_year_min/max` and no day). Her own entry
+  is the record, like the paste box — no claim to accept.
+- **+ Life events from Wikidata** (`js/life-events.js`): one SPARQL read
+  of the statements that carry dates — spouse P26 (start P580 / end
+  P582), award P166 (P585), position held P39, residence P551, educated
+  at P69, employer P108 — as a tick-list like + Works (undated rows
+  unticked). Each pick becomes an event citing its statement
+  (`wikidata_id` = `<person>/<prop>/<item>[/start|/end]`, so a second run
+  skips what is there). A marriage row also **dates the spouse
+  relationship** (start / end, filled only where blank; created
+  unconfirmed at 70 when the spouse is in the case but no relationship
+  is) — the tree's "m. YYYY" and the circle's "♥ · ✕" read from there.
+- **The Board's empty state opens the + Add sheet** on the person
+  (`sessionStorage c7-open-add`), focus in the event field; the life
+  line's own empty state does the same. Board's `render` now takes the
+  person id the profile tab passes it.
+- Event kinds `trial` and `crisis` are now real kinds (the life line used
+  to find them only by title).
+
+What the first real pull (Michael Jackson, Q2831: 4 marriage rows, 22
+awards, 4 homes, 1 school) added to the build:
+
+- **"Already here" is by key *or* by meaning** (`alreadyHere` in
+  life-events.js, used by the tick list and by `addLifeEvents`): a
+  candidate is skipped when any event in the case carries its Wikidata
+  key, or when one of this person's events in the same year names the
+  same thing — normalised title equal, or the statement's item label
+  inside the title; a spouse row must also match direction (married vs
+  ended, by kind or by "divorc/ended/separat/annul" vs "married/wed").
+  So a hand-typed "Married Debbie Rowe" and the P26 statement never sit on
+  the life line twice. An undated candidate matches by key only.
+- **Same kind + same year = one counted mark** on the life line
+  (`clusterMark` in lifemap.js): nine 1984 Grammys read as "★ ×9", the
+  why card lists each with its own date and outcome, and judging is done
+  per event from the year list. Rows are 36px (one mark tall) so the
+  count badge never touches the label above.
+- **Board cards read the date at its precision** ("Nov 1996", not
+  "1996-11-01"), like everything else on the person page.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

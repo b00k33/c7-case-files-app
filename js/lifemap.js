@@ -87,8 +87,8 @@ export function markKind(ev) {
   if (k === 'release') return 'release';
   if (MILESTONE.has(k)) return 'milestone';
   if (k === 'birth') return 'birth';
-  if (/\btrial\b|\bcourt\b|acquit|verdict|lawsuit|\bsued\b|convict/.test(t)) return 'trial';
-  if (/allegation|accus|arrest|scandal|crisis|bankrupt|overdose|accident|hospital/.test(t)) return 'crisis';
+  if (k === 'trial' || /\btrial\b|\bcourt\b|acquit|verdict|lawsuit|\bsued\b|convict/.test(t)) return 'trial';
+  if (k === 'crisis' || /allegation|accus|arrest|scandal|crisis|bankrupt|overdose|accident|hospital/.test(t)) return 'crisis';
   if (k === 'move') return 'move';
   if (k === 'business') return 'business';
   return 'other';
@@ -166,6 +166,21 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
   return { birth, birthYear, deathYear, years, marks, yearsFrom, yearsTo };
 }
 
+// one mark standing for several of the same kind in one year
+const CLUSTER_WORD = { award: 'awards', release: 'releases', chart: 'chart entries', certification: 'certifications', deal: 'deals', move: 'moves', business: 'business moves', marriage: 'marriages', divorce: 'endings', milestone: 'milestones', trial: 'trials', crisis: 'crises', birth: 'births', other: 'events' };
+function clusterMark(group) {
+  const first = group[0];
+  const kinds = new Set(group.map((m) => (m.event && m.event.kind) || m.kind));
+  const word = CLUSTER_WORD[kinds.size === 1 ? [...kinds][0] : first.kind] || CLUSTER_WORD[first.kind] || 'events';
+  const outcomes = new Set(group.map((m) => m.outcome || null));
+  return {
+    id: `cluster:${first.year}:${first.kind}`, year: first.year, kind: first.kind, glyph: first.glyph,
+    title: `${group.length} ${word}`, date: null, precision: 'year',
+    cluster: group, event: null, rel: null, spouseId: null,
+    tagged: null, inferred: false, outcome: outcomes.size === 1 ? [...outcomes][0] : null,
+  };
+}
+
 function outcomeChip(m) {
   if (m.outcome === 'worked') return '<span class="lm-v lm-v-best">✓ worked</span>';
   if (m.outcome === 'failed') return '<span class="lm-v lm-v-enemy">✕ failed</span>';
@@ -174,10 +189,10 @@ function outcomeChip(m) {
 }
 
 /** The ribbon of years, the marks above it, the axis and the legend. onPick(mark, button) when a mark is tapped. */
-export function renderLifeLine(el, data, { onPick }) {
+export function renderLifeLine(el, data, { onPick, onAdd = null }) {
   el.innerHTML = '';
   if (!data.years.length) {
-    el.appendChild(emptyState({ missing: 'No years to draw yet.', why: 'A birth date (even just the year) or one dated event starts the life line.', action: null }));
+    el.appendChild(emptyState({ missing: 'No years to draw yet.', why: 'A birth date (even just the year) or one dated event starts the life line.', action: onAdd ? '+ Add an event' : null, onAction: onAdd }));
     return;
   }
   const n = data.years.length;
@@ -205,14 +220,24 @@ export function renderLifeLine(el, data, { onPick }) {
     s.style.left = xOf(t);
     axis.appendChild(s);
   }
+  // same kind, same year → one mark with a count: nine Grammys in 1984 are
+  // "★ ×9", not a tower of nine stars pushing the ribbon off the screen
+  // (seen on the first real Wikidata pull, 2026-09-07)
+  const groups = new Map();
   for (const m of data.marks) {
+    const k = `${m.year}|${m.kind}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(m);
+  }
+  const shown = [...groups.values()].map((g) => (g.length === 1 ? g[0] : clusterMark(g)));
+  for (const m of shown) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = `lm-mark lm-o-${m.outcome || 'none'}`;
     b.dataset.id = m.id;
     b.dataset.year = String(m.year);
     b.style.left = xOf(m.year);
-    b.innerHTML = `<span class="g">${m.glyph}</span><span class="y mono">${m.year}</span>`;
+    b.innerHTML = `<span class="g">${m.glyph}</span><span class="y mono">${m.year}</span>${m.cluster ? `<span class="n mono">×${m.cluster.length}</span>` : ''}`;
     b.title = `${m.title} · ${m.year}${m.outcome ? ' · ' + m.outcome : ''}`;
     b.addEventListener('click', () => {
       marks.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
@@ -232,8 +257,9 @@ export function renderLifeLine(el, data, { onPick }) {
   legend.innerHTML += `<span><i class="lm-key lm-o-worked"></i>worked</span><span><i class="lm-key lm-o-failed"></i>failed · ended</span><span><i class="lm-key"></i>not yet judged</span>`;
   el.appendChild(legend);
 
-  // crowded marks stack into rows (her pick for the phone) — greedy by x, re-run on resize
-  const MIN = 30;
+  // crowded marks stack into rows (her pick for the phone) — greedy by x, re-run on resize;
+  // a row is one mark tall (22px glyph + year label) so a count badge never touches the label above
+  const MIN = 36;
   const layout = () => {
     const w = ribbon.getBoundingClientRect().width || 1;
     const lastX = [];
@@ -300,18 +326,20 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome }) {
   el.innerHTML = `
     <div class="lm-why">
       <span class="k">what</span>
-      <span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}</span>
+      ${m.cluster
+        ? `<span class="line" style="flex-direction:column;align-items:flex-start;gap:2px"><b>${m.glyph} ${esc(m.title)} · ${m.year}</b>${m.cluster.map((x) => `<span style="display:flex;gap:8px;align-items:baseline"><span class="mono dim" style="width:88px;flex:none">${fmtWhen(x)}</span><span>${esc(x.title)}</span>${x.outcome ? outcomeChip(x) : ''}</span>`).join('')}</span>`
+        : `<span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}</span>`}
       <span class="k">their year</span>
       <span class="line">${py != null ? `<span class="lm-py lm-t-${pyTone(py)}">${py}</span><span>personal year ${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}<span class="mono dim">${yearLine}</span></span>
       ${spouse ? '<span class="k">the two</span><span class="line" id="lm-pair"></span>' : ''}
-      ${m.event ? `<span class="k">judge</span><span class="line"><button type="button" class="lm-v lm-v-best lm-tag ${m.tagged === 'worked' ? 'on' : ''}" data-oc="worked">✓ worked</button><button type="button" class="lm-v lm-v-enemy lm-tag ${m.tagged === 'failed' ? 'on' : ''}" data-oc="failed">✕ failed</button>${m.inferred ? '<span class="dim">from the record — tap to overrule</span>' : m.tagged ? '<span class="dim">your call — tap again to clear</span>' : ''}</span>` : '<span class="k">judge</span><span class="line dim">from the relationship record</span>'}
+      ${m.event ? `<span class="k">judge</span><span class="line"><button type="button" class="lm-v lm-v-best lm-tag ${m.tagged === 'worked' ? 'on' : ''}" data-oc="worked">✓ worked</button><button type="button" class="lm-v lm-v-enemy lm-tag ${m.tagged === 'failed' ? 'on' : ''}" data-oc="failed">✕ failed</button>${m.inferred ? '<span class="dim">from the record — tap to overrule</span>' : m.tagged ? '<span class="dim">your call — tap again to clear</span>' : ''}</span>` : `<span class="k">judge</span><span class="line dim">${m.cluster ? 'judge each one from the year list' : 'from the relationship record'}</span>`}
     </div>`;
   if (spouse) el.querySelector('#lm-pair').append(...verdictChips(person, spouse));
   el.querySelectorAll('[data-oc]').forEach((b) => b.addEventListener('click', () => onOutcome(m, m.tagged === b.dataset.oc ? null : b.dataset.oc)));
 }
 
 /** The circle: spouse cards first (married → ended, both personal years), then family, each with the verdict chips. */
-export async function renderCircle(el, { person, rels, people, data, onOpen }) {
+export async function renderCircle(el, { person, rels, people, data, onOpen, onAdd = null }) {
   el.innerHTML = '';
   const byId = new Map((people || []).map((p) => [p.id, p]));
   const items = [];
@@ -328,7 +356,7 @@ export async function renderCircle(el, { person, rels, people, data, onOpen }) {
   const order = { spouse: 0, parent: 1, child: 2, sibling: 3, godparent: 4, godchild: 5 };
   items.sort((a, b) => ((order[a.rel] ?? 9) - (order[b.rel] ?? 9)) || String(a.r.start_date || '').localeCompare(String(b.r.start_date || '')));
   if (!items.length) {
-    el.appendChild(emptyState({ missing: 'No one in the circle yet.', why: 'Spouses and family come from the tree — or "Insert family" under + Add for a public figure.', action: null }));
+    el.appendChild(emptyState({ missing: 'No one in the circle yet.', why: 'Spouses and family come from the tree — or "Insert family" under + Add for a public figure.', action: onAdd ? '+ Add' : null, onAction: onAdd }));
     return;
   }
   const cards = await Promise.all(items.map(async ({ other, rel, r }) => {

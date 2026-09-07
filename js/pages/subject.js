@@ -5,16 +5,31 @@ import { relation } from '../relations.js';
 import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, animalLabel, signHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { renderPairs } from '../contradictions.js';
-import { parseProfileText } from '../profile-parse.js';
+import { parseProfileText, parseDate } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
+import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCircle, renderCompare, tokensHtml } from '../lifemap.js';
 
+// the kinds she can give an event by hand (the life line's marks read them)
+const EVENT_KINDS = [
+  ['other', 'event'], ['marriage', 'married'], ['divorce', 'ended'], ['award', 'award'], ['trial', 'trial'],
+  ['crisis', 'crisis'], ['move', 'moved'], ['business', 'business'], ['release', 'release'], ['death', 'died'],
+];
+
 function fmtLongDate(iso) {
   if (!iso) return null;
   return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// a parsed date read at its honest precision: "14 Nov 1996" · "Nov 1996" · "1996"
+function preciseText(d) {
+  if (!d) return '—';
+  if (d.precision === 'day' && d.date) return fmtLongDate(d.date);
+  if (d.precision === 'month' && d.date) return new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return String(d.year || (d.date ? d.date.slice(0, 4) : '—'));
 }
 
 // "44 (born 13 Nov 1981)" · "died at 56" · "≈44 (born 1981)" · "unknown" — never a guess dressed as a fact
@@ -257,6 +272,15 @@ export async function render(root, ctx, personId, tab = 'profile') {
            she taps it, so the page itself only shows what she reads -->
       <div id="add-tools" hidden>
         <div class="field">
+          <label>Add an event — what happened, when</label>
+          <div class="row wrap" style="gap:8px">
+            <input type="text" id="ev-title" placeholder="Married Debbie Rowe · won a Grammy · moved to Paris" style="flex:2 1 220px">
+            <select id="ev-kind" style="flex:0 0 auto">${EVENT_KINDS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+            <input type="text" id="ev-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
+            <button class="btn btn-primary btn-sm" id="ev-save">Add</button>
+          </div>
+        </div>
+        <div class="field" style="margin-top:16px">
           <label>Import information — paste anything, it saves what it recognises</label>
           <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
         </div>
@@ -270,6 +294,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
             <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
             <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>
             <button class="btn btn-ghost btn-sm" id="lk-works" title="Albums, EPs, singles and songs with their release dates — from Wikidata, as the record">+ Works</button>
+            <button class="btn btn-ghost btn-sm" id="lk-life" title="Marriages with their dates, awards, positions, homes, schools — from Wikidata, as the record; a marriage also dates the relationship">+ Life events</button>
             <button class="btn btn-ghost btn-sm" id="lk-family" title="Parents, siblings, children, spouse, godchildren — straight into this case, with their profiles">Insert family</button>
           </div>
         </div>
@@ -403,8 +428,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
       }
     },
   });
-  renderLifeLine(lifeEl, lifeData, { onPick: showWhy });
-  renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson });
+  // empty states hand her straight to the + Add sheet (openAdd is declared
+  // below; it only runs on a tap, long after this render has finished)
+  const addFromEmpty = () => { openAdd(); setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80); };
+  renderLifeLine(lifeEl, lifeData, { onPick: showWhy, onAdd: addFromEmpty });
+  renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson, onAdd: addFromEmpty });
   root.querySelector('#compare-btn').addEventListener('click', () => {
     const slot = root.querySelector('#compare-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }
@@ -443,6 +471,100 @@ export async function render(root, ctx, personId, tab = 'profile') {
     if (e.key !== 'Enter') return;
     e.preventDefault(); e.stopPropagation();
     tools.querySelector('#lk-search').click();
+  });
+
+  // ---- Add an event by hand (her ask, 2026-09-07: the Board and the life
+  // line read events, and nothing put any there) — her entry is the record,
+  // like the paste box; the date keeps its honest precision ----
+  tools.querySelector('#ev-save').addEventListener('click', async () => {
+    const btn = tools.querySelector('#ev-save');
+    clearInlineNote(btn);
+    const title = tools.querySelector('#ev-title').value.trim();
+    const kind = tools.querySelector('#ev-kind').value;
+    const dateText = tools.querySelector('#ev-date').value.trim();
+    if (!title) { inlineNote(btn, 'Say what happened first.'); return; }
+    const d = dateText ? parseDate(dateText) : null;
+    if (dateText && !d) { inlineNote(btn, 'That date didn’t read — try "14 Nov 1996", "Nov 1996" or "1996".'); return; }
+    await store.createEvent({ case_id: ctx.caseId, person_id: person.id, title, kind, date: d ? d.date : null, date_precision: d ? d.precision : 'unknown', date_year_min: d ? d.year : null, date_year_max: d ? d.year : null });
+    sessionStorage.setItem('c7-pi-result', `Event added — ${title} · ${d ? preciseText(d) : 'undated'}. It reads on the life line and the Board.`);
+    ctx.closeDrawer();
+    render(root, ctx, personId, tab);
+  });
+  tools.querySelector('#ev-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-date').focus(); } });
+  tools.querySelector('#ev-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-save').click(); } });
+  // the Board's (or the life line's) empty state sent her here for the first event
+  if (sessionStorage.getItem('c7-open-add')) {
+    sessionStorage.removeItem('c7-open-add');
+    openAdd();
+    setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80);
+  }
+
+  // ---- + Life events: marriages with dates, awards, positions, homes,
+  // schools — from Wikidata, as the record; a marriage also dates the relationship ----
+  tools.querySelector('#lk-life').addEventListener('click', async () => {
+    const btn = tools.querySelector('#lk-life');
+    const resultsEl = tools.querySelector('#lk-results');
+    clearInlineNote(btn);
+    resultsEl.innerHTML = '';
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(tools.querySelector('#lk-name').value); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = '+ Life events';
+    if (person.wikidata_id && !matches.some((m) => m.id === person.wikidata_id)) matches.unshift({ id: person.wikidata_id, label: person.display_name, description: 'this profile’s own Wikidata record' });
+    if (!matches.length) { inlineNote(btn, 'No match on Wikidata — life events can only be read from a public record.'); return; }
+    const whenText = (c) => (c.date ? preciseText(c.date) : '—');
+    const showPicker = async (m) => {
+      resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Reading their life events from Wikidata…</div>';
+      let list = [];
+      try { list = await fetchLifeEvents(m.id); }
+      catch (e) { resultsEl.innerHTML = `<div class="inline-note">Life events could not be read — ${e.message}</div>`; return; }
+      if (!list.length) { resultsEl.innerHTML = '<div class="inline-note">Wikidata holds no dated marriages, awards, positions, homes or schools on that record.</div>'; return; }
+      if (!person.wikidata_id) await store.updatePerson(person.id, { wikidata_id: m.id });
+      const existing = await store.listEventsForCase(ctx.caseId);
+      const isHere = (c) => alreadyHere(c, existing, person.id);
+      const on = new Set(LIFE_GROUPS.map((g) => g.key));
+      const picked = new Set(list.filter((c) => !isHere(c) && c.date).map((c) => c.key)); // undated rows start unticked
+      const counts = countByGroup(list);
+      const visible = (c) => on.has(c.group);
+      const countNew = () => list.filter((c) => visible(c) && picked.has(c.key) && !isHere(c)).length;
+      const paint = () => {
+        const shown = list.filter(visible);
+        const already = list.filter(isHere).length;
+        const n = countNew();
+        resultsEl.innerHTML = `
+          <div class="row wrap" style="gap:6px;margin:8px 0;align-items:center">
+            ${LIFE_GROUPS.map((g) => (counts[g.key] ? `<button type="button" class="chip ${on.has(g.key) ? 'brass' : ''}" data-g="${g.key}" style="cursor:pointer;border:0" title="${on.has(g.key) ? 'Hide' : 'Show'} ${g.label.toLowerCase()}">${g.label} · ${counts[g.key]}</button>` : '')).join('')}
+            ${already ? `<span class="mono" style="font-size:11px;color:var(--text-3);margin-left:auto">${already} already here</span>` : ''}
+          </div>
+          <div class="stack" style="gap:2px;max-height:320px;overflow:auto">
+            ${shown.map((c) => `<label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer"><input type="checkbox" data-k="${esc(c.key)}" ${isHere(c) ? 'checked disabled' : picked.has(c.key) ? 'checked' : ''}><span class="mono" style="font-size:11px;color:var(--text-3);width:92px;flex:none">${whenText(c)}</span><span class="main" style="font-size:12px">${esc(c.title)}</span>${!c.date ? '<span class="chip" title="No date on the record — it would only show in the year list">undated</span>' : ''}<span class="chip">${LIFE_GROUPS.find((g) => g.key === c.group).label.toLowerCase()}</span></label>`).join('')}
+          </div>
+          <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center"><button class="btn btn-primary btn-sm" id="le-add" ${n ? '' : 'disabled'}>Add ${n} event${n === 1 ? '' : 's'}</button><span style="font-size:11px;color:var(--text-3)">Each lands on the life line and the Board citing Wikidata; a marriage also dates the relationship.</span></div>`;
+        resultsEl.querySelectorAll('[data-g]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.g; if (on.has(k)) on.delete(k); else on.add(k); paint(); }));
+        resultsEl.querySelectorAll('[data-k]').forEach((cb) => cb.addEventListener('change', () => {
+          if (cb.checked) picked.add(cb.dataset.k); else picked.delete(cb.dataset.k);
+          const nn = countNew(); const ab = resultsEl.querySelector('#le-add'); ab.disabled = !nn; ab.textContent = `Add ${nn} event${nn === 1 ? '' : 's'}`;
+        }));
+        resultsEl.querySelector('#le-add').addEventListener('click', async () => {
+          const chosen = list.filter((c) => visible(c) && picked.has(c.key) && !isHere(c));
+          resultsEl.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="le-prog">Adding life events…</div>';
+          const prog = resultsEl.querySelector('#le-prog');
+          const r = await addLifeEvents(store, ctx.caseId, person.id, chosen, (msg) => { prog.textContent = `Adding life events… ${msg}`; });
+          sessionStorage.setItem('c7-pi-result', `${r.added} life event${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} undated)` : ''}${r.dated ? ` · ${r.dated} relationship${r.dated === 1 ? '' : 's'} dated` : ''}${r.skipped ? ` · ${r.skipped} already here` : ''}. They read on the life line and the Board.`);
+          ctx.closeDrawer();
+          ctx.rerender();
+        });
+      };
+      paint();
+    };
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Their life events ▸</span>`;
+      row.addEventListener('click', () => showPicker(m));
+      resultsEl.appendChild(row);
+    }
   });
 
   const grid = root.querySelector('#profile-grid');

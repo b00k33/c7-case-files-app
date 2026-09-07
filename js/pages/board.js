@@ -12,7 +12,17 @@ function fmtT(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export async function render(root, ctx) {
+// a card's date at its honest precision: "26 May 1994" · "Nov 1996" · "1996"
+function cardWhen(ev) {
+  const y = cardYear(ev);
+  if (!ev.date) return String(y);
+  const d = new Date(`${ev.date}T00:00:00`);
+  if (ev.date_precision === 'month') return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  if (ev.date_precision === 'year' || ev.date_precision === 'decade') return String(y);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export async function render(root, ctx, personId = null) {
   const { store } = ctx;
   if (!ctx.caseId) {
     root.innerHTML = '';
@@ -58,10 +68,16 @@ export async function render(root, ctx) {
 
   if (!dated.length && !undated.length) {
     slot.appendChild(emptyState({
-      missing: 'No events in this case yet.',
-      why: 'The board reads its cards from events — none have been created.',
-      action: 'Go to a subject file to add one',
-      onAction: () => ctx.navigate('#/relations'),
+      missing: 'No events on the board yet.',
+      why: 'The board hangs its cards on dated events — marriages, releases, awards, moves. None exist for this case yet.',
+      action: '+ Add an event',
+      onAction: async () => {
+        // straight to the + Add sheet on the person, ready for the first event (her pick, 2026-09-07)
+        let pid = personId;
+        if (!pid) { const people = await store.listPeople(ctx.caseId); pid = people[0] ? people[0].id : null; }
+        sessionStorage.setItem('c7-open-add', 'event');
+        ctx.navigate(pid ? `#/subject/${pid}` : '#/subject');
+      },
     }));
     return;
   }
@@ -125,7 +141,7 @@ export async function render(root, ctx) {
       } else {
         const milestone = isMilestoneKind(ev.kind);
         if (milestone) card.classList.add('milestone');
-        card.innerHTML = `<div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${ev.date || y} · ${milestone ? MILESTONE_KIND_LABEL[ev.kind] : (ev.kind || '')}</div>`;
+        card.innerHTML = `<div class="t">${ev.title}</div><div class="mono" style="font-size:10px;color:var(--text-3)">${cardWhen(ev)} · ${milestone ? MILESTONE_KIND_LABEL[ev.kind] : (ev.kind || '')}</div>`;
         card.addEventListener('click', () => { if (ev.person_id) ctx.navigate(`#/subject/${ev.person_id}`); });
       }
       cardsLayer.appendChild(card);

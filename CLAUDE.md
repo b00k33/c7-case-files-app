@@ -221,6 +221,18 @@ tier, spouse/family cards with glyph + word verdicts). Build the life map
 to §13g and show a preview first; don't re-ask. STYLE §1 now has both
 palettes — never a raw hex in app.css, every colour through a token.
 
+**2026-09-07, later still — "i dont know how the board works. its all
+empty for everyone" (v76, SPEC §13h).** The Board and the life line only
+*read* events, and nothing in the app *wrote* one for a person — Look up
+filled the profile, + Works added releases, and that was it. Every reading
+surface needs a one-tap writer beside it, or it is a dead surface: + Add
+now opens on an event form (what happened · kind · when, at honest
+precision), "+ Life events" pulls marriages/awards/positions/homes/
+schools from Wikidata as a tick list, and every empty state on Board /
+life line / circle lands in that sheet. Same-kind same-year marks
+collapse to one counted mark ("★ ×9") — a tower of nine Grammys pushed
+the ribbon off the screen on the first real pull.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other
