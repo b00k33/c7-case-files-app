@@ -277,6 +277,17 @@ no scripts, so a JS-drawn guide showed her empty headings. Generate
 static mocks with `cscript //E:JScript` (no node or python on her
 machine); keep each mock to rail + header + one row + one button.
 
+**2026-09-08 — fiction after the fact (v82, SPEC §13m).** "where can i
+save him as fiction?" The Fictional tick box lived only in the "+ New"
+form, so `case_file.world` could never change: a case created as real
+research was stuck as real forever. The ⋯ menu on a case row now has
+Mark as fiction / Edit the world / Mark as real, beside the kind
+switches. Rule to carry: **anything the app asks at creation must be
+changeable afterwards.** A question asked once, at the moment a thing is
+made, is asked when she knows least — so every creation-time choice needs
+an edit path, and when she asks "where do I change X" the first thing to
+check is whether X was ever writable twice.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

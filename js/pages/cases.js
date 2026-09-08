@@ -197,6 +197,8 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
       <div class="row wrap" style="gap:6px;margin-top:8px">
         <button class="btn btn-ghost btn-sm m-rename">Rename</button>
         ${otherKinds(c.kind).map((k) => `<button class="btn btn-ghost btn-sm m-kind" data-kind="${k}">Make it ${KIND_LABEL[k]}</button>`).join('')}
+        <button class="btn btn-ghost btn-sm m-fiction">${c.world ? 'Edit the world' : 'Mark as fiction'}</button>
+        ${c.world ? '<button class="btn btn-ghost btn-sm m-real">Mark as real</button>' : ''}
         ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
         <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
       </div>
@@ -223,6 +225,25 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
         onChanged();
       });
     }
+    // fiction after the fact (2026-09-08, "where can i save him as fiction?").
+    // The tick box in "+ New" was the only way in, and case_file.world was
+    // written at creation and never again — so a case made as real research
+    // could never become a made-up world. It sits beside the kind switches
+    // because it answers the same question: what IS this case?
+    slot.querySelector('.m-fiction').addEventListener('click', () => {
+      slot.innerHTML = '';
+      slot.appendChild(inlineNameForm({
+        label: 'Which made-up world is this? Leave it as Fictional if the world has no name.',
+        value: c.world || 'Fictional',
+        placeholder: 'World, e.g. Harry Potter',
+        submitLabel: 'Save',
+        onSubmit: async (world) => { await store.updateCase(c.id, { world }); onChanged(); },
+      }));
+    });
+    slot.querySelector('.m-real')?.addEventListener('click', async () => {
+      await store.updateCase(c.id, { world: null });
+      onChanged();
+    });
   });
 }
 

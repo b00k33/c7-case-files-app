@@ -1301,6 +1301,32 @@ the gold *tier* of her code keeps its gold the way the zodiac keeps its
 colours. Fifteen other claims were refuted, most of them pre-existing
 11px chip contrasts of 4.2–4.5 that this change did not move.
 
+## 13m. Fiction after the fact (v82, 2026-09-08)
+
+"where can i save him as fiction?" — asked from a person page, about a
+case that had been created as real research. The answer was nowhere:
+`case_file.world` was written by the tick box in "+ New" and never again
+(db.js said so in as many words, "set at creation only"), the ⋯ menu
+offered Rename / Make it … / Clean up duplicates / Delete, and the
+person's Edit panel has no such field. A case made under the wrong
+assumption was stuck with it forever.
+
+The ⋯ menu on a case row now carries it, beside the kind switches
+because it answers the same question — what IS this case?
+
+- real now → **Mark as fiction**, which opens the same inline form the
+  rest of the menu uses, pre-filled with "Fictional" so a world with no
+  name still saves (the form refuses an empty value)
+- fiction now → **Edit the world** (pre-filled with the current world)
+  and **Mark as real**, which clears it
+
+No confirm on either: both are one click back, unlike Delete. The row
+re-renders, so the violet world pill appears or goes at once, and the
+Questions tab picks up its "the world" wording and 🌍 the next time it
+is opened. Rule to carry: **anything the app asks at creation must be
+changeable afterwards** — a one-shot question is a trap, because the
+answer is least certain at the moment the thing is made.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a
