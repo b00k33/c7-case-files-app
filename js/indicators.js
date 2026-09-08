@@ -324,7 +324,7 @@ export function relationGlyph(kind, { unsettled = false } = {}) {
   const size = 16;
   const root = svg('svg', { viewBox: `0 0 ${size} ${size}`, width: size, height: size, class: 'c7-relation-glyph', 'data-kind': kind });
   const color = unsettled ? 'var(--text-3)' : {
-    clash: 'var(--red)', trine: 'var(--green)', harmony: 'var(--teal)', same: 'var(--brass)', neutral: 'var(--text-3)',
+    clash: 'var(--red)', trine: 'var(--green)', harmony: 'var(--teal)', same: 'var(--gold)', neutral: 'var(--text-3)',
   }[kind];
 
   if (unsettled) {

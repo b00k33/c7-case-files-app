@@ -1,9 +1,10 @@
 /* C7 Case Files — design tokens. Self-contained; see STYLE.md.
    Two grounds since 2026-09-07 ("it looks too dark. and the gold is too
-   light"): paper by day, ink by night. index.html stamps data-theme on
-   <html> before first paint — "light" | "dark" — from her pick in the
-   sync drawer or, by default, the phone's own setting. Every colour in
-   app.css goes through these tokens so both grounds stay true.
+   light"): ink by night, and — since 2026-09-08 ("redesign the day
+   palette. i dont like it") — cool white by day. index.html stamps
+   data-theme on <html> before first paint — "light" | "dark" — from her
+   pick in the sync drawer or, by default, the phone's own setting. Every
+   colour in app.css goes through these tokens so both grounds stay true.
 
    Depth since 2026-09-07 night ("i like the dark theme more … just wish
    it had more dimension instead of being too plain and flat"): the
@@ -26,8 +27,9 @@
   --text-2: #b9bfc9;
   --text-3: #8891a0;
 
-  --brass: #e0a33a;      /* gold — her pick: brighter (2026-09-07) */
+  --brass: #e0a33a;      /* the accent — by night it is gold, her pick: brighter (2026-09-07) */
   --on-brass: #1b1e24;   /* text on a brass surface */
+  --gold: #e0a33a;       /* the life path number — gold on both grounds */
   --teal: #5fb3a6;
   --green: #6faa6f;
   --amber: #e0a33a;
@@ -36,7 +38,11 @@
 
   /* depth — see the note above */
   --ground: radial-gradient(120% 90% at 50% 30%, #1a1d23 0%, #101216 100%); /* vignette behind everything */
+  --bar-bg: transparent;                        /* the top bar: night lets the ground through */
   --rail-edge: rgba(255, 255, 255, .04);
+  --rail-shadow: 0 0 0 0 transparent;           /* night's rail is sunk, not floating */
+  --topbar-shadow: 0 0 0 0 transparent;
+  --tabbar-shadow: 0 0 0 0 transparent;
   --lift-1: inset 0 1px 0 rgba(255, 255, 255, .035), 0 2px 6px rgba(0, 0, 0, .2);          /* a panel: calm */
   --lift-2: inset 0 1px 0 rgba(255, 255, 255, .06), 0 4px 10px rgba(0, 0, 0, .3);          /* a card, a button: what she taps */
   --lift-2-hover: inset 0 1px 0 rgba(255, 255, 255, .08), 0 10px 22px rgba(0, 0, 0, .5);   /* … under her finger */
@@ -48,6 +54,7 @@
   --shadow: 0 12px 32px rgba(0, 0, 0, .5), 0 0 0 1px var(--line);                          /* drawer, search results */
 
   /* her zodiac colour code — Chinese trines and Western elements */
+  --on-code: #15181d;   /* text on a solid code pill (day only; night keeps tinted pills) */
   --zc-blue: #6f9cf0;   /* Snake · Ox · Rooster */
   --zc-green: #5cb87a;  /* Dog · Tiger · Horse */
   --zc-pink: #ec86b4;   /* Pig · Goat · Rabbit (Cat) */
@@ -80,50 +87,58 @@
   --focus: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--brass);
 }
 
-/* day — ink on paper. The same jobs, not an inversion: page is the warm
-   paper, panels a shade lighter, rows/cards/inputs white, chips a shade
-   darker than the page so they still read as pressed. The same depth,
-   with paper-coloured shadows (her pick, 2026-09-07). */
+/* day — cool white (2026-09-08, "redesign the day palette. i dont like
+   it"; her eight picks are SPEC §13l). Not the night palette inverted and
+   not the old cream paper: a grey-white page, white rail / top bar / tab
+   bar floating on a soft grey shadow, white cards, near-black ink, teal as
+   the accent, gold kept for the life path number only, and the zodiac
+   code deep enough to carry white text on a solid pill (≥ 4.5:1). */
 :root[data-theme="light"] {
   color-scheme: light;
-  --ink-0: #efeae0;
-  --ink-rail: #e7e1d4;
-  --ink-1: #f9f7f1;
-  --ink-2: #ffffff;
-  --ink-3: #e6e0d3;
-  --line: #d6cfc0;
-  --text: #1e2128;
-  --text-2: #4f5661;
-  --text-3: #7d8592;
+  --ink-0: #f4f5f7;      /* the ground — cool white */
+  --ink-rail: #ffffff;   /* rail, top bar, tab bar — white, floating on --rail-shadow */
+  --ink-1: #fafbfc;      /* panels */
+  --ink-2: #ffffff;      /* cards, rows, inputs */
+  --ink-3: #e9ecf0;      /* chips, hover, pressed */
+  --line: #dfe3e8;
+  --text: #15181d;       /* near-black — "washed out" was her word for the old grey */
+  --text-2: #3f4652;
+  --text-3: #636c79;
 
-  --brass: #a8731c;      /* old gold */
+  --brass: #287d71;      /* the day accent is teal (her pick); the token keeps its name for its job */
   --on-brass: #ffffff;
-  --teal: #2f8a7d;
-  --green: #4f8f4f;
-  --amber: #a8731c;
-  --red: #b5503f;
+  --gold: #9a6a17;       /* gold survives by day only on the life path number */
+  --teal: #287d71;
+  --green: #2b7d44;
+  --amber: #9a6a17;
+  --red: #b8332a;
   --violet: #6d63b3;
 
-  --ground: radial-gradient(120% 90% at 50% 30%, #f3efe6 0%, #e8e2d5 100%);
-  --rail-edge: rgba(50, 40, 20, .08);
-  --lift-1: 0 4px 12px rgba(50, 40, 20, .10), 0 0 0 1px rgba(50, 40, 20, .04);
-  --lift-2: 0 3px 8px rgba(50, 40, 20, .12), 0 0 0 1px rgba(50, 40, 20, .05);
-  --lift-2-hover: 0 10px 22px rgba(50, 40, 20, .2), 0 0 0 1px rgba(50, 40, 20, .06);
-  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .3), 0 2px 6px rgba(80, 60, 20, .25);
-  --press: inset 0 2px 3px rgba(80, 60, 20, .25);
-  --lift-face: 0 3px 8px rgba(50, 40, 20, .18);
-  --lift-mark: 0 2px 4px rgba(50, 40, 20, .2);
-  --sink: inset 0 2px 3px rgba(50, 40, 20, .18), inset 0 -1px 0 rgba(255, 255, 255, .6);
-  --shadow: 0 12px 32px rgba(50, 40, 20, .18), 0 0 0 1px var(--line);
+  --ground: radial-gradient(120% 90% at 50% 30%, #f7f8fa 0%, #eceef1 100%);
+  --bar-bg: #ffffff;
+  --rail-edge: rgba(20, 24, 32, .06);
+  --rail-shadow: 2px 0 8px rgba(20, 24, 32, .08);
+  --topbar-shadow: 0 2px 8px rgba(20, 24, 32, .06);
+  --tabbar-shadow: 0 -2px 8px rgba(20, 24, 32, .08);
+  --lift-1: 0 1px 2px rgba(20, 24, 32, .05), 0 0 0 1px rgba(20, 24, 32, .04);
+  --lift-2: 0 1px 3px rgba(20, 24, 32, .08), 0 0 0 1px rgba(20, 24, 32, .05);
+  --lift-2-hover: 0 6px 16px rgba(20, 24, 32, .12), 0 0 0 1px rgba(20, 24, 32, .06);
+  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .2), 0 1px 3px rgba(20, 24, 32, .18);
+  --press: inset 0 2px 3px rgba(20, 24, 32, .18);
+  --lift-face: 0 2px 6px rgba(20, 24, 32, .14);
+  --lift-mark: 0 2px 4px rgba(20, 24, 32, .14);
+  --sink: inset 0 2px 3px rgba(20, 24, 32, .12), inset 0 -1px 0 rgba(255, 255, 255, .8);
+  --shadow: 0 12px 32px rgba(20, 24, 32, .14), 0 0 0 1px var(--line);
 
-  /* the same code, each a step deeper so it holds on white */
+  /* the same code, each deep enough for white text on a solid pill */
+  --on-code: #ffffff;
   --zc-blue: #3b6fd6;
-  --zc-green: #2f8a4a;
-  --zc-pink: #c9498a;
-  --zc-yellow: #b8901a;
-  --ws-air: #2f8fc4;
+  --zc-green: #2b7d44;
+  --zc-pink: #b43a78;
+  --zc-yellow: #8f6c10;
+  --ws-air: #2277a8;
   --ws-fire: #c93a30;
-  --ws-earth: #9a6f1a;
+  --ws-earth: #8a6216;
   --ws-water: #2f4fa8;
 }
 

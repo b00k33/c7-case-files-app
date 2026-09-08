@@ -262,6 +262,21 @@ carry: **a list row shows the same three tokens as the person page, or
 the honest "needs a full birth date" — never a sign read from a
 placeholder date.**
 
+**2026-09-08 — the day palette, redesigned (v81, SPEC §13l).** "redesign
+the day palette. i dont like it" — all four parts of the cream-and-gold
+day look bothered her. Her eight picks: cool-white page, white rail /
+top bar / tab bar floating on a soft grey shadow, TEAL as the day
+accent (`--brass` is teal by day; the token keeps its name for its job),
+near-black ink, neutral shadows, gold only on the life path number
+(`--gold`), solid zodiac pills with white text (`--on-code`; every day
+shade re-picked to ≥ 4.5:1). Night untouched. Rules to carry: **a theme
+is tokens, never a second rule set** — app.css gained one appended block
+that reads tokens night sets to no-ops; and **when she asks a visual
+question, the page she is shown must be static HTML** — her viewer runs
+no scripts, so a JS-drawn guide showed her empty headings. Generate
+static mocks with `cscript //E:JScript` (no node or python on her
+machine); keep each mock to rail + header + one row + one button.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

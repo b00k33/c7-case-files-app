@@ -1256,6 +1256,51 @@ several attention chips drop under the tokens rather than over them;
 carries a shadow (its 32px blur bled a dark band down the right edge of
 every page since v77).
 
+## 13l. The day palette, redesigned (v81, 2026-09-08)
+
+"redesign the day palette. i dont like it." Asked what bothered her about
+the cream-and-gold day look she ticked all four: the cream page, washed-out
+text, the muddy old gold, the brown shadows. Two drawn pages (static HTML
+— her viewer runs no scripts, a first page built with JS showed empty
+headings) and two popup rounds gave eight picks:
+
+| # | question | her pick |
+|---|---|---|
+| 1 | what bothers you | all four: cream page, washed out, the gold, brown shadows |
+| 2 | page colour | **A** cool white — grey-white page, white cards |
+| 3 | rail and top bar | **D** white rail floating on a soft shadow (not the Book33 dark rail) |
+| 4 | accent | **D** teal — buttons, chips, active tab; gold retired as accent |
+| 5 | text | **A** near-black ink |
+| 6 | shadows | **A** soft grey, neutral (no warm tint) |
+| 7 | where gold lives | **A** only the life path number |
+| 8 | animal and sign tokens | **B** solid pills, full colour, white text |
+
+Built as tokens only (`css/tokens.css` light block) plus one appended
+block in app.css: `--brass` by day is teal #287d71 (the token keeps its
+name for its job — every accent rule reads it), a new `--gold` (#e0a33a /
+#9a6a17) that `.lm-tokens .tk .big`, `.num-icons .ni-lp`, the tree's `.lp`
+and the gold tier read, `--bar-bg` + `--rail-shadow` / `--topbar-shadow` /
+`--tabbar-shadow` (night sets them transparent), `--on-code` for the solid
+pill text, and every day zodiac shade re-picked to hold ≥ 4.5:1 under
+white text (measured: yellow #8f6c10 4.86, earth #8a6216 5.47, air
+#2277a8 4.92, green #2b7d44 5.1, pink #b43a78 5.5; blue, fire and water
+already passed). Night is untouched. STYLE.md §1 carries the new table.
+
+Reviewed before the push by a four-lens adversarial workflow (52 agents;
+each finding faced two refuters). Four real problems, all fixed: the
+ribbon segment and legend swatch of the 1·8 "gold" tier still read
+`--brass`, which by day equals `--teal`, so two tiers had become one
+colour (now `.lm-t-gold` reads `--gold`, and the "same" verdict glyph in
+indicators.js follows its chip to `--gold`); the appended `.num-icons
+.ni-lp` rule outranked `.unknown` and painted the honest "—" gold on both
+grounds (now `:not(.unknown)`); the phone's status-bar `theme-color` still
+said cream #efeae0 by day (now white, the top bar's colour); and the
+person page's 22px headline life path was an inline `--brass`, teal by
+day (now `--gold`). Decision 7 is read as "gold is no longer the accent";
+the gold *tier* of her code keeps its gold the way the zodiac keeps its
+colours. Fifteen other claims were refuted, most of them pre-existing
+11px chip contrasts of 4.2–4.5 that this change did not move.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

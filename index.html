@@ -10,9 +10,10 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="js/version.js"></script>
 <script>
-// paper by day, ink by night (her pick, 2026-09-07): the ground is stamped
-// on <html> before the first paint — her own pick from the sync drawer
-// (c7-theme: light | dark), else the phone's setting, live.
+// cool white by day, ink by night (her picks, 2026-09-07/08): the ground is
+// stamped on <html> before the first paint — her own pick from the sync
+// drawer (c7-theme: light | dark), else the phone's setting, live. The
+// theme-color is the top bar's colour: --bar-bg white by day, --ink-0 by night.
 (function () {
   var mq = window.matchMedia('(prefers-color-scheme: light)');
   function apply() {
@@ -21,7 +22,7 @@
     var t = pref === 'light' || pref === 'dark' ? pref : (mq.matches ? 'light' : 'dark');
     document.documentElement.dataset.theme = t;
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.content = t === 'light' ? '#efeae0' : '#15181d';
+    if (m) m.content = t === 'light' ? '#ffffff' : '#15181d';
   }
   apply();
   if (mq.addEventListener) mq.addEventListener('change', apply);

@@ -9,40 +9,53 @@ that isn't covered below, add it here so the next build doesn't undo it.
 ## 1. Ground
 
 Two grounds, one design (2026-09-07, her words: "it looks too dark. and the
-gold is too light"): **paper by day, ink by night**. The phone's setting
-picks by default; the sync drawer has Follow phone · Day · Night. Neither
-ground is the other inverted — each palette is chosen so the same token
-keeps the same job. `index.html` stamps `data-theme="light|dark"` on
+gold is too light"): **ink by night, cool white by day**. The phone's
+setting picks by default; the sync drawer has Follow phone · Day · Night.
+Neither ground is the other inverted — each palette is chosen so the same
+token keeps the same job. `index.html` stamps `data-theme="light|dark"` on
 `<html>` before first paint; `css/tokens.css` holds both palettes.
 
 ```
-                 night (ink)   day (paper)
---ink-0          #15181d       #efeae0    the ground (a vignette, --ground, sits behind it)
---ink-rail       #111418       #e7e1d4    the nav rail / phone tab bar — sunk below the page
---ink-1          #20242b       #f9f7f1    panels, grouped areas
+                 night (ink)   day (cool white)
+--ink-0          #15181d       #f4f5f7    the ground (a vignette, --ground, sits behind it)
+--ink-rail       #111418       #ffffff    the nav rail / top bar / phone tab bar — sunk by night, floating by day
+--ink-1          #20242b       #fafbfc    panels, grouped areas
 --ink-2          #2a2f38       #ffffff    raised rows, cards, inputs
---ink-3          #353b45       #e6e0d3    hover, chips, pressed
---line           #3d444f       #d6cfc0    used sparingly, mostly as a 1px inset shadow
---text           #f1eee8       #1e2128
---text-2         #b9bfc9       #4f5661
---text-3         #8891a0       #7d8592
---brass          #e0a33a       #a8731c    the accent — actions, the current thing, "sourced"
+--ink-3          #353b45       #e9ecf0    hover, chips, pressed
+--line           #3d444f       #dfe3e8    used sparingly, mostly as a 1px inset shadow
+--text           #f1eee8       #15181d
+--text-2         #b9bfc9       #3f4652
+--text-3         #8891a0       #636c79
+--brass          #e0a33a       #287d71    the accent — actions, the current thing, "sourced". Gold by night, TEAL by day
 --on-brass       #1b1e24       #ffffff    text on a brass surface
---teal           #5fb3a6       #2f8a7d    links between things, secondary tags
---green          #6faa6f       #4f8f4f    corroborated
---amber          = brass       = brass    single-sourced, needs work
---red            #d0705e       #b5503f    disputed, contradicted, dead
+--gold           #e0a33a       #9a6a17    the life path number (and the gold tier) — the one place gold lives by day
+--teal           #5fb3a6       #287d71    links between things, secondary tags
+--green          #6faa6f       #2b7d44    corroborated
+--amber          = brass       = gold     single-sourced, needs work
+--red            #d0705e       #b8332a    disputed, contradicted, dead
 --violet         #9a91d4       #6d63b3    master numbers, historical subjects
---shadow         dark, 50%     warm, 18%  the big drop shadow (drawer, search results)
+--shadow         dark, 50%     grey, 14%  the big drop shadow (drawer, search results)
 ```
 
+By day `--brass` and `--teal` are the SAME hex on purpose (teal is the
+accent and the link colour). So nothing may rely on brass-vs-teal to tell
+two meanings apart: anything that means "gold" as a *code* — the life path
+number, the 1·8 "gold" tier of her compatibility code (`.lm-t-gold`,
+`.lm-py.lm-t-gold`, the "same" verdict glyph and chip) — reads `--gold`,
+never `--brass`. The honest blank (`.ni-lp.unknown`, `.dim`) stays
+`--text-3` on both grounds: a placeholder is never painted gold.
+
 Her zodiac colour code (`--zc-*` trines, `--ws-*` elements) keeps the same
-code on both grounds, each shade a step deeper on paper so it holds on
-white. **No raw hex in app.css** — every colour goes through a token, or
-the day ground silently breaks. The original single palette (#101216 page,
-#d9a54a brass) is retired: two steps too dark, and the brass read pale.
-The night gold went from #c9922e to #e0a33a on 2026-09-07 (her pick,
-"brighter").
+code on both grounds. By night the pills are tinted (18% wash, coloured
+text); by day they are **solid** — full colour, white text (`--on-code`) —
+so each day shade is deep enough to hold ≥ 4.5:1 against white. **No raw
+hex in app.css** — every colour goes through a token, or a ground silently
+breaks. The original single palette (#101216 page, #d9a54a brass) is
+retired: two steps too dark, and the brass read pale. The night gold went
+from #c9922e to #e0a33a on 2026-09-07 (her pick, "brighter"). The first day
+palette — cream paper #efeae0, old gold #a8731c, brown shadows — is retired
+on 2026-09-08 ("redesign the day palette. i dont like it"; all four parts
+bothered her; SPEC §13l).
 
 ### Depth (2026-09-07 night — "more dimension, not so plain and flat")
 

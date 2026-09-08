@@ -953,3 +953,31 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .lm-card, .board-card, .pic-row, .btn, .face-card .face { transition: none; }
   .lm-card:hover, .board-card:hover, .pic-row:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
 }
+
+/* ---------------------------------------------------------- day palette
+   2026-09-08 — "redesign the day palette. i dont like it": every part of
+   the old day look bothered her (cream page, washed-out text, muddy gold,
+   brown shadows). Her eight picks (SPEC §13l): cool-white page, white rail
+   with a shadow, teal as the accent, near-black ink, soft grey shadows,
+   gold kept only on the life path number, solid zodiac pills with white
+   text. Night is untouched — these rules read tokens that night sets to
+   its old values (transparent shadows, a gold that equals its brass). */
+#topbar { background: var(--bar-bg); box-shadow: var(--topbar-shadow); position: relative; z-index: 1; }
+#nav-rail { box-shadow: inset -1px 0 0 var(--rail-edge), var(--rail-shadow); }
+#tab-bar { box-shadow: 0 -1px 0 var(--rail-edge), var(--tabbar-shadow); }
+/* gold has one job: the life path number — and the "gold" tier of her code (1·8 years, the
+   "same" verdict), which is a colour code like the zodiac, not the accent. The unknown dash
+   (.ni-lp.unknown) keeps its grey: an honest blank is never painted gold. The ribbon segment
+   and legend swatch (.lm-t-gold) follow the same token so the tier is one colour everywhere. */
+.lm-tokens .tk .big, .num-icons .ni-lp:not(.unknown), .tree-group .mini .name .lp, .lm-py.lm-t-gold { color: var(--gold); }
+.lm-t-gold { background: var(--gold); }
+.lm-v-same, .lm-v-fifty { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold); }
+/* by day the zodiac pills are solid — full colour, white text; each day shade holds ≥ 4.5:1 */
+[data-theme="light"] .chip-icon.zc-blue { background: var(--zc-blue); color: var(--on-code); }
+[data-theme="light"] .chip-icon.zc-green { background: var(--zc-green); color: var(--on-code); }
+[data-theme="light"] .chip-icon.zc-pink { background: var(--zc-pink); color: var(--on-code); }
+[data-theme="light"] .chip-icon.zc-yellow { background: var(--zc-yellow); color: var(--on-code); }
+[data-theme="light"] .chip-icon.ws-air { background: var(--ws-air); color: var(--on-code); }
+[data-theme="light"] .chip-icon.ws-fire { background: var(--ws-fire); color: var(--on-code); }
+[data-theme="light"] .chip-icon.ws-earth { background: var(--ws-earth); color: var(--on-code); }
+[data-theme="light"] .chip-icon.ws-water { background: var(--ws-water); color: var(--on-code); }

@@ -108,8 +108,8 @@ function chartPanel(person, status) {
   wrap.style.marginTop = '16px';
   // the numbers read as numbers (audit 2026-09-01, her pick); the arithmetic
   // stays one tap away under "show working", never lost
-  // colour: brass for the life path; the animal and sun sign take her zodiac colour code
-  const big = (value, label, color) => `<div><div class="title" style="font-size:22px;color:${color === true ? 'var(--brass)' : (color || 'var(--text)')}">${value}</div><div class="section-label">${label}</div></div>`;
+  // colour: gold for the life path (the one place gold lives by day, v81); the animal and sun sign take her zodiac colour code
+  const big = (value, label, color) => `<div><div class="title" style="font-size:22px;color:${color === true ? 'var(--gold)' : (color || 'var(--text)')}">${value}</div><div class="section-label">${label}</div></div>`;
   wrap.innerHTML = `
     <div class="row wrap" style="gap:20px;align-items:flex-end">
       ${big(`${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
