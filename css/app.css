@@ -185,9 +185,9 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .chip.red { color: var(--red); }
 .chip.green { color: var(--green); }
 .chip.teal { color: var(--teal); }
-/* attention chips that are doors — "N to review →", "N open" — read as tappable */
-.chip.rv-open, .chip.q-open { cursor: pointer; box-shadow: var(--lift-2); }
-.chip.rv-open:hover, .chip.q-open:hover { background: var(--ink-2); }
+/* attention chips that are doors — "N to review →", "N images →", "N open" — read as tappable */
+.chip.rv-open, .chip.q-open, .chip.inbox-open { cursor: pointer; box-shadow: var(--lift-2); }
+.chip.rv-open:hover, .chip.q-open:hover, .chip.inbox-open:hover { background: var(--ink-2); }
 
 /* -------------------------------------------------------------- bar row */
 
@@ -495,21 +495,51 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .moment-row .m-addpic:hover { color: var(--brass); }
 
 /* ------------------------------------------------ cases home + faces */
-.case-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-3); }
-.case-card { background: var(--ink-1); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
-.case-card:hover { background: var(--ink-2); }
-.case-card .pic { position: relative; height: 96px; background: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 0; }
-.fic-ribbon { position: absolute; top: 8px; left: -6px; z-index: 1; background: var(--violet); color: var(--ink-0); font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 2px; transform: rotate(-8deg); max-width: 85%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.case-card .pic.multi .face { margin-left: -10px; border: 2px solid var(--ink-1); }
-.case-card .pic.multi .face:first-child { margin-left: 0; }
-.case-card .pic > .initials { font-family: var(--font-title); font-size: 26px; color: var(--brass); }
-.case-card .pic.event { background: linear-gradient(155deg, #362f57, #1c1930); }
-.case-card .pic.event > .initials { color: var(--violet); }
-.event-ribbon { position: absolute; top: 8px; left: 8px; z-index: 1; background: var(--violet); color: var(--ink-0); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 20px; }
-.case-card .body { padding: var(--sp-2) var(--sp-3) var(--sp-3); }
-.case-card .title { font-family: var(--font-title); font-size: 15px; color: var(--text); }
-.case-card .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-height: 0; }
-.case-card .menu-btn { padding: 0 8px; min-height: 28px; }
+/* (the .case-card grid and the .fic-ribbon / .event-ribbon of 2026-09-02
+   left on 2026-09-08 — the picture rows below replaced them) */
+
+/* picture rows (her Q15, 2026-09-07; built 2026-09-08): the Cases and People
+   lists are one row each — face · name · the three tokens; attention chips
+   stay, no kind or count text. One layout on the phone and the desktop. */
+.pic-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.pic-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3); min-height: 72px;
+  border-radius: var(--r-lg); background: var(--ink-1); cursor: pointer;
+  box-shadow: var(--lift-2); transition: transform 120ms ease-out, box-shadow 120ms ease-out, background 120ms ease-out;
+}
+.pic-row:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); background: var(--ink-2); }
+.pic-row .pic { flex: none; display: flex; align-items: center; position: relative; }
+.pic-row .pic.multi .face { margin-left: -4px; border: 2px solid var(--ink-1); }
+.pic-row .pic.multi .face:first-child { margin-left: 0; }
+.pic-row .pic .initials { font-size: 18px; }
+.pic-row .pic.event .face { background: linear-gradient(155deg, #362f57, #1c1930); }
+.pic-row .pic.event .initials { color: var(--violet); }
+.pic-row .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pic-row .line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+/* the name takes only its own width, so a "Fictional" pill sits right after
+   the word; the case note and the actions push themselves to the right */
+.pic-row .title { font-family: var(--font-title); font-size: 16px; line-height: 1.2; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.pic-row .where { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; margin-left: auto; }
+.pic-row .world { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-0); background: var(--violet); border-radius: 20px; padding: 2px 7px; white-space: nowrap; }
+.pic-row .actions { display: flex; gap: 2px; flex: none; margin-left: auto; }
+.pic-row .actions .btn { min-height: 28px; }
+.pic-row .lm-tokens { margin-top: 0; gap: var(--sp-1) var(--sp-3); flex: 1 1 auto; min-width: 0; }
+.pic-row .lm-tokens .tk .big { font-size: 16px; }
+.pic-row .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; justify-content: flex-end; }
+.pic-row .menu-slot:empty { display: none; }
+@media (max-width: 640px) {
+  .pic-row { padding: var(--sp-2); gap: var(--sp-2); }
+  .pic-row .title { font-size: 15px; }
+  .pic-row .where { display: none; }
+  /* the token line wraps, so a row with several attention chips drops them
+     under the tokens instead of painting over them (review, 2026-09-08) */
+  .pic-row .main > .line:nth-child(2) { flex-wrap: wrap; }
+  .pic-row .lm-tokens { gap: var(--sp-1) var(--sp-2); }
+  .pic-row .lm-tokens .tk .big { font-size: 15px; }
+  .pic-row .chip-icon { padding: 2px 8px 2px 6px; font-size: 12px; }
+  .pic-row .actions .btn { min-height: 32px; padding: 4px 8px; }
+}
 .face { border-radius: 50%; background: var(--ink-3); overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .face .initials { font-family: var(--font-title); color: var(--brass); font-size: 14px; }
@@ -517,7 +547,6 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .face-card { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; cursor: pointer; text-align: center; }
 .face-card .name { font-size: 12px; color: var(--text); line-height: 1.2; }
 .face-card:hover .name { color: var(--brass); }
-.people-row { gap: var(--sp-3); }
 .tab-strip { display: flex; gap: var(--sp-1); overflow-x: auto; border-bottom: 1px solid var(--line); margin: 0 0 var(--sp-4); scrollbar-width: none; }
 .tab-strip::-webkit-scrollbar { display: none; }
 .tab-strip a { color: var(--text-2); text-decoration: none; padding: var(--sp-2) var(--sp-3); font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; }
@@ -528,27 +557,15 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tab-strip .tab-more:hover { color: var(--text); }
 #back-btn { margin-right: var(--sp-2); font-size: 16px; padding: 0 8px; }
 
-/* ------------------------------------------------------- database table */
-/* desktop-only (STYLE.md: "tables over scattered cards") — the toggle
-   itself hides on narrow screens so mobile always keeps the cards */
+/* ------------------------------------------------------- pill toggle */
+/* the pill toggle — only Compare's .axis-toggle uses it now: the Cases
+   Table/Cards and People Table/List toggles left with the picture rows
+   (2026-09-08), and their sort-header / row-action rules went with them */
 .view-toggle { display: inline-flex; background: var(--ink-2); border-radius: 20px; padding: 2px; flex: none; }
 .view-toggle button { border: none; background: none; padding: 4px 12px; font-size: 11px; border-radius: 20px; color: var(--text-3); cursor: pointer; }
 .view-toggle button.on { background: var(--brass); color: var(--on-brass); font-weight: 600; }
 .table-scroll { overflow-x: auto; }
-table.dense th.sortable { cursor: pointer; user-select: none; }
-table.dense th.sortable:hover { color: var(--text-2); }
-table.dense th .arrow { color: var(--brass); margin-left: 3px; }
-table.dense td .rowname { display: flex; align-items: center; gap: 10px; }
-table.dense td.actions { text-align: right; }
-table.dense tr .row-actions { display: inline-flex; gap: 4px; opacity: 0; }
-table.dense tr:hover .row-actions { opacity: 1; }
-table.dense tr .row-actions button { padding: 0 6px; min-height: 24px; font-size: 11px; }
-@media (max-width: 640px) { .view-toggle { display: none; } }
-/* .axis-toggle reuses .view-toggle's pill styling but picks a data axis,
-   not a layout — Compare has no mobile fallback the way Table/List
-   defaults to cards, so unlike .view-toggle it must stay visible below
-   640px (found on a phone check, 2026-09-06: it was silently unreachable) */
-.axis-toggle { display: inline-flex !important; }
+.axis-toggle { display: inline-flex; }
 
 /* ------------------------------------------------------- event case */
 .event-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
@@ -559,14 +576,6 @@ table.dense tr .row-actions button { padding: 0 6px; min-height: 24px; font-size
 .tl-entry { position: relative; padding-left: 16px; }
 .tl-entry::before { content: ''; position: absolute; left: 3px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--violet); }
 .tl-entry .tl-date { color: var(--violet); }
-@media (max-width: 640px) {
-  .case-grid { grid-template-columns: 1fr; }
-  .case-card { flex-direction: row; align-items: stretch; }
-  .case-card .pic { width: 72px; height: auto; flex: 0 0 72px; }
-  .case-card .pic.multi { flex-direction: column; gap: 2px; }
-  .case-card .pic.multi .face { margin-left: 0; width: 28px !important; height: 28px !important; }
-  .case-card .body { flex: 1; min-width: 0; }
-}
 
 /* ------------------------------------------------ zodiac colour code (hers, 2026-09-03)
    the values live in tokens.css now — one set per ground (2026-09-07) */
@@ -938,8 +947,9 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .lm-ribbon { box-shadow: var(--sink); }
 .lm-mark .g { box-shadow: var(--lift-mark); }
 .lm-mark.on .g { box-shadow: 0 0 0 2px var(--brass), var(--lift-mark); }
-#drawer { box-shadow: var(--shadow); }
+/* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
+#drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
-  .lm-card, .board-card, .btn, .face-card .face { transition: none; }
-  .lm-card:hover, .board-card:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
+  .lm-card, .board-card, .pic-row, .btn, .face-card .face { transition: none; }
+  .lm-card:hover, .board-card:hover, .pic-row:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
 }

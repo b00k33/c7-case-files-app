@@ -444,11 +444,21 @@ export function renderCompare(slot, { person, store, onOpen }) {
 }
 
 /** The header's three facts with a word each: life path (big number), animal (picture chip), sun (glyph chip). */
-export function tokensHtml(person) {
+export function tokensHtml(person, { compact = false } = {}) {
   const b = exactBirth(person);
   const lp = lifePath(b);
   const ch = signFor(b);
   const su = sunSign(b);
+  if (compact) {
+    // a list row: the number, the animal, the sign — no words (her Q15, 2026-09-07);
+    // one dim note when there is no full birth date to read them from
+    if (!b) return '<span class="tk dim">needs a full birth date</span>';
+    return [
+      lp.ok ? `<span class="tk" title="life path ${lp.value}"><span class="big">${lp.value}${lp.master ? '★' : ''}</span></span>` : '',
+      ch.ok && !ch.boundary ? `<span class="tk">${animalChipHtml(ch.animal)}</span>` : (ch.ok && ch.boundary ? '<span class="tk dim">near lunar new year</span>' : ''),
+      su.ok ? `<span class="tk">${signChipHtml(su.sign)}</span>` : '',
+    ].join('');
+  }
   const lpHtml = lp.ok ? `<span class="tk"><span class="big">${lp.value}${lp.master ? '★' : ''}</span>life path</span>` : '<span class="tk dim"><span class="big dim">—</span>life path · needs a full birth date</span>';
   const anHtml = ch.ok && !ch.boundary ? `<span class="tk">${animalChipHtml(ch.animal)}<span class="dim">${ch.element}</span></span>` : `<span class="tk dim">${ch.ok && ch.boundary ? 'animal · near lunar new year' : ''}</span>`;
   const suHtml = su.ok ? `<span class="tk">${signChipHtml(su.sign)}${su.cusp ? '<span class="dim">cusp</span>' : ''}</span>` : '';

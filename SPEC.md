@@ -1220,6 +1220,42 @@ style (one tap to the outcome, nothing new to learn):
 - Attention chips that are doors ("N to review →", "N open") now read as
   tappable: pointer cursor, `--lift-2`, hover tone.
 
+## 13k. Picture rows — Cases and People (v80, 2026-09-08; her Q15 of §13g)
+
+"Face + name + the three tokens, no kind/count text; attention badges
+stay." Built as one layout for the phone and the desktop (`.pic-row`,
+`.pic-list` in app.css; `tokensHtml(person, { compact: true })` in
+lifemap.js):
+
+- **Cases** (`js/pages/cases.js`): one row per case, most recently opened
+  first. The picture is the subject's face, up to three family faces, or
+  the violet Event mark; the name in the title serif; a "Fictional" pill
+  when the case has a world; the subject's tokens (life path · animal ·
+  sign) or "needs a full birth date"; attention chips on the right of the
+  token line ("N to review →", "N images", "N open", "Possible duplicate
+  of … →"), each a door; Import and ⋯ on the right of the name line. The
+  Table/Cards toggle and the sort headers of v62 are gone — the search box
+  finds, the order is recency. The "N cases" count and + New stay.
+- **People** (`js/pages/people.js`): one row per person, A→Z: face, name,
+  the case they live in as a dim mono note on the right (only when it
+  isn't just their own name; hidden on the phone), the three tokens.
+  The Table/List toggle is gone; "Compare artists →" stays.
+- Compact tokens never read from a placeholder date (`exactBirth`): a
+  year-only birth shows "needs a full birth date", not a wrong sign.
+- `.case-card` / `.case-grid` / the ribbons left the CSS with the cards,
+  and so did the table's sort-header and row-action rules.
+
+What the adversarial review of the diff (four lenses, two refuters per
+finding, 2026-09-08) added before the push: "N images →" is a door to
+the Inbox like the other chips; a birth on the lunar-new-year boundary
+reads "near lunar new year" in a row instead of a silently missing
+animal; the name takes only its own width so a "Fictional" pill sits
+beside the word, not beside Import; on the phone the token line wraps so
+several attention chips drop under the tokens rather than over them;
+`.pic-row` honours prefers-reduced-motion; the closed drawer no longer
+carries a shadow (its 32px blur bled a dark band down the right edge of
+every page since v77).
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

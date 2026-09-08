@@ -1,9 +1,15 @@
 // Cases — the home screen (her redesign, 2026-09-02, 28 answers). The list
-// IS the home: picture cards, most recently opened first, tap to go straight
-// in (a person-case opens the person's profile; a family-case its overview).
+// IS the home: most recently opened first, tap to go straight in (a
+// person-case opens the person's profile; a family-case its overview).
+// Picture rows since 2026-09-08 (her Q15 of 2026-09-07): one row per case —
+// face · name · the three tokens of the person it is about (life path,
+// animal, sign); attention chips stay ("N to review →", "N open", images,
+// possible duplicate); Import and ⋯ stay; no kind or count text. One layout
+// for the phone and the desktop — the Table/Cards toggle of v62 is gone.
 import { emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote } from '../ui.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
+import { tokensHtml } from '../lifemap.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
 import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks } from '../works.js';
@@ -15,38 +21,8 @@ const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, th
 // any case starting as a person (2026-09-04, her screenshot)
 const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case' };
 const otherKinds = (kind) => Object.keys(KIND_LABEL).filter((k) => k !== (KIND_LABEL[kind] ? kind : 'person'));
-const KIND_SHORT = { person: 'Person', family: 'Family', event: 'Event' };
 
-// the database table (v62, 2026-09-04, her ask — "change cases to
-// database"): STYLE.md already calls for "tables over scattered cards" on
-// desktop; the card grid never actually did that. A Table/Cards toggle,
-// remembered per device; mobile always keeps the cards (the CSS hides the
-// toggle under 640px, and boot forces 'cards' there regardless of the
-// stored pick, since a dense table has nowhere to go on a phone).
-const VIEW_KEY = 'c7-cases-view';
-const SORT_KEY = 'c7-cases-sort';
-function isNarrow() { return window.matchMedia('(max-width: 640px)').matches; }
-function getView() {
-  if (isNarrow()) return 'cards';
-  return localStorage.getItem(VIEW_KEY) === 'cards' ? 'cards' : 'table';
-}
-function setView(v) { localStorage.setItem(VIEW_KEY, v); }
-function getSort() {
-  try { return JSON.parse(localStorage.getItem(SORT_KEY)) || { key: 'opened', dir: 'desc' }; }
-  catch (_) { return { key: 'opened', dir: 'desc' }; }
-}
-function setSort(s) { localStorage.setItem(SORT_KEY, JSON.stringify(s)); }
-function timeAgo(ms) {
-  if (!ms) return '—';
-  const m = Math.floor((Date.now() - ms) / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return `${Math.floor(d / 7)}w ago`;
-}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function openedMap() {
   try { return JSON.parse(localStorage.getItem(OPENED_KEY) || '{}'); } catch (_) { return {}; }
@@ -194,7 +170,7 @@ async function faceEl(person, size) {
   el.style.width = el.style.height = `${size}px`;
   el.innerHTML = `<span class="initials">${initials(person.display_name)}</span>`;
   const src = person.photo_path ? await resolveAssetUrl(person.photo_path, 'image/jpeg') : person.photo_url;
-  // decoded before it is shown — the card arrives with its face, no pop-in (2026-09-07)
+  // decoded before it is shown — the row arrives with its face, no pop-in (2026-09-07)
   if (src && await preloadImage(src)) {
     const img = document.createElement('img');
     img.alt = ''; img.src = src;
@@ -207,22 +183,9 @@ async function faceEl(person, size) {
   return el;
 }
 
-/** One small circular thumb for a table row — the case's subject face, or the violet Event mark. */
-async function rowThumbEl(c, people) {
-  if (c.kind === 'event') {
-    const el = document.createElement('div');
-    el.className = 'face';
-    el.style.cssText = 'width:26px;height:26px;background:linear-gradient(155deg,#362f57,#1c1930)';
-    el.innerHTML = `<span class="initials" style="color:var(--violet);font-size:10px">${initials(c.name)}</span>`;
-    return el;
-  }
-  const subject = subjectOf(c, people);
-  return faceEl(subject || { display_name: c.name }, 26);
-}
-
 /**
- * The ⋯ menu — rename, kind-switch, duplicates, delete — shared by the
- * card and the table row so both stay in sync with one implementation.
+ * The ⋯ menu — rename, kind-switch, duplicates, delete — one implementation
+ * for the row (it used to serve a card and a table row too).
  */
 function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
   menuBtn.addEventListener('click', async (e) => {
@@ -278,13 +241,11 @@ function wireImportBtn(btn, c, ctx, store) {
  * "Michael Jackson" cases side by side) — the per-case "Clean up
  * duplicates" menu only ever looked inside its own case, so it could never
  * see this. Grouped by the subject's name (or the case's own name, for a
- * bare case with no person yet), oldest case in the group is treated as
- * the original; every other case in the group gets flagged with which one
- * it would merge into. Family/event cases are never flagged this way —
- * "one case, one person" is a person-case-only assumption.
+ * case with no people yet); the oldest case is the keeper, every later one
+ * gets a "Possible duplicate of …" flag whose tap merges it in.
  */
 function findDuplicateCases(withSums) {
-  const groups = new Map();
+  const groups = new Map(); // lower-cased subject name -> [{ c, sum, subject }]
   for (const item of withSums) {
     if (item.c.kind !== 'person') continue;
     const subject = subjectOf(item.c, item.sum.people);
@@ -305,9 +266,9 @@ function findDuplicateCases(withSums) {
   return dupOf;
 }
 
-/** The "possible duplicate" badge, shared by the card and the table row — merges on a two-tap confirm. */
+/** The "possible duplicate" badge — merges on a two-tap confirm. */
 function dupFlagHtml(dupInfo) {
-  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges everything on this case into ${dupInfo.keepCase.name} and removes this one">Possible duplicate of ${dupInfo.keepCase.name} →</button>`;
+  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges everything on this case into ${esc(dupInfo.keepCase.name)} and removes this one">Possible duplicate of ${esc(dupInfo.keepCase.name)} →</button>`;
 }
 function wireDupFlag(el, dupCaseId, dupInfo, store, onChanged) {
   const btn = el.querySelector('.dup-flag');
@@ -318,126 +279,59 @@ function wireDupFlag(el, dupCaseId, dupInfo, store, onChanged) {
   });
 }
 
-async function buildCaseCard(c, sum, ctx, store, onChanged, dupInfo) {
-  const card = document.createElement('div');
-  card.className = 'case-card';
-  card.innerHTML = `
+/**
+ * One picture row: the face (a person's, up to three of a family's, or the
+ * violet Event mark) · the name · the subject's three tokens · attention
+ * chips · Import · ⋯. The row itself opens the case; every chip that counts
+ * something opens the things it counts.
+ */
+async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
+  const row = document.createElement('div');
+  row.className = 'pic-row';
+  const subject = c.kind === 'event' ? null : subjectOf(c, sum.people);
+  const tokens = c.kind === 'person' && subject ? tokensHtml(subject, { compact: true }) : '';
+  row.innerHTML = `
     <div class="pic"></div>
-    <div class="body">
-      <div class="row between" style="align-items:flex-start;gap:6px">
-        <div class="title">${c.name}</div>
-        <button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind">⋯</button>
+    <div class="main">
+      <div class="line">
+        <div class="title">${esc(c.name)}</div>
+        ${c.world ? `<span class="world" title="Not a real-world case">${esc(c.world === 'Fictional' ? 'Fictional' : c.world)}</span>` : ''}
+        <div class="actions"><button class="btn btn-ghost btn-sm import-btn">Import</button><button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind · delete">⋯</button></div>
       </div>
-      <div class="badges"></div>
-      <div class="row" style="gap:6px;margin-top:8px">
-        <button class="btn btn-ghost btn-sm import-btn">Import</button>
+      <div class="line">
+        <div class="lm-tokens">${tokens}</div>
+        <div class="badges"></div>
       </div>
       <div class="menu-slot"></div>
     </div>
   `;
   // picture: the person's face, up to three family faces, or the violet Event mark
-  const pic = card.querySelector('.pic');
-  if (c.world) pic.innerHTML = `<span class="fic-ribbon">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>`;
+  const pic = row.querySelector('.pic');
+  const markEl = (name) => { const el = document.createElement('div'); el.className = 'face'; el.style.width = el.style.height = '48px'; el.innerHTML = `<span class="initials">${initials(name)}</span>`; return el; };
   if (c.kind === 'event') {
     pic.classList.add('event');
-    pic.innerHTML += `<span class="event-ribbon">Event</span><span class="initials">${initials(c.name)}</span>`;
+    pic.appendChild(markEl(c.name));
   } else {
-    const subject = subjectOf(c, sum.people);
     const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
-    if (!faces.length) pic.innerHTML += `<span class="initials">${initials(c.name)}</span>`;
-    else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 64));
+    if (!faces.length) pic.appendChild(markEl(c.name));
+    else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 48));
     else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
   }
-  // badges only when there is something
-  const badges = card.querySelector('.badges');
-  // "N to review" is a door, not a label — one tap lands in this case's
-  // Review queue (her ask, 2026-09-08: "i click on hp to review and i cant find it")
+  // attention chips only when there is something — each one a door
+  const badges = row.querySelector('.badges');
   if (sum.toReview) badges.innerHTML += `<span class="chip brass rv-open" title="Tap to review them">${sum.toReview} to review →</span>`;
-  if (sum.inbox) badges.innerHTML += `<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`;
+  if (sum.inbox) badges.innerHTML += `<span class="chip inbox-open" title="Images waiting for a title and a person — tap to sort them">${sum.inbox} image${sum.inbox === 1 ? '' : 's'} →</span>`;
   if (sum.questions) badges.innerHTML += `<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`;
   if (dupInfo) badges.innerHTML += dupFlagHtml(dupInfo);
 
-  card.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open, .rv-open')) return; openCase(ctx, c); });
-  card.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
-  card.querySelector('.rv-open')?.addEventListener('click', () => openReview(ctx, c, sum));
-  wireImportBtn(card.querySelector('.import-btn'), c, ctx, store);
-  wireCaseMenu(card.querySelector('.menu-btn'), card.querySelector('.menu-slot'), c, ctx, store, onChanged);
-  wireDupFlag(card, c.id, dupInfo, store, onChanged);
-  return card;
-}
-
-async function buildCaseRow(c, sum, opened, ctx, store, onChanged, dupInfo) {
-  const tr = document.createElement('tr');
-  const era = c.era_start || c.era_end ? `${c.era_start || '?'}–${c.era_end || '?'}` : '—';
-  const kindClass = c.kind === 'event' ? 'violet' : c.kind === 'family' ? 'brass' : '';
-  const badges = [];
-  if (sum.toReview) badges.push(`<span class="chip brass rv-open" title="Tap to review them">${sum.toReview} to review →</span>`);
-  if (sum.inbox) badges.push(`<span class="chip">${sum.inbox} image${sum.inbox === 1 ? '' : 's'}</span>`);
-  if (sum.questions) badges.push(`<span class="chip q-open" title="Open questions — tap to see them">${sum.questions} open</span>`);
-  if (dupInfo) badges.push(dupFlagHtml(dupInfo));
-  const lastOpened = opened[c.id] || Date.parse(c.updated_at) || 0;
-  tr.innerHTML = `
-    <td><div class="rowname"><div class="thumb-slot"></div>${c.name}${c.world ? ` <span class="chip violet">${c.world === 'Fictional' ? 'Fictional' : c.world}</span>` : ''}</div></td>
-    <td><span class="chip ${kindClass}">${KIND_SHORT[c.kind] || 'Person'}</span></td>
-    <td class="num">${era}</td>
-    <td class="num">${sum.people.length}</td>
-    <td>${badges.join('')}</td>
-    <td class="num">${timeAgo(lastOpened)}</td>
-    <td class="actions"><div class="row-actions"><button class="btn btn-ghost btn-sm import-btn">Import</button><button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind">⋯</button></div></td>
-  `;
-  tr.querySelector('.thumb-slot').replaceWith(await rowThumbEl(c, sum.people));
-  const menuRow = document.createElement('tr');
-  const menuTd = document.createElement('td');
-  menuTd.colSpan = 7;
-  menuTd.className = 'menu-slot';
-  menuRow.appendChild(menuTd);
-  menuRow.style.display = 'none';
-
-  tr.addEventListener('click', (e) => { if (e.target.closest('button, .q-open, .rv-open')) return; openCase(ctx, c); });
-  tr.querySelector('.q-open')?.addEventListener('click', async (e) => { e.stopPropagation(); markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
-  tr.querySelector('.rv-open')?.addEventListener('click', (e) => { e.stopPropagation(); openReview(ctx, c, sum); });
-  wireImportBtn(tr.querySelector('.import-btn'), c, ctx, store);
-  wireCaseMenu(tr.querySelector('.menu-btn'), menuTd, c, ctx, store, onChanged);
-  wireDupFlag(tr, c.id, dupInfo, store, onChanged);
-  // the menu slot only needs to exist while open — hide/show its row with it
-  const mo = new MutationObserver(() => { menuRow.style.display = menuTd.children.length ? '' : 'none'; });
-  mo.observe(menuTd, { childList: true });
-  return [tr, menuRow];
-}
-
-async function buildTable(withSums, opened, sortState, ctx, store, onChanged, dupOf) {
-  const wrap = document.createElement('div');
-  wrap.className = 'panel table-scroll';
-  const arrow = (key) => (sortState.key === key ? `<span class="arrow">${sortState.dir === 'asc' ? '▴' : '▾'}</span>` : '');
-  const table = document.createElement('table');
-  table.className = 'dense';
-  table.innerHTML = `
-    <thead><tr>
-      <th class="sortable" data-sort="name">Name${arrow('name')}</th>
-      <th>Kind</th>
-      <th>Era</th>
-      <th class="sortable" data-sort="people">People${arrow('people')}</th>
-      <th>Attention</th>
-      <th class="sortable" data-sort="opened">Last opened${arrow('opened')}</th>
-      <th></th>
-    </tr></thead>
-    <tbody></tbody>
-  `;
-  const tbody = table.querySelector('tbody');
-  for (const { c, sum } of withSums) {
-    const [tr, menuRow] = await buildCaseRow(c, sum, opened, ctx, store, onChanged, dupOf.get(c.id));
-    tbody.appendChild(tr);
-    tbody.appendChild(menuRow);
-  }
-  for (const th of table.querySelectorAll('th.sortable')) {
-    th.addEventListener('click', () => {
-      const key = th.dataset.sort;
-      setSort(sortState.key === key ? { key, dir: sortState.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'name' ? 'asc' : 'desc' });
-      onChanged();
-    });
-  }
-  wrap.appendChild(table);
-  return wrap;
+  row.addEventListener('click', (e) => { if (e.target.closest('button, .menu-slot, .inline-form, .q-open, .rv-open, .inbox-open')) return; openCase(ctx, c); });
+  row.querySelector('.q-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/questions'); });
+  row.querySelector('.rv-open')?.addEventListener('click', () => openReview(ctx, c, sum));
+  row.querySelector('.inbox-open')?.addEventListener('click', async () => { markOpened(c.id); await ctx.setCaseId(c.id); ctx.navigate('#/inbox'); });
+  wireImportBtn(row.querySelector('.import-btn'), c, ctx, store);
+  wireCaseMenu(row.querySelector('.menu-btn'), row.querySelector('.menu-slot'), c, ctx, store, onChanged);
+  wireDupFlag(row, c.id, dupInfo, store, onChanged);
+  return row;
 }
 
 export async function render(root, ctx) {
@@ -446,28 +340,14 @@ export async function render(root, ctx) {
   const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
   const withSums = await Promise.all(cases.map(async (c) => ({ c, sum: await store.caseSummary(c.id) })));
   const dupOf = findDuplicateCases(withSums);
-
-  const view = getView();
-  const sortState = getSort();
-  const sortValue = ({ c, sum }, key) => {
-    if (key === 'name') return c.name.toLowerCase();
-    if (key === 'people') return sum.people.length;
-    return opened[c.id] || Date.parse(c.updated_at) || 0;
-  };
-  withSums.sort((a, b) => {
-    const av = sortValue(a, sortState.key), bv = sortValue(b, sortState.key);
-    const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-    return sortState.dir === 'asc' ? cmp : -cmp;
-  });
+  // most recently opened first — the one she was just in is at the top
+  const lastOpened = (c) => opened[c.id] || Date.parse(c.updated_at) || 0;
+  withSums.sort((a, b) => lastOpened(b.c) - lastOpened(a.c));
 
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
         <span class="mono" style="font-size:12px;color:var(--text-3);flex:1;min-width:120px">${cases.length} case${cases.length === 1 ? '' : 's'}</span>
-        <div class="view-toggle" id="view-toggle">
-          <button type="button" data-view="table" class="${view === 'table' ? 'on' : ''}">Table</button>
-          <button type="button" data-view="cards" class="${view === 'cards' ? 'on' : ''}">Cards</button>
-        </div>
         <button class="btn btn-primary" id="new-case-btn">+ New</button>
       </div>
       <div id="new-case-slot"></div>
@@ -492,10 +372,6 @@ export async function render(root, ctx) {
     wireCaseLookup(form, ctx, store);
   });
 
-  for (const btn of root.querySelectorAll('#view-toggle button')) {
-    btn.addEventListener('click', () => { setView(btn.dataset.view); render(root, ctx); });
-  }
-
   const body = root.querySelector('#cases-body');
   if (!cases.length) {
     body.appendChild(emptyState({
@@ -504,14 +380,15 @@ export async function render(root, ctx) {
       action: '+ New case',
       onAction: () => root.querySelector('#new-case-btn').click(),
     }));
-  } else if (view === 'table') {
-    body.appendChild(await buildTable(withSums, opened, sortState, ctx, store, () => render(root, ctx), dupOf));
-  } else {
-    const grid = document.createElement('div');
-    grid.className = 'case-grid';
-    for (const { c, sum } of withSums) grid.appendChild(await buildCaseCard(c, sum, ctx, store, () => render(root, ctx), dupOf.get(c.id)));
-    body.appendChild(grid);
+    return;
   }
+  // every row is built (faces decoded) before any of them is shown
+  const list = document.createElement('div');
+  list.className = 'pic-list';
+  const onChanged = () => render(root, ctx);
+  const rows = await Promise.all(withSums.map(({ c, sum }) => buildPicRow(c, sum, ctx, store, onChanged, dupOf.get(c.id))));
+  for (const r of rows) list.appendChild(r);
+  body.appendChild(list);
 
   // (the page's own "Search everything" box left on 2026-09-07 — the one
   // search box at the top of every page, in main.js, replaced it)

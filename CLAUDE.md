@@ -253,6 +253,15 @@ reachable from the page it opens — Review is now a tab on the person,
 with the same chip in the header. Rule to carry: **if the app shows a
 number, the number is tappable and leads to the things it counts.**
 
+**2026-09-08 — picture rows (v80, SPEC §13k).** Cases and People are one
+row each: face · name · the three tokens; attention chips stay, Import
+and ⋯ stay; no kind or count text. One layout for phone and desktop —
+the v62 Table/Cards and Table/List toggles are gone (her Q15 of §13g
+overrides "change cases to database"; recent overrides old). Rule to
+carry: **a list row shows the same three tokens as the person page, or
+the honest "needs a full birth date" — never a sign read from a
+placeholder date.**
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other
