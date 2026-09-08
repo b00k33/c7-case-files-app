@@ -981,3 +981,41 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 [data-theme="light"] .chip-icon.ws-fire { background: var(--ws-fire); color: var(--on-code); }
 [data-theme="light"] .chip-icon.ws-earth { background: var(--ws-earth); color: var(--on-code); }
 [data-theme="light"] .chip-icon.ws-water { background: var(--ws-water); color: var(--on-code); }
+
+/* ---- pictures on an evidence item (2026-09-08) --------------------------
+   The detail drawer used to print "File   a3f9….jpg" and nothing else, so a
+   pasted screenshot could never be looked at again. Picture one is the item's
+   own file_path (the card thumbnail); the pages after it are evidence_shot
+   rows. No delete button on the thumb — a 92px tile with an X on it is one
+   mis-tap from losing a document, so removing happens in the viewer, where
+   she can see what she is about to remove. */
+.shots { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; }
+.shots .shot { position: relative; width: 92px; height: 68px; border-radius: var(--r-sm); overflow: hidden; background: var(--ink-2); box-shadow: var(--lift-1); cursor: zoom-in; flex: none; border: 0; padding: 0; }
+.shots .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shots .shot .n { position: absolute; left: 4px; top: 4px; background: var(--ink-0); color: var(--brass); font-family: var(--font-mono); font-size: 10px; padding: 1px 5px; border-radius: var(--r-sm); }
+.shots .shot .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 4px 3px; background: linear-gradient(transparent, rgba(0,0,0,.6)); color: #fff; font-size: 9px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shots .shot-add { width: 92px; height: 68px; border-radius: var(--r-sm); border: 1px dashed var(--line); background: none; color: var(--text-3); font-size: 11px; line-height: 1.3; cursor: pointer; flex: none; }
+.shots .shot-add:hover { border-color: var(--brass); color: var(--brass); }
+.shots.over { outline: 2px dashed var(--brass); outline-offset: 4px; border-radius: var(--r-sm); }
+.shots-hint { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+
+/* the viewer: one picture at a time, arrows through the set. Dark on purpose
+   in both themes — a lightbox shows the picture, not the app. */
+.shot-view { position: fixed; inset: 0; z-index: 70; background: rgba(8,10,14,.975); backdrop-filter: blur(3px); display: flex; flex-direction: column; }
+.shot-view .frame { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 56px var(--sp-3) var(--sp-3); }
+.shot-view .frame img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-sm); }
+.shot-view .bar { flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom)); background: rgba(0,0,0,.45); }
+.shot-view .bar .count { font-family: var(--font-mono); font-size: 12px; color: #cfd4dc; flex: none; }
+.shot-view .bar input { flex: 1 1 auto; min-width: 0; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.16); color: #fff; border-radius: var(--r-sm); padding: 6px 10px; font-size: 12px; }
+.shot-view .bar input::placeholder { color: #8d95a3; }
+.shot-view .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 72px; border: 0; border-radius: var(--r-sm); background: rgba(255,255,255,.10); color: #fff; font-size: 24px; line-height: 1; cursor: pointer; }
+.shot-view .nav:hover { background: rgba(255,255,255,.22); }
+.shot-view .nav[disabled] { opacity: .25; cursor: default; }
+.shot-view .nav.prev { left: 8px; }
+.shot-view .nav.next { right: 8px; }
+.shot-view .close { position: absolute; left: 10px; top: 10px; border: 0; border-radius: var(--r-sm); background: rgba(255,255,255,.10); color: #fff; font-size: 13px; padding: 7px 12px; cursor: pointer; }
+.shot-view .drop { position: absolute; right: 10px; top: 10px; border: 0; border-radius: var(--r-sm); background: rgba(184,51,42,.85); color: #fff; font-size: 12px; padding: 7px 12px; cursor: pointer; }
+@media (max-width: 640px) {
+  .shots .shot, .shots .shot-add { width: 78px; height: 58px; }
+  .shot-view .nav { width: 38px; height: 60px; font-size: 20px; }
+}

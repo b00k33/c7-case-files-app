@@ -1,14 +1,22 @@
 import { emptyState, verificationLabel } from '../indicators.js';
-import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
-import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
+import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, openShotViewer } from '../ui.js';
+import { compressImage, queueUpload, resolveAssetUrl, flushUploads, preloadImage } from '../assets.js';
 import { INBOX_TAG, PURPOSES } from '../store.js';
 import { youtubeThumb } from '../media.js';
 
-// the picture on an evidence card: an attached image, else the first moment
-// picture, else YouTube's thumbnail for a linked video, else nothing
+// the picture on an evidence card: the item's own image, else the first of
+// the pictures added onto it, else the first moment picture, else YouTube's
+// thumbnail for a linked video, else nothing. The shot fallback is what lets
+// a typed-up item (a note about a court decree) show the decree once she
+// pastes it on — and lets the cover be removed without the card going blank.
 async function cardPicture(store, it) {
   if (it.file_path && /^image\//.test(it.mime || '')) {
     const u = await resolveAssetUrl(it.file_path, it.mime);
+    if (u) return u;
+  }
+  const shots = await store.listEvidenceShots(it.id);
+  if (shots.length) {
+    const u = await resolveAssetUrl(shots[0].file_path, shots[0].mime);
     if (u) return u;
   }
   if (it.type === 'video') {
@@ -42,6 +50,20 @@ let filters = { type: '', verification: '' };
 // re-renders on every view-tab and filter change, and each stacked listener
 // would add the same pasted image again.
 let pasteHandler = null;
+// the evidence item whose detail panel is open, so a paste lands ON it
+// instead of in the inbox (her ask, 2026-09-08: "I want these screenshots
+// added to the relevant evidence"). Cleared by openDetailTarget() as soon as
+// the panel is closed or shows something else.
+let openDetail = null;
+
+/** The open item, or null — the panel must still be on screen and still be ours. */
+function openDetailTarget() {
+  const drawer = document.getElementById('drawer');
+  if (!openDetail || !drawer || !drawer.classList.contains('open')) return null;
+  // #shots belongs to this panel; a drawer showing sync or an add-form has none
+  if (!openDetail.body.isConnected || !openDetail.body.querySelector('#shots')) return null;
+  return openDetail;
+}
 
 /** Any images on the clipboard, as Files — a paste usually carries one screenshot. */
 function imagesFromClipboard(dt) {
@@ -154,13 +176,19 @@ export async function render(root, ctx) {
   });
 
   // ...and the fourth way in: paste (her ask, 2026-09-08). Copy a screenshot,
-  // press Ctrl+V anywhere on this page — it lands in the inbox like every
-  // other route in, to be titled and given a person there. The listener sits
-  // on the document (a paste has no element to aim at unless something is
-  // focused), so it must know when this page is gone: #evidence-body only
-  // exists in this page's own markup, and #page-root's contents are replaced
-  // on every navigation, so its absence means we've left. That guard also
-  // covers the paths where render() returns early without an unmount.
+  // press Ctrl+V anywhere on this page. Where it lands depends on what is in
+  // front of her, which is the whole point of the second ask ("I want these
+  // screenshots added to the relevant evidence"): with an item open it goes
+  // ONTO that item, and only with nothing open does it go to the inbox to be
+  // titled and given a person. One listener does both — two document-level
+  // listeners could not reliably decide which of them should win.
+  //
+  // The listener sits on the document (a paste has no element to aim at
+  // unless something is focused), so it must know when this page is gone:
+  // #evidence-body only exists in this page's own markup, and #page-root's
+  // contents are replaced on every navigation, so its absence means we've
+  // left. That guard also covers the paths where render() returns early
+  // without an unmount.
   if (pasteHandler) document.removeEventListener('paste', pasteHandler);
   pasteHandler = async (e) => {
     if (!document.getElementById('evidence-body')) return; // left the page
@@ -168,6 +196,15 @@ export async function render(root, ctx) {
     const files = imagesFromClipboard(e.clipboardData);
     if (!files.length) return;
     e.preventDefault();
+    const open = openDetailTarget();
+    if (open) {
+      const item = await store.getEvidence(open.id);
+      if (item) {
+        await addShotsTo(ctx, item, files, open.body.querySelector('#shots-hint'));
+        await renderDetail(open.body, ctx, open.id);
+        return;
+      }
+    }
     await addImages(ctx, files, root);
     currentView = 'inbox';
     render(root, ctx);
@@ -260,6 +297,91 @@ async function addImages(ctx, files, root) {
   status.remove();
   flushUploads(); // cloud copies, in the background; retried by sync if this fails
   ctx.refreshBadges?.();
+}
+
+// ---- pictures on one item ------------------------------------------------
+
+/**
+ * Put pictures onto an evidence item that already exists — the second half of
+ * her 2026-09-08 ask. Every picture added here is a shot; the item's own
+ * file_path is left alone, because on an inbox item that file IS the item and
+ * on a typed-up item there is nothing there to overwrite. cardPicture() falls
+ * through to the first shot, so the card thumbnail appears either way.
+ */
+async function addShotsTo(ctx, item, files, statusEl) {
+  const { store } = ctx;
+  const was = statusEl ? statusEl.textContent : '';
+  let n = 0, added = 0;
+  for (const raw of files) {
+    n++;
+    if (statusEl) statusEl.textContent = `Adding picture ${n} of ${files.length}…`;
+    try {
+      const file = await compressImage(raw);
+      const meta = await store.storeEvidenceFile(file);
+      await store.addEvidenceShot({ evidence_id: item.id, ...meta });
+      queueUpload(meta.file_path, meta.mime);
+      added++;
+    } catch (e) {
+      console.error('Could not add picture', raw.name, e);
+    }
+  }
+  if (statusEl) statusEl.textContent = was;
+  flushUploads(); // cloud copies in the background; sync retries what fails
+  return added;
+}
+
+/** The picture strip on the detail panel: cover, then the pages, then "+". */
+async function paintShots(body, ctx, item) {
+  const { store } = ctx;
+  const strip = body.querySelector('#shots');
+  const hint = body.querySelector('#shots-hint');
+  if (!strip) return;
+  const pics = await store.listEvidencePictures(item);
+  const resolved = await Promise.all(pics.map(async (p) => ({ ...p, url: await resolveAssetUrl(p.file_path, p.mime) })));
+  const shown = resolved.filter((p) => p.url);
+
+  strip.innerHTML = '';
+  shown.forEach((p, idx) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'shot';
+    b.title = p.caption || (p.cover ? 'Cover picture' : `Picture ${idx + 1}`);
+    const img = document.createElement('img');
+    img.alt = ''; img.src = p.url;   // never lazy: the drawer is off-screen until it opens
+    b.appendChild(img);
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = String(idx + 1);
+    b.appendChild(n);
+    if (p.caption) {
+      const cap = document.createElement('span');
+      cap.className = 'cap';
+      cap.textContent = p.caption;   // textContent, never innerHTML — her words
+      b.appendChild(cap);
+    }
+    b.addEventListener('click', () => openShotViewer({
+      pictures: shown,
+      index: idx,
+      onCaption: (pic, text) => { if (pic.id) store.updateEvidenceShot(pic.id, { caption: text }); },
+      onRemove: async (pic) => {
+        if (pic.cover) await store.dropEvidenceCover(item.id);
+        else await store.deleteEvidenceShot(pic.id);
+      },
+      onClosed: () => renderDetail(body, ctx, item.id),
+    }));
+    strip.appendChild(b);
+  });
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'shot-add';
+  add.textContent = shown.length ? '+ page' : '+ picture';
+  add.addEventListener('click', () => body.querySelector('#shot-input').click());
+  strip.appendChild(add);
+
+  hint.textContent = shown.length
+    ? 'Press Ctrl+V to add another page, or drop a file here. Tap a picture to read it full size.'
+    : 'Copy a screenshot and press Ctrl+V, drop a file here, or tap + picture.';
 }
 
 /** Images shared in from the phone's share sheet sit in a small cache until the app drains them. */
@@ -434,13 +556,21 @@ function renderGrid(el, ctx, items) {
     `;
     card.addEventListener('click', () => ctx.openDrawer((body) => renderDetail(body, ctx, it.id)));
     el.appendChild(card);
-    cardPicture(ctx.store, it).then((src) => {
+    // Decode first, then reveal the slot — the same order faces use. It has
+    // to be this way round: .card-thumb is display:none until .has, and a
+    // loading="lazy" image inside a display:none box never starts loading,
+    // so waiting for its load event to add .has was a deadlock. Every card
+    // picture was blank on a cold open and only appeared if that exact image
+    // happened to be decoded already (found 2026-09-08, present since v1).
+    cardPicture(ctx.store, it).then(async (src) => {
       if (!src) return;
-      const img = document.createElement('img');
-      img.alt = ''; img.loading = 'lazy'; img.src = src;
       const slot = card.querySelector('.card-thumb');
-      img.addEventListener('load', () => slot.classList.add('has'));
+      if (!slot.isConnected) return;              // the page moved on while we read storage
+      if (!(await preloadImage(src))) return;     // broken picture: keep the plain card
+      const img = document.createElement('img');
+      img.alt = ''; img.src = src;
       slot.appendChild(img);
+      slot.classList.add('has');
     });
   }
 }
@@ -501,14 +631,20 @@ async function renderDetail(body, ctx, evidenceId) {
   body.innerHTML = `
     <div class="mono" style="font-size:10px;color:var(--text-3);text-transform:uppercase">${item.type}</div>
     <h3 class="title" style="margin:6px 0 12px">${item.title}</h3>
-    <div class="stack" style="gap:6px;font-size:12px">
+
+    <div class="panel-title" style="margin:0 0 8px">Pictures</div>
+    <div class="shots" id="shots"></div>
+    <div class="shots-hint" id="shots-hint"></div>
+    <input type="file" id="shot-input" accept="image/*" multiple style="display:none">
+
+    <div class="stack" style="gap:6px;font-size:12px;margin-top:20px">
       <div class="row between"><span class="section-label">Verification</span><span class="chip ${chipClass(item.verification)}">${verificationLabel(item.verification)}</span></div>
       <div class="row between"><span class="section-label">Source</span><select id="source-select" style="max-width:62%">${sourceOptions(sources, item.source_id)}</select></div>
       ${item.source_kind === 'dramatisation' ? '<div class="chip red" style="align-self:flex-end">dramatisation — cannot raise confidence</div>' : ''}
       <div class="row between"><span class="section-label">Captured</span><span class="mono">${item.captured_at || '—'} ${item.captured_by ? 'by ' + item.captured_by : ''}</span></div>
       <div class="row between"><span class="section-label">Content dated</span><span class="mono">${item.dated || 'unknown'} (${item.date_precision})</span></div>
       ${item.original_url ? `<div class="row between"><span class="section-label">Original URL</span><span class="mono" style="word-break:break-all">${item.original_url}</span></div>` : ''}
-      ${item.file_path ? `<div class="row between"><span class="section-label">File</span><span class="mono">${item.file_path}</span></div>` : ''}
+      ${item.file_path && !/^image\//.test(item.mime || '') ? `<div class="row between"><span class="section-label">File</span><span class="mono">${item.file_path}</span></div>` : ''}
       ${item.sha256 ? `<div class="row between"><span class="section-label">SHA-256</span><span class="mono" style="word-break:break-all;font-size:10px">${item.sha256}</span></div>` : ''}
       ${item.bytes ? `<div class="row between"><span class="section-label">Size</span><span class="mono">${item.bytes} bytes</span></div>` : ''}
       ${item.duration_ms ? `<div class="row between"><span class="section-label">Duration</span><span class="mono">${Math.round(item.duration_ms / 1000)}s</span></div>` : ''}
@@ -533,6 +669,31 @@ async function renderDetail(body, ctx, evidenceId) {
     ${item.type === 'video' ? '<div id="moments-slot" style="margin-top:16px"></div>' : ''}
     <button class="btn btn-danger btn-sm" id="delete-btn" style="margin-top:20px">Delete (soft)</button>
   `;
+
+  // this panel is now the paste target, until it closes or shows something else
+  openDetail = { id: evidenceId, body, ctx };
+  await paintShots(body, ctx, item);
+
+  const shotInput = body.querySelector('#shot-input');
+  shotInput.addEventListener('change', async () => {
+    const files = [...shotInput.files];
+    shotInput.value = '';
+    if (!files.length) return;
+    await addShotsTo(ctx, item, files, body.querySelector('#shots-hint'));
+    renderDetail(body, ctx, evidenceId);
+  });
+  const strip = body.querySelector('#shots');
+  strip.addEventListener('dragover', (e) => { e.preventDefault(); strip.classList.add('over'); });
+  strip.addEventListener('dragleave', () => strip.classList.remove('over'));
+  strip.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // the page's own dropzone must not also claim this file
+    strip.classList.remove('over');
+    const files = [...(e.dataTransfer?.files || [])].filter((f) => /^image\//.test(f.type));
+    if (!files.length) return;
+    await addShotsTo(ctx, item, files, body.querySelector('#shots-hint'));
+    renderDetail(body, ctx, evidenceId);
+  });
 
   const linkListEl = body.querySelector('#link-list');
   if (!links.length) {

@@ -319,6 +319,38 @@ returned unmount would not always be reached. Rule to carry: **a
 document-level listener added inside a render() is a bug unless you can
 say exactly what removes it, on every path out of that function.**
 
+**2026-09-08 — pictures live on the evidence item (v85, SPEC §13p).** "I
+want these screenshots added to the relevant evidence mentioned in
+transcript", then "allow for pasting images into evidence". The same ask
+twice: v84 had put paste at the page layer, where it could only ever make a
+*new* inbox item, and the detail panel had never shown a picture at all —
+it printed the stored filename as text. Now the panel opens with a
+**Pictures** strip (cover, then pages, then a `+` tile), and where a paste
+lands depends on what is in front of her: with an item open it goes ONTO
+that item, with nothing open it goes to the Inbox as before. One listener
+decides between them, because two document-level listeners cannot agree
+which wins — registration order decides, and the panel's would always be
+second. Extra pictures are `evidence_shot` rows; sync needed no cloud
+change because every entity is already a row in one generic `c7_records`
+table. Tapping a picture opens a viewer that arrows through the set and is
+the only place removing happens.
+
+Rules to carry:
+- **The second time she asks for something she already has, the feature is
+  at the wrong layer.** Don't re-explain it; find what she is standing in
+  front of when she asks, and put it there.
+- **Never wait on an image's `load` event to un-hide the box that image is
+  in.** A `loading="lazy"` image inside a `display:none` parent never
+  starts loading, so the reveal can never fire. This had blanked every
+  evidence card thumbnail on a cold open since v1 and was invisible in
+  testing, because a picture decoded earlier in the session loads anyway.
+  `preloadImage()` first, then append and reveal.
+- **`twoTapConfirm` is only safe on a button whose meaning never changes.**
+  It keeps `armed` in a closure; if the thing the button acts on can change
+  underneath it (paging a viewer, switching rows), arming on one target and
+  moving to another leaves it primed to fire on a single tap. Write the
+  arm/disarm out so the flag and the label move together.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

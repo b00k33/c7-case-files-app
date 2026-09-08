@@ -115,6 +115,19 @@ CREATE TABLE video_moment (
   file_path TEXT
 );
 
+-- the pages after the cover. evidence.file_path is picture one (and stays the
+-- card thumbnail everywhere); every further shot of the same record — page 2
+-- of a decree, the next post in a set — is a row here, in `ord` order.
+CREATE TABLE evidence_shot (
+  id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
+  evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+  file_path TEXT, sha256 TEXT, bytes INTEGER, mime TEXT,
+  caption TEXT,                            -- what this page shows, in her words
+  ord INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE INDEX idx_evidence_shot_ev ON evidence_shot(evidence_id);
+
 CREATE TABLE evidence_link (
   id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
   evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,

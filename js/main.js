@@ -440,7 +440,7 @@ function screenIsBusy() {
   const a = document.activeElement;
   if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return true;
   if (drawer.classList.contains('open')) return true;
-  if (document.querySelector('.btn-armed, .inline-form, .tree-full')) return true;
+  if (document.querySelector('.btn-armed, .inline-form, .tree-full, .shot-view')) return true;
   for (const el of pageRoot.querySelectorAll('textarea, input:not([type]), input[type="text"], input[type="search"]')) {
     if (el.value && el.value.trim()) return true; // a paste, a search she is reading
   }

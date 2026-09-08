@@ -256,6 +256,22 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
   )`,
   'CREATE INDEX IF NOT EXISTS idx_contradiction_person ON contradiction(person_id)',
+  // extra pictures on one evidence item (2026-09-08, her ask: "I want these
+  // screenshots added to the relevant evidence"). A court decree runs to
+  // several pages and a set of posts is several shots — one file_path column
+  // could only ever hold the first. The item's own file_path stays the cover,
+  // so every card thumbnail in the app keeps working untouched; these are the
+  // pages after it. Sync needs no cloud change: c7_records is one generic
+  // table, so a new entity name is all it takes.
+  `CREATE TABLE IF NOT EXISTS evidence_shot (
+    id TEXT PRIMARY KEY,
+    evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+    file_path TEXT, sha256 TEXT, bytes INTEGER, mime TEXT,
+    caption TEXT,
+    ord INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_evidence_shot_ev ON evidence_shot(evidence_id)',
 ];
 // columns added to existing tables after first release (SQLite has no
 // ADD COLUMN IF NOT EXISTS, so check PRAGMA first)

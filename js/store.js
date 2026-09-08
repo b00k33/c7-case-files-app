@@ -408,6 +408,68 @@ export async function evidenceAssetUrl(filePath) {
   return db.assetUrl(filePath);
 }
 
+// ---- the pictures on one evidence item ----------------------------------
+// Picture one is the item's own file_path (the card thumbnail). Everything
+// after it is an evidence_shot row: page 2 of a decree, the next post in a
+// set. listEvidencePictures() hands back both as one list so callers never
+// have to remember the split (2026-09-08).
+
+export async function listEvidenceShots(evidenceId) {
+  return db.exec(
+    'SELECT * FROM evidence_shot WHERE evidence_id=? AND deleted_at IS NULL ORDER BY ord, created_at',
+    [evidenceId]
+  );
+}
+
+/** Cover first, then the shots — each as { id, file_path, mime, caption, cover }. */
+export async function listEvidencePictures(item) {
+  const out = [];
+  if (item.file_path && /^image\//.test(item.mime || '')) {
+    out.push({ id: null, cover: true, file_path: item.file_path, mime: item.mime, caption: null });
+  }
+  for (const s of await listEvidenceShots(item.id)) out.push({ ...s, cover: false });
+  return out;
+}
+
+export async function addEvidenceShot(obj) {
+  const id = uuid();
+  const now = nowISO();
+  const r = db.exec('SELECT MAX(ord) AS m FROM evidence_shot WHERE evidence_id=?', [obj.evidence_id]);
+  const ord = (r.length && r[0].m != null ? r[0].m : 0) + 1;
+  db.run(
+    `INSERT INTO evidence_shot (id,evidence_id,file_path,sha256,bytes,mime,caption,ord,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.evidence_id, obj.file_path || null, obj.sha256 || null, obj.bytes ?? null,
+     obj.mime || null, obj.caption || null, ord, now, now]
+  );
+  logChange('evidence_shot', id, 'insert', obj);
+  return id;
+}
+
+export async function updateEvidenceShot(id, patch) {
+  const fields = Object.keys(patch);
+  if (!fields.length) return;
+  db.run(`UPDATE evidence_shot SET ${fields.map((f) => `${f}=?`).join(',')}, updated_at=? WHERE id=?`,
+    [...fields.map((f) => patch[f]), nowISO(), id]);
+  logChange('evidence_shot', id, 'update', patch);
+}
+
+export async function deleteEvidenceShot(id) {
+  const now = nowISO();
+  db.run('UPDATE evidence_shot SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('evidence_shot', id, 'delete', {});
+}
+
+/**
+ * Take the cover picture off an item. Nothing is promoted in its place —
+ * the card thumbnail falls through to the first shot on its own — and the
+ * stored file is left where it is, so an accidental tap costs a link, not
+ * the picture.
+ */
+export async function dropEvidenceCover(evidenceId) {
+  await updateEvidence(evidenceId, { file_path: null, sha256: null, bytes: null, mime: null });
+}
+
 export async function listVideoMoments(evidenceId) {
   return db.exec('SELECT * FROM video_moment WHERE evidence_id=? ORDER BY t_ms', [evidenceId]);
 }

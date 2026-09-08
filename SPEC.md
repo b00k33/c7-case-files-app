@@ -1395,6 +1395,59 @@ unless something is focused — which makes its lifetime the whole problem:
   `contenteditable` is left alone, so pasting a URL into a source field
   still behaves like a normal paste.
 
+## 13p. Pictures live on the evidence item (v85, 2026-09-08)
+
+"I want these screenshots added to the relevant evidence mentioned in
+transcript", then "allow for pasting images into evidence" — the same ask
+twice, which by her own rule means the last build was at the wrong layer.
+v84's paste always made a *new* inbox item. What she had was an item that
+already existed (a court decree she had typed up from a video) and a picture
+of that exact document, with no way to put the two together. And the detail
+panel had never shown a picture at all: it printed `File   a3f9….jpg` as
+text, so even an inbox screenshot could not be looked at again after it was
+titled.
+
+**Where a paste lands now depends on what is in front of her.** With an item
+open, Ctrl+V puts the picture *on that item*. With nothing open, it goes to
+the Inbox exactly as in v84. One document-level listener decides between
+them — two listeners could not reliably agree which should win, because
+both would be on `document` and the later registration always runs second,
+so `stopImmediatePropagation` from the panel's listener could never
+pre-empt the page's. The open-panel test is `openDetailTarget()`: the
+drawer carries `.open`, the panel body is still in the document, and it
+still contains `#shots`. That last check is what distinguishes our panel
+from the drawer showing sync, an add-form, or a different page's content.
+
+**One cover, then pages.** `evidence.file_path` stays picture one — it is
+what every card thumbnail in the app reads — and everything added through
+the panel becomes an `evidence_shot` row (`file_path`, `caption`, `ord`).
+The new table needs no cloud migration: sync stores every entity as a row in
+one generic `c7_records` table, so adding `evidence_shot` to `SYNC_TABLES`
+is the whole change. `cardPicture()` falls through to the first shot when
+the item has no image of its own, which is what lets a typed-up note show
+the decree once she pastes it on, and lets the cover be removed without the
+card going blank. Removing the cover only clears the columns; the stored
+file is left alone, so a mis-tap costs a link, not the picture.
+
+**The viewer** (`openShotViewer` in `js/ui.js`) pages the whole set with
+‹ › and the arrow keys, and is where removing happens — a 92px tile with an
+X on it is one mis-tap from losing a document. Its arm-then-act is written
+out rather than reusing `twoTapConfirm`, because that helper keeps `armed`
+in a closure that outlives the picture on screen: arming on page 1 and then
+arrowing to page 2 would have deleted page 2 on a single tap. Paging calls
+`disarm()`, so the flag and the label always move together. Verified.
+The cover has no caption of its own to save into, so its caption box is
+disabled and says why rather than quietly forgetting what she types.
+
+**A deadlock this turned up, present since v1.** Evidence card thumbnails
+never appeared on a cold open. `.card-thumb` is `display:none` until `.has`,
+`.has` was added by the image's `load` event, and a `loading="lazy"` image
+inside a `display:none` box never starts loading — so the class that would
+reveal it could only be added by an event that could not fire. It looked
+fine in testing only when that exact picture happened to be decoded already.
+Fixed the way faces already do it: `preloadImage()` first, then append and
+reveal. Never wait on a `load` event to un-hide the box the image is in.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

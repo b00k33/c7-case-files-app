@@ -101,3 +101,134 @@ export function clearInlineNote(anchorEl) {
   const n = anchorEl.nextElementSibling;
   if (n && n.classList && n.classList.contains('inline-note')) n.remove();
 }
+
+/**
+ * Full-screen picture viewer with arrows through a set (2026-09-08). Built
+ * for the pictures on one evidence item, but takes any list.
+ *
+ * `pictures` is [{ url, caption, id, cover }] — URLs already resolved by the
+ * caller, so the viewer never waits on storage. onCaption/onRemove are
+ * optional; without them the viewer is read-only.
+ *
+ * Follows the full-tree overlay: appended to <body>, Escape closes, the
+ * page underneath is frozen while it is up and restored exactly on close.
+ */
+export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClosed }) {
+  if (!pictures.length || document.querySelector('.shot-view')) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  let list = pictures.slice();
+  let i = Math.max(0, Math.min(index, list.length - 1));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'shot-view';
+  overlay.innerHTML = `
+    <button class="close" type="button">‹ Close</button>
+    <button class="drop" type="button" ${onRemove ? '' : 'hidden'}>Remove</button>
+    <button class="nav prev" type="button" aria-label="Previous picture">‹</button>
+    <div class="frame"><img alt=""></div>
+    <button class="nav next" type="button" aria-label="Next picture">›</button>
+    <div class="bar">
+      <span class="count"></span>
+      <input type="text" placeholder="What does this picture show? (optional)" ${onCaption ? '' : 'disabled'}>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+
+  const img = overlay.querySelector('img');
+  const cap = overlay.querySelector('input');
+  const count = overlay.querySelector('.count');
+  const prev = overlay.querySelector('.prev');
+  const next = overlay.querySelector('.next');
+  const dropBtn = overlay.querySelector('.drop');
+  let armed = false, armTimer = null;
+  const disarm = () => {
+    armed = false;
+    clearTimeout(armTimer);
+    dropBtn.textContent = 'Remove';
+  };
+
+  const paint = () => {
+    const p = list[i];
+    img.src = p.url;
+    cap.value = p.caption || '';
+    // the cover picture has no caption of its own to save into — say so
+    // rather than letting her type into a box that quietly forgets
+    cap.disabled = !onCaption || !!p.cover;
+    cap.placeholder = p.cover
+      ? 'The cover picture is described by the item’s own title'
+      : 'What does this picture show? (optional)';
+    // the cover is the card thumbnail everywhere else, so say so rather than
+    // letting her wonder why picture 1 behaves differently
+    count.textContent = `${i + 1} of ${list.length}${p.cover ? ' · cover' : ''}`;
+    prev.disabled = i === 0;
+    next.disabled = i === list.length - 1;
+    disarm();
+  };
+  const go = (d) => {
+    // the caption is saved before moving, or typing then arrowing loses it
+    saveCaption();
+    i = Math.max(0, Math.min(i + d, list.length - 1));
+    paint();
+  };
+  const saveCaption = () => {
+    const p = list[i];
+    if (!onCaption || !p || p.cover) return;
+    const text = cap.value.trim();
+    if (text === (p.caption || '')) return;
+    p.caption = text;
+    onCaption(p, text);
+  };
+
+  const close = () => {
+    saveCaption();
+    clearTimeout(armTimer);
+    overlay.remove();
+    document.body.style.overflow = prevOverflow;
+    document.removeEventListener('keydown', onKey);
+    if (onClosed) onClosed();
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape') { close(); return; }
+    if (e.target === cap) return;                 // typing a caption, not paging
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+  };
+  document.addEventListener('keydown', onKey);
+
+  prev.addEventListener('click', () => go(-1));
+  next.addEventListener('click', () => go(1));
+  overlay.querySelector('.close').addEventListener('click', close);
+  cap.addEventListener('blur', saveCaption);
+  cap.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveCaption(); cap.blur(); } });
+  // tapping the dark space around the picture closes, like any lightbox —
+  // but not a tap on the picture itself, which is what she is reading
+  overlay.querySelector('.frame').addEventListener('click', (e) => { if (e.target !== img) close(); });
+
+  // Arm-then-act, written out rather than twoTapConfirm: that helper keeps
+  // `armed` in a closure that outlives the picture on screen, so arming on
+  // page 1 and then arrowing to page 2 would delete page 2 on a single tap.
+  // Here paging calls disarm(), and the flag and the label move together.
+  if (onRemove) {
+    dropBtn.addEventListener('click', async () => {
+      if (!armed) {
+        armed = true;
+        dropBtn.textContent = 'Really remove?';
+        clearTimeout(armTimer);
+        armTimer = setTimeout(disarm, 5000);
+        return;
+      }
+      disarm();
+      const p = list[i];
+      await onRemove(p);
+      list.splice(i, 1);
+      if (!list.length) { close(); return; }
+      i = Math.min(i, list.length - 1);
+      paint();
+    });
+  }
+
+  paint();
+  return { close };
+}
