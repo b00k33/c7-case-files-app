@@ -288,6 +288,24 @@ made, is asked when she knows least — so every creation-time choice needs
 an edit path, and when she asks "where do I change X" the first thing to
 check is whether X was ever writable twice.
 
+**2026-09-08 — alternate birthday, with its evidence (v83, SPEC §13n).**
+"add an alternate birthday and include the evidence for it" turned out to
+be a UI gap over machinery that already existed: `claim.field='birth'`
+and `evidence_link(target_type='claim')` were both already in the
+schema and already used elsewhere for `'birth'`, just never combined,
+and Review never rendered a claim's evidence. + Add → Alternate birthday
+now creates both, linked to the claim AND the person (a claim's evidence
+would otherwise vanish once decided — Review only lists drafted claims).
+Building this surfaced two DORMANT bugs — real, but unreachable before,
+because no earlier source of a `birth` claim ever produced month
+precision: `describeClaim` misread "June 1958" as "1958 (year only)",
+and `applyClaim` accepted a month-precision claim without ever writing
+the new `birth_date`, silently leaving the old one under a changed
+precision label. Rule to carry: **when a form becomes the first path to
+reach a value shape an older function only half-handled, that function's
+other branches are suspect — read every branch of what you're about to
+call, not just the one your new input takes.**
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

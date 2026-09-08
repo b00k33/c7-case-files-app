@@ -1327,6 +1327,46 @@ is opened. Rule to carry: **anything the app asks at creation must be
 changeable afterwards** — a one-shot question is a trap, because the
 answer is least certain at the moment the thing is made.
 
+## 13n. Alternate birthday, with its evidence (v83, 2026-09-08)
+
+"if i want to add an alternate birthday and include the evidence for it,
+how? make the process easy for me." The claim/evidence machinery already
+existed for exactly this — `claim.field='birth'` (the same shape the
+paste box and Wikidata lookup already use), and `evidence_link` already
+supported `target_type='claim'` in its schema — but nothing in the UI
+ever created that combination, and Review never rendered it.
+
+**+ Add → Alternate birthday**: one date field (the same free-text parser
+as "Add an event": "14 Nov 1996 · Nov 1996 · 1996") and one "where this
+comes from" field. Save creates a **drafted** `birth` claim — it does not
+touch the person's own birth date — plus a real Evidence record (a link
+if she typed one, a note otherwise) linked to BOTH the claim (so it's
+right there when she decides) and the person (so it stays browsable
+afterward, whichever way the decision goes — Review only ever lists
+drafted claims, so a claim's own evidence would otherwise vanish the
+moment it's decided).
+
+**Review** now shows, for a `birth`/`death` claim: what's on record now
+(from the person, for comparison) and, if any, the evidence attached —
+title, her citation as the sub-line, its verification, click-through to
+the Evidence page. Accepting overwrites the birth date exactly like any
+other accepted claim; rejecting leaves it and the record untouched; the
+evidence stays on the person's Attached Evidence panel either way.
+
+**Two dormant bugs surfaced and fixed** — both existed before this build
+but were unreachable, because no earlier source of a `birth` claim (paste,
+Wikidata lookup) ever produced month precision, only day or year:
+- `describeClaim` (review.js) read anything but day precision as
+  "(year only)", so "June 1958" showed as "1958".
+- `applyClaim` (store.js) only wrote `birth_date` for day precision, so
+  accepting a month-precision claim changed `birth_precision` to
+  `'month'` while leaving the OLD `birth_date` sitting under it —
+  `exactBirth()` already refuses non-day precision regardless, so this
+  never broke a calculation, but the stored fact itself was wrong.
+Both now handle month precision the way the rest of the app already
+does (profile-parse.js's `setBirth`, the person Edit form): the same
+`'YYYY-MM-01'` placeholder date, never read for anything exact.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

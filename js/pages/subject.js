@@ -287,6 +287,14 @@ export async function render(root, ctx, personId, tab = 'profile') {
           </div>
         </div>
         <div class="field" style="margin-top:16px">
+          <label>Alternate birthday — a date you're not sure about, with why</label>
+          <div class="row wrap" style="gap:8px">
+            <input type="text" id="alt-bday-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
+            <input type="text" id="alt-bday-source" placeholder="Where this comes from — a document, a page, a link" style="flex:2 1 220px">
+            <button class="btn btn-primary btn-sm" id="alt-bday-save">Save as a candidate</button>
+          </div>
+        </div>
+        <div class="field" style="margin-top:16px">
           <label>Import information — paste anything, it saves what it recognises</label>
           <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
         </div>
@@ -499,6 +507,50 @@ export async function render(root, ctx, personId, tab = 'profile') {
   });
   tools.querySelector('#ev-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-date').focus(); } });
   tools.querySelector('#ev-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-save').click(); } });
+
+  // ---- Alternate birthday (her ask, 2026-09-08: "add an alternate birthday
+  // and include the evidence for it") — a candidate date that does NOT
+  // touch the accepted birth date. It becomes the same kind of 'birth' claim
+  // the paste box and Wikidata lookup already create (so Review already
+  // knows how to show it: "Born <date>"), plus a real Evidence record — a
+  // note or a link, whichever she typed — linked to BOTH the claim (so it
+  // sits right there when she decides) and the person (so it stays
+  // browsable afterward, whichever way the decision goes; Review only ever
+  // lists drafted claims, so a claim's own evidence would otherwise vanish
+  // the moment it's accepted or rejected). Nothing changes on her profile
+  // until she accepts it in Review.
+  tools.querySelector('#alt-bday-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#alt-bday-source').focus(); } });
+  tools.querySelector('#alt-bday-source').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#alt-bday-save').click(); } });
+  tools.querySelector('#alt-bday-save').addEventListener('click', async () => {
+    const btn = tools.querySelector('#alt-bday-save');
+    clearInlineNote(btn);
+    const dateText = tools.querySelector('#alt-bday-date').value.trim();
+    const source = tools.querySelector('#alt-bday-source').value.trim();
+    if (!dateText) { inlineNote(btn, 'Say what the alternate date is.'); return; }
+    const d = parseDate(dateText);
+    if (!d) { inlineNote(btn, 'That date didn’t read — try "14 Nov 1996", "Nov 1996" or "1996".'); return; }
+    if (!source) { inlineNote(btn, 'Say where this date comes from — that becomes the evidence for it.'); return; }
+    const claimId = await store.createClaim({
+      case_id: ctx.caseId, target_type: 'person', target_id: person.id,
+      field: 'birth', value: { precision: d.precision, date: d.date, year: d.year },
+      origin: 'user', rationale: source,
+    });
+    const isLink = /^https?:\/\//i.test(source);
+    const ev = await store.createEvidence({
+      case_id: ctx.caseId, type: isLink ? 'clipping' : 'note',
+      title: `Alternate birthday for ${person.display_name} — ${preciseText(d)}`,
+      original_url: isLink ? source : null,
+      notes: isLink ? null : source,
+      verification: 'drafted', dated: new Date().toISOString().slice(0, 10),
+    });
+    await store.linkEvidence({ evidence_id: ev.id, target_type: 'claim', target_id: claimId, note: source });
+    await store.linkEvidence({ evidence_id: ev.id, target_type: 'person', target_id: person.id, note: 'alternate birthday' });
+    tools.querySelector('#alt-bday-date').value = '';
+    tools.querySelector('#alt-bday-source').value = '';
+    sessionStorage.setItem('c7-pi-result', `Alternate birthday saved as a candidate — ${preciseText(d)}, with its evidence. It won’t change ${person.display_name.split(/\s+/)[0]}’s birth date until you accept it in Review.`);
+    ctx.closeDrawer();
+    render(root, ctx, personId, tab);
+  });
   // the Board's (or the life line's) empty state sent her here for the first event
   if (sessionStorage.getItem('c7-open-add')) {
     sessionStorage.removeItem('c7-open-add');

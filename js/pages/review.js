@@ -1,4 +1,4 @@
-import { emptyState } from '../indicators.js';
+import { emptyState, verificationLabel } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm } from '../ui.js';
 
 let cursor = 0;
@@ -61,8 +61,25 @@ async function describeClaim(store, claim, value) {
   }
   if (f === 'birth' || f === 'death') {
     const label = f === 'birth' ? 'Born' : 'Died';
-    const title = value.precision === 'day' ? `${label} ${fmtDate(value.date)}` : `${label} ${value.year} (year only)`;
-    return { title, meta: [] };
+    // month precision was never reachable here before the alternate-birthday
+    // form (2026-09-08) — every earlier source of a 'birth'/'death' claim
+    // only ever produced 'day' or 'year' — so it fell through to "(year
+    // only)" and misread "June 1958" as just "1958"
+    const when = value.precision === 'day' ? fmtDate(value.date)
+      : value.precision === 'month' ? new Date(`${value.date}T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+      : `${value.year} (year only)`;
+    const title = `${label} ${when}`;
+    const meta = [];
+    // an alternate date only makes sense next to what's on record now
+    if (f === 'birth' && claim.target_id) {
+      const p = await store.getPerson(claim.target_id);
+      const now = p?.birth_precision === 'day' && p.birth_date ? fmtDate(p.birth_date)
+        : p?.birth_precision === 'month' && p.birth_date ? new Date(`${p.birth_date}T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+        : p?.birth_precision === 'year' && p.birth_year_min ? `${p.birth_year_min} (year only)`
+        : 'needs a full birth date';
+      meta.push({ k: 'on record now', v: now });
+    }
+    return { title, meta };
   }
   if (f === 'relationship') {
     const [a, b] = await Promise.all([store.getPerson(value.a_id), store.getPerson(value.b_id)]);
@@ -259,6 +276,11 @@ export async function render(root, ctx) {
   const target = claim.target_id && claim.target_type === 'person' ? await store.getPerson(claim.target_id) : null;
   const desc = await describeClaim(store, claim, value);
   const style = claimStyle(claim, value);
+  // evidence attached straight to this claim (2026-09-08, "add an alternate
+  // birthday and include the evidence for it") — separate from the
+  // person's own Attached Evidence panel, which only shows once a fact is
+  // already accepted; this is what she cited BEFORE deciding
+  const claimEvidence = await store.listLinksForTarget('claim', claim.id);
 
   const card = document.createElement('div');
   card.className = 'review-card';
@@ -269,7 +291,11 @@ export async function render(root, ctx) {
     ${desc.title ? `<div class="claim-title">${desc.title}</div>` : ''}
     ${desc.meta?.length ? `<div class="claim-meta">${desc.meta.map((m) => `<span class="meta-item"><span class="k">${m.k}</span>${m.v}</span>`).join('')}</div>` : ''}
     ${desc.rows?.length ? `<div class="claim-fields">${desc.rows.map((r) => `<div class="row-item"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`).join('')}</div>` : ''}
-    ${claim.rationale ? `<div class="claim-note mono">${claim.rationale}</div>` : ''}
+    ${claim.rationale && !claimEvidence.length ? `<div class="claim-note mono">${claim.rationale}</div>` : ''}
+    ${claimEvidence.length ? `<div class="claim-evidence stack" style="gap:4px;margin-top:10px">
+      <span class="section-label">Evidence for this</span>
+      ${claimEvidence.map((l) => `<div class="list-row" style="cursor:pointer" data-evid="${l.evidence_id}"><div class="main"><div class="title">${l.evidence_title}</div>${l.note ? `<div class="sub">${l.note}</div>` : ''}</div><span class="chip ${l.evidence_verification === 'two_plus' ? 'green' : ''}">${verificationLabel(l.evidence_verification)}</span></div>`).join('')}
+    </div>` : ''}
     <div class="claim-note" style="margin-top:12px">
       Accepting applies this directly. It does not raise any confidence figure by itself — only evidence you link afterward does that.
     </div>
@@ -283,6 +309,9 @@ export async function render(root, ctx) {
     <div id="edit-slot"></div>
   `;
   slot.appendChild(card);
+  for (const row of card.querySelectorAll('.claim-evidence .list-row')) {
+    row.addEventListener('click', () => ctx.navigate('#/evidence'));
+  }
 
   async function decide(decision, rationale) {
     await store.decideClaim(claim.id, decision, rationale);

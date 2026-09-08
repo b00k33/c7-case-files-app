@@ -776,7 +776,18 @@ async function applyClaim(claim) {
   }
   if (claim.field === 'birth') {
     const patch = { birth_precision: value.precision };
-    if (value.precision === 'day') patch.birth_date = value.date;
+    // day and month both carry a real birth_date ('YYYY-MM-01' for month,
+    // per parseDate) — only year precision has none. This branch used to
+    // write birth_date for 'day' only, so accepting a month-precision claim
+    // (unreachable before the alternate-birthday form, 2026-09-08 — every
+    // earlier source of a 'birth' claim only ever built 'day' or 'year')
+    // left the OLD birth_date sitting under the NEW precision label,
+    // silently wrong. exactBirth() already refuses anything but 'day'
+    // precision, so a month's placeholder '01' can never leak into a
+    // calculation — it's safe to store, exactly like every other place in
+    // the app that handles month precision (profile-parse.js's setBirth,
+    // the person Edit form).
+    if (value.precision === 'day' || value.precision === 'month') patch.birth_date = value.date;
     else if (value.precision === 'year') { patch.birth_year_min = value.year; patch.birth_year_max = value.year; }
     await updatePerson(claim.target_id, patch);
     return;
