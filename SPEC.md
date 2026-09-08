@@ -1367,6 +1367,34 @@ Both now handle month precision the way the rest of the app already
 does (profile-parse.js's `setBirth`, the person Edit form): the same
 `'YYYY-MM-01'` placeholder date, never read for anything exact.
 
+## 13o. Paste a picture into Evidence (v84, 2026-09-08)
+
+"in evidence, allow me to paste pictures." The page already had three ways
+in — the picker, drag-and-drop, and the phone's share sheet — all landing
+on the same `addImages()`. Paste is the fourth, and reuses it exactly: copy
+a screenshot, press Ctrl+V anywhere on the Evidence page, and it lands in
+the Inbox to be titled and given a person there, like every other route in.
+A pasted PNG already reads as `screenshot` through the existing
+`guessType()`, so it needs no special case.
+
+The listener sits on the **document** — a paste has no element to aim at
+unless something is focused — which makes its lifetime the whole problem:
+
+- **It must not stack.** This page re-renders on every view-tab and filter
+  change (calling `render()` directly, not through the router), so a
+  listener added per render would accumulate and add the same pasted image
+  once per copy. Held at module scope like review.js's `keyHandler`, and
+  removed before each new one is attached. Verified: five re-renders, then
+  one paste, adds exactly one image.
+- **It must stop when she leaves.** `render()` returns early on two of its
+  three paths, so a returned unmount would not always be reached. The guard
+  is `#evidence-body` — an id unique to this page's own markup, and
+  `#page-root`'s contents are replaced on every navigation, so its absence
+  means we have left. Verified: pasting from the Cases page adds nothing.
+- **It must not hijack text.** A paste aimed at an `input`, `textarea` or
+  `contenteditable` is left alone, so pasting a URL into a source field
+  still behaves like a normal paste.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

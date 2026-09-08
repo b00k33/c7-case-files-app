@@ -306,6 +306,19 @@ reach a value shape an older function only half-handled, that function's
 other branches are suspect — read every branch of what you're about to
 call, not just the one your new input takes.**
 
+**2026-09-08 — paste a picture into Evidence (v84, SPEC §13o).** "in
+evidence, allow me to paste pictures." A fourth way into the same
+`addImages()` the picker, drag-drop and share sheet already use — it lands
+in the Inbox to be titled and given a person there. The feature is four
+lines; its **lifetime** is the whole job, because the listener has to live
+on the document: held at module scope so re-renders replace rather than
+stack it (this page re-renders on every tab and filter change, outside the
+router), and guarded on `#evidence-body` so it stops firing once she
+navigates away — `render()` returns early on two of three paths, so a
+returned unmount would not always be reached. Rule to carry: **a
+document-level listener added inside a render() is a bug unless you can
+say exactly what removes it, on every path out of that function.**
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other

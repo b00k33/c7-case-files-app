@@ -36,6 +36,24 @@ function chipClass(v) {
 
 let currentView = 'grid';
 let filters = { type: '', verification: '' };
+// the page-level paste listener (her ask, 2026-09-08: "in evidence, allow me
+// to paste pictures"). Held at module scope like review.js's keyHandler, so
+// a re-render replaces it instead of stacking a second copy — this page
+// re-renders on every view-tab and filter change, and each stacked listener
+// would add the same pasted image again.
+let pasteHandler = null;
+
+/** Any images on the clipboard, as Files — a paste usually carries one screenshot. */
+function imagesFromClipboard(dt) {
+  const files = [];
+  for (const item of dt?.items || []) {
+    if (item.kind === 'file' && /^image\//.test(item.type)) {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  return files;
+}
 
 // one options list for every source picker: real sources, a "none", and an
 // inline "+ New source…" row (same pattern as the case switcher)
@@ -97,7 +115,7 @@ export async function render(root, ctx) {
           <button class="btn btn-primary" id="add-evidence-btn">+ Add evidence</button>
         </div>
       </div>
-      <div class="dropzone" id="dropzone">Drop images here — or on your phone, share them to Case Files from the gallery</div>
+      <div class="dropzone" id="dropzone">Drop images here, or paste one with Ctrl+V — or on your phone, share them to Case Files from the gallery</div>
       <div class="row wrap" style="gap:8px">
         <select id="f-type"><option value="">All types</option>${TYPES.map((t) => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <select id="f-verify"><option value="">All verification</option>${VERIFICATIONS.map((v) => `<option value="${v}" ${filters.verification === v ? 'selected' : ''}>${VERIFICATION_LABEL[v]}</option>`).join('')}</select>
@@ -134,6 +152,27 @@ export async function render(root, ctx) {
     const files = [...(e.dataTransfer?.files || [])].filter((f) => /^image\//.test(f.type));
     if (files.length) { await addImages(ctx, files, root); currentView = 'inbox'; render(root, ctx); }
   });
+
+  // ...and the fourth way in: paste (her ask, 2026-09-08). Copy a screenshot,
+  // press Ctrl+V anywhere on this page — it lands in the inbox like every
+  // other route in, to be titled and given a person there. The listener sits
+  // on the document (a paste has no element to aim at unless something is
+  // focused), so it must know when this page is gone: #evidence-body only
+  // exists in this page's own markup, and #page-root's contents are replaced
+  // on every navigation, so its absence means we've left. That guard also
+  // covers the paths where render() returns early without an unmount.
+  if (pasteHandler) document.removeEventListener('paste', pasteHandler);
+  pasteHandler = async (e) => {
+    if (!document.getElementById('evidence-body')) return; // left the page
+    if (e.target.closest?.('input, textarea, [contenteditable]')) return; // she's pasting text into a field
+    const files = imagesFromClipboard(e.clipboardData);
+    if (!files.length) return;
+    e.preventDefault();
+    await addImages(ctx, files, root);
+    currentView = 'inbox';
+    render(root, ctx);
+  };
+  document.addEventListener('paste', pasteHandler);
 
   if (currentView === 'inbox') {
     const bodyEl0 = root.querySelector('#evidence-body');
