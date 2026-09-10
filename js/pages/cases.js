@@ -192,7 +192,7 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
     e.stopPropagation();
     if (slot.children.length) { slot.innerHTML = ''; return; }
     const dups = await store.findDuplicates(c.id);
-    const flagged = dups.people.length ? `${dups.people.length} same-name ${dups.people.length === 1 ? 'person' : 'people'} (${dups.people.map((p) => p.name).join(', ')}) — not removed` : '';
+    const flagged = dups.people.length ? `${dups.people.length} same-name ${dups.people.length === 1 ? 'person' : 'people'} (${dups.people.map((p) => p.name).join(', ')}) — resolve them from People` : '';
     slot.innerHTML = `
       <div class="row wrap" style="gap:6px;margin-top:8px">
         <button class="btn btn-ghost btn-sm m-rename">Rename</button>
@@ -278,7 +278,7 @@ function findDuplicateCases(withSums) {
   const dupOf = new Map(); // caseId -> { keepCase, keepPersonId, dupPersonId }
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    group.sort((a, b) => (a.c.created_at || '') < (b.c.created_at || '') ? -1 : 1);
+    group.sort((a, b) => (a.c.created_at || '').localeCompare(b.c.created_at || ''));
     const [keep, ...rest] = group;
     for (const dup of rest) {
       dupOf.set(dup.c.id, { keepCase: keep.c, keepPersonId: keep.subject?.id || null, dupPersonId: dup.subject?.id || null });

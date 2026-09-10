@@ -186,8 +186,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .chip.green { color: var(--green); }
 .chip.teal { color: var(--teal); }
 /* attention chips that are doors — "N to review →", "N images →", "N open" — read as tappable */
-.chip.rv-open, .chip.q-open, .chip.inbox-open { cursor: pointer; box-shadow: var(--lift-2); }
-.chip.rv-open:hover, .chip.q-open:hover, .chip.inbox-open:hover { background: var(--ink-2); }
+.chip.rv-open, .chip.q-open, .chip.inbox-open, .chip.dup-flag { cursor: pointer; box-shadow: var(--lift-2); }
+.chip.rv-open:hover, .chip.q-open:hover, .chip.inbox-open:hover, .chip.dup-flag:hover { background: var(--ink-2); }
 
 /* -------------------------------------------------------------- bar row */
 

@@ -1448,6 +1448,67 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13q. Duplicate people, resolved from the People page (v86, 2026-09-11)
+
+"lisa is duplicated but i dont know how to resolve it. make the process
+easier." The engine already knew how to fold two people into one —
+`store.mergePerson(keepId, dupId)` re-homes every alias, address, event,
+contradiction, claim, evidence link, tagging and relationship the duplicate
+carried, fills any blank field on the keeper from the duplicate, and
+soft-deletes the duplicate. It just had no door on the People page. Cases
+already had one: same-named person-*cases* get a "Possible duplicate of
+… →" chip (`js/pages/cases.js`, `findDuplicateCases`), added 2026-09-06 for
+the "Michael Jackson" / "michael jackson" problem. This is that pattern,
+copied exactly, one level down — same-named *people* within one case.
+
+Grouped by `case_id` + the name, trimmed and lower-cased, + `kind` (so a
+person and an org or household sharing a name never pair up); the oldest
+created wins and every later one gets the chip; two-tap confirm merges. A
+group of three or more works the same way — everyone but the oldest is
+flagged, and merging one re-renders the whole page, so the group
+self-corrects on its own without any special-casing.
+
+**Deliberately narrower than it could be.** Two people who are the same
+name in *different* cases — a subject with their own case, matched again
+inside someone else's family tree — are not touched here. That is a
+different question: whether a person can belong to more than one case at
+once, which is a real design call about what a person *is* in this app,
+not a data-hygiene fix. Raised to her as a separate, bigger decision.
+
+**A related pair is never offered the merge.** An adversarial review run
+before ship caught a real blocker: two same-named people who already have
+a relationship recorded between them (a father and son sharing a name, the
+app's own core "keep distinct people distinct" scenario) are almost
+certainly namesakes, not a double entry — the same real person merged
+under two rows would never carry a relationship to themselves. Merging
+them anyway would silently *delete* that relationship (`mergePerson`
+collapses both ends to the same id and drops the now-self-referential
+row) with no warning naming what was lost. So `js/pages/people.js` checks
+`listRelationshipsForPerson` before flagging a pair at all — a directly
+related pair simply gets no chip, full stop. The shared `mergePerson`
+primitive itself is untouched; the guard lives only at this one door.
+
+**The confirm step names both birth years, when known.** "Merge into the
+other Lisa? (this: b.1998 · keeping: b.1950)" — visible on the armed chip
+itself, not a hover-only tooltip, so it reads on a phone too. A same-named
+pair with a real age gap is the other shape "different people, same name"
+can take once the relationship guard has ruled out namesakes with a
+recorded link.
+
+Verified live: a 2-person and a 3-person group, a relationship and an
+evidence link on the merged-away entry both confirmed re-homed to the
+keeper afterward, the merged person gone from the list with no orphaned
+links left pointing at it, a same-named person in a *different* case left
+alone throughout, a related same-named pair correctly withheld the chip,
+the birth-year confirm text checked against a real merge, light and dark,
+phone width, 44/44 tests.
+
+*Known, accepted gap:* if the two merged entries both link the same piece
+of evidence with different notes on the link, one note is dropped —
+`mergePerson`'s existing collision handling (unchanged, pre-dates this
+feature, shared with the Cases page's cross-case merge). Minor and rare
+enough not to hold up this ship.
+
 ## 13. Two rules the 2026-09-03 review turned up
 
 **Never calculate from a date the file does not hold.** The schema stores a

@@ -351,6 +351,48 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-11 — duplicate people, resolved from the People page (v86, SPEC
+§13q).** "lisa is duplicated but i dont know how to resolve it. make the
+process easier." `store.mergePerson()` already did the real work (built for
+the Cases page's cross-case merge, 2026-09-06) — it just had no door on the
+People page. Copied the Cases page's "Possible duplicate" chip pattern
+exactly, one level down: people with the same trimmed, lower-cased name and
+the same `kind` in the *same case* get the chip on the newer entry, oldest
+is the keeper, two-tap confirm merges. A group of three or more
+self-corrects on its own — merging one re-renders the page and recomputes
+the group, no special handling needed. Deliberately does not touch the same
+name across *different* cases — that is a design call about whether a
+person can live in more than one case, raised to her separately rather than
+folded in here.
+
+**When one thing is missing everywhere it's used, build it once at the
+primitive layer, then it's a chip's worth of work at every door it needs.**
+`mergePerson` didn't need a single line changed — only a way to reach it
+from a second screen.
+
+**Ran an adversarial review before shipping this one — it caught a real
+blocker.** This is a data-merge feature, and the first one to route
+"same case, same name" into `mergePerson` as an *expected, common* case
+(namesakes) rather than a rare coincidence. A 3-lens review (correctness,
+data-safety, UI-consistency) plus an independent verify pass on every
+finding found: merging two people who already have a relationship between
+them silently deletes that relationship — `mergePerson` remaps both ends
+of the row to the same kept id, sees a self-link, and drops it — while the
+confirm text claims relations "move over." Fixed by never offering the
+chip for a pair that's already directly related (checked via
+`listRelationshipsForPerson` in `js/pages/people.js`, not in the shared
+primitive — the fix stays scoped to this one door). Also added: birth
+years on the confirm step itself when known (visible on tap, not a
+hover-only title — a second, cheaper finding), the same-`kind` filter
+above, a stale "— not removed" line in the Cases page's own ⋯ menu that
+this feature made misleading (now "— resolve them from People"), and a
+missing hover/lift treatment on the chip that the Cases page's own
+duplicate chip already had. **Lesson for next time a feature reuses an
+existing merge primitive for a new common case: ask what happens when the
+two things being merged already reference each other** — that's the shape
+this blocker took, and it won't be the last data-merge feature to need the
+question asked.
+
 **Working rules learned the hard way this week:**
 - One `Edit` per file per message. Two edits to the same file in one
   batch race each other and one silently lands on stale text; edit other
