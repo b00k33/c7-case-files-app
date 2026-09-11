@@ -1,5 +1,5 @@
 import { emptyState } from '../indicators.js';
-import { inlineNote, clearInlineNote } from '../ui.js';
+import { inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
 
 let activeTab = 'describe';
@@ -505,6 +505,27 @@ function renderPasteTab(body, ctx, people) {
       let personId, personName;
       if (mode === 'new') {
         personName = body.querySelector('#np-name').value.trim();
+        // do not allow duplicates (her ask, 2026-09-11) — someone by this
+        // name is already in the case; use them instead of a second row
+        const matches = ctx.store.findPeopleByName(ctx.caseId, personName, 'person');
+        if (matches.length) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = `Create person and add ${total} drafted item${total === 1 ? '' : 's'}, to Review`;
+          // read before drawMode() below replaces the fields that hold them —
+          // her chosen relationship must survive switching to "existing"
+          const relKind = body.querySelector('#np-kind')?.value;
+          const relB = body.querySelector('#np-b')?.value;
+          duplicateNameBlock(body.querySelector('#np-name'), matches, async (p) => {
+            if (relKind && relB) {
+              await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'case', target_id: ctx.caseId, field: 'relationship', value: { a_id: p.id, b_id: relB, kind: relKind }, origin: 'paste', rationale: 'from paste: new person' });
+            }
+            mode = 'existing'; drawMode();
+            const sel = modeBodyEl.querySelector('#p-person');
+            if (sel) sel.value = p.id;
+            confirmBtn.textContent = `Add ${total} drafted item${total === 1 ? '' : 's'}, to Review`;
+          });
+          return;
+        }
         const person = await ctx.store.createPerson({ case_id: ctx.caseId, display_name: personName, kind: 'person' });
         personId = person.id;
         await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'name_at_birth', value: personName, origin: 'paste', rationale: 'from paste: new person' });

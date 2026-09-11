@@ -1448,6 +1448,75 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13r. Do not allow duplicates (v87, 2026-09-11)
+
+Her screenshot: the Relations tab's Zodiac map, "Joe Jackson" appearing
+twice in the Michael Jackson case, drawn with a red zodiac-clash line
+running to itself. "do not allow duplicates." §13q (below) had already
+built a way to *resolve* a duplicate once it exists; this is the other
+half — stopping one from being created in the first place.
+
+**Hard block, no escape hatch, at every place a name gets typed by
+hand.** When a person is added by typing a free-text name and the same
+trimmed, case-insensitive name (Unicode-aware — "JOSÉ" matches "José") and
+`kind` already exists in that case, nothing is created. An inline block
+(same slot as every other inline validation in this app) lists the
+existing match(es) — "Use Frida Kahlo (added 11 September 2026) →" — or
+she edits the name field for someone genuinely new. No "create anyway."
+Live at the three places this is actually reachable by typing a fresh
+name: the Relations tab's "+ Person → Type it in" drawer (the one in her
+screenshot), an event-case's "+ Add key figure," and the paste-import
+flow's "+ New person" (which also preserves any relationship she'd
+already picked for that person, redirecting it onto the existing person
+instead of silently dropping it).
+
+**The same rule applies to renaming, not just creating.** A person's own
+Edit form now refuses to rename them onto an existing different person's
+name — the rest of that save still goes through (a fixed birthdate or new
+notes in the same pass aren't held hostage by the name field), only the
+name reverts, with a note pointing at merging from the People page if
+they really are the same person.
+
+**Deliberately not hard-blocked — already safe, or not an interactive
+moment:** creating the first/only person in a brand-new or empty case
+(structurally can't collide); the Wikidata family-import and batch-add
+paths, and the paste-transcript "with: …" extraction in Questions, which
+already silently reuse a same-named person rather than create a second
+(a pre-existing pattern, now also proven correct against accented
+letters); a "new person" claim drafted via the paste-import "Describe a
+topic" tab, which only becomes a real person when *accepted* later from
+the Review queue — no live typing moment to block against, so it follows
+the same silent-reuse pattern as its sibling claim types, and now
+backfills a drafted birth date onto the reused person the same way the
+sibling branch backfills a Wikidata id (only when the existing person
+doesn't already have one). The Fun & Zodiac page keeps its own separate,
+pre-existing silent-merge behaviour, untouched — it was never real
+research.
+
+**"Not the same person," properly weighed.** §13q's merge chip flags a
+same-named pair unless they already carry a relationship to each other
+(namesakes, not a double entry). Now she can say so explicitly too — a
+"Not the same person" action beside the chip, set off by a divider so the
+two opposite verdicts sitting side by side don't invite a mistap. Marking
+a pair distinct can't be undone anywhere in the app, so it gets the same
+two-tap weight as the merge right next to it, not a lighter one. The
+decision is permanent per pair and survives everything that could
+otherwise make it forgotten: it syncs across devices, and if either side
+of a marked pair later turns out to be a genuine duplicate of a third
+person and gets merged away, the "these two are different" fact is
+carried over onto the surviving identity rather than silently lost.
+
+Verified live: all three hard-block sites correctly refuse a colliding
+name and create nothing, a differently-named or corrected name still
+creates or saves normally, "Use existing" closes/resolves each form
+without a duplicate and (for the paste-import flow) keeps the relationship
+she'd chosen and updates its own confirm button to match; the Edit-form
+rename block saves every other field while reverting only the name; a
+same-named pair with no relationship still gets the merge chip and merges
+correctly (regression on §13q); "Not the same person" requires two taps
+and is confirmed to sync-eligible and merge-survive; an accented name
+(José/JOSÉ) is caught correctly; light/dark/mobile; 44/44 tests.
+
 ## 13q. Duplicate people, resolved from the People page (v86, 2026-09-11)
 
 "lisa is duplicated but i dont know how to resolve it. make the process

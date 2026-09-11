@@ -1075,9 +1075,11 @@ function renderEditForm(body, ctx, person) {
     if (e.target.value) body.querySelector('#f-bprec').value = 'day';
   });
   body.querySelector('#save-person-btn').addEventListener('click', async () => {
+    const nameInput = body.querySelector('#f-name');
+    const newName = nameInput.value.trim();
     const ddate = body.querySelector('#f-ddate').value || null;
-    await ctx.store.updatePerson(person.id, {
-      display_name: body.querySelector('#f-name').value,
+    const patch = {
+      display_name: newName,
       name_at_birth: body.querySelector('#f-nab').value || null,
       birth_date: body.querySelector('#f-bdate').value || null,
       birth_precision: body.querySelector('#f-bprec').value,
@@ -1091,7 +1093,26 @@ function renderEditForm(body, ctx, person) {
       marital_status: body.querySelector('#f-marital').value || null,
       occupation: body.querySelector('#f-occ').value || null,
       notes: body.querySelector('#f-notes').value || null,
-    });
+    };
+    // do not allow duplicates (her ask, 2026-09-11) — renaming into an
+    // existing different person's name causes the same problem creating
+    // one would. Blocks only the name itself: every other edit in this
+    // pass still saves, so fixing a birthdate doesn't get lost behind a
+    // name she decides not to change after all. Merging two people is a
+    // bigger, deliberate action with its own two-tap confirm on the
+    // People page, not a side-effect of a rename here.
+    let blocked = false;
+    if (newName && newName.toLowerCase() !== person.display_name.trim().toLowerCase()) {
+      const collision = ctx.store.findPeopleByName(person.case_id, newName, person.kind).find((p) => p.id !== person.id);
+      if (collision) {
+        inlineNote(nameInput, `${collision.display_name} is already someone else in this case — pick a different name, or merge them from the People page if they're the same person. Everything else here was saved.`);
+        patch.display_name = person.display_name;
+        blocked = true;
+      }
+    }
+    if (!blocked) clearInlineNote(nameInput);
+    await ctx.store.updatePerson(person.id, patch);
+    if (blocked) return;
     ctx.closeDrawer();
     ctx.rerender();
   });

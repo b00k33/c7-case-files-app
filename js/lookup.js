@@ -388,7 +388,14 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // fact, so it's corrected directly, with an accepted claim as the audit
   // trail; a properly-cased shorter name is still left alone.
   let renamed = null;
-  if (current && facts.label && facts.label !== current.display_name && looksUnformatted(current.display_name)) {
+  // do not allow duplicates (her ask, 2026-09-11): skip the auto-relabel if
+  // Wikidata's spelling would land on someone ELSE already in this case —
+  // rare (needs a same-cased collision with a third, unrelated person) but
+  // an automatic background correction is the wrong moment to create one
+  // silently; the name just stays as typed instead
+  const relabelCollides = current && facts.label
+    && store.findPeopleByName(caseId, facts.label, current.kind).some((p) => p.id !== personId);
+  if (current && facts.label && facts.label !== current.display_name && looksUnformatted(current.display_name) && !relabelCollides) {
     await store.updatePerson(personId, { display_name: facts.label });
     await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'display_name', value: facts.label, origin: 'lookup', rationale: cite('label') });
     // a person-case named after them follows, so the card and the profile agree

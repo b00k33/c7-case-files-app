@@ -67,6 +67,22 @@ CREATE TABLE relationship (
 );
 -- 'parent' means a_id is the parent of b_id. Direction matters.
 
+-- Two same-named people in one case that are NOT the same real person (her
+-- 2026-09-11 ask, alongside "do not allow duplicates" — a grandfather and
+-- grandson can share a name). The opposite of a merge: recording a pair
+-- here means the duplicate flag on the People page never asks about it
+-- again. person_a_id is always the lexicographically smaller id, so a pair
+-- has exactly one row no matter which side of it she marked.
+CREATE TABLE distinct_pair (
+  id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
+  case_id TEXT NOT NULL REFERENCES case_file(id) ON DELETE CASCADE,
+  person_a_id TEXT NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  person_b_id TEXT NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  UNIQUE(person_a_id, person_b_id)
+);
+CREATE INDEX idx_distinct_pair_case ON distinct_pair(case_id);
+
 CREATE TABLE event (
   id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
   case_id TEXT REFERENCES case_file(id) ON DELETE CASCADE,

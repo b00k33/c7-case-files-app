@@ -272,6 +272,18 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
   )`,
   'CREATE INDEX IF NOT EXISTS idx_evidence_shot_ev ON evidence_shot(evidence_id)',
+  // "do not allow duplicates" (2026-09-11): a pair of same-named people
+  // she's confirmed are genuinely different, so the duplicate flag stops
+  // asking about them. See schema.sql for the full note.
+  `CREATE TABLE IF NOT EXISTS distinct_pair (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES case_file(id) ON DELETE CASCADE,
+    person_a_id TEXT NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+    person_b_id TEXT NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    UNIQUE(person_a_id, person_b_id)
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_distinct_pair_case ON distinct_pair(case_id)',
 ];
 // columns added to existing tables after first release (SQLite has no
 // ADD COLUMN IF NOT EXISTS, so check PRAGMA first)

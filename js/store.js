@@ -168,6 +168,24 @@ export function findPersonByWikidata(caseId, qid) {
   return rows.find((p) => p.wikidata_id === qid || re.test(p.notes || '')) || null;
 }
 
+/**
+ * Every non-deleted person in this case whose name matches, trimmed and
+ * case-insensitive, oldest first — the hard-block check behind "do not
+ * allow duplicates" (her ask, 2026-09-11, after a Joe Jackson appeared
+ * twice in the Michael Jackson case). Can return more than one match: a
+ * case can already hold two same-named people from before this existed.
+ */
+export function findPeopleByName(caseId, name, kind = 'person') {
+  const n = String(name || '').trim().toLowerCase();
+  if (!n) return [];
+  // matched in JS, not SQL: sqlite's built-in lower() only folds ASCII, so
+  // "JOSÉ" wouldn't have matched an existing "José" — a real gap in a
+  // check now backing a hard, no-escape-hatch block
+  return db.exec('SELECT * FROM person WHERE case_id=? AND kind=? AND deleted_at IS NULL', [caseId, kind])
+    .filter((p) => (p.display_name || '').trim().toLowerCase() === n)
+    .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+}
+
 export async function updatePerson(id, patch) {
   const now = nowISO();
   const fields = Object.keys(patch);
@@ -778,6 +796,16 @@ export async function mergePerson(keepId, dupId) {
     db.run('UPDATE relationship SET a_id=?, b_id=? WHERE id=?', [a, b, r.id]);
     logChange('relationship', r.id, 'update', { a_id: a, b_id: b });
   }
+  // a "these two are different people" decision made about dupId should
+  // still hold about whoever it was distinct from, once dupId's identity
+  // folds into keepId — otherwise the same namesake fact she already
+  // settled gets forgotten and re-flagged under the merged identity
+  for (const row of db.exec('SELECT * FROM distinct_pair WHERE person_a_id=? OR person_b_id=?', [dupId, dupId])) {
+    const other = row.person_a_id === dupId ? row.person_b_id : row.person_a_id;
+    db.run('DELETE FROM distinct_pair WHERE id=?', [row.id]);
+    logChange('distinct_pair', row.id, 'delete', {});
+    if (other !== keepId) await markPeopleDistinct(row.case_id, keepId, other);
+  }
 
   const patch = {};
   for (const f of ['name_at_birth', 'ref_code', 'birth_date', 'birth_precision', 'birth_year_min', 'birth_year_max',
@@ -788,6 +816,29 @@ export async function mergePerson(keepId, dupId) {
   }
   if (Object.keys(patch).length) await updatePerson(keepId, patch);
   await softDeletePerson(dupId);
+}
+
+// person ids in a fixed order, so a pair has exactly one row no matter
+// which side of it was clicked
+function orderedPair(aId, bId) { return aId < bId ? [aId, bId] : [bId, aId]; }
+
+/**
+ * The opposite of mergePerson: records that two same-named people in a
+ * case are genuinely different (a grandfather and grandson can share a
+ * name) so the duplicate flag never asks about this exact pair again.
+ * Idempotent — marking the same pair twice is a no-op.
+ */
+export async function markPeopleDistinct(caseId, aId, bId) {
+  const [a, b] = orderedPair(aId, bId);
+  if (arePeopleMarkedDistinct(a, b)) return;
+  const id = uuid();
+  db.run('INSERT INTO distinct_pair (id,case_id,person_a_id,person_b_id,created_at) VALUES (?,?,?,?,?)', [id, caseId, a, b, nowISO()]);
+  logChange('distinct_pair', id, 'insert', { case_id: caseId, person_a_id: a, person_b_id: b });
+}
+
+export function arePeopleMarkedDistinct(aId, bId) {
+  const [a, b] = orderedPair(aId, bId);
+  return db.exec('SELECT 1 FROM distinct_pair WHERE person_a_id=? AND person_b_id=? LIMIT 1', [a, b]).length > 0;
 }
 
 /**
@@ -808,7 +859,7 @@ export async function mergeCase(keepCaseId, dupCaseId, keepPersonId, dupPersonId
   const keep = await getCase(keepCaseId), dup = await getCase(dupCaseId);
   if (!keep || !dup) throw new Error('one of these cases no longer exists');
 
-  for (const table of ['person', 'relationship', 'event', 'evidence', 'claim', 'question', 'finding', 'contradiction']) {
+  for (const table of ['person', 'relationship', 'event', 'evidence', 'claim', 'question', 'finding', 'contradiction', 'distinct_pair']) {
     for (const row of db.exec(`SELECT id FROM ${table} WHERE case_id=?`, [dupCaseId])) {
       db.run(`UPDATE ${table} SET case_id=? WHERE id=?`, [keepCaseId, row.id]);
       logChange(table, row.id, 'update', { case_id: keepCaseId });
@@ -880,7 +931,22 @@ async function applyClaim(claim) {
   }
   if (claim.field === 'person') {
     const { spouse_of, ...fields } = value;
-    const created = await createPerson({ ...fields, case_id: claim.case_id });
+    // do not allow duplicates (her ask, 2026-09-11): reuse a same-named
+    // person already in this case rather than a second one, exactly like
+    // the 'relative' branch below already does — there's no live typing
+    // moment to hard-block against here, since this claim was drafted
+    // earlier and is only now being accepted from the Review queue
+    const draftedName = String(fields.display_name || '').trim();
+    const reused = draftedName && findPeopleByName(claim.case_id, draftedName, fields.kind || 'person')[0];
+    const created = reused || await createPerson({ ...fields, case_id: claim.case_id });
+    // reusing an existing person still fills in whatever this claim knew
+    // that they didn't already have — same as the 'relative' branch below
+    // backfills wikidata_id, so a drafted birth date isn't silently lost
+    if (reused) {
+      const fill = {};
+      if (fields.birth_date && !reused.birth_date) { fill.birth_date = fields.birth_date; fill.birth_precision = fields.birth_precision || 'day'; }
+      if (Object.keys(fill).length) await updatePerson(reused.id, fill);
+    }
     // a looked-up spouse also becomes a spouse relationship, unconfirmed,
     // so the person's marital status reads from the map straight away
     if (spouse_of && created && created.id && !relationshipExists(claim.case_id, spouse_of, created.id, 'spouse')) {

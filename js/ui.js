@@ -103,6 +103,33 @@ export function clearInlineNote(anchorEl) {
 }
 
 /**
+ * The hard block behind "do not allow duplicates" (her ask, 2026-09-11) —
+ * same slot as inlineNote (an existing note right after `anchorEl` is
+ * replaced, not stacked), but for "someone by this name is already here"
+ * instead of a plain validation message. One button per existing match —
+ * using one is never destructive, so it's a single tap, not a two-tap
+ * confirm. No "create anyway": she edits the name above for someone new.
+ */
+export function duplicateNameBlock(anchorEl, matches, onUse) {
+  let note = anchorEl.nextElementSibling;
+  if (!note || !note.classList || !note.classList.contains('inline-note')) {
+    note = document.createElement('div');
+    note.className = 'inline-note';
+    anchorEl.after(note);
+  }
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const when = (p) => p.created_at ? new Date(p.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  note.innerHTML = `
+    <div>${matches.length === 1 ? 'Already in this case' : `${matches.length} people by this name are already in this case`} — use one of them, or change the name above for someone new.</div>
+    <div class="row wrap" style="gap:6px;margin-top:6px">
+      ${matches.map((p) => `<button type="button" class="btn btn-ghost btn-sm dnb-use" data-id="${p.id}">Use ${esc(p.display_name)}${when(p) ? ` (added ${when(p)})` : ''} →</button>`).join('')}
+    </div>
+  `;
+  note.querySelectorAll('.dnb-use').forEach((btn) => btn.addEventListener('click', () => onUse(matches.find((p) => p.id === btn.dataset.id))));
+  return note;
+}
+
+/**
  * Full-screen picture viewer with arrows through a set (2026-09-08). Built
  * for the pictures on one evidence item, but takes any list.
  *

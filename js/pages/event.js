@@ -10,7 +10,7 @@
 // use for "with: Name") naming who was involved — 0, 1 or several.
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
-import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
+import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, duplicateNameBlock } from '../ui.js';
 
 const TABS = [
   ['overview', 'Overview'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
@@ -137,14 +137,19 @@ export async function render(root, ctx, tab = 'overview') {
   root.querySelector('#add-figure-btn').addEventListener('click', () => {
     const slot = root.querySelector('#figure-form-slot');
     if (slot.querySelector('.inline-form')) return;
-    slot.appendChild(inlineNameForm({
+    const form = inlineNameForm({
       placeholder: 'Name',
       submitLabel: 'Add',
       onSubmit: async (name) => {
+        // do not allow duplicates (her ask, 2026-09-11) — this key figure
+        // is already here; nothing new needs adding
+        const matches = store.findPeopleByName(kase.id, name, 'person');
+        if (matches.length) { duplicateNameBlock(form.querySelector('input'), matches, () => render(root, ctx, tab)); return; }
         await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
         render(root, ctx, tab);
       },
-    }));
+    });
+    slot.appendChild(form);
   });
 
   // --- timeline --------------------------------------------------------------

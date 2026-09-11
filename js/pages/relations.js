@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
-import { inlineNote, clearInlineNote } from '../ui.js';
+import { inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
@@ -791,10 +791,18 @@ function renderTypeIn(slot, ctx) {
     const nameInput = slot.querySelector('#p-name');
     const name = nameInput.value.trim();
     if (!name) { inlineNote(nameInput, 'A name is required.'); nameInput.focus(); return; }
+    const kind = slot.querySelector('#p-kind').value;
+    // do not allow duplicates (her ask, 2026-09-11) — someone by this exact
+    // name is already here; use them instead of typing a name over again
+    const matches = ctx.store.findPeopleByName(ctx.caseId, name, kind);
+    if (matches.length) {
+      duplicateNameBlock(nameInput, matches, () => { ctx.closeDrawer(); ctx.rerender(); });
+      return;
+    }
     clearInlineNote(nameInput);
     const bdate = slot.querySelector('#p-bdate').value;
     await ctx.store.createPerson({
-      case_id: ctx.caseId, display_name: name, kind: slot.querySelector('#p-kind').value,
+      case_id: ctx.caseId, display_name: name, kind,
       birth_date: bdate || null, birth_precision: bdate ? 'day' : 'unknown',
     });
     ctx.closeDrawer();

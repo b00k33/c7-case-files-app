@@ -351,6 +351,46 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-11 — do not allow duplicates (v87, SPEC §13r).** The other half
+of §13q: instead of resolving a duplicate after it exists, stop one being
+created. `store.findPeopleByName()` (Unicode-aware case-fold, done in JS —
+SQLite's own `lower()` is ASCII-only and would have missed "JOSÉ" vs
+"José") backs a hard block, no escape hatch, at the three places a name
+actually gets typed by hand (Relations' "+Person" drawer, an event's
+"+ Add key figure," paste-import's "+ New person") and a rename-collision
+guard on the person Edit form. Everywhere else that creates a person
+either can't collide (a brand-new/empty case) or already silently
+reused-by-name before this existed (Wikidata import, Questions'
+transcript extraction, the paste-import claim-acceptance path) — audited
+by re-grepping `createPerson(` across the WHOLE codebase, including inside
+store.js itself, which I'd skipped the first pass through and is exactly
+where the claim-acceptance gap turned up. **Cross-checking your own
+"here's what I covered" claim by re-running the search you scoped
+narrowly the first time is worth doing — the miss was in the boundary of
+the search, not the logic.**
+
+Also added: a "Not the same person" dismissal beside §13q's merge chip,
+persisted in a new `distinct_pair` table, two-tap (not one) since it can
+never be undone in the UI, visually set off from the merge chip so the two
+opposite verdicts don't invite a mistap.
+
+Shipped only after a background adversarial review (3 lenses, every
+finding independently re-verified against the live source) turned up 13
+real, non-blocker bugs across both this and the follow-up cross-check
+work — all fixed before push: a new synced table missing from sync.js's
+allow-list (would have silently failed to reach other devices), a
+user-picked relationship silently dropped when the paste-import block
+redirected to an existing person, a stale confirm-button label after that
+redirect (caught independently by all three lenses), the claim-acceptance
+reuse path dropping a drafted birth date instead of backfilling it, the
+Edit-form's name-collision block discarding every OTHER edited field in
+the same save (not just the name), a `distinct_pair` decision going stale
+across `mergePerson`/`mergeCase` instead of following the merged identity,
+and the accented-letter case-fold gap above. **A same underlying bug
+surfacing independently across all three review lenses is a strong
+signal it's real, not a false positive worth arguing with — fix it, don't
+re-litigate it.**
+
 **2026-09-11 — duplicate people, resolved from the People page (v86, SPEC
 §13q).** "lisa is duplicated but i dont know how to resolve it. make the
 process easier." `store.mergePerson()` already did the real work (built for

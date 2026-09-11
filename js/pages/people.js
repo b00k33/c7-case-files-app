@@ -82,10 +82,16 @@ async function hasDirectRelationship(store, aId, bId) {
   return rels.some((r) => r.a_id === bId || r.b_id === bId);
 }
 
-/** The merge chip — same look as the Cases page's "Possible duplicate" flag. */
+/** The merge chip — same look as the Cases page's "Possible duplicate" flag
+ * — plus a quieter "Not the same person" beside it, set off by a divider
+ * so the two opposite-verdict actions don't invite a mistap: real
+ * namesakes exist (a grandfather and grandson can share a name), and
+ * dismissing one pair that way can't be undone anywhere in the app, so it
+ * gets the same two-tap weight as the merge next to it, not a lighter one. */
 function dupFlagHtml(dupInfo) {
   const when = fmtDate(dupInfo.keepPerson.created_at);
-  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges this entry into the other ${esc(dupInfo.keepPerson.display_name)}${when ? ` (added ${when})` : ''} in this case — every relation, event and evidence link moves over, and this one is removed">Possible duplicate →</button>`;
+  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges this entry into the other ${esc(dupInfo.keepPerson.display_name)}${when ? ` (added ${when})` : ''} in this case — every relation, event and evidence link moves over, and this one is removed">Possible duplicate →</button>
+    <button type="button" class="btn btn-ghost btn-sm not-dup" style="border-left:1px solid var(--line);margin-left:2px;padding-left:10px" title="Marks these two as different people, for good — this stops asking about this pair and can't be undone">Not the same person</button>`;
 }
 function wireDupFlag(row, p, dupInfo, store, onChanged) {
   const btn = row.querySelector('.dup-flag');
@@ -99,6 +105,13 @@ function wireDupFlag(row, p, dupInfo, store, onChanged) {
     confirmLabel: `Merge into the other ${dupInfo.keepPerson.display_name}?${years ? ` (${years})` : ''}`,
     onConfirm: async () => { await store.mergePerson(dupInfo.keepPerson.id, p.id); onChanged(); },
   });
+  const notDupBtn = row.querySelector('.not-dup');
+  if (notDupBtn) {
+    twoTapConfirm(notDupBtn, {
+      confirmLabel: 'Sure — different people, stop asking?',
+      onConfirm: async () => { await store.markPeopleDistinct(p.case_id, p.id, dupInfo.keepPerson.id); onChanged(); },
+    });
+  }
 }
 
 /** One picture row: face · name (· case, when it says something) · tokens · merge flag. */
@@ -140,7 +153,8 @@ export async function render(root, ctx) {
   }
   const dupOf = findDuplicatePeopleByCase(people);
   await Promise.all([...dupOf.entries()].map(async ([dupId, info]) => {
-    if (await hasDirectRelationship(store, dupId, info.keepPerson.id)) dupOf.delete(dupId);
+    if (await hasDirectRelationship(store, dupId, info.keepPerson.id)) { dupOf.delete(dupId); return; }
+    if (store.arePeopleMarkedDistinct(dupId, info.keepPerson.id)) dupOf.delete(dupId);
   }));
   const onChanged = () => render(root, ctx);
   const shown = [...people].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || '', undefined, { sensitivity: 'base' }));
