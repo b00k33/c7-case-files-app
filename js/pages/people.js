@@ -37,24 +37,24 @@ async function faceEl(p, size) {
 
 function goToPerson(ctx, p) { markOpened(p.case_id); ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); }
 
-// ---- same-case duplicates (her ask, 2026-09-11: "lisa is duplicated but i
-// don't know how to resolve it") ----------------------------------------
-// Two people with the same name in the same case — a double entry, not a
-// judgement call. Follows the Cases page's cross-case duplicate flag
-// exactly: grouped by case + normalised name + kind, the oldest is the
-// keeper, every later one gets a merge chip. This deliberately stops at
-// "same case" — the same real person appearing in two DIFFERENT cases (a
-// subject with their own case, and again inside someone else's family) is a
-// bigger design call about what a person IS in this app, and isn't folded
-// in here.
+// ---- duplicates, anywhere in the app (her ask, 2026-09-11: "lisa is
+// duplicated but i dont know how to resolve it," then "the app should not
+// allow any duplicates") --------------------------------------------------
+// Two people with the same name — a double entry, not a judgement call.
+// Grouped by normalised name + kind ACROSS EVERY CASE, not just within
+// one: the same real person can turn up twice split across two different
+// cases just as easily as twice in one (their own dedicated case, and
+// again inside someone else's family case under the same name). The
+// oldest is the keeper, every later one gets a merge chip, wherever it
+// lives.
 
-/** case_id + lower-cased name + kind -> [{ keepPerson }] for every later duplicate. */
-function findDuplicatePeopleByCase(people) {
+/** lower-cased name + kind -> { keepPerson } for every later duplicate, regardless of case. */
+function findDuplicatePeople(people) {
   const groups = new Map();
   for (const p of people) {
     const name = (p.display_name || '').trim().toLowerCase();
     if (!name) continue;
-    const key = `${p.case_id}::${name}::${p.kind || 'person'}`;
+    const key = `${name}::${p.kind || 'person'}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(p);
   }
@@ -87,10 +87,14 @@ async function hasDirectRelationship(store, aId, bId) {
  * so the two opposite-verdict actions don't invite a mistap: real
  * namesakes exist (a grandfather and grandson can share a name), and
  * dismissing one pair that way can't be undone anywhere in the app, so it
- * gets the same two-tap weight as the merge next to it, not a lighter one. */
-function dupFlagHtml(dupInfo) {
+ * gets the same two-tap weight as the merge next to it, not a lighter one.
+ * A pair can now span two different cases — say so instead of assuming
+ * "this case" when it does. */
+function dupFlagHtml(p, dupInfo) {
   const when = fmtDate(dupInfo.keepPerson.created_at);
-  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges this entry into the other ${esc(dupInfo.keepPerson.display_name)}${when ? ` (added ${when})` : ''} in this case — every relation, event and evidence link moves over, and this one is removed">Possible duplicate →</button>
+  const crossCase = p.case_id !== dupInfo.keepPerson.case_id;
+  const where = crossCase && dupInfo.keepPerson.case_name ? ` in “${esc(dupInfo.keepPerson.case_name)}”` : ' in this case';
+  return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges this entry into the other ${esc(dupInfo.keepPerson.display_name)}${when ? ` (added ${when})` : ''}${where} — every relation, event and evidence link moves over, and this one is removed">Possible duplicate →</button>
     <button type="button" class="btn btn-ghost btn-sm not-dup" style="border-left:1px solid var(--line);margin-left:2px;padding-left:10px" title="Marks these two as different people, for good — this stops asking about this pair and can't be undone">Not the same person</button>`;
 }
 function wireDupFlag(row, p, dupInfo, store, onChanged) {
@@ -101,8 +105,10 @@ function wireDupFlag(row, p, dupInfo, store, onChanged) {
   // different Lisas) is catchable before the merge, not after.
   const dupYear = birthYear(p), keepYear = birthYear(dupInfo.keepPerson);
   const years = [dupYear ? `this: b.${dupYear}` : null, keepYear ? `keeping: b.${keepYear}` : null].filter(Boolean).join(' · ');
+  const crossCase = p.case_id !== dupInfo.keepPerson.case_id;
+  const where = crossCase && dupInfo.keepPerson.case_name ? `, in “${dupInfo.keepPerson.case_name}”` : '';
   twoTapConfirm(btn, {
-    confirmLabel: `Merge into the other ${dupInfo.keepPerson.display_name}?${years ? ` (${years})` : ''}`,
+    confirmLabel: `Merge into the other ${dupInfo.keepPerson.display_name}${where}?${years ? ` (${years})` : ''}`,
     onConfirm: async () => { await store.mergePerson(dupInfo.keepPerson.id, p.id); onChanged(); },
   });
   const notDupBtn = row.querySelector('.not-dup');
@@ -124,7 +130,7 @@ async function buildPicRow(p, ctx, dupInfo, onChanged) {
     <div class="pic"></div>
     <div class="main">
       <div class="line"><div class="title">${esc(p.display_name)}</div>${!sameName && p.case_name ? `<span class="where" title="The case this person lives in">${esc(p.case_name)}</span>` : ''}</div>
-      <div class="line"><div class="lm-tokens">${tokensHtml(p, { compact: true })}</div><div class="badges">${dupInfo ? dupFlagHtml(dupInfo) : ''}</div></div>
+      <div class="line"><div class="lm-tokens">${tokensHtml(p, { compact: true })}</div><div class="badges">${dupInfo ? dupFlagHtml(p, dupInfo) : ''}</div></div>
     </div>`;
   row.querySelector('.pic').appendChild(await faceEl(p, 48));
   row.addEventListener('click', (e) => { if (e.target.closest('button')) return; goToPerson(ctx, p); });
@@ -151,7 +157,7 @@ export async function render(root, ctx) {
     body.appendChild(emptyState({ missing: 'No people yet.', why: 'Create a case about a person and they appear here.' }));
     return;
   }
-  const dupOf = findDuplicatePeopleByCase(people);
+  const dupOf = findDuplicatePeople(people);
   await Promise.all([...dupOf.entries()].map(async ([dupId, info]) => {
     if (await hasDirectRelationship(store, dupId, info.keepPerson.id)) { dupOf.delete(dupId); return; }
     if (store.arePeopleMarkedDistinct(dupId, info.keepPerson.id)) dupOf.delete(dupId);

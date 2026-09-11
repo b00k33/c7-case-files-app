@@ -1103,9 +1103,10 @@ function renderEditForm(body, ctx, person) {
     // People page, not a side-effect of a rename here.
     let blocked = false;
     if (newName && newName.toLowerCase() !== person.display_name.trim().toLowerCase()) {
-      const collision = ctx.store.findPeopleByName(person.case_id, newName, person.kind).find((p) => p.id !== person.id);
+      // null: every case, not just this one
+      const collision = ctx.store.findPeopleByName(null, newName, person.kind).find((p) => p.id !== person.id);
       if (collision) {
-        inlineNote(nameInput, `${collision.display_name} is already someone else in this case — pick a different name, or merge them from the People page if they're the same person. Everything else here was saved.`);
+        inlineNote(nameInput, `${collision.display_name} is already someone else, in “${collision.case_name}” — pick a different name, or merge them from the People page if they're the same person. Everything else here was saved.`);
         patch.display_name = person.display_name;
         blocked = true;
       }

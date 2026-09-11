@@ -7,7 +7,7 @@
 // possible duplicate); Import and ⋯ stay; no kind or count text. One layout
 // for the phone and the desktop — the Table/Cards toggle of v62 is gone.
 import { emptyState } from '../indicators.js';
-import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote } from '../ui.js';
+import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
@@ -49,7 +49,21 @@ export async function openCase(ctx, kase) {
   const people = await ctx.store.listPeople(kase.id);
   if (kase.kind === 'family' || (kase.kind !== 'person' && people.length > 1)) { ctx.navigate('#/family'); return; }
   let p = subjectOf(kase, people);
-  if (!p) p = await ctx.store.createPerson({ case_id: kase.id, display_name: kase.name, kind: 'person' });
+  if (!p) {
+    // do not allow duplicates (her ask, 2026-09-11, widened to cross-case)
+    // — an empty person-case (its own subject merged away, say) used to
+    // silently invent a fresh placeholder person here with zero check; if
+    // that exact name already exists elsewhere, open the real one instead
+    const matches = ctx.store.findPeopleByName(null, kase.name, 'person');
+    if (matches.length) {
+      const m = matches[0];
+      markOpened(m.case_id);
+      await ctx.setCaseId(m.case_id);
+      ctx.navigate(`#/subject/${m.id}`);
+      return;
+    }
+    p = await ctx.store.createPerson({ case_id: kase.id, display_name: kase.name, kind: 'person' });
+  }
   ctx.navigate(`#/subject/${p.id}`);
 }
 
@@ -134,6 +148,20 @@ function wireCaseLookup(form, ctx, store) {
 
   async function createFromWikidata(m) {
     const kind = form.querySelector('.if-choice')?.value || 'person';
+    // do not allow duplicates (her ask, 2026-09-11, widened to cross-case)
+    // — picking a Wikidata result is just as deliberate a "this exact real
+    // person" moment as typing their name by hand; check before creating
+    // the case, not after, so a match doesn't leave an orphaned case behind
+    if (kind === 'person') {
+      const matches = store.findPeopleByName(null, m.label, 'person');
+      if (matches.length) {
+        duplicateNameBlock(results, matches, (p) => {
+          markOpened(p.case_id);
+          ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`));
+        });
+        return;
+      }
+    }
     const worldCheck = form.querySelector('.if-fictional');
     const world = worldCheck?.checked ? (form.querySelector('.if-world').value.trim() || 'Fictional') : null;
     const family = !!form.querySelector('.if-family')?.checked;
@@ -384,6 +412,20 @@ export async function render(root, ctx) {
       choices: CASE_KINDS,
       withFictional: true,
       onSubmit: async (name, kind, world) => {
+        // do not allow duplicates (her ask, 2026-09-11, widened to
+        // cross-case) — a NEW case about a person is exactly how her real
+        // "own case AND a family case" duplicate happened; a person-kind
+        // case auto-creates its subject, so check before that create
+        if ((kind || 'person') === 'person') {
+          const matches = store.findPeopleByName(null, name, 'person');
+          if (matches.length) {
+            duplicateNameBlock(form.querySelector('input'), matches, (p) => {
+              markOpened(p.case_id);
+              ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`));
+            });
+            return;
+          }
+        }
         const kase = await createCaseOfKind(store, ctx, name, kind, world);
         markOpened(kase.id);
         if (kind === 'person') sessionStorage.setItem('c7-offer-lookup', '1'); // the new profile offers Look up

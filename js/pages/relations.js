@@ -794,9 +794,18 @@ function renderTypeIn(slot, ctx) {
     const kind = slot.querySelector('#p-kind').value;
     // do not allow duplicates (her ask, 2026-09-11) — someone by this exact
     // name is already here; use them instead of typing a name over again
-    const matches = ctx.store.findPeopleByName(ctx.caseId, name, kind);
+    // null: every case, not just this one — the same real person
+    // shouldn't exist twice even split across two different cases
+    const matches = ctx.store.findPeopleByName(null, name, kind);
     if (matches.length) {
-      duplicateNameBlock(nameInput, matches, () => { ctx.closeDrawer(); ctx.rerender(); });
+      // a match from a DIFFERENT case can't be wired into this case's tree —
+      // person.case_id is a single home, so "use" them means going to see
+      // them where they already live, not a silent no-op here
+      duplicateNameBlock(nameInput, matches, (p) => {
+        ctx.closeDrawer();
+        if (p.case_id !== ctx.caseId) { ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); return; }
+        ctx.rerender();
+      });
       return;
     }
     clearInlineNote(nameInput);

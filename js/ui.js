@@ -119,10 +119,13 @@ export function duplicateNameBlock(anchorEl, matches, onUse) {
   }
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const when = (p) => p.created_at ? new Date(p.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  // matches can come from any case (2026-09-11: "the app should not allow
+  // any duplicates" — not even split across two different cases), so each
+  // one names where it lives rather than assuming "this case"
   note.innerHTML = `
-    <div>${matches.length === 1 ? 'Already in this case' : `${matches.length} people by this name are already in this case`} — use one of them, or change the name above for someone new.</div>
+    <div>${matches.length === 1 ? 'Someone by this name already exists' : `${matches.length} people by this name already exist`} — use one of them, or change the name above for someone new.</div>
     <div class="row wrap" style="gap:6px;margin-top:6px">
-      ${matches.map((p) => `<button type="button" class="btn btn-ghost btn-sm dnb-use" data-id="${p.id}">Use ${esc(p.display_name)}${when(p) ? ` (added ${when(p)})` : ''} →</button>`).join('')}
+      ${matches.map((p) => `<button type="button" class="btn btn-ghost btn-sm dnb-use" data-id="${p.id}">Use ${esc(p.display_name)}${when(p) ? ` (added ${when(p)})` : ''}${p.case_name ? ` — in “${esc(p.case_name)}”` : ''} →</button>`).join('')}
     </div>
   `;
   note.querySelectorAll('.dnb-use').forEach((btn) => btn.addEventListener('click', () => onUse(matches.find((p) => p.id === btn.dataset.id))));

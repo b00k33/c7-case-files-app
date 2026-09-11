@@ -2,7 +2,7 @@ import * as db from './db.js';
 import * as store from './store.js';
 import * as sync from './sync.js';
 import { seedExampleCase } from './store.js';
-import { inlineNameForm, inlineNote, clearInlineNote } from './ui.js';
+import { inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from './ui.js';
 
 const ROUTES = {
   evidence: () => import('./pages/evidence.js'),
@@ -89,6 +89,22 @@ document.getElementById('case-rail-select')?.addEventListener('change', async (e
         choices: [{ value: 'person', label: 'A person' }, { value: 'family', label: 'A family / household' }, { value: 'event', label: 'A major event' }],
         withFictional: true,
         onSubmit: async (name, kind, world) => {
+          // do not allow duplicates (her ask, 2026-09-11, widened
+          // 2026-09-11: "the app should not allow any duplicates") — a
+          // NEW case about a person is exactly how her real "own case AND
+          // a family case" duplicate happened; a person-kind case
+          // auto-creates its subject, so check before that create, not after
+          if ((kind || 'person') === 'person') {
+            const matches = store.findPeopleByName(null, name, 'person');
+            if (matches.length) {
+              duplicateNameBlock(form.querySelector('input'), matches, (p) => {
+                form.remove();
+                sel.style.display = '';
+                ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`));
+              });
+              return;
+            }
+          }
           const { createCaseOfKind } = await import('./pages/dashboard.js');
           form.remove();
           sel.style.display = '';

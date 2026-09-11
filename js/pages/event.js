@@ -143,8 +143,19 @@ export async function render(root, ctx, tab = 'overview') {
       onSubmit: async (name) => {
         // do not allow duplicates (her ask, 2026-09-11) — this key figure
         // is already here; nothing new needs adding
-        const matches = store.findPeopleByName(kase.id, name, 'person');
-        if (matches.length) { duplicateNameBlock(form.querySelector('input'), matches, () => render(root, ctx, tab)); return; }
+        // null: every case, not just this one — the same real person
+        // shouldn't exist twice even split across two different cases
+        const matches = store.findPeopleByName(null, name, 'person');
+        if (matches.length) {
+          // a match from a DIFFERENT case can't become a key figure here —
+          // person.case_id is a single home, so go see them where they
+          // already live rather than silently doing nothing
+          duplicateNameBlock(form.querySelector('input'), matches, (p) => {
+            if (p.case_id !== ctx.caseId) { ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); return; }
+            render(root, ctx, tab);
+          });
+          return;
+        }
         await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
         render(root, ctx, tab);
       },

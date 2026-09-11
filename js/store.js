@@ -175,13 +175,25 @@ export function findPersonByWikidata(caseId, qid) {
  * twice in the Michael Jackson case). Can return more than one match: a
  * case can already hold two same-named people from before this existed.
  */
+// caseId=null searches every case (her 2026-09-11 follow-up: "the app
+// should not allow any duplicates" — the same real person shouldn't be
+// able to exist twice even split across two different cases, e.g. their
+// own dedicated case AND a family case that mentions them by the same
+// name). caseId scopes to one case — kept for the couple of silent/
+// automatic reuse paths (Review-queue claim acceptance, the Wikidata
+// auto-relabel guard) that deliberately stay conservative, matching the
+// pre-existing silent-dedupe precedent they follow.
 export function findPeopleByName(caseId, name, kind = 'person') {
   const n = String(name || '').trim().toLowerCase();
   if (!n) return [];
   // matched in JS, not SQL: sqlite's built-in lower() only folds ASCII, so
   // "JOSÉ" wouldn't have matched an existing "José" — a real gap in a
   // check now backing a hard, no-escape-hatch block
-  return db.exec('SELECT * FROM person WHERE case_id=? AND kind=? AND deleted_at IS NULL', [caseId, kind])
+  const sql = caseId
+    ? 'SELECT p.*, c.name AS case_name FROM person p JOIN case_file c ON c.id=p.case_id WHERE p.case_id=? AND p.kind=? AND p.deleted_at IS NULL AND c.deleted_at IS NULL'
+    : 'SELECT p.*, c.name AS case_name FROM person p JOIN case_file c ON c.id=p.case_id WHERE p.kind=? AND p.deleted_at IS NULL AND c.deleted_at IS NULL';
+  const params = caseId ? [caseId, kind] : [kind];
+  return db.exec(sql, params)
     .filter((p) => (p.display_name || '').trim().toLowerCase() === n)
     .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
 }

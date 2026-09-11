@@ -351,6 +351,50 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-11 — do not allow duplicates, across cases too (v88, SPEC
+§13s).** Her follow-up to v87, verbatim: "the app should not allow any
+duplicates" — closing the exact gap v87's own text had deferred as "a
+bigger design call": the same real person existing twice split across two
+*different* cases, never linked. Every duplicate check (the three
+hard-block sites, the rename guard, the People page's passive detector)
+now searches every case, not just the current one, and names the case a
+match actually lives in.
+
+**Live-testing before shipping caught a real design gap v87 didn't
+anticipate, and it was worth the extra round of testing to find.** A
+matched person from a *different* case can't be wired into the case being
+worked in — `person.case_id` is a single home, and the Relations tree /
+an event's key-figure list are both built from `listPeople(thisCase)`.
+"Use" doing exactly what it did for a same-case match (close the form,
+assume they're now present) was a silent no-op for a cross-case one — she
+would've typed a name, tapped "Use," and watched nothing happen, with no
+explanation. Caught only because I actually clicked through the flow
+instead of trusting the code read. Fixed by redirecting "Use" straight to
+the existing person for a cross-case match, at every site that offers it;
+the paste-import flow needed a different fix (bypass its in-case "existing
+person" dropdown entirely and track the picked person directly) because it
+had a whole drafted timeline to lose, not just an empty form. **A UI
+control that means one thing in the common case can mean something
+different, or nothing at all, once its inputs widen — re-walk every call
+site's actual consequence, not just whether the check that guards it now
+fires correctly.**
+
+**A second gap, found the same way: case CREATION was never a checked
+site at all.** A person-kind case auto-creates its own subject person the
+instant it's made — typing a name into "+ New case" (Cases page and the
+nav rail both), and picking a Wikidata search result inside that same
+form, all did this with zero duplicate check, cross-case or even
+same-case. This is the literal scenario from her own example (a dedicated
+case for someone who already has one elsewhere) and would have silently
+reopened the exact hole this feature exists to close. A quieter sibling
+gap: opening a case that currently has no person of its own (its only
+person merged away, say) silently invented a fresh placeholder with no
+check either. Both now check first and take her to the real person
+instead. **When a feature's stated scope is "everywhere a person can be
+created," case creation counts — a case's auto-created subject is a
+person being created, even though nothing on screen looks like an "add
+person" form.**
+
 **2026-09-11 — do not allow duplicates (v87, SPEC §13r).** The other half
 of §13q: instead of resolving a duplicate after it exists, stop one being
 created. `store.findPeopleByName()` (Unicode-aware case-fold, done in JS —

@@ -384,6 +384,11 @@ function renderLookupTab(body, ctx, people) {
 function renderPasteTab(body, ctx, people) {
   const personOpts = people.map((p) => `<option value="${p.id}">${p.display_name}</option>`).join('');
   let mode = people.length ? 'existing' : 'new'; // "existing" is unusable with nobody in the case yet
+  // set when "+ New person" collided with someone from a DIFFERENT case —
+  // the #p-person dropdown only lists people who already live in THIS case,
+  // so a cross-case match can't be pre-selected into it; tracked here and
+  // used directly instead
+  let pickedPerson = null;
 
   body.innerHTML = `
     <div class="field">
@@ -503,11 +508,15 @@ function renderPasteTab(body, ctx, people) {
       confirmBtn.textContent = 'Adding…';
 
       let personId, personName;
-      if (mode === 'new') {
+      if (pickedPerson) {
+        personId = pickedPerson.id; personName = pickedPerson.display_name;
+      } else if (mode === 'new') {
         personName = body.querySelector('#np-name').value.trim();
         // do not allow duplicates (her ask, 2026-09-11) — someone by this
         // name is already in the case; use them instead of a second row
-        const matches = ctx.store.findPeopleByName(ctx.caseId, personName, 'person');
+        // null: every case, not just this one — the same real person
+        // shouldn't exist twice even split across two different cases
+        const matches = ctx.store.findPeopleByName(null, personName, 'person');
         if (matches.length) {
           confirmBtn.disabled = false;
           confirmBtn.textContent = `Create person and add ${total} drafted item${total === 1 ? '' : 's'}, to Review`;
@@ -518,6 +527,11 @@ function renderPasteTab(body, ctx, people) {
           duplicateNameBlock(body.querySelector('#np-name'), matches, async (p) => {
             if (relKind && relB) {
               await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'case', target_id: ctx.caseId, field: 'relationship', value: { a_id: p.id, b_id: relB, kind: relKind }, origin: 'paste', rationale: 'from paste: new person' });
+            }
+            if (p.case_id !== ctx.caseId) {
+              pickedPerson = p;
+              confirmBtn.textContent = `Add ${total} drafted item${total === 1 ? '' : 's'}, to Review`;
+              return;
             }
             mode = 'existing'; drawMode();
             const sel = modeBodyEl.querySelector('#p-person');

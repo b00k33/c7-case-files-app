@@ -1448,6 +1448,84 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13s. Do not allow duplicates, across cases too (v88, 2026-09-11)
+
+§13r's hard block only ever searched inside the case being worked in. Her
+follow-up, verbatim: "the app should not allow any duplicates" — closing
+the gap explicitly deferred in §13r and §13q's text: the same real person
+existing twice split across two *different* cases (their own dedicated
+case, and again inside a family case that mentions them by the same
+name), never linked or flagged. Confirmed with a preview before building:
+"adding/renaming into a cross-case name match would prompt the same way
+same-case ones already do." She answered yes.
+
+**Every duplicate check in the app now searches every case, not just the
+current one.** `findPeopleByName` takes `caseId=null` for "everywhere";
+all three hard-block sites, the rename guard, and the People page's
+passive duplicate detector now all search globally. Every match names the
+case it actually lives in ("Use Joe Jackson (added 11 September 2026) —
+in "Michael Jackson" →"), since "this case" can no longer be assumed.
+
+**"Use" a cross-case match takes you to them, not a silent no-op.**
+Live-testing this before shipping caught what §13r's design didn't
+anticipate: a matched person from a *different* case can't actually be
+wired into the case you're working in — `person.case_id` is a single
+home, so the Relations tree and an event's key-figure roster (both built
+from `listPeople(thisCase)`) would just never show them, no matter what
+"Use" did. So for a cross-case match, "Use" now takes you straight to
+where that person already lives — the same redirect at all three
+hard-block sites and the two case-creation sites below. The paste-import
+flow is the one exception with something real to lose (a whole drafted
+timeline, not just an empty form): its "existing person" dropdown is
+built only from people in the current case, so a cross-case pick can't be
+selected into it either — silently landing on whatever the dropdown
+defaulted to would misattribute the timeline to the wrong person. Fixed
+by tracking the picked cross-case person directly and using them, bypassing
+the dropdown entirely; confirmed live that the drafted events land on the
+correct person's own life line, in the case that was actually being
+imported into.
+
+**Creating a case is exactly as much a duplicate-creation moment as
+typing a name — and wasn't checked at all.** A person-kind case
+auto-creates its own subject the moment it's made, with no duplicate
+check anywhere: typing a name in "+ New case" (both the Cases page's own
+form and the nav rail's), and picking a result from "Look up on
+Wikipedia" inside that same form, all created a second person with zero
+warning. This is *the* scenario from her own example — a dedicated case
+for someone who already exists somewhere else — so all three now get the
+same hard block, redirecting to the existing person instead of making the
+case at all. A second, quieter version of the same gap: opening an
+existing case that currently has no person of its own (its only person
+merged away from the People page, say) used to silently invent a fresh
+placeholder subject with no check either — now it checks first and opens
+the real match if one exists, matching the same "no one in this case yet"
+handling already used elsewhere for an emptied-out case.
+
+**Still deliberately same-case only:** the two silent/automatic reuse
+paths named in §13r (claim-acceptance on Review accept, the Wikidata
+auto-relabel guard) — unlike a typed name or a picked search result,
+these are semi-automated and already conservative by design; the Wikidata
+family-import/batch-add paths for the same reason. Widening those wasn't
+part of what she asked to close.
+
+**A tradeoff worth stating plainly:** two different real people who
+happen to share a common name, in two entirely unrelated cases, will now
+also trip this — the fix is a distinguishing name (a middle name, a
+birth year), same as the same-case block already required. This follows
+directly from what she approved, not a silent side effect.
+
+Verified live: a hard block at each of the three interactive sites
+correctly finds a match from a *different* case and names it; "Use"
+takes you to the existing person in their own case, for all three plus
+both case-creation sites; a cross-case paste-import timeline lands on the
+right person, confirmed via Review accept and the life line; a second
+same-named case is blocked whether typed, picked from Wikidata, or made
+from the rail switcher; opening an emptied-out case finds the real person
+instead of duplicating them; the People page's merge chip and its
+two-tap confirm label correctly say which case the other entry lives in,
+for a genuine cross-case pair, merged successfully; dark/mobile; 44/44
+tests; no console errors.
+
 ## 13r. Do not allow duplicates (v87, 2026-09-11)
 
 Her screenshot: the Relations tab's Zodiac map, "Joe Jackson" appearing
