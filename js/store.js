@@ -880,6 +880,37 @@ export async function mergeCase(keepCaseId, dupCaseId, keepPersonId, dupPersonId
   if (keepPersonId && dupPersonId && keepPersonId !== dupPersonId) {
     await mergePerson(keepPersonId, dupPersonId);
   }
+  // the caller only ever names ONE explicit pair — the two cases' own
+  // subject — but a case built up independently (its own "Insert family"
+  // run, say) can carry OTHER people who now collide too: a spouse or
+  // child entered once per case ends up twice the moment both cases share
+  // a case_id, each keeping its own untouched relationship row to the
+  // now-single subject. Sweep the same way the People page's own
+  // duplicate detector would, so a case merge never leaves a fresh crop
+  // of person (and relationship) duplicates behind for her to find later
+  // (her real Michael Jackson case, 2026-09-12: exactly this — the
+  // subject merged clean, every OTHER family member came through doubled).
+  const survivors = db.exec('SELECT * FROM person WHERE case_id=? AND deleted_at IS NULL', [keepCaseId]);
+  const groups = new Map();
+  for (const p of survivors) {
+    const name = (p.display_name || '').trim().toLowerCase();
+    if (!name) continue;
+    const key = `${name}::${p.kind || 'person'}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(p);
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+    const [survivor, ...rest] = group;
+    for (const dup of rest) {
+      // already related to each other → a namesake (a father and son
+      // sharing a name), not a duplicate — same guard the People page uses
+      const rels = await listRelationshipsForPerson(dup.id);
+      if (rels.some((r) => r.a_id === survivor.id || r.b_id === survivor.id)) continue;
+      await mergePerson(survivor.id, dup.id);
+    }
+  }
   await softDeleteCase(dupCaseId);
 }
 
@@ -926,7 +957,13 @@ async function applyClaim(claim) {
     return;
   }
   if (claim.field === 'relationship') {
-    await upsertRelationship({ ...value, case_id: claim.case_id, confidence: value.confidence ?? 50, confirmed: 0 });
+    // do not allow duplicates: unlike the 'person' and 'relative' branches
+    // right below, this one had no existence check at all — accepting the
+    // same drafted relationship twice (two paste-import claims describing
+    // the same pair, say) silently doubled the relationship row
+    if (!relationshipExists(claim.case_id, value.a_id, value.b_id, value.kind)) {
+      await upsertRelationship({ ...value, case_id: claim.case_id, confidence: value.confidence ?? 50, confirmed: 0 });
+    }
     return;
   }
   if (claim.field === 'event') {

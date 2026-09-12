@@ -935,10 +935,18 @@ function renderAddRel(body, ctx, people) {
   `;
   body.querySelector('#r-save').addEventListener('click', async () => {
     const a = body.querySelector('#r-a').value, b = body.querySelector('#r-b').value;
+    const kind = body.querySelector('#r-kind').value;
     const saveBtn = body.querySelector('#r-save');
     if (a === b) { inlineNote(saveBtn, 'Pick two different people — A and B are the same person.'); return; }
+    // do not allow duplicates: this exact pair + kind is already recorded
+    // — using this form twice for the same relationship used to silently
+    // double it on the tree (her real Michael Jackson case, 2026-09-12)
+    if (ctx.store.relationshipExists(ctx.caseId, a, b, kind)) {
+      inlineNote(saveBtn, 'This relationship is already recorded — nothing new to add.');
+      return;
+    }
     clearInlineNote(saveBtn);
-    await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: a, b_id: b, kind: body.querySelector('#r-kind').value, confidence: 50, confirmed: 0 });
+    await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: a, b_id: b, kind, confidence: 50, confirmed: 0 });
     ctx.closeDrawer();
     ctx.rerender();
   });

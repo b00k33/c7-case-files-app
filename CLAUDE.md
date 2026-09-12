@@ -351,6 +351,49 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-12 — a case merge could leave duplicate relationships behind
+(v89, SPEC §13t).** Her screenshot: the real Michael Jackson case's
+Relations Tree, every spouse and child drawn twice, "still seeing
+duplicates." Not the same bug as v87/v88 — this was in `mergeCase`, the
+case-level merge tool behind the Cases page's "Possible duplicate of …"
+chip, and had been there since it shipped 2026-09-06, well before this
+week's work. It only ever merged the ONE named subject pair; anyone else
+existing in both cases (a spouse or child entered once per case, from an
+independent "Insert family" run on each) just got `case_id`-reassigned
+in place, keeping its own redundant relationship row. Fixed with a
+post-merge sweep, reusing the People page's own grouping and namesake
+guard, so `mergeCase` now catches every duplicate it created, not just
+the one it was told about.
+
+**Investigated properly before touching any code — a background workflow
+with three independent read-only agents, each assigned a distinct
+hypothesis (merge-time relationship duplication, unguarded
+relationship-creation call sites, a tree-rendering dedup bug) — because
+the numbers in her screenshot (11 people, 10 relationships, for what
+should be 6 people and 5 relationships) were exact enough to actually
+distinguish between competing explanations, and guessing wrong would
+mean editing the wrong file. Two of three came back independently
+confirmed with real, cited code; the third agent malfunctioned (returned
+a placeholder "test call" instead of real findings) and was not trusted
+— re-verified that hypothesis myself by hand-tracing `layoutTree()`
+rather than accepting a broken result as "hypothesis refuted." **A
+workflow agent's `hypothesisConfirmed: false` is not evidence of absence
+if its own summary reads like a failure, not a finding — check before
+treating silence as an answer.**
+
+While tracing every relationship-creation call site for the second
+hypothesis, found two more, unrelated to the merge bug: `applyClaim`'s
+`'relationship'` branch had no `relationshipExists()` guard at all, unlike
+its `'person'` and `'relative'` siblings in the very same function: doing
+the same class of check consistently within one function is worth
+auditing for, not just the one branch a bug report points at. The
+Relations tab's manual "+ Relationship" form had the same gap. Both
+fixed. **Her existing data isn't retroactively fixed by a code change —
+told her plainly that the People page's own merge chips (already
+correctly detecting these, unblocked by the namesake guard) are how she
+cleans up what's already there; the code fix only stops a future case
+merge from making more.**
+
 **2026-09-11 — do not allow duplicates, across cases too (v88, SPEC
 §13s).** Her follow-up to v87, verbatim: "the app should not allow any
 duplicates" — closing the exact gap v87's own text had deferred as "a

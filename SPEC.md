@@ -1448,6 +1448,79 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13t. Merging a case could leave duplicate relationships behind (v89, 2026-09-12)
+
+Her screenshot: the Relations Tree on her real Michael Jackson case, every
+spouse and child drawn twice (Debbie Rowe ×2, Lisa Marie Presley ×2,
+Prince/Paris/Blanket ×2 each) — Michael Jackson himself once. "still
+seeing duplicates." §13s (below) closes the *creation-time* gap; this was
+a different, older bug already sitting in her data: `mergeCase` — the
+tool behind the Cases page's "Possible duplicate of …" chip for two case
+files about the same subject (built 2026-09-06, well before this week's
+work) — only ever merged the ONE subject pair the caller named. Every
+OTHER person who happened to exist in both cases (a spouse or child
+entered once per case, e.g. from running "Insert family" separately on
+each) just had its `case_id` reassigned in place, keeping its own,
+now-redundant relationship row to the newly-singular subject. The math
+matched exactly: 1 subject + 2 spouses×2 + 3 children×2 = 11 people, 2
+spouse-rels×2 + 3 child-rels×2 = 10 relationships — precisely what her
+screenshot showed.
+
+**`mergeCase` now sweeps for every OTHER duplicate too, not just the
+named pair.** After the explicit subject merge, it re-groups everyone now
+sharing the kept case by normalised name + kind (the same grouping the
+People page's own detector uses) and folds each group through the
+already-safe `mergePerson` — which already deletes a redundant
+relationship rather than doubling it, confirmed unchanged. The same
+"already directly related to each other → a namesake, not a duplicate"
+guard the People page uses applies here too, so a father and son who
+happen to share a name across the two merged cases are never
+force-merged into one person.
+
+**Two more relationship-creation sites had no duplicate check at all,
+independent of the merge bug.** `applyClaim`'s `'relationship'` branch
+(a drafted relationship claim being accepted from Review) had no
+existence check, unlike its `'person'` and `'relative'` sibling branches
+in the same function — accepting two claims describing the same pair
+silently doubled the row. The Relations tab's manual "+ Relationship"
+form had no check either — using it twice for the same pair and kind was
+a deterministic duplicate, no race needed. Both now check
+`relationshipExists()` first, matching the pattern already used
+elsewhere in the same function/file.
+
+**Confirmed NOT the bug:** the Tree layout itself. `layoutTree()` /
+`assignGenerations()` key every structure (`gen`, `parentsOf`,
+`spousesOf`, `siblingsOf`) by person id and dedupe on insert — a person
+reachable by more than one relationship edge (both a spouse and a parent
+in the same tree, say) is placed once with multiple lines drawn to them,
+never duplicated as a node. The doubling was real data, not a rendering
+artifact.
+
+**Her existing data still needs cleaning up by hand — this fix only
+stops it happening again.** The People page's own duplicate detector
+(§13s) already recognises Debbie Rowe, Lisa Marie Presley, Prince, Paris
+and Blanket as same-name duplicates now sharing one case, un-blocked by
+the namesake guard (none of them are directly related to their own
+duplicate) — each gets a "Possible duplicate →" chip there, two taps to
+merge, and merging correctly collapses the redundant relationship row
+each time (verified below). She needs to do this once per family member
+still doubled in her real case; the code fix only prevents a FUTURE case
+merge from creating fresh ones.
+
+Verified: reproduced her exact bug on synthetic data (two independent
+person-kind cases, each built out with its own spouse + child, merged
+via `mergeCase`) — before the fix this would have left 6 people / 4
+relationships; after the fix, 3 people / 2 relationships, case correctly
+soft-deleted. A deliberate namesake case (two same-named people who are
+themselves directly related to each other, simulating a real
+grandfather/grandson pair split across the two merged cases) correctly
+did NOT get force-merged. Both relationship-creation guards verified via
+their real UI/data paths: accepting a duplicate drafted relationship
+claim is now a no-op instead of a second row; using "+ Relationship"
+twice for the same pair shows "This relationship is already recorded —
+nothing new to add" instead of doubling it. 44/44 tests; no console
+errors.
+
 ## 13s. Do not allow duplicates, across cases too (v88, 2026-09-11)
 
 §13r's hard block only ever searched inside the case being worked in. Her
