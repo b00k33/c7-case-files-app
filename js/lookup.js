@@ -184,6 +184,53 @@ export async function savePhotoFromUrl(store, personId, url) {
   }
 }
 
+/**
+ * The poster's "picture of the thing" (2026-09-13): a bare Wikidata item's
+ * own picture — the place, school or award a life event points at, not a
+ * person. Same Wikipedia-lead-image trick as fetchProfile (a sitelink, then
+ * its REST summary's lead image), without pulling everything else a full
+ * profile reads. Unlike fetchProfile, this keeps the API's own thumbnail
+ * size instead of asking Commons to render a new 640px variant on the fly —
+ * a poster picture only ever shows at 44px, and a batch of many events each
+ * requesting a fresh on-demand resize concurrently was tripping Commons'
+ * thumbnail scaler (some sizes 404 under that concurrent load, others don't).
+ */
+export async function fetchItemPhoto(qid) {
+  const data = await getJSON(`${WD}?action=wbgetentities&ids=${qid}&props=sitelinks|labels&languages=en|mul&format=json&origin=*`);
+  const ent = data.entities && data.entities[qid];
+  if (!ent || ent.missing !== undefined) return { label: null, photoUrl: null };
+  const label = pickLabel(ent.labels, qid);
+  const wikiTitle = ent.sitelinks && ent.sitelinks.enwiki ? ent.sitelinks.enwiki.title : null;
+  if (!wikiTitle) return { label, photoUrl: null };
+  try {
+    const s = await getJSON(WP_SUMMARY + encodeURIComponent(wikiTitle));
+    const photoUrl = (s.thumbnail && s.thumbnail.source) || (s.originalimage && s.originalimage.source) || null;
+    return { label, photoUrl };
+  } catch (_) {
+    return { label, photoUrl: null };
+  }
+}
+
+/** Download a remote picture into the asset store and set it as an event's photo — same pipeline as savePhotoFromUrl, landing on the event row instead. */
+export async function saveEventPhotoFromUrl(store, eventId, url) {
+  if (!url) return false;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(String(res.status));
+    const blob = await res.blob();
+    const { compressImage, queueUpload, flushUploads } = await import('./assets.js');
+    const file = await compressImage(new File([blob], 'wikipedia.jpg', { type: blob.type || 'image/jpeg' }));
+    const meta = await store.storeEvidenceFile(file);
+    await store.updateEvent(eventId, { photo_path: meta.file_path, photo_url: url });
+    queueUpload(meta.file_path, meta.mime);
+    flushUploads();
+    return true;
+  } catch (_) {
+    await store.updateEvent(eventId, { photo_url: url });
+    return false;
+  }
+}
+
 /** One "Wikipedia: <name>" evidence item per article per case, linked to the person. */
 async function ensureWikipediaEvidence(store, caseId, personId, facts) {
   const sources = await store.listSources();

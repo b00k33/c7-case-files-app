@@ -1448,6 +1448,86 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13w. "Our Story" — the life line becomes a poster (v92, 2026-09-13)
+
+Stage 3 of the synth22 batch: the life ribbon (§13g/§13i) redrawn as a
+poster of the life itself, per her own reference imagery — a spine of
+dated cards, each carrying the picture of what happened, not just a
+coloured dot.
+
+**Orientation — her own words, "down for mobile, across for desktop."**
+A deliberate second layout-exception (the first was §13g's day/night
+grounds): `.lm-poster` stacks vertically on the phone (cards alternating
+left/right of a vertical spine) and lays out horizontally on the desktop
+(cards alternating above/below a horizontal spine), at the project's
+usual 640px breakpoint. Nowhere else in the app does phone and desktop
+diverge in shape, not just density — flagged here so a future session
+doesn't "fix" it back to one layout.
+
+**The spine's colour — C1 of her sixteen picks.** Each shown mark gets
+its own stretch of spine (`.lm-spine-seg`), toned by that mark's own
+`pyTone()` — reusing the exact function and `.lm-t-*` classes the old
+ribbon used, so the day-palette's gold/teal token split (STYLE §1, the
+`--brass`==`--teal`-in-light trap) needed no new handling. **One
+judgment call made without re-asking her:** her literal words described
+the ribbon's per-CALENDAR-YEAR colouring; the poster instead colours per
+SHOWN MARK — a stretch per event, not per year — because a real
+timeline's marks cluster unevenly (nine Grammys in one year, decades of
+nothing between school and marriage) and a strictly time-proportional
+spine either crushes the sparse decades or explodes the crowded ones.
+Marks lay out in chronological sequence, alternating sides, not
+positioned by real elapsed time. The on-spine ring (`.lm-py`, unchanged)
+carries the personal-year number as before; the old ribbon, its axis and
+its legend line are retired.
+
+**The picture — D1, "the picture of the thing."** A marriage/divorce
+mark reuses the spouse's own photo, already resolved on the person row
+(`m.spouseId` → the case's own people list) — no new lookup needed, the
+same photo `renderCircle` already shows on a spouse card. An award,
+move, or "other" mark instead fetches the picture of the WIKIDATA ITEM
+the event points at — a place, a school, a trophy — via a new
+`fetchItemPhoto(qid)` (`js/lookup.js`), the same sitelink → Wikipedia
+lead-image trick `fetchProfile` already uses for a person's own photo,
+generalised to any item and parsed off the event's own `wikidata_id`
+(life-events.js's composite `personQid/prop/itemQid` shape; releases'
+plain single-QID shape never reaches this path, since a chart position
+isn't "the picture of a thing"). Fetched once, cached as an asset via
+the existing pipeline (`compressImage`/`storeEvidenceFile`/`queueUpload`,
+mirroring `savePhotoFromUrl`) onto two new columns, `event.photo_path`/
+`event.photo_url`. No free image on Wikipedia (most releases, some
+schools, small employers) → the card carries its kind's own glyph
+instead, labelled honestly in the title attribute ("the award's
+picture", never a made-up caption) — exactly her "goes without a
+picture" answer for a release with no free cover.
+
+**A real bug found and fixed live against Wikidata, before shipping:**
+the first draft copied `fetchProfile`'s `.replace(/\/(\d+)px-/, '/640px-')`
+resize verbatim — reasonable for a profile header photo, wrong here. A
+poster picture only ever shows at 44px, and asking Commons' thumbnail
+scaler to render a brand-new 640px variant on demand is unreliable
+(confirmed directly: the exact same file 404's at some on-demand widths
+and not others, no obvious pattern). A batch of many life events fetching
+concurrently turned a rare flake into a visibly broken-image icon on
+several cards. Fixed by keeping the REST API's own already-generated
+thumbnail size — plenty for a 44px circle, and never a size Commons has
+to newly render. Verified after the fix: a fresh pull of a real, event-
+rich Wikidata record (37 life events) rendered every fetchable picture
+correctly with zero broken images.
+
+**The verdict panel — E2, unchanged in spirit.** She rejected the
+on-card panel option; the single WHAT · THEIR YEAR · JUDGE panel stays
+below the whole poster exactly as it was under the old ribbon
+(`renderWhyCard`, untouched), filled by whichever card she taps. The
+✓/✕/✝ outcome chip stays on the card itself (`.lm-poster-oc`), now a
+small badge on the picture's corner instead of a plain-text glyph.
+
+**What stayed exactly as it was:** `buildLifeLine`, `pyTone`, `PY_GLOSS`,
+`lpTier`, `elementPair`, `markKind`, `eventYear`, `clusterMark`,
+`outcomeChip`, `verdictChips`, `renderWhyCard`, `renderCircle`,
+`renderCompare`, `tokensHtml` — only `renderLifeLine` (now async, to
+resolve pictures before painting — the same decode-before-paint pattern
+`renderCircle` already used) and its two `subject.js` call sites changed.
+
 ## 13v. The family and Commercial "+ From Wikipedia" doors (v91, 2026-09-13)
 
 Stage 2 of the synth22 batch (§13u): "make adding a family from wikipedia

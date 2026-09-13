@@ -436,7 +436,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       // her tag wins over the record's inference; the ribbon and the card redraw in place
       await store.setEventOutcome(mark.event.id, oc);
       Object.assign(lifeData, buildLifeLine({ person, events, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
-      renderLifeLine(lifeEl, lifeData, { onPick: showWhy });
+      await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, store, people: peopleInCase });
       const again = lifeData.marks.find((x) => x.id === mark.id);
       if (again) {
         lifeEl.querySelector(`.lm-mark[data-id="${CSS.escape(again.id)}"]`)?.classList.add('on');
@@ -447,7 +447,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // empty states hand her straight to the + Add sheet (openAdd is declared
   // below; it only runs on a tap, long after this render has finished)
   const addFromEmpty = () => { openAdd(); setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80); };
-  renderLifeLine(lifeEl, lifeData, { onPick: showWhy, onAdd: addFromEmpty });
+  await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, onAdd: addFromEmpty, store, people: peopleInCase });
   renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson, onAdd: addFromEmpty });
   root.querySelector('#compare-btn').addEventListener('click', () => {
     const slot = root.querySelector('#compare-slot');

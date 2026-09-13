@@ -652,33 +652,53 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .lm-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin-top: var(--sp-3); align-items: center; }
 .lm-tokens .tk { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
 .lm-tokens .tk .big { font-family: var(--font-mono); font-size: 20px; line-height: 1; color: var(--brass); font-weight: 600; }
-.lm-tokens .dim, .lm-why .dim, .lm-legend .dim { color: var(--text-3); }
-.lm-life { position: relative; margin-top: var(--sp-2); }
-.lm-marks { position: relative; height: 36px; }
-.lm-mark { position: absolute; bottom: calc(var(--row, 0) * 36px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--text-2); }
-.lm-mark .g { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--text-3); display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; background: var(--ink-2); }
-.lm-mark .y { font-size: 10px; color: var(--text-3); }
-.lm-mark .n { position: absolute; top: 0; left: calc(50% + 2px); font-size: 9px; line-height: 12px; padding: 0 4px; border-radius: 6px; background: var(--brass); color: var(--on-brass); }
-.lm-mark.lm-o-worked .g { border-color: var(--green); color: var(--green); }
-.lm-mark.lm-o-failed .g, .lm-mark.lm-o-end .g { border-color: var(--red); color: var(--red); }
-.lm-mark.on .g { box-shadow: 0 0 0 2px var(--brass); }
-.lm-mark:hover .g { background: var(--ink-3); }
-.lm-ribbon { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--ink-3); }
-.lm-ribbon i { flex: 1 1 0; display: block; min-width: 0; }
+.lm-tokens .dim, .lm-why .dim { color: var(--text-3); }
 .lm-t-gold { background: var(--brass); }
 .lm-t-teal { background: var(--teal); }
 .lm-t-red { background: color-mix(in srgb, var(--red) 70%, var(--ink-3)); }
 .lm-t-violet { background: var(--violet); }
 .lm-t-grey, .lm-t-none { background: var(--ink-3); }
-.lm-axis { position: relative; height: 16px; font-size: 10px; color: var(--text-3); margin-top: 4px; }
-.lm-axis span { position: absolute; transform: translateX(-50%); }
-.lm-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-3); font-size: 11px; color: var(--text-2); }
-.lm-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.lm-legend b { width: 14px; height: 8px; border-radius: 4px; display: inline-block; }
-.lm-legend .lm-key { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text-3); display: inline-block; }
-.lm-legend .lm-key.lm-o-worked { border-color: var(--green); }
-.lm-legend .lm-key.lm-o-failed { border-color: var(--red); }
-.lm-py { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; font-family: var(--font-mono); font-size: 12px; font-weight: 600; flex: none; }
+
+/* ---- the poster (her ask, 2026-09-13 — "our story"): a spine of dated
+   cards, each stretch toned by that card's own personal year; the ring on
+   the spine carries the number, the card carries the picture. Vertical on
+   the phone (cards left/right), horizontal on the desktop (cards
+   above/below) — her own words, the one deliberate exception to one
+   layout everywhere; the retired ribbon + legend line are gone. */
+.lm-poster { display: flex; flex-direction: column; margin-top: var(--sp-2); }
+.lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 96px; }
+.lm-spine-seg { grid-column: 2; position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; transform: translateX(-50%); border-radius: 2px; }
+.lm-poster-row:first-child .lm-spine-seg { top: 50%; }
+.lm-poster-row:last-child .lm-spine-seg { bottom: 50%; }
+.lm-poster-node { grid-column: 2; justify-self: center; z-index: 1; }
+.lm-poster-row.side-a .lm-mark { grid-column: 1; justify-self: end; }
+.lm-poster-row.side-b .lm-mark { grid-column: 3; justify-self: start; }
+.lm-mark { display: flex; align-items: center; gap: var(--sp-2); width: 100%; max-width: 230px; padding: var(--sp-2); border-radius: var(--r-lg); background: var(--ink-2); border: 0; cursor: pointer; text-align: left; position: relative; color: var(--text); }
+.lm-mark:hover { background: var(--ink-3); }
+.lm-mark.on { box-shadow: 0 0 0 2px var(--brass), var(--lift-2); }
+.lm-poster-pic { width: 44px; height: 44px; border-radius: var(--r-md); overflow: hidden; flex: none; background: var(--ink-3); display: flex; align-items: center; justify-content: center; }
+.lm-poster-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lm-poster-pic.glyph .g { font-size: 18px; color: var(--text-2); line-height: 1; }
+.lm-poster-body { min-width: 0; flex: 1; }
+.lm-poster-title { font-size: 13px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lm-poster-date { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.lm-poster-date .n { color: var(--brass); }
+.lm-poster-oc { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; background: var(--ink-1); border: 2px solid var(--text-3); }
+.lm-poster-oc.lm-o-worked { border-color: var(--green); color: var(--green); }
+.lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
+@media (min-width: 641px) {
+  .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding-bottom: var(--sp-2); gap: 0; }
+  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 40px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
+  .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 4px; width: auto; transform: translateY(-50%); border-radius: 2px; }
+  .lm-poster-row:first-child .lm-spine-seg { left: 50%; }
+  .lm-poster-row:last-child .lm-spine-seg { right: 50%; }
+  .lm-poster-node { grid-row: 2; grid-column: 1; }
+  .lm-poster-row.side-a .lm-mark { grid-row: 1; grid-column: 1; justify-self: center; align-self: end; }
+  .lm-poster-row.side-b .lm-mark { grid-row: 3; grid-column: 1; justify-self: center; align-self: start; }
+  .lm-mark { flex-direction: column; text-align: center; max-width: 170px; }
+  .lm-poster-title { -webkit-line-clamp: 2; }
+}
+.lm-py { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; font-family: var(--font-mono); font-size: 12px; font-weight: 600; flex: none; background: var(--ink-1); }
 .lm-py.lm-t-gold { color: var(--brass); background: none; }
 .lm-py.lm-t-teal { color: var(--teal); background: none; }
 .lm-py.lm-t-red { color: var(--red); background: none; }
@@ -934,9 +954,9 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 #tab-bar { background: var(--ink-rail); box-shadow: 0 -1px 0 var(--rail-edge); }
 .nav-link.active, .case-rail { box-shadow: var(--lift-2); }
 .panel, .empty-state, .stat-tile, .board-wrap, .tabs { box-shadow: var(--lift-1); }
-.card, .lm-card, .board-card, .tabs button.active { box-shadow: var(--lift-2); }
-.lm-card, .board-card, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-.lm-card:hover, .board-card:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
+.card, .lm-card, .lm-mark, .board-card, .tabs button.active { box-shadow: var(--lift-2); }
+.lm-card, .lm-mark, .board-card, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.lm-card:hover, .lm-mark:hover, .board-card:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
 .lm-card-cmp:hover { transform: none; box-shadow: var(--lift-2); }
 .face-card:hover .face { transform: translateY(-2px); }
 .face { box-shadow: var(--lift-face); }
@@ -945,9 +965,8 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .btn-ghost, .btn-danger, .tab-strip .tab-more { box-shadow: none; }
 .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--press); }
 .btn-ghost:active:not(:disabled), .btn-danger:active:not(:disabled) { box-shadow: none; }
-.lm-ribbon { box-shadow: var(--sink); }
-.lm-mark .g { box-shadow: var(--lift-mark); }
-.lm-mark.on .g { box-shadow: 0 0 0 2px var(--brass), var(--lift-mark); }
+.lm-spine-seg { box-shadow: var(--sink); }
+.lm-poster-pic { box-shadow: var(--lift-mark); }
 /* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
 #drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
@@ -968,8 +987,8 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 #tab-bar { box-shadow: 0 -1px 0 var(--rail-edge), var(--tabbar-shadow); }
 /* gold has one job: the life path number — and the "gold" tier of her code (1·8 years, the
    "same" verdict), which is a colour code like the zodiac, not the accent. The unknown dash
-   (.ni-lp.unknown) keeps its grey: an honest blank is never painted gold. The ribbon segment
-   and legend swatch (.lm-t-gold) follow the same token so the tier is one colour everywhere. */
+   (.ni-lp.unknown) keeps its grey: an honest blank is never painted gold. The poster's spine
+   segment and year ring (.lm-t-gold) follow the same token so the tier is one colour everywhere. */
 .lm-tokens .tk .big, .num-icons .ni-lp:not(.unknown), .tree-group .mini .name .lp, .lm-py.lm-t-gold { color: var(--gold); }
 .lm-t-gold { background: var(--gold); }
 .lm-v-same, .lm-v-fifty { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold); }

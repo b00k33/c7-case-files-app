@@ -12,6 +12,7 @@ import { relation } from './relations.js';
 import { exactBirth, exactDeath } from './person-dates.js';
 import { relationGlyph, animalLabel, animalChipHtml, signChipHtml, signGlyph, signElement, emptyState } from './indicators.js';
 import { resolveAssetUrl, preloadImage } from './assets.js';
+import { fetchItemPhoto, saveEventPhotoFromUrl } from './lookup.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -188,41 +189,66 @@ function outcomeChip(m) {
   return '<span class="lm-v lm-v-neutral">not yet judged</span>';
 }
 
-/** The ribbon of years, the marks above it, the axis and the legend. onPick(mark, button) when a mark is tapped. */
-export function renderLifeLine(el, data, { onPick, onAdd = null }) {
+// life-events.js encodes a fetched item as `${personQid}/${prop}/${itemQid}`
+// (a marriage/divorce candidate adds a trailing /start or /end) — the
+// poster's picture fetch wants just the item on the far end: the award,
+// the place, the school. Anything else (a release's own bare qid, a
+// hand-typed event with none at all) has no item to look up.
+function itemQidFromComposite(wid) {
+  const parts = String(wid || '').split('/');
+  return parts.length === 3 && /^Q\d+$/.test(parts[2]) ? parts[2] : null;
+}
+
+/**
+ * The poster's picture, her rule (2026-09-13): a marriage's own spouse —
+ * already in the app, no fetch — or the place/school/award's own picture,
+ * read from Wikidata once and cached on the event row; a release (or
+ * anything with nothing to fetch) goes without one rather than a fake.
+ * Returns { src, label } or null — null always falls back to the plain glyph.
+ */
+async function resolveMarkPicture(m, { people, store }) {
+  if (m.cluster) return null; // stands for several — no one picture is honest
+  if ((m.kind === 'marriage' || m.kind === 'divorce') && m.spouseId) {
+    const spouse = (people || []).find((p) => p.id === m.spouseId);
+    if (!spouse) return null;
+    const src = spouse.photo_path ? await resolveAssetUrl(spouse.photo_path, 'image/jpeg') : spouse.photo_url;
+    return src && await preloadImage(src) ? { src, label: `${spouse.display_name}’s picture` } : null;
+  }
+  if (!m.event || !['award', 'move', 'other'].includes(m.kind)) return null;
+  const itemQid = itemQidFromComposite(m.event.wikidata_id);
+  if (!itemQid) return null;
+  let src = m.event.photo_path ? await resolveAssetUrl(m.event.photo_path, 'image/jpeg') : m.event.photo_url;
+  if (!src && store) {
+    try {
+      const { photoUrl } = await fetchItemPhoto(itemQid);
+      if (photoUrl) { await saveEventPhotoFromUrl(store, m.event.id, photoUrl); src = photoUrl; }
+    } catch (_) { /* the picture is a nicety, not the record */ }
+  }
+  const label = { award: 'the award’s picture', move: 'the place’s picture', other: 'the school’s picture' }[m.kind];
+  return src && await preloadImage(src) ? { src, label } : null;
+}
+
+/**
+ * The poster (her ask, 2026-09-13 — "our story"): a spine running through
+ * every dated thing, each stretch toned by that card's own personal year;
+ * the ring on the spine holds the number, the card carries the picture —
+ * her spouse's own face, or the place/school/award's picture from
+ * Wikipedia, or (mostly releases) none at all rather than a fake one.
+ * Vertical on the phone, cards left/right; horizontal on the desktop,
+ * cards above/below — her own words, a deliberate exception to one layout
+ * everywhere (CSS carries the flip; this file builds one DOM shape).
+ * onPick(mark, button) when a card is tapped; the verdict panel it drives
+ * lives elsewhere on the page, unchanged.
+ */
+export async function renderLifeLine(el, data, { onPick, onAdd = null, store = null, people = [] } = {}) {
   el.innerHTML = '';
   if (!data.years.length) {
     el.appendChild(emptyState({ missing: 'No years to draw yet.', why: 'A birth date (even just the year) or one dated event starts the life line.', action: onAdd ? '+ Add an event' : null, onAction: onAdd }));
     return;
   }
-  const n = data.years.length;
-  const xOf = (year) => `clamp(12px, ${(((year - data.yearsFrom + 0.5) / n) * 100).toFixed(2)}%, calc(100% - 12px))`;
-  const wrap = document.createElement('div');
-  wrap.className = 'lm-life';
-  const marks = document.createElement('div');
-  marks.className = 'lm-marks';
-  const ribbon = document.createElement('div');
-  ribbon.className = 'lm-ribbon';
-  for (const y of data.years) {
-    const seg = document.createElement('i');
-    seg.className = `lm-t-${pyTone(y.py)}`;
-    seg.title = y.py != null ? `${y.year} · personal year ${y.py}${y.master ? ' (master)' : ''} — ${PY_GLOSS[y.py] || ''}` : String(y.year);
-    ribbon.appendChild(seg);
-  }
-  const axis = document.createElement('div');
-  axis.className = 'lm-axis mono';
-  const ticks = [data.yearsFrom];
-  for (let y = Math.ceil((data.yearsFrom + 3) / 10) * 10; y < data.yearsTo - 2; y += 10) ticks.push(y);
-  ticks.push(data.yearsTo);
-  for (const t of ticks) {
-    const s = document.createElement('span');
-    s.textContent = t;
-    s.style.left = xOf(t);
-    axis.appendChild(s);
-  }
   // same kind, same year → one mark with a count: nine Grammys in 1984 are
-  // "★ ×9", not a tower of nine stars pushing the ribbon off the screen
-  // (seen on the first real Wikidata pull, 2026-09-07)
+  // "★ ×9", not nine cards crowding one spot (seen on the first real
+  // Wikidata pull, 2026-09-07)
   const groups = new Map();
   for (const m of data.marks) {
     const k = `${m.year}|${m.kind}`;
@@ -230,53 +256,48 @@ export function renderLifeLine(el, data, { onPick, onAdd = null }) {
     groups.get(k).push(m);
   }
   const shown = [...groups.values()].map((g) => (g.length === 1 ? g[0] : clusterMark(g)));
-  for (const m of shown) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `lm-mark lm-o-${m.outcome || 'none'}`;
-    b.dataset.id = m.id;
-    b.dataset.year = String(m.year);
-    b.style.left = xOf(m.year);
-    b.innerHTML = `<span class="g">${m.glyph}</span><span class="y mono">${m.year}</span>${m.cluster ? `<span class="n mono">×${m.cluster.length}</span>` : ''}`;
-    b.title = `${m.title} · ${m.year}${m.outcome ? ' · ' + m.outcome : ''}`;
-    b.addEventListener('click', () => {
-      marks.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
-      b.classList.add('on');
-      onPick(m, b);
-    });
-    marks.appendChild(b);
+  if (!shown.length) {
+    el.appendChild(emptyState({ missing: 'Nothing dated yet.', why: 'A birth date starts the years; an event or a relationship starts the story.', action: onAdd ? '+ Add an event' : null, onAction: onAdd }));
+    return;
   }
-  wrap.append(marks, ribbon, axis);
-  el.appendChild(wrap);
+  await Promise.all(shown.map(async (m) => { m._pic = await resolveMarkPicture(m, { people, store }); }));
 
-  const legend = document.createElement('div');
-  legend.className = 'lm-legend';
-  legend.innerHTML = data.birth
-    ? `<span><b class="lm-t-gold"></b>1 · 8 start, money</span><span><b class="lm-t-teal"></b>3 · 5 social, change</span><span><b class="lm-t-red"></b>7 · 9 don’t start</span><span><b class="lm-t-violet"></b>11 · 22 master</span><span><b class="lm-t-grey"></b>2 · 4 · 6</span>`
-    : '<span class="dim">personal years need a full birth date — the ribbon is uncoloured</span>';
-  legend.innerHTML += `<span><i class="lm-key lm-o-worked"></i>worked</span><span><i class="lm-key lm-o-failed"></i>failed · ended</span><span><i class="lm-key"></i>not yet judged</span>`;
-  el.appendChild(legend);
-
-  // crowded marks stack into rows (her pick for the phone) — greedy by x, re-run on resize;
-  // a row is one mark tall (22px glyph + year label) so a count badge never touches the label above
-  const MIN = 36;
-  const layout = () => {
-    const w = ribbon.getBoundingClientRect().width || 1;
-    const lastX = [];
-    let rows = 1;
-    for (const b of marks.children) {
-      const pct = ((parseInt(b.dataset.year || data.marks.find((m) => m.id === b.dataset.id).year, 10) - data.yearsFrom + 0.5) / n);
-      const x = Math.min(Math.max(pct * w, 12), w - 12);
-      let r = 0;
-      while (lastX[r] != null && x - lastX[r] < MIN) r++;
-      lastX[r] = x;
-      b.style.setProperty('--row', r);
-      rows = Math.max(rows, r + 1);
-    }
-    marks.style.height = `${rows * MIN + 6}px`;
-  };
-  layout();
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(layout).observe(ribbon);
+  const poster = document.createElement('div');
+  poster.className = 'lm-poster';
+  shown.forEach((m, i) => {
+    const y = data.years.find((x) => x.year === m.year);
+    const py = y ? y.py : null;
+    const tone = pyTone(py);
+    const row = document.createElement('div');
+    row.className = `lm-poster-row ${i % 2 ? 'side-b' : 'side-a'}`;
+    const seg = document.createElement('i');
+    seg.className = `lm-spine-seg lm-t-${tone}`;
+    const node = document.createElement('div');
+    node.className = 'lm-poster-node';
+    node.innerHTML = py != null ? `<span class="lm-py lm-t-${tone}">${py}</span>` : `<span class="lm-py lm-t-none">·</span>`;
+    node.title = py != null ? `${m.year} · personal year ${py}${y.master ? ' (master)' : ''} — ${PY_GLOSS[py] || ''}` : String(m.year);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `lm-mark lm-o-${m.outcome || 'none'}`;
+    card.dataset.id = m.id;
+    card.dataset.year = String(m.year);
+    card.innerHTML = `
+      <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" title="${esc(m._pic.label)}" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
+      <div class="lm-poster-body">
+        <div class="lm-poster-title">${esc(m.title)}</div>
+        <div class="lm-poster-date mono">${fmtWhen(m)}${m.cluster ? ` <span class="n">×${m.cluster.length}</span>` : ''}</div>
+      </div>
+      ${m.outcome ? `<span class="lm-poster-oc lm-o-${m.outcome}">${m.outcome === 'worked' ? '✓' : m.outcome === 'end' ? '✝' : '✕'}</span>` : ''}`;
+    card.title = `${m.title} · ${m.year}${m.outcome ? ' · ' + m.outcome : ''}`;
+    card.addEventListener('click', () => {
+      poster.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
+      card.classList.add('on');
+      onPick(m, card);
+    });
+    row.append(seg, node, card);
+    poster.appendChild(row);
+  });
+  el.appendChild(poster);
 }
 
 /** The verdict chips for a pair: animals (STYLE §5 glyph + word), her GG33 life-path tier, the Western elements (lighter). */

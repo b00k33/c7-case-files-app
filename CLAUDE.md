@@ -423,6 +423,50 @@ interaction inside a new layout container, check what that container's
 own default behaviour (stretch, flow, overflow) does to the reused
 element — the element didn't change, its context did.**
 
+**2026-09-13 — synth22 batch, stage 3: the life line becomes a poster
+(v92, SPEC §13w).** Her approved order continued: names → tiles → the
+two Wikipedia doors → the poster life line (this stage) → the corkboard
+Board, the last stage still to come.
+
+**Reusing an existing helper's parameters without re-deriving them for
+the new context caused a real, user-visible bug.** `fetchItemPhoto`
+(the poster's "picture of the thing") copied `fetchProfile`'s
+`.replace(/\/(\d+)px-/, '/640px-')` verbatim — sensible for a profile
+header photo, which needs real resolution, but a poster picture only
+ever shows at 44px. Forcing Wikimedia's thumbnail scaler to render a
+brand-new 640px variant on demand turned out to be unreliable on its
+own terms (the identical file 404s at some on-demand widths and not
+others, confirmed by testing a range of widths directly against
+Commons), and firing many of these concurrently — one real person's
+life easily has 30+ dated events — made a rare flake into a visibly
+broken picture on several cards, caught only by testing against a real,
+event-rich Wikidata pull (Barack Obama, 37 life events) rather than a
+thin fixture. Fixed by keeping the size the API already handed back —
+plenty for 44px, and never a size Commons has to freshly generate.
+**Copying a working pattern is only safe once its assumptions are
+re-checked against the new call site — "why does the original do this"
+is worth asking even when the code being reused already works
+elsewhere.**
+
+**A stale service worker re-caught its own trap mid-session.** Already
+documented (`reference_stale_service_worker_sandbox.md`) but worth a
+fresh note: clearing the SW/caches, THEN making a further code edit,
+THEN reloading without clearing again serves the pre-edit file straight
+back — the SW re-registers and snapshots whatever was on disk at reload
+time, not at edit time. Confirmed by fetching the served file's own
+source text mid-session and finding the old code still shipping after
+the fix had already landed on disk. Clear SW + caches after every edit
+meant to be tested, not just once at the start of a testing session.
+
+**A literal instruction ("each stretch of spine takes the year's tone")
+described a per-calendar-year ribbon; the poster reinterprets it as
+per-shown-mark instead** — a real event timeline clusters unevenly (many
+awards one year, decades of nothing between school and marriage), and a
+strictly time-proportional spine either crushes the sparse stretches or
+blows out the crowded ones. Flagged to her in SPEC §13w as a judgment
+call, not one of her sixteen literal answers, so it can be corrected on
+sight rather than assumed settled.
+
 **2026-09-13 — synth22 batch, stage 2: the family + Commercial "+ From
 Wikipedia" doors (v91, SPEC §13v).** Her approved order continued: names
 → tiles → the two Wikipedia doors (this stage) → the poster life line →
