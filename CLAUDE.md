@@ -423,6 +423,56 @@ interaction inside a new layout container, check what that container's
 own default behaviour (stretch, flow, overflow) does to the reused
 element — the element didn't change, its context did.**
 
+**2026-09-13 — synth22 batch, stage 4: the corkboard (v93, SPEC §13x) —
+the last stage.** Her approved order complete: names → tiles → the two
+Wikipedia doors → the poster life line → the corkboard Board (this
+stage). The Board stopped being a year axis of dated events (those moved
+to the poster in stage 3) and became a read-only rendering of theories
+(question rows with `parent_id`), their evidence pinned beneath, and a
+red thread wherever the case's own contradictions cross two pinned
+pieces of evidence — every edit still happens on Questions/Evidence, the
+Board only ever reads.
+
+**Reused an existing app-wide law instead of inventing a new one for the
+string colour.** Her "three string meanings" answer (brass/dashed/red)
+mapped exactly onto `indicators.js`'s existing sourced/drafted/
+contradicted vocabulary — `verificationConfidence(v) >= 40` was already
+the app's one true "is this sourced" test, used on every evidence chip
+elsewhere. Computing a NEW threshold for this one feature would have
+created a second, silently-different definition of "sourced" for her to
+eventually notice disagreed with the first.
+
+**Confirmed the Tree's pan/zoom is genuinely not reusable, and chose to
+duplicate rather than refactor a working feature.** All of it lives
+inline in `relations.js`, closed over Tree-specific locals including a
+module-level singleton — pulling it into a shared module would have
+meant rewriting a tested, shipped interaction to make a new one possible.
+Wrote a small board-local `attachPanZoom()` with the identical constants
+and pattern instead (SPEC §13x, STYLE "Corkboard viewing").
+
+**A CSS comment silently ate an entire rule, and it was invisible until
+dark theme was checked with computed styles, not eyes.** The comment
+introducing `.board-wrap` contained `--cork-*/--paper-*` as a token
+cross-reference — and `-*/` is a literal comment-close sequence, so the
+browser ended the comment there and the rest of the sentence became
+invalid CSS, taking the whole `.board-wrap` rule down with it (cork
+gradient, inset edge ring both gone) while every sibling `.cork-*` rule
+in the same file parsed fine. An early light-theme screenshot looked
+plausible anyway — an empty ground still reads as a neutral background
+at a glance — and it was only caught by reading
+`getComputedStyle(el).backgroundImage` directly while verifying dark
+mode. **A CSS comment is not a safe place for a path-like token
+reference; check computed styles when a background "looks fine but
+plain," don't trust the screenshot alone.**
+
+**A second, older, unrelated gap surfaced and got fixed in-scope:** no
+Google Font `<link>` had ever loaded Caveat, despite `--font-hand`
+already being declared and already referenced by the old board CSS —
+invisible until a real handwritten label actually needed to render.
+Fixed by adding the Google Fonts link to `index.html`, since this
+stage's "handwritten-feel labels" pick made it load-bearing for the
+first time.
+
 **2026-09-13 — synth22 batch, stage 3: the life line becomes a poster
 (v92, SPEC §13w).** Her approved order continued: names → tiles → the
 two Wikipedia doors → the poster life line (this stage) → the corkboard

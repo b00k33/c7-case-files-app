@@ -85,6 +85,15 @@
   --r-lg: 8px;
 
   --focus: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--brass);
+
+  /* the corkboard (her ask, 2026-09-13: "real cork, pushpins") — a literal
+     material, not a ground colour, so it stays the same tan by day or
+     night; declared once here and never touched by the light block. */
+  --cork-1: #c69a63;
+  --cork-2: #b3854f;
+  --cork-edge: #8c6539;
+  --paper: #f3e9d2;
+  --paper-ink: #2c2214;
 }
 
 /* day — cool white (2026-09-08, "redesign the day palette. i dont like

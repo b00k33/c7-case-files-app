@@ -208,12 +208,21 @@ would.
 - **Tables:** on desktop, dense tables use 32px row height, mono for every
   numeric/date column, `--ink-2` zebra on even rows only (no border between
   rows — tone does the separating per the ground rule).
-- **Cork board texture:** a subtle repeating radial-gradient noise on
-  `--ink-1`, not an image asset — keeps the app dependency-free and the
-  board still reads as "cork" through colour/texture alone, not literalism.
-- **String on the board:** a thin `--text-3` line (SVG), brass where it
-  meets a sourced card, dashed where it meets a drafted one — same
-  sourced/drafted colour law as every other indicator.
+- **Cork board texture — overridden 2026-09-13 ("real cork, pushpins").**
+  Superseded the original "colour/texture alone, not literalism" pick
+  below with an actual literal material: a tan cork gradient
+  (`--cork-1/2/-edge`, tokens.css — declared once, never touched by the
+  light/dark split, since cork is a fixed material, not a theme-coloured
+  ground), paper-coloured cards (`--paper`/`--paper-ink`) at a small
+  per-card tilt, and round red pushpins. (Original 2026-09-01 pick, for
+  the record: a subtle repeating radial-gradient noise on `--ink-1`, no
+  image asset, reading as "cork" through colour/texture alone.)
+- **String on the board — colour law unchanged, literal thread added
+  2026-09-13.** Brass (teal by day) where it meets a sourced card, grey
+  dashed where it meets a drafted one — the same sourced/drafted colour
+  law as every other indicator, unchanged since 2026-09-01. Red curves
+  the string between two evidence cards with an existing contradiction
+  between them, regardless of which theories they hang under.
 - **Motion exceptions (approved 2026-09-01):** the Review page is allowed
   two moves beyond §7's near-none rule — a short card deal-in as claims
   advance, and the "CASE REVIEWED" stamp slam when the queue clears. Both
@@ -282,3 +291,10 @@ would.
   dragging pans; Expand puts the tree on the whole screen with the same
   controls and ✕ / Escape to leave. Delete on a case card lives in the ⋯
   menu, dimmed, two-tap — Import stays on the card.
+- **Corkboard viewing (2026-09-13).** The same Fit / − / + / drag-pan
+  values and pattern as Tree viewing above, reimplemented locally on the
+  Board rather than shared — the Tree's version lives entirely inline in
+  `relations.js`, closed over Tree-only state, so the Board gets its own
+  small copy of the same proven values instead of a refactor. No pinch
+  gesture exists anywhere in the app yet; phone zoom is the same −/+
+  buttons as desktop.

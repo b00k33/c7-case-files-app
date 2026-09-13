@@ -292,40 +292,91 @@ table.dense td.num { font-family: var(--font-mono); }
 .stat-tile .n { font-family: var(--font-mono); font-size: 28px; color: var(--text); }
 .stat-tile .l { color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
 
-/* ---------------------------------------------------------------- board */
+/* ---------------------------------------------------------------- board
+   the corkboard (her ask, 2026-09-13, SPEC §13x): theories pinned in a
+   row, their evidence strung beneath them, a red string wherever the
+   case's own contradictions cross two pinned pieces of evidence. Real
+   cork and pushpins (her call B, overriding the abstract "colour/texture
+   alone" pick in the notes below) — a literal material, so its tan stays
+   the same by day or night; see the --cork- and --paper- tokens above. */
 
 .board-wrap {
-  background: var(--ink-1);
-  border-radius: var(--r-lg);
   position: relative;
-  overflow-x: auto;
-  overflow-y: hidden;
-  background-image: radial-gradient(circle at 15% 25%, rgba(255,255,255,0.02) 0, transparent 3px),
-                     radial-gradient(circle at 65% 65%, rgba(255,255,255,0.018) 0, transparent 3px),
-                     radial-gradient(circle at 35% 80%, rgba(255,255,255,0.02) 0, transparent 2.4px),
-                     radial-gradient(circle at 85% 30%, rgba(255,255,255,0.015) 0, transparent 2.4px);
-  background-size: 60px 60px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.10) 0, transparent 2px),
+    radial-gradient(circle at 70% 15%, rgba(0,0,0,.14) 0, transparent 2.4px),
+    radial-gradient(circle at 40% 55%, rgba(0,0,0,.12) 0, transparent 2px),
+    radial-gradient(circle at 85% 65%, rgba(255,255,255,.08) 0, transparent 2.2px),
+    radial-gradient(circle at 12% 80%, rgba(0,0,0,.10) 0, transparent 2px),
+    radial-gradient(circle at 55% 90%, rgba(255,255,255,.07) 0, transparent 1.8px),
+    linear-gradient(155deg, var(--cork-1), var(--cork-2));
+  background-size: 34px 34px, 41px 41px, 27px 27px, 46px 46px, 31px 31px, 24px 24px, 100% 100%;
+  box-shadow: inset 0 0 0 1px var(--cork-edge), var(--lift-1);
 }
-.board-strip {
-  display: flex; align-items: stretch; position: relative; min-height: 420px;
+/* the cork stays one fixed tan regardless of theme, so the toolbar sitting
+   on it needs its own fixed-contrast strip rather than the ink/paper text
+   tokens, which assume a normal (theme-swapped) surface underneath them */
+.cork-toolbar {
+  padding: var(--sp-2) var(--sp-3); margin: 0 0 var(--sp-2);
+  background: rgba(20, 13, 4, .55); border-radius: var(--r-lg) var(--r-lg) 0 0;
 }
-.year-cell {
-  flex: 0 0 64px; border-right: 1px solid rgba(255,255,255,.03); position: relative;
-  display: flex; flex-direction: column; align-items: center; padding-top: var(--sp-3);
+.cork-toolbar .mono { color: #f3e9d2; }
+.cork-toolbar .seg { border-color: rgba(255,255,255,.25); }
+.cork-toolbar .seg button { color: #f3e9d2; }
+.cork-toolbar .seg button.active { background: rgba(255,255,255,.16); color: var(--brass); }
+.cork-scroll {
+  overflow: auto; cursor: grab; border-radius: var(--r-lg);
 }
-.year-cell .yr { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
-.board-cards-layer { position: absolute; inset: 0; pointer-events: none; }
-.board-card {
-  position: absolute; width: 150px; background: var(--ink-2); border-radius: var(--r-sm);
-  padding: var(--sp-2); font-size: 11px; pointer-events: auto; cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,.3);
+.cork-scroll.dragging { cursor: grabbing; user-select: none; }
+.cork-scale { position: relative; margin: 0 auto; }
+.cork-board { position: relative; transform-origin: 0 0; }
+.cork-theory, .cork-evidence {
+  position: absolute; display: block; text-align: left; border: 0; cursor: pointer;
+  background: var(--paper); color: var(--paper-ink);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-face);
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
 }
-.board-card .t { font-family: var(--font-hand); font-size: 15px; color: var(--text); }
+.cork-theory:hover, .cork-evidence:hover {
+  box-shadow: var(--lift-2-hover);
+  transform: rotate(var(--tilt, 0deg)) translateY(-3px) scale(1.03);
+}
+.pin {
+  position: absolute; top: -7px; left: 50%; width: 13px; height: 13px;
+  transform: translateX(-50%); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 35% 30%, #ffb3a3 0%, var(--red) 55%, #7a251c 100%);
+  box-shadow: 0 2px 3px rgba(0,0,0,.4);
+}
+.cork-theory {
+  width: 180px; height: 104px; padding: 14px var(--sp-2) var(--sp-2);
+}
+.cork-eyebrow {
+  font-family: var(--font-body); font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
+  color: color-mix(in srgb, var(--paper-ink) 55%, transparent); margin-bottom: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cork-text {
+  font-family: var(--font-hand); font-size: 17px; line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cork-star {
+  position: absolute; bottom: 6px; right: 8px; font-size: 14px; color: var(--brass); line-height: 1;
+}
+.cork-theory.won .cork-star { color: var(--green); }
+.cork-evidence {
+  width: 148px; height: 56px; padding: 10px var(--sp-2) var(--sp-2);
+}
+.cork-ev-title {
+  font-family: var(--font-hand); font-size: 14px; line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.string-svg { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .board-tray {
-  border-top: 1px solid var(--line);
+  border-radius: var(--r-lg);
   padding: var(--sp-3); display: flex; gap: var(--sp-2); flex-wrap: wrap; background: var(--ink-1);
 }
-.string-svg { position: absolute; inset: 0; pointer-events: none; }
 
 /* ------------------------------------------------------------ relations */
 
@@ -826,10 +877,6 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .contra-grid { grid-template-columns: 1fr; }
   .contra-vs { padding: 2px 0; }
 }
-.board-card.evidence { border-top: 2px solid var(--red); }
-.board-card.evidence .tag { font-family: var(--font-mono); font-size: 9px; color: var(--red); text-transform: uppercase; letter-spacing: .06em; }
-.board-card.milestone { border-top: 2px solid var(--teal); }
-
 /* ------------------------------------------------------ commercial tab */
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .milestone-chip { gap: 6px; }
@@ -953,10 +1000,10 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 #nav-rail { background: var(--ink-rail); box-shadow: inset -1px 0 0 var(--rail-edge); }
 #tab-bar { background: var(--ink-rail); box-shadow: 0 -1px 0 var(--rail-edge); }
 .nav-link.active, .case-rail { box-shadow: var(--lift-2); }
-.panel, .empty-state, .stat-tile, .board-wrap, .tabs { box-shadow: var(--lift-1); }
-.card, .lm-card, .lm-mark, .board-card, .tabs button.active { box-shadow: var(--lift-2); }
-.lm-card, .lm-mark, .board-card, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-.lm-card:hover, .lm-mark:hover, .board-card:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
+.panel, .empty-state, .stat-tile, .tabs { box-shadow: var(--lift-1); }
+.card, .lm-card, .lm-mark, .tabs button.active { box-shadow: var(--lift-2); }
+.lm-card, .lm-mark, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.lm-card:hover, .lm-mark:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
 .lm-card-cmp:hover { transform: none; box-shadow: var(--lift-2); }
 .face-card:hover .face { transform: translateY(-2px); }
 .face { box-shadow: var(--lift-face); }
@@ -970,8 +1017,8 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 /* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
 #drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
-  .lm-card, .board-card, .tile, .btn, .face-card .face { transition: none; }
-  .lm-card:hover, .board-card:hover, .tile:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
+  .lm-card, .cork-theory, .cork-evidence, .tile, .btn, .face-card .face { transition: none; }
+  .lm-card:hover, .cork-theory:hover, .cork-evidence:hover, .tile:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
 }
 
 /* ---------------------------------------------------------- day palette

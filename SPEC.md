@@ -1448,6 +1448,91 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13x. The corkboard — theories, evidence and a red thread (v93, 2026-09-13)
+
+Stage 4 of the synth22 batch (§13u), the last stage: the Board becomes
+the detective's corkboard her reference imagery showed — theories pinned
+in a row, their evidence strung beneath, a red thread wherever the
+case's own contradictions cross two pinned pieces of evidence. The old
+Board (a year axis of dated events) is retired — those events moved to
+the poster in §13w; the Board now only ever reads theories, their
+evidence links, and contradictions.
+
+**Look — B, real cork and pushpins, overriding STYLE §9.** Her call,
+against the existing "cork through colour/texture alone, not literalism"
+decision: a tan cork gradient (`--cork-1/2/-edge`, new tokens, declared
+once and never touched by the light/dark split — cork is a material, not
+a ground colour), paper-coloured cards (`--paper`/`--paper-ink`) set at a
+small per-card tilt, and round red pushpins (`.pin`) on every card. STYLE
+§9 updated to match — see below.
+
+**Arrangement — L1, theories on top.** One column per theory
+(`question` rows with `parent_id`), laid out left to right in creation
+order; that theory's evidence (`evidence_link` rows with
+`target_type='question'`, `target_id`=the theory) hangs beneath it in a
+stack. The app places every card — no drag, nothing saved. A theory
+card shows the parent question as a small eyebrow line, the theory text
+in the handwritten face, and a ★ for her leaning (`question.pick`) or a
+✓ if it's the one that answered the question (`question.resolved &&
+answer_id === this theory`). Clicking any card opens the Questions or
+Evidence tab it belongs to — the corkboard only ever reads that data;
+creating, starring, answering and evidencing a theory all still happen
+on Questions, exactly as before this stage.
+
+**String colour — S1, three meanings, reusing the app's existing
+sourced/drafted law.** Brass (teal by day) = this evidence supports the
+theory it hangs under and clears the bar the rest of the app already
+uses for "sourced" (`indicators.js`'s `verificationConfidence(v) >= 40`
+— two-or-more-sources and single-source both count, disputed/dead-link/
+drafted don't); a grey dashed line is the same support, still drafted.
+Red = an existing `contradiction` row between two evidence items already
+pinned somewhere on the board, drawn as a curve between their two
+positions regardless of which theories they hang under. No new law was
+invented for this — the exact green/amber/red, sourced/drafted
+vocabulary already used on every evidence chip in the app carries
+straight over to string colour.
+
+**A contradiction whose evidence isn't pinned anywhere yet** gets no
+string — there's nowhere to draw it — and instead drops into a "Not yet
+on the board" tray beneath the corkboard, one red chip per orphaned
+pair, mirroring the exact fallback the OLD board.js already used for its
+own "undated event" case. Not one of her sixteen literal answers, a
+judgment call carried over from existing precedent rather than invented
+fresh.
+
+**Phone — P1, the Tree's own viewing controls, duplicated not shared.**
+Fit/−/+ and drag-to-pan, the identical values and pattern the Relations
+Tree already uses (`ZOOM_MIN/MAX/STEP`, `MIN_FIT`, the pointer-drag +
+`dataset.dragged` click-suppression guard) — investigated first and
+confirmed NOT to live in a reusable module (all inline in `relations.js`,
+closed over Tree-only locals including a module-level singleton that
+would collide if reused directly), so the Board gets its own small
+`attachPanZoom()` that mirrors the proven pattern rather than refactoring
+a working feature into a shared one it was never built to be.
+
+**Two real bugs, found live before shipping, both fixed:**
+
+- **A CSS comment closed itself early and silently ate the entire
+  `.board-wrap` rule.** The comment introducing the corkboard section
+  read "...see --cork-*/--paper-* in tokens.css." — and `-*/` is a
+  literal comment-close sequence, so the browser's parser ended the
+  comment there, treated the rest as invalid CSS, and dropped the whole
+  `.board-wrap` rule (background gradient, inset edge ring) while every
+  OTHER new rule in the same stylesheet parsed fine. It looked correct
+  in an early screenshot because the empty cork ground still reads as a
+  plausible neutral background at a glance — only caught by checking
+  computed styles directly (`getComputedStyle(...).backgroundImage`)
+  while verifying dark theme, not by eye. A CSS comment is not a safe
+  place for a path-like string that happens to contain `*/`.
+- **A missing Google Font, present since long before this stage.**
+  `--font-hand: 'Caveat', ...` was already declared in tokens.css and
+  already referenced by old board CSS, but no `<link>` ever loaded the
+  actual Caveat font anywhere in the app — a silent gap, invisible until
+  a theory card's handwritten label actually needed to render, because
+  every earlier user of the token happened to render off-screen or
+  untested. Fixed by adding the Google Fonts `<link>` to `index.html`,
+  directly necessary for this stage's "handwritten-feel labels" pick.
+
 ## 13w. "Our Story" — the life line becomes a poster (v92, 2026-09-13)
 
 Stage 3 of the synth22 batch: the life ribbon (§13g/§13i) redrawn as a
