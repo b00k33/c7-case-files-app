@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
-import { inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
+import { inlineNote, clearInlineNote, duplicateNameBlock, stampMoment } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
@@ -945,9 +945,16 @@ function paintMatches(results, rows, ctx) {
         r.failed.length ? `couldn't read ${r.failed.join(', ')}` : null,
       ].filter(Boolean).join(' · ');
       results.innerHTML = `
+        ${r.families ? '<div id="wk-stamp"></div>' : ''}
         <div class="inline-note" style="border-left-color:${ok ? 'var(--green)' : 'var(--red)'}">${ok ? `${headline}${bits ? ` — ${bits}` : ''}. Everything cites Wikidata.` : `Nothing added — ${bits || 'the lookup failed'}.`} The tree and the grid behind this drawer are updated.</div>
         <div class="row wrap" style="gap:12px;margin-top:16px"><button class="btn btn-primary" id="wk-done">Done</button><button class="btn btn-ghost" id="wk-more">Add more</button></div>
       `;
+      if (r.families) {
+        results.querySelector('#wk-stamp').appendChild(stampMoment({
+          text: 'Family<br>Added',
+          note: `${r.families} famil${r.families === 1 ? 'y' : 'ies'} pulled in from Wikipedia, with everyone's own profile.`,
+        }));
+      }
       results.querySelector('#wk-done').addEventListener('click', () => ctx.closeDrawer());
       results.querySelector('#wk-more').addEventListener('click', () => renderLookupBatch(results.closest('#ap-body'), ctx));
       ctx.rerender();

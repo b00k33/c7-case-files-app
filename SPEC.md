@@ -1489,11 +1489,70 @@ Confirmed all three loading with `document.fonts` reporting `status:
 stack's width diverging from its fallback's.
 
 Verified live: the Cases and People tiles, a case's Profile page, and
-the Review page's "CASE REVIEWED" stamp (§ below, "the case stamp") all
+the Review page's "CASE REVIEWED" stamp (§15, "the case stamp") all
 still read cleanly with the bolder sans in place of the serif — if
 anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
+
+## 15. The case stamp, reused (v97, 2026-09-13)
+
+Her reaction to the Review page's "CASE REVIEWED" stamp: "i like the case
+stamp. i want more of that in the app." Asked where, with a popup showing
+three candidate moments; she picked **all three** — a question gets
+answered, a family import finishes, and every question in a case gets
+answered.
+
+**Pulled the look out of Review into a shared component first.**
+`.review-finish`/`.finish-tally`/`.finish-note` (Review-page-specific
+names) became `.stamp-moment`/`.stamp-detail`/`.stamp-note` in `app.css`,
+and the markup itself moved into `stampMoment({ text, detail, note,
+actionLabel, onAction })`, a new export in `ui.js` alongside
+`twoTapConfirm`/`inlineNameForm`/`inlineNote`. Review's own "Case
+Reviewed" screen now calls this instead of building its markup inline —
+same look, same animation, no behaviour change there.
+
+**Two of the three moments reuse `stampMoment` as-is — a genuine
+finish, shown once:**
+- **A family import finishes** (`relations.js`, the "+ From Wikipedia"
+  batch-add drawer): when at least one person in the batch had "+
+  family" ticked and it actually inserted relatives (`r.families > 0`),
+  a "Family / Added" stamp appears above the existing results summary.
+  Scoped to `r.families` specifically, not just any successful add — one
+  ordinary person added without family ticked is not "a family import."
+- **Every question in a case is answered** (`js/pages/questions.js`):
+  after `answerFlow()`'s `finish()` records an answer, if every
+  top-level question in the case is now resolved, an "All / Answered"
+  stamp is prepended above the (still-visible, still-useful) question
+  list — deliberately NOT a full-page takeover like Review's, since
+  Questions still has real content worth seeing afterward, unlike an
+  emptied review queue. Text reads "All Answered," not "Case Reviewed"
+  or "Case Closed," on purpose — two different milestones (drafted
+  claims accepted vs. questions settled) that would read as the same
+  thing if worded the same.
+
+**The third — "a question gets answered" — is NOT the same component,
+by design.** This fires far more often than the other two (every single
+theory pick, not once per queue/import/case), so a full centered
+takeover would be constant interruption rather than a payoff. Built a
+second, smaller CSS-only piece instead: `.answer-flash`, a miniature
+version of the same brass double-border stamp (10px, no border-radius
+excess, no page-centering) that pops in next to the question's status
+chip and fades on its own over ~1.8s — one keyframe, `animation-fill-
+mode: both`, no JS timer or cleanup needed (`reference_hidden_tab_
+timer_throttling`-safe by construction, not by care). `prefers-reduced-
+motion` hides it outright rather than freezing it visible, since its
+resting state is meant to be gone.
+
+Verified live against real data for all three: answered two real test
+questions in sequence (flash on the first, the "All Answered" stamp
+firing exactly on the second — the one that actually emptied the open
+count); ran the real "+ From Wikipedia" family flow twice against live
+Wikidata (Mark Zuckerberg's and Sasha Obama's families) to confirm the
+stamp only appears when a family genuinely lands, with the right count
+in its note. Test people, relationships and evidence cleaned up
+afterward — `QA Tree Dup` left as found: 5 people, 5 relationships,
+0 questions, 0 evidence. 44/44 in `tests/browser-tests.html`.
 
 ## 13z. The tile picture band is a 3:4 portrait (v95, 2026-09-13)
 

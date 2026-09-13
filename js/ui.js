@@ -1,8 +1,9 @@
 // In-app replacements for browser popups — STYLE.md's "Modals: none" law,
-// enforced everywhere (her call, 2026-09-01). Three patterns:
+// enforced everywhere (her call, 2026-09-01). Four patterns:
 //   twoTapConfirm  — destructive buttons arm on first tap, act on second
 //   inlineNameForm — a one-field form that appears in place of a prompt()
 //   inlineNote     — a short explanation under a control, in place of alert()
+//   stampMoment    — the brass "stamp" payoff, for a genuine milestone
 
 /**
  * Arm-then-act for destructive buttons. First tap turns the button red and
@@ -100,6 +101,30 @@ export function inlineNote(anchorEl, message) {
 export function clearInlineNote(anchorEl) {
   const n = anchorEl.nextElementSibling;
   if (n && n.classList && n.classList.contains('inline-note')) n.remove();
+}
+
+/**
+ * The brass "stamp" payoff — first built for Review's "Case Reviewed"
+ * (the queue clearing), pulled out here so a genuine milestone anywhere
+ * else in the app can reuse the same look (her ask, 2026-09-13: "i like
+ * the case stamp. i want more of that in the app"). `text` can carry a
+ * `<br>` for the two-line stamp itself; `detail` and `note` are the two
+ * lines under it; `actionLabel`/`onAction` add a button below those.
+ * Reserve this for something that actually finishes — a queue that just
+ * emptied, an import that just landed, every question just answered.
+ * Anything more frequent than that wants a lighter touch, not this.
+ */
+export function stampMoment({ text, detail, note, actionLabel, onAction }) {
+  const el = document.createElement('div');
+  el.className = 'stamp-moment';
+  el.innerHTML = `
+    <div class="stamp">${text}</div>
+    ${detail ? `<div class="stamp-detail mono">${detail}</div>` : ''}
+    ${note ? `<div class="stamp-note">${note}</div>` : ''}
+    ${actionLabel ? `<button class="btn btn-primary" type="button">${actionLabel}</button>` : ''}
+  `;
+  if (actionLabel && onAction) el.querySelector('button').addEventListener('click', onAction);
+  return el;
 }
 
 /**

@@ -387,6 +387,30 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-13 — the case stamp, reused three places (v97, SPEC §15).**
+"i like the case stamp. i want more of that in the app" — a durable like
+about Review's "CASE REVIEWED" moment, not a bug or a complaint. Asked
+where with a popup (3 candidates); she picked all three. Pulled the look
+out of `.review-finish` into a shared `stampMoment()` in `ui.js` before
+reusing it, rather than copy-pasting the markup a third time. **The
+frequency of each moment decided its treatment, not just its trigger:**
+"every question answered" and "family import finishes" are rare, real
+finishes — full `stampMoment` reuse is right there. "One question
+answered" fires constantly (every theory pick) — reusing the SAME full
+centered takeover for that would have turned a payoff into an
+interruption, so it got its own much smaller, self-fading `.answer-
+flash` instead: one keyframe, no JS timer, `prefers-reduced-motion`
+hides it rather than freezing it visible (its resting state is supposed
+to be gone). Also caught, while naming the case-closed stamp: "Case
+Closed" would have read as a rewording of Review's own "Case Reviewed"
+— two genuinely different milestones (drafted claims accepted vs.
+questions settled) — so it says "All Answered" instead. Worth asking,
+whenever reusing a component for a NEW milestone: does its wording
+collide with an EXISTING one already live elsewhere in the app. Verified
+live end-to-end, including two real Wikidata family pulls (Zuckerberg,
+then Obama) specifically to confirm the family stamp's `r.families`
+gate doesn't fire for an ordinary add — not just that the CSS renders.
+
 **2026-09-13 — the tile band becomes a 3:4 portrait (v95, SPEC §13z).**
 Her very next message, a screenshot of 17 of her own real cases live on
 v94: "make tiles more vertical for photo to look good." The full-bleed

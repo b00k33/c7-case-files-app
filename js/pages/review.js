@@ -1,5 +1,5 @@
 import { emptyState, verificationLabel } from '../indicators.js';
-import { inlineNameForm, twoTapConfirm } from '../ui.js';
+import { inlineNameForm, twoTapConfirm, stampMoment } from '../ui.js';
 
 let cursor = 0;
 let keyHandler = null;
@@ -173,16 +173,13 @@ export async function render(root, ctx) {
         sessionCounts.rejected ? `${sessionCounts.rejected} rejected` : null,
         sessionCounts.question ? `${sessionCounts.question} question${sessionCounts.question === 1 ? '' : 's'} raised` : null,
       ].filter(Boolean).join(' · ');
-      const finish = document.createElement('div');
-      finish.className = 'review-finish';
-      finish.innerHTML = `
-        <div class="stamp">Case<br>Reviewed</div>
-        <div class="finish-tally mono">${tally}</div>
-        <div class="finish-note">Accepted facts are live on their people now.</div>
-        <button class="btn btn-primary" id="finish-board">See it on the Board</button>
-      `;
-      slot.appendChild(finish);
-      finish.querySelector('#finish-board').addEventListener('click', () => ctx.navigate('#/board'));
+      slot.appendChild(stampMoment({
+        text: 'Case<br>Reviewed',
+        detail: tally,
+        note: 'Accepted facts are live on their people now.',
+        actionLabel: 'See it on the Board',
+        onAction: () => ctx.navigate('#/board'),
+      }));
     } else {
       slot.appendChild(emptyState({ missing: 'The review queue is empty.', why: 'Nothing drafted is waiting on a decision.', action: 'Go to Import', onAction: () => ctx.navigate('#/import') }));
     }

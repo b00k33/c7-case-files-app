@@ -15,7 +15,7 @@
 // (target = the theory, or the question itself for "what settled it").
 
 import { emptyState } from '../indicators.js';
-import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
+import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, stampMoment } from '../ui.js';
 import { normTitle } from '../works.js';
 import { autoCaseName, looksHurried } from '../names.js';
 
@@ -128,7 +128,7 @@ export async function render(root, ctx, personId = null) {
   const statusChip = (s, picks) => (s === 'answered' ? '<span class="chip green">answered</span>' : s === 'leaning' ? `<span class="chip brass">★ leaning${picks > 1 ? ` · ${picks}` : ''}</span>` : '<span class="chip">open</span>');
 
   // --- one question card; every action repaints only this card ---
-  async function paintCard(q, existing = null) {
+  async function paintCard(q, existing = null, justAnswered = false) {
     const theories = data.theoriesOf(q.id);
     const status = data.statusOf(q);
     const picks = theories.filter((t) => t.pick).length;
@@ -139,7 +139,7 @@ export async function render(root, ctx, personId = null) {
       <div class="q-head">
         <div class="q-main">
           <div class="q-title">${esc(q.text)}</div>
-          <div class="q-meta">${aboutHtml(q)}${statusChip(status, picks)}<span class="chip">${theories.length} theor${theories.length === 1 ? 'y' : 'ies'}</span></div>
+          <div class="q-meta">${aboutHtml(q)}${statusChip(status, picks)}<span class="chip">${theories.length} theor${theories.length === 1 ? 'y' : 'ies'}</span>${justAnswered ? '<span class="answer-flash">Answered</span>' : ''}</div>
         </div>
         <span class="q-caret">${card.className.includes('collapsed') ? '▸' : '▾'}</span>
       </div>
@@ -156,7 +156,7 @@ export async function render(root, ctx, personId = null) {
       </div>
     `;
     // declared before the theory rows are painted — they hand it to their timelines
-    const repaint = async () => { data = await load(); const fresh = data.questions.find((x) => x.id === q.id); if (!fresh) { card.remove(); paintCounts(); return; } const next = await paintCard(fresh, card); card.replaceWith(next); paintCounts(); };
+    const repaint = async (justAnswered = false) => { data = await load(); const fresh = data.questions.find((x) => x.id === q.id); if (!fresh) { card.remove(); paintCounts(); return; } const next = await paintCard(fresh, card, justAnswered); card.replaceWith(next); paintCounts(); return next; };
     const tList = card.querySelector('.theories');
     if (!theories.length) {
       tList.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:2px 2px 6px">No theories yet — add the first, or leave it as a question you are still sitting with.</div>';
@@ -455,7 +455,11 @@ export async function render(root, ctx, personId = null) {
       const finish = async (evidenceId) => {
         await store.updateQuestion(q.id, { resolved: 1, answer_id: tid });
         if (evidenceId) await store.linkEvidence({ evidence_id: evidenceId, target_type: 'question', target_id: q.id, note: 'settled it' });
-        repaint();
+        await repaint(true);
+        // the bigger payoff: this was the last open question in the case
+        if (data.questions.length && data.questions.every((x) => x.resolved)) {
+          listEl.prepend(stampMoment({ text: 'All<br>Answered', note: 'Every question in this case has an answer now.' }));
+        }
       };
       if (!links.length) { await finish(null); return; }
       step2.innerHTML = `<div class="section-label" style="margin-bottom:6px">And which evidence proves it?</div><div class="row wrap" style="gap:6px">${links.map((l) => `<button class="btn btn-ghost btn-sm" data-e="${l.evidence_id}"><span class="k" style="color:var(--text-3);margin-right:4px">${EV_GLYPH[l.evidence_type] || '◆'}</span>${esc(l.evidence_title)}</button>`).join('')}<button class="btn btn-ghost btn-sm af-none">No single piece — just mark it</button></div>`;
