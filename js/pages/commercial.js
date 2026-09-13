@@ -10,10 +10,107 @@ import { emptyState, verificationConfidence, confidenceBand, verificationLabel }
 import { parseMilestoneText } from '../milestone-parse.js';
 import { MILESTONE_KINDS, MILESTONE_KIND_LABEL } from '../milestone-kinds.js';
 import { twoTapConfirm, clearInlineNote, inlineNote } from '../ui.js';
+import { searchPeople } from '../lookup.js';
+import { fetchWorks, addWorks } from '../works.js';
+import { fetchLifeEvents, addLifeEvents, alreadyHere } from '../life-events.js';
 
 const VERIFICATIONS = ['single', 'two_plus', 'disputed', 'dead_link', 'drafted'];
 
 let lastResult = null; // shown once, on the next render of this tab
+
+const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// awards come back as {date: {date, precision, year}|null, ...} from
+// life-events.js's toDate() — a small local formatter, same day/month/year
+// shape as this file's own fmtDate() above
+function fmtAwardDate(d) {
+  if (!d) return '—';
+  if (d.precision === 'day' && d.date) return new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  if (d.precision === 'month' && d.date) return new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return String(d.year);
+}
+
+/**
+ * "+ From Wikipedia" on the Commercial tab (her ask, 2026-09-05 — "including
+ * releases"): releases (works.js, P577) and awards (life-events.js, P166)
+ * arrive as one tick list, ticked by default — chart positions, certifications
+ * and deals have no reliable Wikidata source and stay in the paste box below.
+ */
+async function showCommercialPicker(root, slot, ctx, store, person, m) {
+  if (!person.wikidata_id) await store.updatePerson(person.id, { wikidata_id: m.id });
+  slot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="cm-wiki-reading">Reading releases and awards from Wikidata — up to a minute for a long catalogue…</div>';
+  const reading = slot.querySelector('#cm-wiki-reading');
+  let works = [], lifeEvents = [];
+  try {
+    works = await fetchWorks(m.id, (msg) => { if (reading.isConnected) reading.textContent = `Reading releases — ${msg}`; });
+    lifeEvents = await fetchLifeEvents(m.id);
+  } catch (e) {
+    slot.innerHTML = `<div class="inline-note">Could not be read — ${e.message}</div>`;
+    return;
+  }
+  const awards = lifeEvents.filter((c) => c.group === 'award');
+  if (!works.length && !awards.length) {
+    slot.innerHTML = '<div class="inline-note">Wikidata lists no releases or awards on that record.</div>';
+    return;
+  }
+  const existingEvents = await store.listEventsForCase(ctx.caseId);
+  const existingWorkQids = new Set(existingEvents.map((e) => e.wikidata_id).filter(Boolean));
+  const isWorkHere = (w) => (w.memberQids || [w.qid]).some((q) => existingWorkQids.has(q));
+  const isAwardHere = (c) => alreadyHere(c, existingEvents, person.id);
+  // ticked by default (her ask): everything except a shared/pre-career
+  // release or an undated award, which need a second look first
+  const pickedWorks = new Set(works.filter((w) => !isWorkHere(w) && !w.shared && !w.suspect).map((w) => w.qid));
+  const pickedAwards = new Set(awards.filter((c) => !isAwardHere(c) && c.date).map((c) => c.key));
+  const countNew = () => works.filter((w) => pickedWorks.has(w.qid) && !isWorkHere(w)).length + awards.filter((c) => pickedAwards.has(c.key) && !isAwardHere(c)).length;
+  const paint = () => {
+    const n = countNew();
+    slot.innerHTML = `
+      <div class="stack" style="gap:2px;max-height:320px;overflow:auto;margin-top:12px">
+        ${works.length ? `<div class="section-label">Releases · ${works.length}</div>${works.map((w) => `
+          <label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer">
+            <input type="checkbox" data-w="${w.qid}" ${isWorkHere(w) ? 'checked disabled' : pickedWorks.has(w.qid) ? 'checked' : ''}>
+            <span class="mono" style="font-size:11px;color:var(--text-3);width:92px;flex:none">${w.display || '—'}</span>
+            <span class="main" style="font-size:12px">${esc(w.typeLabel)} · ${esc(w.label)}</span>
+            ${w.shared ? '<span class="chip" title="Released with others — this date may not be theirs">shared</span>' : ''}
+            ${w.suspect ? '<span class="chip" title="Dated before their career start">before career start?</span>' : ''}
+          </label>`).join('')}` : ''}
+        ${awards.length ? `<div class="section-label">Awards · ${awards.length}</div>${awards.map((c) => `
+          <label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer">
+            <input type="checkbox" data-a="${esc(c.key)}" ${isAwardHere(c) ? 'checked disabled' : pickedAwards.has(c.key) ? 'checked' : ''}>
+            <span class="mono" style="font-size:11px;color:var(--text-3);width:92px;flex:none">${fmtAwardDate(c.date)}</span>
+            <span class="main" style="font-size:12px">${esc(c.title)}</span>
+            ${!c.date ? '<span class="chip" title="No date on the record — it would only show as undated">undated</span>' : ''}
+          </label>`).join('')}` : ''}
+      </div>
+      <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center">
+        <button class="btn btn-primary btn-sm" id="cm-wiki-add" ${n ? '' : 'disabled'}>Add ${n} milestone${n === 1 ? '' : 's'}</button>
+        <span style="font-size:11px;color:var(--text-3)">Each cites Wikidata and shows on the Board and the life line.</span>
+      </div>
+      <div id="cm-wiki-progress"></div>
+    `;
+    slot.querySelectorAll('[data-w]').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) pickedWorks.add(cb.dataset.w); else pickedWorks.delete(cb.dataset.w);
+      const nn = countNew(); const ab = slot.querySelector('#cm-wiki-add'); ab.disabled = !nn; ab.textContent = `Add ${nn} milestone${nn === 1 ? '' : 's'}`;
+    }));
+    slot.querySelectorAll('[data-a]').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) pickedAwards.add(cb.dataset.a); else pickedAwards.delete(cb.dataset.a);
+      const nn = countNew(); const ab = slot.querySelector('#cm-wiki-add'); ab.disabled = !nn; ab.textContent = `Add ${nn} milestone${nn === 1 ? '' : 's'}`;
+    }));
+    slot.querySelector('#cm-wiki-add').addEventListener('click', async () => {
+      slot.querySelectorAll('button, input').forEach((el) => { el.disabled = true; });
+      const prog = slot.querySelector('#cm-wiki-progress');
+      prog.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Adding milestones…</div>';
+      const note = prog.firstElementChild;
+      const chosenWorks = works.filter((w) => pickedWorks.has(w.qid) && !isWorkHere(w));
+      const chosenAwards = awards.filter((c) => pickedAwards.has(c.key) && !isAwardHere(c));
+      const rw = chosenWorks.length ? await addWorks(store, ctx.caseId, person.id, chosenWorks, (msg) => { note.textContent = `Adding releases… ${msg}`; }) : { added: 0 };
+      const ra = chosenAwards.length ? await addLifeEvents(store, ctx.caseId, person.id, chosenAwards, (msg) => { note.textContent = `Adding awards… ${msg}`; }) : { added: 0 };
+      lastResult = `${rw.added + ra.added} milestone${rw.added + ra.added === 1 ? '' : 's'} added from Wikidata${rw.added ? ` (${rw.added} release${rw.added === 1 ? '' : 's'})` : ''}${ra.added ? ` (${ra.added} award${ra.added === 1 ? '' : 's'})` : ''}, each citing its record.`;
+      render(root, ctx, person.id);
+    });
+  };
+  paint();
+}
 
 function fmtDate(e) {
   if (e.date_precision === 'day' && e.date) return new Date(`${e.date}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -56,9 +153,11 @@ export async function render(root, ctx, personId) {
           <div class="panel-title" style="margin:0">Commercial milestones</div>
           <div class="row" style="gap:8px">
             <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
+            <button class="btn btn-ghost btn-sm" id="cm-wiki-btn" title="Read releases and awards from Wikidata">+ From Wikipedia</button>
             <button class="btn btn-primary btn-sm" id="cm-add-btn">+ Add milestones</button>
           </div>
         </div>
+        <div id="cm-wiki-slot"></div>
         <div id="cm-add-slot"></div>
         <div id="cm-result"></div>
         <div id="cm-groups" class="stack" style="margin-top:12px;gap:16px"></div>
@@ -117,6 +216,31 @@ export async function render(root, ctx, personId) {
       groupsEl.appendChild(section);
     }
   }
+
+  // ---- + From Wikipedia: releases + awards, one tick list ----
+  const wikiSlot = root.querySelector('#cm-wiki-slot');
+  root.querySelector('#cm-wiki-btn').addEventListener('click', async () => {
+    if (wikiSlot.children.length) { wikiSlot.innerHTML = ''; return; }
+    if (person.wikidata_id) {
+      await showCommercialPicker(root, wikiSlot, ctx, store, person, { id: person.wikidata_id, label: person.display_name });
+      return;
+    }
+    wikiSlot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Searching Wikipedia…</div>';
+    let matches = [];
+    try { matches = await searchPeople(person.display_name); }
+    catch (e) { wikiSlot.innerHTML = `<div class="inline-note">Couldn't reach Wikidata — ${e.message}. Are you online?</div>`; return; }
+    if (!matches.length) { wikiSlot.innerHTML = '<div class="inline-note">No match on Wikidata for that name — releases and awards can only be read from a public record.</div>'; return; }
+    if (matches.length === 1) { await showCommercialPicker(root, wikiSlot, ctx, store, person, matches[0]); return; }
+    wikiSlot.innerHTML = '<div class="field" style="margin-top:12px"><label>Which one is them?</label></div><div id="cm-wiki-results"></div>';
+    const resultsEl = wikiSlot.querySelector('#cm-wiki-results');
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${esc(m.label)}</div><div class="sub">${esc(m.description) || 'no description'} · ${m.id}</div></div><span class="chip brass">Use this ▸</span>`;
+      row.addEventListener('click', () => showCommercialPicker(root, wikiSlot, ctx, store, person, m));
+      resultsEl.appendChild(row);
+    }
+  });
 
   // ---- + Add milestones: paste box, parse, confirm, save ----
   const addSlot = root.querySelector('#cm-add-slot');

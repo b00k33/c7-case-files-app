@@ -767,9 +767,11 @@ function renderGrid(gridSlot, ctlSlot, people) {
  * The "+ Person" drawer: two ways in (her ask, 2026-09-03 — "both"). Type
  * it in, as before; or look one or many names up on Wikipedia and add
  * them together. The + From Wikipedia button opens the same drawer already
- * in look-up mode.
+ * in look-up mode. `prefillName` (the family door, 2026-09-13: the case's
+ * own name, e.g. "Kardashian") starts the search immediately — one tap
+ * from an empty family page to a pick list.
  */
-function renderAddPerson(body, ctx, mode = 'type') {
+export function renderAddPerson(body, ctx, mode = 'type', prefillName = null) {
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:12px">Add people</h3>
     <span class="seg" style="margin-bottom:16px"><button data-m="type" class="${mode === 'type' ? 'active' : ''}">Type it in</button><button data-m="lookup" class="${mode === 'lookup' ? 'active' : ''}">Look up on Wikipedia</button></span>
@@ -777,7 +779,7 @@ function renderAddPerson(body, ctx, mode = 'type') {
   `;
   body.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => renderAddPerson(body, ctx, b.dataset.m)));
   const slot = body.querySelector('#ap-body');
-  if (mode === 'lookup') renderLookupBatch(slot, ctx);
+  if (mode === 'lookup') renderLookupBatch(slot, ctx, prefillName);
   else renderTypeIn(slot, ctx);
 }
 
@@ -834,16 +836,16 @@ function renderTypeIn(slot, ctx) {
  * that pulls their relatives too. A name with no record is reported and
  * not added (her call). Nothing is saved until "Add N people".
  */
-function renderLookupBatch(slot, ctx) {
+function renderLookupBatch(slot, ctx, prefillName = null) {
   slot.innerHTML = `
     <div class="field"><label>Names — one per line, or separated by commas</label><textarea id="wk-names" placeholder="Daniel Radcliffe, Emma Watson…"></textarea></div>
     <div class="row wrap" style="gap:12px"><button class="btn btn-primary" id="wk-search">Search Wikipedia</button><span style="font-size:11px;color:var(--text-3)">Nothing is saved yet — you check each match first.</span></div>
     <div id="wk-results" style="margin-top:16px"></div>
   `;
   const textarea = slot.querySelector('#wk-names');
-  queueMicrotask(() => textarea.focus());
+  if (prefillName) textarea.value = prefillName;
   const names = () => [...new Set(textarea.value.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean))];
-  slot.querySelector('#wk-search').addEventListener('click', async () => {
+  const runSearch = async () => {
     const btn = slot.querySelector('#wk-search');
     const results = slot.querySelector('#wk-results');
     clearInlineNote(btn);
@@ -857,11 +859,33 @@ function renderLookupBatch(slot, ctx) {
       let matches = [];
       try { matches = await searchPeople(list[i]); }
       catch (e) { btn.disabled = false; btn.textContent = 'Search Wikipedia'; inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); return; }
-      rows.push({ name: list[i], matches, pick: matches[0] || null, family: false, include: !!matches[0], open: false });
+      // arriving with a name already filled in (the family door's empty-page
+      // offer) means she typed the case's own name wanting the WHOLE family —
+      // tick "+ family" up front rather than making her find it per row
+      rows.push({ name: list[i], matches, pick: matches[0] || null, family: !!prefillName, include: !!matches[0], open: false });
     }
     btn.disabled = false; btn.textContent = 'Search Wikipedia';
     paintMatches(results, rows, ctx);
-  });
+  };
+  slot.querySelector('#wk-search').addEventListener('click', runSearch);
+  queueMicrotask(() => { textarea.focus(); if (prefillName) runSearch(); });
+}
+
+// the family door (2026-09-13): a person named exactly like the case, with
+// nothing on them yet, was a placeholder for "the family arrives later" —
+// once a real batch add has run, drop it rather than leave a hollow entry
+// sitting alongside the people who actually came in. A person who WAS the
+// match (filled in by this batch) now carries a wikidata_id and is never
+// touched here.
+async function dropCaseNamePlaceholder(ctx) {
+  const kase = await ctx.store.getCase(ctx.caseId);
+  if (!kase) return;
+  const people = await ctx.store.listPeople(ctx.caseId);
+  const stub = people.find((p) =>
+    p.display_name.trim().toLowerCase() === kase.name.trim().toLowerCase() &&
+    !p.wikidata_id && !p.birth_date && !p.birth_year_min && !p.photo_path && !p.notes
+  );
+  if (stub) await ctx.store.softDeletePerson(stub.id);
 }
 
 function paintMatches(results, rows, ctx) {
@@ -908,6 +932,7 @@ function paintMatches(results, rows, ctx) {
       prog.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Adding people…</div>';
       const note = prog.firstElementChild;
       const r = await addPeopleFromWikidata(ctx.store, ctx.caseId, picks, (msg) => { note.textContent = `Adding people… ${msg}`; });
+      await dropCaseNamePlaceholder(ctx);
       const ok = r.created.length + r.filled.length;
       const headline = [
         r.created.length ? `${r.created.length} ${r.created.length === 1 ? 'person' : 'people'} added` : null,

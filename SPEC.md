@@ -1448,6 +1448,68 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13v. The family and Commercial "+ From Wikipedia" doors (v91, 2026-09-13)
+
+Stage 2 of the synth22 batch (§13u): "make adding a family from wikipedia
+easier" and "commercial milestones — add from wikipedia, including
+releases". Both turned out to be doors onto machinery the app already
+had, just standing in the wrong room — building this stage was mostly
+about putting the door where she stands, plus two small new pieces
+(the next hop, and the blank-placeholder tidy).
+
+**Family.** The Family page's Members panel gets a "+ From Wikipedia"
+button and, when the case has no members yet, the empty state itself
+offers "Find *case name* on Wikipedia" — both open Relations' existing
+"Add people" drawer (now `export`ed) straight into look-up mode, the
+same search → pick → tick-family → "Add N people" flow the Relations map
+already had (`renderLookupBatch`/`paintMatches` → `addPeopleFromWikidata`,
+unchanged). The empty-page offer additionally pre-fills the case's own
+name and fires the search immediately — one tap, not three — and starts
+every row's "+ family" box ticked, since arriving from an empty family
+page means she wants the whole family, not one relative at a time. A
+name that resolves to a broad item (a surname, a franchise) rather than
+a specific person still shows up as the top pick — "change" against the
+other candidates is how she corrects it, exactly as it already worked
+everywhere else this search is used.
+
+**The next hop** (her "YES" to the question, §13u's decision log): once
+someone arrives with their own Wikidata record but nothing pulled from
+it yet, a small "+ family" shows under their face on the Members row —
+one tap runs `insertFamily` from them directly, no drawer, no search
+(she already has their record). It only shows when
+`person.wikidata_id` is set AND `listRelationshipsForPerson` comes back
+empty, so it disappears the moment either a real relationship is drawn
+or she has already pulled that person's own family.
+
+**The blank placeholder.** A case can carry a person named exactly like
+the case itself with nothing else on them — the natural residue of
+opening a "person"-kind case for a family she hasn't looked up yet (her
+original example: a case named "Kardashian" with one bare placeholder
+person of the same name). The first time a Wikidata batch-add succeeds
+on that case, `dropCaseNamePlaceholder` quietly removes that one person
+— matched on name (case-insensitive) AND nothing else set
+(`wikidata_id`, birth date, photo, notes all blank) — so it can never
+catch a real person who happens to share the case's name once she has
+actually put something on them. A person the batch itself just filled
+in no longer qualifies (filling sets `wikidata_id`), so the one that WAS
+the match is never the one dropped.
+
+**Commercial.** The tab's "Commercial milestones" panel gets "+ From
+Wikipedia" beside "+ Add milestones". One tap: if the profile already
+carries a `wikidata_id` it reads straight from that record; otherwise it
+searches the person's own name and, on more than one hit, asks "which
+one is them?" the same way subject.js's own lookups do. The record's
+releases (`works.js`, P577) and awards (`life-events.js`, P166 only —
+marriages/positions/homes/schools stay off this tab) come back as one
+tick list, ticked by default except a shared/pre-career release or an
+undated award, which want a second look first — "Add N milestones" runs
+`addWorks` and `addLifeEvents` on whatever's still ticked. Chart
+positions, certifications and deals have no reliable Wikidata source and
+stay exactly where they were, in the paste box below.
+
+Remaining synth22 stages (not yet built): the "Our Story" poster life
+line, and the Board as a detective's corkboard.
+
 ## 13u. Names capitalised; Cases and People become tiles (v90, 2026-09-13)
 
 The first stage of a synth22 batch of eight requests ("i dont like row
@@ -1511,8 +1573,8 @@ answer from §13k still stands: three tokens, no kind/count text, chips
 are doors, Import and ⋯ stay. The ⋯ menu opens as a small floating panel
 under its own tile so it never stretches the rest of that grid row.
 
-Remaining synth22 stages (not yet built): the family-page and Commercial
-"+ From Wikipedia" doors, the "Our Story" poster life line, and the
+Remaining synth22 stages (not yet built at v90; the family/Commercial
+doors followed in v91, §13v): the "Our Story" poster life line, and the
 Board as a detective's corkboard.
 
 ## 13t. Merging a case could leave duplicate relationships behind (v89, 2026-09-12)

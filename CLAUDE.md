@@ -423,6 +423,56 @@ interaction inside a new layout container, check what that container's
 own default behaviour (stretch, flow, overflow) does to the reused
 element — the element didn't change, its context did.**
 
+**2026-09-13 — synth22 batch, stage 2: the family + Commercial "+ From
+Wikipedia" doors (v91, SPEC §13v).** Her approved order continued: names
+→ tiles → the two Wikipedia doors (this stage) → the poster life line →
+the corkboard Board.
+
+**"Make it easier" can mean the machinery already exists — go find it
+before building anything.** A read-only sweep of `lookup.js`,
+`relations.js`, `works.js`, `life-events.js` and `subject.js` before
+writing any code turned up that the ENTIRE family batch-add flow
+(`addPeopleFromWikidata`, its `family` per-pick option, the
+search/pick/tick UI) was already shipped — it just lived inside the
+Relations map, below the fold, reachable only after scrolling past the
+Members faces. Likewise, `subject.js`'s "+ Works" / "+ Life events"
+tools already had the exact fetch/tick/save machinery the Commercial
+tab's ask needed. Stage 2 turned out to be almost entirely about
+*placement* — a button in the Members header, a button beside "+ Add
+milestones" — reusing the existing functions verbatim rather than
+re-implementing anything. Building the popular/obvious version first
+(a new search UI from scratch) would have duplicated code that already
+worked and risked a second, slightly-different set of edge cases to
+maintain.
+
+**A generic search box will surface a generic entity when the query is
+generic.** Searching a bare surname ("Kardashian", from her own original
+example) returns the Wikidata surname/family-name item as the top pick,
+not a specific person — `searchPeople` has no "must be human" filter,
+by design, since it's shared by every lookup in the app including ones
+that DO want non-person items. Left as-is: the existing "change"
+candidate-swap (already shipping since the very first version of this
+picker) is the correction path, and typing full names remains available
+in the same box. Not fixed, because fixing it would mean adding a type
+filter to a function four other call sites already depend on for their
+own reasons — a narrow, page-specific problem doesn't justify a change
+to a shared primitive.
+
+**The "drop the blank placeholder" ask only makes sense as a
+by-product check, not a targeted deletion.** Her original phrasing named
+a specific scenario (a case named "Kardashian" with one placeholder
+person of the same name) but the code has no concept of "placeholder" —
+any person can coincidentally share their case's name. Rather than
+tracking provenance (a new flag meaning "this one's a stand-in"), the
+cleanup runs opportunistically after every successful batch-add: find a
+person named exactly like the case with literally nothing else on them
+(no `wikidata_id`, no dates, no photo, no notes), and drop it. A person
+who WAS the batch's own match no longer qualifies — filling a profile
+sets `wikidata_id` — so the check can run unconditionally after every
+add, everywhere this drawer is used, without a special "is this the
+family page" branch and without a real, filled-in namesake ever being at
+risk.
+
 **2026-09-12 — a case merge could leave duplicate relationships behind
 (v89, SPEC §13t).** Her screenshot: the real Michael Jackson case's
 Relations Tree, every spouse and child drawn twice, "still seeing
