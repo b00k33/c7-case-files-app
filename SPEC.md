@@ -1448,6 +1448,31 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13z. The tile picture band is a 3:4 portrait (v95, 2026-09-13)
+
+Her follow-up the moment she saw v94 live on her own real cases (a
+screenshot of 17 real tiles — Michael Jackson, Amber Heard, J. K.
+Rowling, Taylor Swift and more): "make tiles more vertical for photo to
+look good." The full-bleed fix (§13y) was right to go edge-to-edge, but
+the band itself was still the OLD short, wide 96px shape underneath it —
+a real portrait photo needs more height than a 96px strip has, whatever
+its crop.
+
+`.tile .pic` traded its fixed `height: 96px` for `aspect-ratio: 3 / 4` —
+a classic portrait ratio, and one that scales with the tile itself rather
+than staying a fixed pixel height while the grid's own `minmax(150px,
+1fr)` columns grow or shrink the tile's width. A no-photo tile's initials
+grew to match (28px → 36px single, 18px → 22px per family segment) so
+the big-monogram look introduced in §13y still fills the taller band
+rather than looking small inside it. Nothing else about the tile —
+grid, spacing, name, tokens, badges — changed; this is a single property
+swap, verified by measuring the rendered `.pic` rect at both a 5-column
+desktop width and a 2-column phone width (173.6×231.5 and 169.5×226 —
+both hold the 3:4 ratio exactly) rather than trusting a screenshot, since
+the Browser pane's own screenshot tool was cropping wider grids
+mid-verification (a known tool quirk, not a layout bug — see
+`reference_c7_local_preview_traps`).
+
 ## 13y. Tile picture and font fix (v94, 2026-09-13)
 
 Her feedback right after the synth22 batch shipped: "not happy with the UI

@@ -351,6 +351,23 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-13 — the tile band becomes a 3:4 portrait (v95, SPEC §13z).**
+Her very next message, a screenshot of 17 of her own real cases live on
+v94: "make tiles more vertical for photo to look good." The full-bleed
+photo (v94) was the right call, but the band it filled was still the
+project's original 96px — short and wide, exactly wrong for a portrait
+photo regardless of how well it's cropped. `height: 96px` → `aspect-ratio:
+3 / 4` on `.tile .pic`, initials sized up to match. **Seeing a fix live
+against her REAL, varied data (17 different people, not five QA
+fixtures) surfaced a real follow-on problem the sandbox's thin fixture
+never could have shown** — a lesson worth repeating from Stage 3's poster
+work: test data drawn from an actual event-rich pull, or here, actually
+look at what she's looking at, not just what the fixture renders.
+Verified the fix by measuring the rendered `.pic` rect directly (DOM,
+not a screenshot) at two different column counts, since the Browser
+pane's screenshot tool was cropping wide grids mid-check that same
+session — confirmed correct, not just plausible-looking.
+
 **2026-09-13 — tile picture and font, right after the synth22 batch shipped
 (v94, SPEC §13y).** Her feedback the moment all four stages landed: "not
 happy with the UI design in terms of the font and the display of the

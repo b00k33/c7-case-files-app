@@ -266,8 +266,8 @@ would.
   2026-09-08 replaced the 2026-09-02 cards described here, and these tiles
   replaced the rows: "i dont like row display").** `.tile-grid` is
   `repeat(auto-fill, minmax(150px, 1fr))` — one shape on the phone and the
-  desktop, just more tiles per row on a wider screen. A tile is a 96px
-  picture band over the name, the subject's three tokens, attention chips,
+  desktop, just more tiles per row on a wider screen. A tile is a 3:4
+  portrait picture band over the name, the subject's three tokens, attention chips,
   then Import/⋯ (Cases) or the merge flag (People). Badges wrap rather
   than truncate on a narrow tile. The ⋯ menu opens as a small floating
   panel below its own tile (`position:absolute`), never stretching the
@@ -275,22 +275,28 @@ would.
   scrollable row of text tabs, brass underline on the active one, no icons.
   The topbar back control is a bare ←, shown only inside a case.
 - **The tile picture is full-bleed, overriding the round face above
-  (2026-09-13, "the image is too small").** The band's own 96px height
-  never changed; a 48px round face floating inside it did, because it read
-  as small and lost. Her pick, shown two real options built in the
-  sandbox: the person's own photo fills the entire band edge to edge,
-  cropped from the TOP (`object-position: top`, not the `cover` default's
-  centre-crop — a centre crop took the head off a portrait photo, caught
-  and fixed the moment she saw it live). No photo → their initials at a
-  size that actually fills the band (`.seg .initials`, 28px, Newsreader,
-  brass), not the old small circle. A family of up to three is a strip —
-  one segment per person, divided by a hairline — since three overlapping
-  photos can't read as three people the way three overlapping circles
-  could; a judgment call, not one of her literal answers. The violet
-  Event mark got the same full-bleed treatment for consistency. `.face`
-  (round, brass initials) stays exactly as it was everywhere else it's
-  used — Relations tree nodes, face-cards, the avatar component — this
-  override is scoped to `.tile .pic .seg` only.
+  (2026-09-13, "the image is too small").** A 48px round face floating in
+  the band read as small and lost. Her pick, shown two real options built
+  in the sandbox: the person's own photo fills the entire band edge to
+  edge, cropped from the TOP (`object-position: top`, not the `cover`
+  default's centre-crop — a centre crop took the head off a portrait
+  photo, caught and fixed the moment she saw it live). No photo → their
+  initials at a size that actually fills the band (`.seg .initials`,
+  Newsreader, brass), not the old small circle. A family of up to three is
+  a strip — one segment per person, divided by a hairline — since three
+  overlapping photos can't read as three people the way three overlapping
+  circles could; a judgment call, not one of her literal answers. The
+  violet Event mark got the same full-bleed treatment for consistency.
+  `.face` (round, brass initials) stays exactly as it was everywhere else
+  it's used — Relations tree nodes, face-cards, the avatar component —
+  this override is scoped to `.tile .pic .seg` only.
+- **The band itself is a 3:4 portrait, not the original 96px (2026-09-13,
+  same day, "make tiles more vertical for photo to look good").** Seeing
+  the full-bleed fix live against her own real cases showed the band was
+  still short and wide underneath the new crop — `aspect-ratio: 3 / 4`
+  replaced the fixed height so the band scales with whatever width the
+  grid gives a tile, on any screen. Initials sized up alongside it (36px
+  single / 22px per family segment) so they still fill the taller band.
 - **Zodiac colour code (hers, 2026-09-03).** Wherever an animal or sun
   sign is printed it takes its group colour — Chinese animals by trine:
   blue Snake·Ox·Rooster, green Dog·Tiger·Horse, pink Pig·Goat·Rabbit
