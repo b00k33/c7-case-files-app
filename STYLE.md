@@ -92,20 +92,25 @@ card inside a card.
 ## 2. Type
 
 - Body and UI: **Public Sans** (fallback: system-ui)
-- Titles and names: **Newsreader** (fallback: Georgia, serif) — this is what
-  makes it feel like a research tool rather than a dashboard
+- Titles and names: **Public Sans, bold** (fallback: system-ui) — her pick,
+  2026-09-13, after trying Newsreader live and disliking it; titles are the
+  same face as the body, just weight 700, "cleaner, more 'app,' less
+  'research tool'" (her words)
 - All numbers, dates, times, codes, hashes: **JetBrains Mono**
 - Handwriting on the cork board only: **Caveat**
 
-Public Sans, Newsreader and Caveat all load from Google Fonts via one
-`<link>` in `index.html`. **Bug, fixed 2026-09-13:** Newsreader was named
-in `tokens.css` from the very first version of this file but never
-actually linked — every title in the app rendered in the Georgia
-fallback, silently, for the whole project, until she noticed and it was
-confirmed with a glyph-width measurement (SPEC §13y). Whenever a face in
+Public Sans, JetBrains Mono and Caveat all load from Google Fonts via one
+`<link>` in `index.html`. **Bug, found and fixed three times, 2026-09-13:**
+Newsreader (§13y), then Public Sans and JetBrains Mono (SPEC §14) were each
+named in `tokens.css` from the very first version of this file but never
+actually linked — every title, then all body text and every number/date/
+mono value in the app, rendered on a silent system fallback for the whole
+project, until glyph-width measurement caught each one. Whenever a face in
 this system reads "off" in a screenshot, check what's actually loaded
-(`document.fonts`) before assuming the token is wrong — the token here
-was right the entire time.
+(`document.fonts`) before assuming the token is wrong — the token was
+right every time; the `<link>` was the thing missing. Check ALL declared
+fonts this way when touching type, not just the one under discussion —
+three-for-three says this bug doesn't travel alone.
 
 Section labels are 10px, uppercase, letter-spaced, `--text-3`. Page titles
 are slim, left-aligned, never centred, never huge.

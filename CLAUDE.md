@@ -351,6 +351,42 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-13 — Public Sans everywhere, and the same font bug found twice
+more (v96, SPEC §14).** Once the Newsreader fix let her actually see the
+typeface, her verdict was "i dont like the font" — a real taste call, not
+a continuation of the bug. Built 5 real candidates in a sandbox artifact
+against her own case names before asking; she picked Public Sans bold,
+no serif. `--font-title` now shares `--font-body`'s stack; bumped the
+shared `h1, h2, h3, .title` rule to `font-weight: 700` so the bold call
+lands on every title-styled element app-wide, not just the one page title
+she saw in the mock — she'd approved "bold, for titles too," and the mock's
+own tile-name example was bold, so a global bump was what she'd actually
+seen and picked, not scope creep. **Before touching `tokens.css`, checked
+whether the OTHER declared fonts had the same never-loaded bug Newsreader
+had — they did, both of them.** `--font-body` (Public Sans) and
+`--font-mono` (JetBrains Mono) had been named in `tokens.css` since v1 and
+never linked, exactly like Newsreader — caught with the same canvas
+glyph-width test, this time run against the full real fallback stack
+rather than a single isolated bogus name (an earlier, sloppier version of
+this test against a made-up font name would have "confirmed" loading by
+falling to the browser's absolute default rather than the next real name
+in the stack — a false pass). This is a much bigger miss than the title
+font: `--font-body` is nearly all running text, `--font-mono` is every
+number/date/hash in the app — both silently on system fallbacks the whole
+project's life. Fixed alongside the title change (one `<link>` edit) since
+they're the same class of bug and the same file. **The lesson to keep:**
+finding one undeclared-but-unlinked font in a token file is a reason to
+check every other font token in that same file before calling the job
+done — this bug does not travel alone, it happened three times in one
+project because nothing had ever verified the OTHERS. Also hit, again,
+the local dev server's stale-service-worker trap (`reference_stale_
+service_worker_sandbox`): a plain reload kept serving the OLD cached
+`index.html` because `js/version.js` still said `c7-v95` — the cache name
+itself hadn't changed, so the SW never considered its cache stale. Had to
+bump the version number BEFORE the fix would even show up in the sandbox,
+not after — bump-then-verify, not verify-then-bump, whenever a fix touches
+anything the service worker caches.
+
 **2026-09-13 — the tile band becomes a 3:4 portrait (v95, SPEC §13z).**
 Her very next message, a screenshot of 17 of her own real cases live on
 v94: "make tiles more vertical for photo to look good." The full-bleed

@@ -1448,6 +1448,53 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 14. Public Sans everywhere — a title-font pick, and two more never-loaded fonts (v96, 2026-09-13)
+
+Her reaction to Newsreader once §13y's bug fix let her actually see it
+render: "i dont like the font." A genuine taste call this time, not a
+bug — she'd only ever seen the Georgia fallback before that fix, so this
+was her first real look at the typeface the design was built around, and
+she didn't like it. Five real candidates were built in a sandbox artifact
+against her own real case names (Michael Jackson, Taylor Swift, J. K.
+Rowling), rendered in the real dark-theme tokens: Lora, Source Serif 4,
+Libre Caslon Text, and Public Sans set bold with no serif at all. She
+picked **Public Sans** — "the same face the rest of the UI already uses,
+just bold, for titles too. Cleaner, more 'app,' less 'research tool.'"
+`--font-title` now equals `--font-body`'s stack, and the shared `h1, h2,
+h3, .title` rule went from `font-weight: 500` to `700` to carry the bold
+call through every title-styled element app-wide — page headings, tile
+names, drawer headers, list-row titles — matching what she actually saw
+and picked, not just the one page title in the mock.
+
+**While checking whether the swap needed anything else, found two more
+instances of §13y's exact bug.** The same canvas glyph-width test run
+against `--font-body` (`'Public Sans', system-ui, …`) and `--font-mono`
+(`'JetBrains Mono', ui-monospace, …`) showed both stacks measuring
+pixel-identical to their fallback fonts (`system-ui`, and `Consolas` /
+generic `monospace` respectively) — proof neither had ever actually
+loaded. Like Newsreader, both were named in `tokens.css` from the start
+of this design system but never added to the Google Fonts `<link>` in
+`index.html`, which only ever carried Caveat (and, since yesterday,
+Newsreader). This is a bigger miss than a title font: `--font-body` is
+almost all running text in the app, and `--font-mono` is every number,
+date, time, code and hash (`.mono, .num, time, .value, code` in
+`tokens.css`) — the entire app has been silently running on system
+fallbacks its whole life. Fixed the same way as Newsreader: added Public
+Sans (400/500/600/700 — the weights actually used across body text and
+titles) and JetBrains Mono (400/600, matching `.lm-tokens .tk .big`,
+`.lm-py`, `.lm-v` and the mono defaults) to the same `<link>`, and
+removed Newsreader from it entirely now that nothing references it.
+Confirmed all three loading with `document.fonts` reporting `status:
+'loaded'` for every weight, and a glyph-width re-measurement showing each
+stack's width diverging from its fallback's.
+
+Verified live: the Cases and People tiles, a case's Profile page, and
+the Review page's "CASE REVIEWED" stamp (§ below, "the case stamp") all
+still read cleanly with the bolder sans in place of the serif — if
+anything the stamp's uppercase, wide-letter-spaced brass box looks more
+like an official rubber stamp in a grotesque sans than it did in a serif.
+44/44 in `tests/browser-tests.html`.
+
 ## 13z. The tile picture band is a 3:4 portrait (v95, 2026-09-13)
 
 Her follow-up the moment she saw v94 live on her own real cases (a
