@@ -2,6 +2,7 @@ import { signFor } from '../chinese.js';
 import { emptyState, animalHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { clearInlineNote } from '../ui.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -89,8 +90,11 @@ export async function render(root, ctx) {
   root.querySelector('#f-add').addEventListener('click', async () => {
     const btn = root.querySelector('#f-add');
     clearInlineNote(btn);
-    const name = root.querySelector('#f-name').value.trim();
-    if (!name) return;
+    const typedName = root.querySelector('#f-name').value.trim();
+    if (!typedName) return;
+    // names (2026-09-13): capitalised the moment it's typed
+    const hurried = looksHurried(typedName);
+    const name = hurried ? autoCaseName(typedName) : typedName;
     const bdate = root.querySelector('#f-bdate').value || null;
     const traits = root.querySelector('#f-traits').value.split(',').map((t) => t.trim()).filter(Boolean);
     const link = root.querySelector('#f-link').value.trim();
@@ -107,6 +111,7 @@ export async function render(root, ctx) {
       person = await store.createPerson({
         case_id: kase.id, display_name: name,
         birth_date: bdate, birth_precision: bdate ? 'day' : 'unknown',
+        name_needs_formatting: hurried ? 1 : 0,
       });
     }
 

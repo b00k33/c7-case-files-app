@@ -1,5 +1,6 @@
 import { barRow, emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm } from '../ui.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 const EVIDENCE_TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
 
@@ -25,11 +26,16 @@ export const CASE_KIND_LABEL = { person: 'person', family: 'family', event: 'eve
 // creating a person-case also creates the person, so their file (and Look
 // up) exists immediately — no empty case, no extra step. An event-case
 // starts on its own overview instead — no auto-created "subject" person.
-export async function createCaseOfKind(store, ctx, name, kind, world) {
+export async function createCaseOfKind(store, ctx, typedName, kind, world) {
+  // names (2026-09-13): the same typed string becomes both the case name
+  // and (for a person-kind case) the subject's name — cased once here so
+  // the two can never drift apart
+  const hurried = looksHurried(typedName);
+  const name = hurried ? autoCaseName(typedName) : typedName;
   const kase = await store.createCase({ name, kind: kind || 'person', world: world || null });
   await ctx.setCaseId(kase.id);
   if ((kind || 'person') === 'person') {
-    const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
+    const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
     ctx.navigate(`#/subject/${p.id}`);
   } else if (kind === 'event') {
     ctx.navigate('#/event');

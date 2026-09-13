@@ -495,51 +495,52 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .moment-row .m-addpic:hover { color: var(--brass); }
 
 /* ------------------------------------------------ cases home + faces */
-/* (the .case-card grid and the .fic-ribbon / .event-ribbon of 2026-09-02
-   left on 2026-09-08 — the picture rows below replaced them) */
+/* (the .case-card grid and the .fic-ribbon / .event-ribbon of 2026-09-02,
+   and the .pic-row/.pic-list picture rows of 2026-09-08, both left behind —
+   see STYLE.md's note on 2026-09-13, "i dont like row display") */
 
-/* picture rows (her Q15, 2026-09-07; built 2026-09-08): the Cases and People
-   lists are one row each — face · name · the three tokens; attention chips
-   stay, no kind or count text. One layout on the phone and the desktop. */
-.pic-list { display: flex; flex-direction: column; gap: var(--sp-2); }
-.pic-row {
-  display: flex; align-items: center; gap: var(--sp-3);
-  padding: var(--sp-2) var(--sp-3); min-height: 72px;
+/* tiles (her synth22 answer, 2026-09-13): the Cases and People lists are a
+   responsive grid of portrait tiles — a picture band (a face, up to three
+   overlapping family faces, or the violet Event mark), the name, the three
+   tokens, attention chips, then Import/⋯ (Cases) or the merge flag (People)
+   on the tile's last line. One shape for the phone and the desktop — the
+   auto-fill grid just fits more tiles per row on a wider screen; the tile
+   itself never changes. Every inner class name (.pic .main .line .title
+   .world .where .lm-tokens .badges .actions .menu-slot) is unchanged from
+   the row it replaces, so wireImportBtn/wireCaseMenu/wireDupFlag needed no
+   changes — only the outer shape and this stylesheet did. */
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); align-items: start; }
+.tile {
+  position: relative; display: flex; flex-direction: column;
   border-radius: var(--r-lg); background: var(--ink-1); cursor: pointer;
   box-shadow: var(--lift-2); transition: transform 120ms ease-out, box-shadow 120ms ease-out, background 120ms ease-out;
 }
-.pic-row:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); background: var(--ink-2); }
-.pic-row .pic { flex: none; display: flex; align-items: center; position: relative; }
-.pic-row .pic.multi .face { margin-left: -4px; border: 2px solid var(--ink-1); }
-.pic-row .pic.multi .face:first-child { margin-left: 0; }
-.pic-row .pic .initials { font-size: 18px; }
-.pic-row .pic.event .face { background: linear-gradient(155deg, #362f57, #1c1930); }
-.pic-row .pic.event .initials { color: var(--violet); }
-.pic-row .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.pic-row .line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
-/* the name takes only its own width, so a "Fictional" pill sits right after
-   the word; the case note and the actions push themselves to the right */
-.pic-row .title { font-family: var(--font-title); font-size: 16px; line-height: 1.2; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
-.pic-row .where { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; margin-left: auto; }
-.pic-row .world { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-0); background: var(--violet); border-radius: 20px; padding: 2px 7px; white-space: nowrap; }
-.pic-row .actions { display: flex; gap: 2px; flex: none; margin-left: auto; }
-.pic-row .actions .btn { min-height: 28px; }
-.pic-row .lm-tokens { margin-top: 0; gap: var(--sp-1) var(--sp-3); flex: 1 1 auto; min-width: 0; }
-.pic-row .lm-tokens .tk .big { font-size: 16px; }
-.pic-row .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; justify-content: flex-end; }
-.pic-row .menu-slot:empty { display: none; }
-@media (max-width: 640px) {
-  .pic-row { padding: var(--sp-2); gap: var(--sp-2); }
-  .pic-row .title { font-size: 15px; }
-  .pic-row .where { display: none; }
-  /* the token line wraps, so a row with several attention chips drops them
-     under the tokens instead of painting over them (review, 2026-09-08) */
-  .pic-row .main > .line:nth-child(2) { flex-wrap: wrap; }
-  .pic-row .lm-tokens { gap: var(--sp-1) var(--sp-2); }
-  .pic-row .lm-tokens .tk .big { font-size: 15px; }
-  .pic-row .chip-icon { padding: 2px 8px 2px 6px; font-size: 12px; }
-  .pic-row .actions .btn { min-height: 32px; padding: 4px 8px; }
-}
+.tile:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); background: var(--ink-2); }
+/* the picture band clips to the tile's own rounded top corners; the tile
+   itself stays overflow:visible so the floating ⋯ menu below isn't clipped */
+.tile .pic { width: 100%; height: 96px; flex: none; display: flex; align-items: center; justify-content: center; gap: 0; background: var(--ink-2); position: relative; border-radius: var(--r-lg) var(--r-lg) 0 0; overflow: hidden; }
+.tile .pic.multi .face { margin-left: -8px; border: 2px solid var(--ink-2); }
+.tile .pic.multi .face:first-child { margin-left: 0; }
+.tile .pic .initials { font-size: 18px; }
+.tile .pic.event .face { background: linear-gradient(155deg, #362f57, #1c1930); }
+.tile .pic.event .initials { color: var(--violet); }
+.tile .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+.tile .line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; flex-wrap: wrap; }
+.tile .title { font-family: var(--font-title); font-size: 15px; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.tile .where { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tile .world { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-0); background: var(--violet); border-radius: var(--r-sm); padding: 2px 7px; white-space: nowrap; }
+.tile .lm-tokens { margin-top: 0; gap: var(--sp-1) var(--sp-2); }
+.tile .lm-tokens .tk .big { font-size: 15px; }
+.tile .badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.tile .badges .chip { white-space: normal; }
+.tile .foot { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.tile .actions { display: flex; gap: 2px; flex: none; }
+.tile .actions .btn { min-height: 28px; padding: 2px var(--sp-2); font-size: 11px; }
+/* the ⋯ menu opens as a floating panel below the tile, never stretching the
+   grid row it sits in (a CSS grid's default align-items:stretch would
+   otherwise pull every tile in that row down to match it) */
+.tile .menu-slot:empty { display: none; }
+.tile .menu-slot:not(:empty) { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 5; background: var(--ink-2); border-radius: var(--r-lg); padding: var(--sp-2); box-shadow: var(--shadow); }
 .face { border-radius: 50%; background: var(--ink-3); overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .face .initials { font-family: var(--font-title); color: var(--brass); font-size: 14px; }
@@ -950,8 +951,8 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 /* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
 #drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
-  .lm-card, .board-card, .pic-row, .btn, .face-card .face { transition: none; }
-  .lm-card:hover, .board-card:hover, .pic-row:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
+  .lm-card, .board-card, .tile, .btn, .face-card .face { transition: none; }
+  .lm-card:hover, .board-card:hover, .tile:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
 }
 
 /* ---------------------------------------------------------- day palette

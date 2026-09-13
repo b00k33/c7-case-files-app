@@ -351,6 +351,78 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-13 — synth22 batch, stage 1: names + tiles (v90, SPEC §13u).**
+Her "synth22" trigger: eight requests collected across one sitting, no
+building until she said "im finished," then one cohesive plan (not a
+per-request list) proposed and sixteen questions answered — via
+`show_widget` mocks FIRST (she answered "make widgets" to a tile
+question that already had inline popup previews — recent overrides old:
+widget-first is now the standing recipe, see
+`feedback_popup_previews_inline`), then the popup with matching options.
+Approved order: names → tiles → the two Wikipedia doors → the poster
+life line → the corkboard Board. This is stage 1.
+
+**A capitaliser that runs before a Wikidata check breaks that check
+silently, unless the check is taught what the capitaliser did.** The
+existing Wikidata-relabel guard (`looksUnformatted`, v61/v73) only fires
+on a name with NO real capitalisation — exactly the shape a hurried typed
+name has BEFORE this feature, and exactly the shape it no longer has
+AFTER: title-casing "jk rowling" to "Jk Rowling" makes it look properly
+capitalised, and the guard would never fire again to correct it to
+"J. K. Rowling" as she explicitly asked for in the approved mock. Fixed
+with a persistent `person.name_needs_formatting` flag, set when the
+chokepoint cases a hurried name and cleared the moment Wikidata's own
+label lands — the guard checks the flag OR the structural test, so a
+name the app cased itself stays correctable exactly as long as a human
+hasn't since confirmed it by hand. Two rules that each protect a
+different name can't be tested with one bit of state alone; when a new
+mechanism changes what an old signal used to mean, the old signal has to
+be updated too, not just left running against stale assumptions.
+
+**The one thing this rule must never touch: a source's own spelling.**
+"Wikipedia's own labels are never changed (bell hooks)" was one of her
+sixteen answers. `bell hooks` typed by a human is indistinguishable, by
+letters alone, from `bell hooks` as Wikidata's canonical label — the only
+way to keep the rule from corrupting a value it must never touch was to
+put the chokepoint at the ~10 TYPED-input call sites individually
+(Relations' "+ Person", event key figures, paste-import, a transcript's
+named partners, Fun & Zodiac, the profile Edit form, case creation, case
+Rename) rather than inside `store.createPerson`/`updatePerson`
+themselves — those two are the shared primitive for Wikidata-sourced
+writes too, and normalising inside them (the shape a first read of the
+problem suggests) would have silently title-cased every deliberately
+lower-case Wikidata label the app has ever imported. When two different
+provenances flow through the same low-level function and only one of
+them should be transformed, the transform belongs at the point where
+provenance is still known, not inside the shared function where it
+no longer is.
+
+**A "run once, quietly" migration has to know what it's racing.** Her
+approved answer promised the one-time tidy of existing lower-case names
+"runs after the first pull so it can never overwrite an edit from your
+other device" — literally true only if it actually waits. `sync.js`'s
+`syncNow()` already pulls before it pushes; the tidy is called between
+those two, so a signed-in device's local capitalisation fix can never
+out-race a remote edit still in flight. A device that never signs in
+has no pull to wait for, so it runs as soon as `sync.subscribe` reports
+`status: 'off'` instead. Two different trigger paths, one idempotent
+function (guarded by a flag in the `meta` table, which is the database
+file itself) — cheaper and safer than trying to detect "will this device
+ever sync" from a single call site.
+
+**A CSS grid's default `align-items: stretch` turns a "flag" case's
+inline dropdown into a bug.** The Cases ⋯ menu has expanded inline into a
+`.menu-slot` since 2026-09-02; that was harmless in a single-column list
+but would have stretched every OTHER tile in the same grid row once the
+list became a `.tile-grid`. Caught during the mock, not after shipping,
+because the tile mock's own "gaps" list (from the read-only investigation
+workflow) named it explicitly — fixed by making a non-empty `.menu-slot`
+`position: absolute` (floats below its own tile, out of grid flow)
+rather than rewriting `wireCaseMenu` itself. **When reusing an existing
+interaction inside a new layout container, check what that container's
+own default behaviour (stretch, flow, overflow) does to the reused
+element — the element didn't change, its context did.**
+
 **2026-09-12 — a case merge could leave duplicate relationships behind
 (v89, SPEC §13t).** Her screenshot: the real Michael Jackson case's
 Relations Tree, every spouse and child drawn twice, "still seeing

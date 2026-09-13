@@ -17,6 +17,7 @@
 import { emptyState } from '../indicators.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm } from '../ui.js';
 import { normTitle } from '../works.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 const FILTER_KEY = 'c7-q-filter'; // all | open | leaning | answered
 
@@ -367,9 +368,13 @@ export async function render(root, ctx, personId = null) {
     const byName = (n) => people.find((p) => p.display_name.trim().toLowerCase() === n.trim().toLowerCase());
     for (const p of parsed) {
       const withIds = [];
-      for (const name of p.partners) {
-        let person = byName(name);
-        if (!person) { person = await store.createPerson({ case_id: ctx.caseId, kind: 'person', display_name: name }); people.push(person); }
+      for (const rawName of p.partners) {
+        let person = byName(rawName);
+        // names (2026-09-13): a transcript name gets the same capitalising
+        // any other typed name gets — a pasted transcript has no autocapitalize either
+        const hurried = looksHurried(rawName);
+        const name = hurried ? autoCaseName(rawName) : rawName;
+        if (!person) { person = await store.createPerson({ case_id: ctx.caseId, kind: 'person', display_name: name, name_needs_formatting: hurried ? 1 : 0 }); people.push(person); }
         withIds.push(person.id);
         if (q.person_id && person.id !== q.person_id && !store.relationshipExists(ctx.caseId, q.person_id, person.id, 'partner')) {
           await store.upsertRelationship({ case_id: ctx.caseId, a_id: q.person_id, b_id: person.id, kind: 'partner', confidence: 30, confirmed: 0, theory_id: t.id, notes: `theory: ${t.text}` });

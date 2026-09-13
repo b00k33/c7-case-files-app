@@ -387,6 +387,17 @@ async function boot() {
       if (!location.hash) location.hash = localStorage.getItem('c7-last-hash') || `#/${HOME_ROUTE}`;
       else renderRoute();
       sync.initSync(); // fire-and-forget — the app never waits on the network
+      // the quiet name tidy (2026-09-13): a device that syncs gets tidied by
+      // sync.js itself, after its first pull — a device that never signs in
+      // has no pull to wait for, so it tidies as soon as sync settles to
+      // 'off' (tried and found nothing to sync with). Either way, tidyNames
+      // itself only ever does real work once per database file.
+      let tidyFallbackDone = false;
+      sync.subscribe((s) => {
+        if (tidyFallbackDone || s.status !== 'off') return;
+        tidyFallbackDone = true;
+        store.tidyNames();
+      });
     } else {
       renderConnectScreen(state);
     }
@@ -581,6 +592,7 @@ function appendBackupButton(body) {
     <div class="section-label" style="margin-bottom:8px">Backup</div>
     <button class="btn btn-ghost btn-sm" id="sy-backup">Download backup (.db)</button>
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
+    ${(() => { const t = store.getLastTidyResult(); return t ? `<p style="color:var(--text-3);font-size:11px;margin:12px 0 0"><span style="color:var(--brass)">${t.count} name${t.count === 1 ? '' : 's'} tidied</span> — ${t.names.slice(0, 3).join(', ')}${t.names.length > 3 ? '…' : ''}</p>` : ''; })()}
     <p class="mono" style="color:var(--text-3);font-size:11px;margin:16px 0 0">App version ${window.C7_VERSION || 'unknown'}</p>
   `;
   // the only place the install offer lives now (no strip over the page)

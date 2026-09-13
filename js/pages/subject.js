@@ -12,6 +12,7 @@ import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup 
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCircle, renderCompare, tokensHtml } from '../lifemap.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 // the kinds she can give an event by hand (the life line's marks read them)
 const EVENT_KINDS = [
@@ -1076,11 +1077,18 @@ function renderEditForm(body, ctx, person) {
   });
   body.querySelector('#save-person-btn').addEventListener('click', async () => {
     const nameInput = body.querySelector('#f-name');
-    const newName = nameInput.value.trim();
+    const typedName = nameInput.value.trim();
+    // names (2026-09-13): capitalised the moment she saves — a name she
+    // typed with any capitalisation already is left exactly as typed
+    const hurried = looksHurried(typedName);
+    const newName = hurried ? autoCaseName(typedName) : typedName;
+    const rawNab = body.querySelector('#f-nab').value.trim();
+    const nabHurried = looksHurried(rawNab);
     const ddate = body.querySelector('#f-ddate').value || null;
     const patch = {
       display_name: newName,
-      name_at_birth: body.querySelector('#f-nab').value || null,
+      name_at_birth: rawNab ? (nabHurried ? autoCaseName(rawNab) : rawNab) : null,
+      name_needs_formatting: hurried ? 1 : 0,
       birth_date: body.querySelector('#f-bdate').value || null,
       birth_precision: body.querySelector('#f-bprec').value,
       birth_year_min: body.querySelector('#f-ymin').value ? parseInt(body.querySelector('#f-ymin').value, 10) : null,
@@ -1108,6 +1116,7 @@ function renderEditForm(body, ctx, person) {
       if (collision) {
         inlineNote(nameInput, `${collision.display_name} is already someone else, in “${collision.case_name}” — pick a different name, or merge them from the People page if they're the same person. Everything else here was saved.`);
         patch.display_name = person.display_name;
+        patch.name_needs_formatting = person.name_needs_formatting ? 1 : 0;
         blocked = true;
       }
     }

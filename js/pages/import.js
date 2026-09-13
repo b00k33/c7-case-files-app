@@ -1,6 +1,7 @@
 import { emptyState } from '../indicators.js';
 import { inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 let activeTab = 'describe';
 
@@ -299,7 +300,10 @@ function renderClaimForm(body, ctx, people, origin) {
     let target_type = 'case', target_id = ctx.caseId, value;
 
     if (type.field === 'person') {
-      value = { display_name: body.querySelector('#c-name').value, birth_date: body.querySelector('#c-bdate').value || null, birth_precision: body.querySelector('#c-bdate').value ? 'day' : 'unknown' };
+      // names (2026-09-13): this form has no autocapitalize either — cased
+      // the same way any other typed name is (applyClaim re-checks on accept too)
+      const typedName = body.querySelector('#c-name').value.trim();
+      value = { display_name: looksHurried(typedName) ? autoCaseName(typedName) : typedName, birth_date: body.querySelector('#c-bdate').value || null, birth_precision: body.querySelector('#c-bdate').value ? 'day' : 'unknown' };
     } else if (type.field === 'relationship') {
       value = { a_id: body.querySelector('#c-a').value, b_id: body.querySelector('#c-b').value, kind: body.querySelector('#c-kind').value };
     } else if (type.field === 'event') {
@@ -511,7 +515,10 @@ function renderPasteTab(body, ctx, people) {
       if (pickedPerson) {
         personId = pickedPerson.id; personName = pickedPerson.display_name;
       } else if (mode === 'new') {
-        personName = body.querySelector('#np-name').value.trim();
+        const typedName = body.querySelector('#np-name').value.trim();
+        // names (2026-09-13): capitalised the moment it's typed
+        const hurried = looksHurried(typedName);
+        personName = hurried ? autoCaseName(typedName) : typedName;
         // do not allow duplicates (her ask, 2026-09-11) — someone by this
         // name is already in the case; use them instead of a second row
         // null: every case, not just this one — the same real person
@@ -540,7 +547,7 @@ function renderPasteTab(body, ctx, people) {
           });
           return;
         }
-        const person = await ctx.store.createPerson({ case_id: ctx.caseId, display_name: personName, kind: 'person' });
+        const person = await ctx.store.createPerson({ case_id: ctx.caseId, display_name: personName, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
         personId = person.id;
         await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'name_at_birth', value: personName, origin: 'paste', rationale: 'from paste: new person' });
         const relKind = body.querySelector('#np-kind')?.value;

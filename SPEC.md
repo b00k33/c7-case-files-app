@@ -1448,6 +1448,73 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13u. Names capitalised; Cases and People become tiles (v90, 2026-09-13)
+
+The first stage of a synth22 batch of eight requests ("i dont like row
+display… prevent lower case… make adding a family from wikipedia
+easier… i dont like this [board] display… commercial milestones — add
+from wikipedia… i like information, just not [life line] design…" plus
+two reference images for the Board and a poster timeline). Batched,
+synthesised into one plan, sixteen questions answered before anything
+was built. This stage: names, and the Cases/People tiles.
+
+**Names.** Every typed person and case name is capitalised the moment it
+lands — but only when it "looks hurried" (all-lower or all-upper letters,
+the same test v61/v73 already used for the Wikidata relabel guard, now
+shared from `js/names.js`). A name typed with any real capitalisation
+already is left exactly as typed. Particles stay lowercase mid-name
+("Vincent van Gogh", "Leonardo da Vinci"), Roman numerals go fully upper
+("henry viii" → "Henry VIII"), "Mc" gets its internal capital
+("mcdonald" → "McDonald"), apostrophes and hyphens each cap their own
+piece. A Wikidata label is never run through this — `bell hooks` stays
+exactly as Wikipedia spells it.
+
+The chokepoint lives at each typed-input site (Relations' "+ Person",
+"+ Add key figure", paste-import's new person and manual claim form, a
+transcript's named partners, Fun & Zodiac, the profile Edit form, case
+creation — typed, Wikidata-picked or rail — and case Rename), not inside
+`store.createPerson`/`updatePerson` themselves: those two are shared by
+every Wikidata-sourced write too, and a name straight from Wikidata's own
+label must never be re-cased.
+
+A name the app cased itself stays eligible for a later Wikidata
+correction even after it no longer "looks hurried": `person.
+name_needs_formatting` (new column) is set whenever the chokepoint casts
+a hurried name, and cleared the moment Wikidata's own label lands. So
+"jk rowling" saves as "Jk Rowling" and a later "Look up" or "+ From
+Wikipedia" on that person still corrects it to "J. K. Rowling" — without
+the flag, "Jk Rowling" would already look properly capitalised (mixed
+case) and the relabel guard would never fire again.
+
+Every lower-/upper-case name already in the file gets the same tidy,
+once, quietly: `store.tidyNames()` walks every person and case name,
+recases the hurried ones through `updatePerson`/`updateCase` (so it
+bumps `updated_at`, logs, and queues for sync like any other edit), and
+sets a `meta` table flag so it never repeats. For a device that syncs it
+runs from `sync.js`'s `syncNow()`, right after that cycle's `pull()` —
+never before, so a stale capitalisation fix can't out-race a genuine
+edit another device already pushed. A device that never signs in has no
+pull to wait for, so `main.js` runs it as soon as sync settles to
+`'off'`. Either path is a no-op after its first real run. The sync
+drawer shows one quiet line, this session only: "N names tidied — …".
+
+**Tiles.** "i dont like row display. mock some tile displays" (2026-09-13)
+— logged as a dislike under §13k. Widget mocks of three tile shapes
+(portrait/landscape/cover) were shown; she picked portrait. §13k's row is
+replaced on both Cases and People by `.tile-grid`
+(`repeat(auto-fill, minmax(150px,1fr))`) — one shape for the phone and the
+desktop, the grid just fits more tiles per row on a wider screen. A tile
+is a 96px picture band (round face, up to three overlapping family faces,
+or the violet Event mark) over the name, the three tokens, attention
+chips, then Import/⋯ (Cases) or the merge flag (People). Every sibling
+answer from §13k still stands: three tokens, no kind/count text, chips
+are doors, Import and ⋯ stay. The ⋯ menu opens as a small floating panel
+under its own tile so it never stretches the rest of that grid row.
+
+Remaining synth22 stages (not yet built): the family-page and Commercial
+"+ From Wikipedia" doors, the "Our Story" poster life line, and the
+Board as a detective's corkboard.
+
 ## 13t. Merging a case could leave duplicate relationships behind (v89, 2026-09-12)
 
 Her screenshot: the Relations Tree on her real Michael Jackson case, every

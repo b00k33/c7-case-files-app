@@ -1,11 +1,11 @@
 // People — everyone across every case; tap → their profile.
-// Picture rows (her Q15, 2026-09-07; built 2026-09-08): one layout for the
-// phone and the desktop — face · name · the three tokens (life path, animal,
-// sign), the case they live in as a dim mono note when it isn't just their
-// own name. No kind or count text on a row. The Table/List toggle of v62 is
-// gone with it: one list, sorted by name, the search box at the top of every
-// page does the finding. Faces are decoded before the list is shown, so they
-// arrive with the page instead of popping in after it.
+// Tiles since 2026-09-13 (synth22, same tile as Cases so the two pages
+// match): a responsive grid — face · name · the three tokens (life path,
+// animal, sign), the case they live in as a dim mono note when it isn't
+// just their own name. No kind or count text on a tile. One list, sorted by
+// name, the search box at the top of every page does the finding. Faces are
+// decoded before the grid is shown, so they arrive with the page instead of
+// popping in after it.
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
@@ -120,17 +120,19 @@ function wireDupFlag(row, p, dupInfo, store, onChanged) {
   }
 }
 
-/** One picture row: face · name (· case, when it says something) · tokens · merge flag. */
+/** One tile: face band · name (· case, when it says something) · tokens · merge flag. */
 async function buildPicRow(p, ctx, dupInfo, onChanged) {
   const { store } = ctx;
   const row = document.createElement('div');
-  row.className = 'pic-row';
+  row.className = 'tile';
   const sameName = (p.case_name || '').trim().toLowerCase() === (p.display_name || '').trim().toLowerCase();
   row.innerHTML = `
     <div class="pic"></div>
     <div class="main">
-      <div class="line"><div class="title">${esc(p.display_name)}</div>${!sameName && p.case_name ? `<span class="where" title="The case this person lives in">${esc(p.case_name)}</span>` : ''}</div>
-      <div class="line"><div class="lm-tokens">${tokensHtml(p, { compact: true })}</div><div class="badges">${dupInfo ? dupFlagHtml(p, dupInfo) : ''}</div></div>
+      <div class="line"><div class="title">${esc(p.display_name)}</div></div>
+      ${!sameName && p.case_name ? `<div class="line"><span class="where" title="The case this person lives in">${esc(p.case_name)}</span></div>` : ''}
+      <div class="line"><div class="lm-tokens">${tokensHtml(p, { compact: true })}</div></div>
+      ${dupInfo ? `<div class="line foot"><div class="badges">${dupFlagHtml(p, dupInfo)}</div></div>` : ''}
     </div>`;
   row.querySelector('.pic').appendChild(await faceEl(p, 48));
   row.addEventListener('click', (e) => { if (e.target.closest('button')) return; goToPerson(ctx, p); });
@@ -164,9 +166,9 @@ export async function render(root, ctx) {
   }));
   const onChanged = () => render(root, ctx);
   const shown = [...people].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || '', undefined, { sensitivity: 'base' }));
-  // every row is built (faces decoded) before any of them is shown
+  // every tile is built (faces decoded) before any of them is shown
   const list = document.createElement('div');
-  list.className = 'pic-list';
+  list.className = 'tile-grid';
   const rows = await Promise.all(shown.map((p) => buildPicRow(p, ctx, dupOf.get(p.id), onChanged)));
   for (const r of rows) list.appendChild(r);
   body.appendChild(list);

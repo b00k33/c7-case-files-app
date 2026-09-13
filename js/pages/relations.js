@@ -4,6 +4,7 @@ import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
+import { autoCaseName, looksHurried } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
@@ -789,8 +790,13 @@ function renderTypeIn(slot, ctx) {
   `;
   slot.querySelector('#p-save').addEventListener('click', async () => {
     const nameInput = slot.querySelector('#p-name');
-    const name = nameInput.value.trim();
-    if (!name) { inlineNote(nameInput, 'A name is required.'); nameInput.focus(); return; }
+    const typedName = nameInput.value.trim();
+    if (!typedName) { inlineNote(nameInput, 'A name is required.'); nameInput.focus(); return; }
+    // names (2026-09-13): capitalised the moment it's typed, same rule as
+    // every other "+ Person" door — still eligible for a Wikidata relabel
+    // later if it looked hurried right now
+    const hurried = looksHurried(typedName);
+    const name = hurried ? autoCaseName(typedName) : typedName;
     const kind = slot.querySelector('#p-kind').value;
     // do not allow duplicates (her ask, 2026-09-11) — someone by this exact
     // name is already here; use them instead of typing a name over again
@@ -813,6 +819,7 @@ function renderTypeIn(slot, ctx) {
     await ctx.store.createPerson({
       case_id: ctx.caseId, display_name: name, kind,
       birth_date: bdate || null, birth_precision: bdate ? 'day' : 'unknown',
+      name_needs_formatting: hurried ? 1 : 0,
     });
     ctx.closeDrawer();
     ctx.rerender();

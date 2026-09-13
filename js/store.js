@@ -5,6 +5,7 @@
 // changes.
 
 import * as db from './db.js';
+import { titleCaseName, looksHurried } from './names.js';
 
 export function uuid() { return crypto.randomUUID(); }
 export function nowISO() { return new Date().toISOString(); }
@@ -140,15 +141,15 @@ export async function createPerson(obj) {
     `INSERT INTO person (id,case_id,kind,display_name,name_at_birth,ref_code,
        birth_date,birth_precision,birth_year_min,birth_year_max,birth_time,birth_time_precision,
        birth_place,birth_lat,birth_lng,birth_tz,death_date,death_precision,occupation,status,notes,
-       wikidata_id,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       wikidata_id,name_needs_formatting,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       id, obj.case_id, obj.kind || 'person', obj.display_name, obj.name_at_birth || null, obj.ref_code || null,
       obj.birth_date || null, obj.birth_precision || 'unknown', obj.birth_year_min ?? null, obj.birth_year_max ?? null,
       obj.birth_time || null, obj.birth_time_precision || 'unknown',
       obj.birth_place || null, obj.birth_lat ?? null, obj.birth_lng ?? null, obj.birth_tz || null,
       obj.death_date || null, obj.death_precision || 'unknown', obj.occupation || null, obj.status || 'active', obj.notes || null,
-      obj.wikidata_id || null, now, now,
+      obj.wikidata_id || null, obj.name_needs_formatting ? 1 : 0, now, now,
     ]
   );
   logChange('person', id, 'insert', obj);
@@ -215,6 +216,44 @@ export async function softDeletePerson(id) {
   db.run('UPDATE person SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
   logChange('person', id, 'delete', {});
 }
+
+/**
+ * The quiet one-time tidy (her answer, 2026-09-13 synth22): every
+ * lower-/upper-case name already in the file gets the same casing a typed
+ * name now gets going forward — through updatePerson/updateCase, so it
+ * bumps updated_at, logs, and queues for sync like any other edit — rather
+ * than a silent direct UPDATE that sync would never see. Runs once per
+ * database FILE (the flag lives in the `meta` table, which is the file
+ * itself, not a per-device setting) — see callers in sync.js and main.js
+ * for when "once" is. Returns the count and names tidied, for the one line
+ * in the sync drawer.
+ */
+export async function tidyNames() {
+  if (db.exec("SELECT value FROM meta WHERE key='tidy_names_v1'")[0]?.value) return null;
+  const tidied = [];
+  for (const p of db.exec('SELECT id, display_name FROM person WHERE deleted_at IS NULL')) {
+    if (!looksHurried(p.display_name)) continue;
+    const cased = titleCaseName(p.display_name);
+    if (cased === p.display_name) continue;
+    await updatePerson(p.id, { display_name: cased, name_needs_formatting: 1 });
+    tidied.push(cased);
+  }
+  for (const c of db.exec('SELECT id, name FROM case_file WHERE deleted_at IS NULL')) {
+    if (!looksHurried(c.name)) continue;
+    const cased = titleCaseName(c.name);
+    if (cased === c.name) continue;
+    await updateCase(c.id, { name: cased });
+    tidied.push(cased);
+  }
+  db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('tidy_names_v1', ?)", [String(Date.now())]);
+  const result = { count: tidied.length, names: tidied };
+  if (result.count) lastTidyResult = result; // read once by the sync drawer (this session only)
+  return result;
+}
+
+let lastTidyResult = null;
+/** What tidyNames() just fixed, THIS session only — the sync drawer's one quiet line. */
+export function getLastTidyResult() { return lastTidyResult; }
 
 export async function listAliases(personId) {
   return db.exec('SELECT * FROM person_alias WHERE person_id=? ORDER BY alias', [personId]);
@@ -986,8 +1025,14 @@ async function applyClaim(claim) {
     // moment to hard-block against here, since this claim was drafted
     // earlier and is only now being accepted from the Review queue
     const draftedName = String(fields.display_name || '').trim();
-    const reused = draftedName && findPeopleByName(claim.case_id, draftedName, fields.kind || 'person')[0];
-    const created = reused || await createPerson({ ...fields, case_id: claim.case_id });
+    // names (2026-09-13): a manually-typed claim (the paste-import claim
+    // form has no autocapitalize) gets the same casing a live "+ Person"
+    // form would have applied, so it doesn't land in Review lower-case and
+    // stay that way forever once accepted
+    const hurried = looksHurried(draftedName);
+    if (draftedName) fields.display_name = hurried ? titleCaseName(draftedName) : draftedName;
+    const reused = fields.display_name && findPeopleByName(claim.case_id, fields.display_name, fields.kind || 'person')[0];
+    const created = reused || await createPerson({ ...fields, case_id: claim.case_id, name_needs_formatting: hurried ? 1 : 0 });
     // reusing an existing person still fills in whatever this claim knew
     // that they didn't already have — same as the 'relative' branch below
     // backfills wikidata_id, so a drafted birth date isn't silently lost

@@ -4,6 +4,8 @@
 // drafted claim in Review citing its Wikidata property, and one Wikipedia
 // evidence item is linked to the person so the citation exists regardless.
 
+import { looksHurried } from './names.js';
+
 const WD = 'https://www.wikidata.org/w/api.php';
 const WP_SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 
@@ -26,15 +28,20 @@ const DEMONYM = {
 };
 
 /**
- * True when a typed name carries no real capitalisation at all — "jk
- * rowling", "HENRY VIII" — the shape of a name typed in a hurry, not a
- * deliberate editorial choice. "Henry VIII" and "King Charles" (an
- * intentional shorter name than Wikidata's "Charles III") both stay
- * untouched: they're already properly cased, just a different name.
+ * True when a name is still eligible for Wikidata's own spelling — either
+ * it looks hurried right now (see names.js), or it did when it was FIRST
+ * typed and the app's own capitaliser cased it since (person.
+ * name_needs_formatting, set at the typed-name chokepoint and cleared the
+ * moment Wikidata's label lands, 2026-09-13). Without the second half,
+ * "jk rowling" would arrive here already as "Jk Rowling" — properly
+ * capitalised-looking, mixed case — and a lookup could never correct it to
+ * "J. K. Rowling" as she asked.
  */
-function looksUnformatted(name) {
-  const letters = String(name || '').replace(/[^a-zA-Z]/g, '');
-  return letters.length > 0 && (letters === letters.toLowerCase() || letters === letters.toUpperCase());
+function looksUnformatted(nameOrPerson) {
+  if (nameOrPerson && typeof nameOrPerson === 'object') {
+    return looksHurried(nameOrPerson.display_name) || !!nameOrPerson.name_needs_formatting;
+  }
+  return looksHurried(nameOrPerson);
 }
 
 export async function getJSON(url) {
@@ -292,7 +299,7 @@ export async function fillFromWikidata(store, caseId, personId, qid) {
   // a name typed in a hurry ("jk rowling") gets Wikidata's own spelling —
   // an already-cased name that's just shorter ("Henry VIII", "King Charles")
   // is a deliberate choice and stays untouched (her ask, 2026-09-04)
-  if (f.label && f.label !== fresh.display_name && looksUnformatted(fresh.display_name)) { patch.display_name = f.label; applied.push(['display_name', f.label, 'label']); }
+  if (f.label && f.label !== fresh.display_name && looksUnformatted(fresh)) { patch.display_name = f.label; patch.name_needs_formatting = 0; applied.push(['display_name', f.label, 'label']); }
   if (f.birth && !fresh.birth_date && !fresh.birth_year_min) { Object.assign(patch, dateFields(f.birth, null), { death_date: fresh.death_date, death_precision: fresh.death_precision }); applied.push(['birth', f.birth, P.birth]); }
   if (f.death && f.death.precision === 'day' && !fresh.death_date) { patch.death_date = f.death.date; patch.death_precision = 'day'; applied.push(['death', f.death, P.death]); }
   if (f.birthPlace && !fresh.birth_place) { patch.birth_place = f.birthPlace; applied.push(['birth_place', f.birthPlace, P.birthPlace]); }
@@ -395,8 +402,8 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // silently; the name just stays as typed instead
   const relabelCollides = current && facts.label
     && store.findPeopleByName(caseId, facts.label, current.kind).some((p) => p.id !== personId);
-  if (current && facts.label && facts.label !== current.display_name && looksUnformatted(current.display_name) && !relabelCollides) {
-    await store.updatePerson(personId, { display_name: facts.label });
+  if (current && facts.label && facts.label !== current.display_name && looksUnformatted(current) && !relabelCollides) {
+    await store.updatePerson(personId, { display_name: facts.label, name_needs_formatting: 0 });
     await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'display_name', value: facts.label, origin: 'lookup', rationale: cite('label') });
     // a person-case named after them follows, so the card and the profile agree
     const kase = await store.getCase(caseId);

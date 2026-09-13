@@ -306,6 +306,7 @@ const ADDED_COLUMNS = [
   ['event', 'with_ids', 'TEXT'],         // the people an entry names ("with: Calvin Harris"), comma-joined person ids
   ['relationship', 'theory_id', 'TEXT'], // a theory-only link (dashed on the tree, never confirmed, never in Review)
   ['event', 'wikidata_id', 'TEXT'],      // works from Wikidata (2026-09-04): the album/single/song item behind a release event — re-running adds nothing twice
+  ['person', 'name_needs_formatting', 'INTEGER DEFAULT 0'], // names (2026-09-13): still eligible for a Wikidata relabel even after the app's own capitaliser has cased it — see lookup.js's looksUnformatted
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

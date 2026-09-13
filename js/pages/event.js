@@ -11,6 +11,7 @@
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, duplicateNameBlock } from '../ui.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 const TABS = [
   ['overview', 'Overview'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
@@ -140,7 +141,10 @@ export async function render(root, ctx, tab = 'overview') {
     const form = inlineNameForm({
       placeholder: 'Name',
       submitLabel: 'Add',
-      onSubmit: async (name) => {
+      onSubmit: async (typedName) => {
+        // names (2026-09-13): capitalised the moment it's typed
+        const hurried = looksHurried(typedName);
+        const name = hurried ? autoCaseName(typedName) : typedName;
         // do not allow duplicates (her ask, 2026-09-11) — this key figure
         // is already here; nothing new needs adding
         // null: every case, not just this one — the same real person
@@ -156,7 +160,7 @@ export async function render(root, ctx, tab = 'overview') {
           });
           return;
         }
-        await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person' });
+        await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
         render(root, ctx, tab);
       },
     });

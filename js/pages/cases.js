@@ -1,13 +1,16 @@
 // Cases — the home screen (her redesign, 2026-09-02, 28 answers). The list
 // IS the home: most recently opened first, tap to go straight in (a
 // person-case opens the person's profile; a family-case its overview).
-// Picture rows since 2026-09-08 (her Q15 of 2026-09-07): one row per case —
+// Tiles since 2026-09-13 (synth22, "i dont like row display"; the picture
+// rows of 2026-09-08 before them): a responsive grid of picture tiles —
 // face · name · the three tokens of the person it is about (life path,
 // animal, sign); attention chips stay ("N to review →", "N open", images,
-// possible duplicate); Import and ⋯ stay; no kind or count text. One layout
-// for the phone and the desktop — the Table/Cards toggle of v62 is gone.
+// possible duplicate); Import and ⋯ stay; no kind or count text. One shape
+// for the phone and the desktop — the grid just fits more tiles per row on
+// a wider screen.
 import { emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
+import { autoCaseName } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
@@ -243,7 +246,8 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
     }
     slot.querySelector('.m-rename').addEventListener('click', () => {
       slot.innerHTML = '';
-      slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name }); onChanged(); } }));
+      // names (2026-09-13): capitalised the moment she saves a rename, same rule as typing one in
+      slot.appendChild(inlineNameForm({ value: c.name, submitLabel: 'Save', onSubmit: async (name) => { await store.updateCase(c.id, { name: autoCaseName(name) }); onChanged(); } }));
     });
     for (const btn of slot.querySelectorAll('.m-kind')) {
       btn.addEventListener('click', async () => {
@@ -329,14 +333,15 @@ function wireDupFlag(el, dupCaseId, dupInfo, store, onChanged) {
 }
 
 /**
- * One picture row: the face (a person's, up to three of a family's, or the
- * violet Event mark) · the name · the subject's three tokens · attention
- * chips · Import · ⋯. The row itself opens the case; every chip that counts
- * something opens the things it counts.
+ * One tile: a picture band on top (a person's face, up to three of a
+ * family's, or the violet Event mark), then the name, the subject's three
+ * tokens, attention chips, and Import · ⋯ on the last line. The tile itself
+ * opens the case; every chip that counts something opens the things it
+ * counts (her tile mock, synth22, 2026-09-13 — replaces the picture row).
  */
 async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
   const row = document.createElement('div');
-  row.className = 'pic-row';
+  row.className = 'tile';
   const subject = c.kind === 'event' ? null : subjectOf(c, sum.people);
   const tokens = c.kind === 'person' && subject ? tokensHtml(subject, { compact: true }) : '';
   row.innerHTML = `
@@ -345,11 +350,11 @@ async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
       <div class="line">
         <div class="title">${esc(c.name)}</div>
         ${c.world ? `<span class="world" title="Not a real-world case">${esc(c.world === 'Fictional' ? 'Fictional' : c.world)}</span>` : ''}
-        <div class="actions"><button class="btn btn-ghost btn-sm import-btn">Import</button><button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind · delete">⋯</button></div>
       </div>
-      <div class="line">
-        <div class="lm-tokens">${tokens}</div>
+      <div class="line"><div class="lm-tokens">${tokens}</div></div>
+      <div class="line foot">
         <div class="badges"></div>
+        <div class="actions"><button class="btn btn-ghost btn-sm import-btn">Import</button><button class="btn btn-ghost btn-sm menu-btn" title="Rename · change kind · delete">⋯</button></div>
       </div>
       <div class="menu-slot"></div>
     </div>
@@ -445,9 +450,9 @@ export async function render(root, ctx) {
     }));
     return;
   }
-  // every row is built (faces decoded) before any of them is shown
+  // every tile is built (faces decoded) before any of them is shown
   const list = document.createElement('div');
-  list.className = 'pic-list';
+  list.className = 'tile-grid';
   const onChanged = () => render(root, ctx);
   const rows = await Promise.all(withSums.map(({ c, sum }) => buildPicRow(c, sum, ctx, store, onChanged, dupOf.get(c.id))));
   for (const r of rows) list.appendChild(r);

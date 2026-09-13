@@ -243,13 +243,20 @@ would.
   convention (2026-09-02): Enter in any single-line field fires the
   drawer's primary button — a typed value must never be lost because the
   wrong key was pressed.
-- **Cases home cards (2026-09-02).** A card is a picture (96px band on
-  desktop; a 72px left column on phones, one card per row) over the
-  name; badges are chips that appear only when earned; faces are round
-  (`.face`) with brass initials until a picture loads. The profile's tab
-  strip is a horizontally scrollable row of text tabs, brass underline
-  on the active one, no icons. The topbar back control is a bare ←,
-  shown only inside a case.
+- **Cases and People are tiles (synth22, 2026-09-13 — the picture rows of
+  2026-09-08 replaced the 2026-09-02 cards described here, and these tiles
+  replaced the rows: "i dont like row display").** `.tile-grid` is
+  `repeat(auto-fill, minmax(150px, 1fr))` — one shape on the phone and the
+  desktop, just more tiles per row on a wider screen. A tile is a 96px
+  picture band (a round face, up to three overlapping family faces, or the
+  violet Event mark) over the name, the subject's three tokens, attention
+  chips, then Import/⋯ (Cases) or the merge flag (People). Badges wrap
+  rather than truncate on a narrow tile. The ⋯ menu opens as a small
+  floating panel below its own tile (`position:absolute`), never stretching
+  the other tiles in that grid row. Faces are round (`.face`) with brass
+  initials until a picture loads. The profile's tab strip is a horizontally
+  scrollable row of text tabs, brass underline on the active one, no icons.
+  The topbar back control is a bare ←, shown only inside a case.
 - **Zodiac colour code (hers, 2026-09-03).** Wherever an animal or sun
   sign is printed it takes its group colour — Chinese animals by trine:
   blue Snake·Ox·Rooster, green Dog·Tiger·Horse, pink Pig·Goat·Rabbit

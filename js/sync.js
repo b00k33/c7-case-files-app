@@ -13,7 +13,7 @@
 // change_log stays device-local audit and does not sync.
 
 import * as db from './db.js';
-import { markOutboxReady, setOutboxListener, nowISO } from './store.js';
+import { markOutboxReady, setOutboxListener, nowISO, tidyNames } from './store.js';
 import { SUPABASE_URL, SUPABASE_KEY, AUTH_STORAGE_KEY } from './config.js';
 
 const SYNC_TABLES = [
@@ -281,6 +281,11 @@ export async function syncNow() {
     // what arrived is written to storage NOW, not on the 2s timer — on the
     // phone the app is often closed before a timer fires (2026-09-03)
     if (pulled) { try { await db.persist(); } catch (_) { /* the timer will retry */ } }
+    // the quiet name tidy (2026-09-13): only after this device has caught up
+    // with the world, never before — a stale capitalisation fix must not
+    // out-race a genuine edit another device already pushed. No-ops after
+    // its first real run (the flag lives in the database file itself).
+    await tidyNames();
     await push();
     setState({ status: 'idle', pending: pendingCount(), lastSync: Date.now(), error: null, pulledAt: pulled ? Date.now() : state.pulledAt });
   } catch (e) {
