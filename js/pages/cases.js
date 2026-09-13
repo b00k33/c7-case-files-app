@@ -195,13 +195,20 @@ function wireCaseLookup(form, ctx, store) {
   }
 }
 
-async function faceEl(person, size) {
+/**
+ * One tile picture segment: a person's own photo, full-bleed and cropped to
+ * the top (a portrait photo centre-cropped loses the head — the top of a
+ * face is what identifies someone, her live feedback on the first version
+ * of this), or — no photo — a solid block carrying their initials at a
+ * scale that actually fills the space, same idea "Look, a picture of the
+ * person" always intended, just no longer a small circle lost in a big
+ * band (her ask, 2026-09-13: "the image is too small").
+ */
+async function picSegEl(person) {
   const el = document.createElement('div');
-  el.className = 'face';
-  el.style.width = el.style.height = `${size}px`;
+  el.className = 'seg';
   el.innerHTML = `<span class="initials">${initials(person.display_name)}</span>`;
   const src = person.photo_path ? await resolveAssetUrl(person.photo_path, 'image/jpeg') : person.photo_url;
-  // decoded before it is shown — the row arrives with its face, no pop-in (2026-09-07)
   if (src && await preloadImage(src)) {
     const img = document.createElement('img');
     img.alt = ''; img.src = src;
@@ -211,6 +218,13 @@ async function faceEl(person, size) {
     img.addEventListener('error', () => img.remove());
     el.appendChild(img);
   }
+  return el;
+}
+
+function markSegEl(name) {
+  const el = document.createElement('div');
+  el.className = 'seg';
+  el.innerHTML = `<span class="initials">${initials(name)}</span>`;
   return el;
 }
 
@@ -359,17 +373,20 @@ async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
       <div class="menu-slot"></div>
     </div>
   `;
-  // picture: the person's face, up to three family faces, or the violet Event mark
+  // picture: full-bleed — the person's own photo (or up to three family
+  // photos side by side), or the violet Event mark, filling the whole band
+  // (her ask, 2026-09-13: "the image is too small" — the old round face
+  // sat small and lost inside this same band; a family of three now gets
+  // a strip, one segment per person, rather than three overlapping circles
+  // that had no full-bleed equivalent)
   const pic = row.querySelector('.pic');
-  const markEl = (name) => { const el = document.createElement('div'); el.className = 'face'; el.style.width = el.style.height = '48px'; el.innerHTML = `<span class="initials">${initials(name)}</span>`; return el; };
   if (c.kind === 'event') {
     pic.classList.add('event');
-    pic.appendChild(markEl(c.name));
+    pic.appendChild(markSegEl(c.name));
   } else {
     const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
-    if (!faces.length) pic.appendChild(markEl(c.name));
-    else if (faces.length === 1) pic.appendChild(await faceEl(faces[0], 48));
-    else { pic.classList.add('multi'); for (const p of faces) pic.appendChild(await faceEl(p, 40)); }
+    if (!faces.length) pic.appendChild(markSegEl(c.name));
+    else { if (faces.length > 1) pic.classList.add('multi'); for (const p of faces) pic.appendChild(await picSegEl(p)); }
   }
   // attention chips only when there is something — each one a door
   const badges = row.querySelector('.badges');

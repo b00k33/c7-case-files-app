@@ -351,6 +351,69 @@ Rules to carry:
   moving to another leaves it primed to fire on a single tap. Write the
   arm/disarm out so the flag and the label move together.
 
+**2026-09-13 — tile picture and font, right after the synth22 batch shipped
+(v94, SPEC §13y).** Her feedback the moment all four stages landed: "not
+happy with the UI design in terms of the font and the display of the
+image of the tiles in the cases view. The image is too small. The tiles
+are okay." "Use code3 and code7 and code33" — checked memory before
+applying any of them rather than pattern-matching from the label alone
+(exactly the failure this project has hit before, see
+`reference_project_design_personas`): code7 turned out to be Book33/LCM's
+inference-calibration ruleset, not a visual one, and code33 is
+explicitly-not-for-routine-UI-work by her own 2026-08-31 answer — neither
+actually fit "fix a tile's font and image size." Applied code3 (this
+project's own efficiency lens) and, by fit rather than by the literal
+label, code6 — the actual "senior product designer" ruleset this project
+already has for exactly this kind of request.
+
+**A years-old font bug hiding behind a taste complaint.** Before touching
+any CSS, measured what was actually rendering: a canvas glyph-width test
+showed the full `--font-title` stack (`Newsreader, Georgia, "Times New
+Roman", serif`) producing the IDENTICAL width to `Georgia` alone — proof
+Newsreader had never once loaded. `tokens.css` declared it from the first
+version of this design system; no Google Fonts `<link>` ever fetched it.
+Every title, tile name and heading in the entire app had been silently
+rendering in the Georgia fallback the whole project. Not a redesign
+decision — a one-line fix (add Newsreader to the same font `<link>` the
+corkboard's Caveat already uses) that changed how the ENTIRE app's
+typography actually looks, discovered only because a specific complaint
+("the font") was investigated rather than guessed at.
+
+**Built and screenshotted real candidates in the sandbox before asking,
+rather than describing options in words.** Pulled a real photo (Barack
+Obama's own Wikipedia portrait, via the app's existing `fetchProfile`) onto
+a test person specifically so the "image too small" complaint could be
+judged against real content, not a thin initials-only fixture — the same
+lesson as Stage 3's poster work, applied a second time without having to
+be told twice. Two real, working versions (bigger round face vs. full-
+bleed photo) were built directly in `cases.js`/`app.css`, screenshotted
+live, then packaged into a published Artifact using the app's own real
+tokens and fonts (not the generic show_widget design system, which would
+have shown her the wrong fonts and colours) so she could compare them
+outside the sandbox.
+
+**A mid-build correction, applied within the minute.** The instant she
+saw the full-bleed option live, her reply was "full bleed cuts off the
+head. can you fix that? move photo to top" — `object-fit: cover`'s
+default centre-crop had taken the top of a portrait photo off. Fixed with
+`object-position: top` in both the live preview artifact and the real
+app code, republished the SAME artifact URL (not a new one), confirmed
+the fix, then kept building. **When she reacts to something already on
+screen, fix that exact thing immediately, in whatever she's currently
+looking at, before continuing the rest of the work** — a fix that lands
+only in the next round trip reads as not having listened.
+
+**Choosing the bolder option surfaced a real design gap she hadn't been
+asked about, and it got solved rather than re-asked.** A full-bleed photo
+has no equivalent for the OLD three-overlapping-circles family tile — a
+photo can't overlap another photo and still read as three separate
+people. Flagged as a trade-off in the options she was shown, then solved
+directly once she picked full-bleed: a family tile becomes a strip, one
+segment per person. A second, smaller consistency call (also unasked):
+the event-kind violet mark got the same full-bleed treatment, since
+leaving it as a circle-in-a-band once every other case now filled the
+whole band would have been the one visual outlier.
+
 **2026-09-13 — synth22 batch, stage 1: names + tiles (v90, SPEC §13u).**
 Her "synth22" trigger: eight requests collected across one sitting, no
 building until she said "im finished," then one cohesive plan (not a

@@ -97,6 +97,16 @@ card inside a card.
 - All numbers, dates, times, codes, hashes: **JetBrains Mono**
 - Handwriting on the cork board only: **Caveat**
 
+Public Sans, Newsreader and Caveat all load from Google Fonts via one
+`<link>` in `index.html`. **Bug, fixed 2026-09-13:** Newsreader was named
+in `tokens.css` from the very first version of this file but never
+actually linked — every title in the app rendered in the Georgia
+fallback, silently, for the whole project, until she noticed and it was
+confirmed with a glyph-width measurement (SPEC §13y). Whenever a face in
+this system reads "off" in a screenshot, check what's actually loaded
+(`document.fonts`) before assuming the token is wrong — the token here
+was right the entire time.
+
 Section labels are 10px, uppercase, letter-spaced, `--text-3`. Page titles
 are slim, left-aligned, never centred, never huge.
 
@@ -257,15 +267,30 @@ would.
   replaced the rows: "i dont like row display").** `.tile-grid` is
   `repeat(auto-fill, minmax(150px, 1fr))` — one shape on the phone and the
   desktop, just more tiles per row on a wider screen. A tile is a 96px
-  picture band (a round face, up to three overlapping family faces, or the
-  violet Event mark) over the name, the subject's three tokens, attention
-  chips, then Import/⋯ (Cases) or the merge flag (People). Badges wrap
-  rather than truncate on a narrow tile. The ⋯ menu opens as a small
-  floating panel below its own tile (`position:absolute`), never stretching
-  the other tiles in that grid row. Faces are round (`.face`) with brass
-  initials until a picture loads. The profile's tab strip is a horizontally
+  picture band over the name, the subject's three tokens, attention chips,
+  then Import/⋯ (Cases) or the merge flag (People). Badges wrap rather
+  than truncate on a narrow tile. The ⋯ menu opens as a small floating
+  panel below its own tile (`position:absolute`), never stretching the
+  other tiles in that grid row. The profile's tab strip is a horizontally
   scrollable row of text tabs, brass underline on the active one, no icons.
   The topbar back control is a bare ←, shown only inside a case.
+- **The tile picture is full-bleed, overriding the round face above
+  (2026-09-13, "the image is too small").** The band's own 96px height
+  never changed; a 48px round face floating inside it did, because it read
+  as small and lost. Her pick, shown two real options built in the
+  sandbox: the person's own photo fills the entire band edge to edge,
+  cropped from the TOP (`object-position: top`, not the `cover` default's
+  centre-crop — a centre crop took the head off a portrait photo, caught
+  and fixed the moment she saw it live). No photo → their initials at a
+  size that actually fills the band (`.seg .initials`, 28px, Newsreader,
+  brass), not the old small circle. A family of up to three is a strip —
+  one segment per person, divided by a hairline — since three overlapping
+  photos can't read as three people the way three overlapping circles
+  could; a judgment call, not one of her literal answers. The violet
+  Event mark got the same full-bleed treatment for consistency. `.face`
+  (round, brass initials) stays exactly as it was everywhere else it's
+  used — Relations tree nodes, face-cards, the avatar component — this
+  override is scoped to `.tile .pic .seg` only.
 - **Zodiac colour code (hers, 2026-09-03).** Wherever an animal or sun
   sign is printed it takes its group colour — Chinese animals by trine:
   blue Snake·Ox·Rooster, green Dog·Tiger·Horse, pink Pig·Goat·Rabbit

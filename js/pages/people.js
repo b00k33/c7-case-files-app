@@ -17,10 +17,13 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&am
 function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null; }
 function birthYear(p) { return p.birth_date ? p.birth_date.slice(0, 4) : (p.birth_year_min ? String(p.birth_year_min) : null); }
 
-async function faceEl(p, size) {
+// full-bleed, top-anchored crop (her ask, 2026-09-13: "the image is too
+// small" — a 48px round face was lost in this same 96px band; the bolder
+// of her two picked options fills the whole band with the person's own
+// photo, cropped from the top so a portrait doesn't lose the head).
+async function picSegEl(p) {
   const el = document.createElement('div');
-  el.className = 'face';
-  el.style.width = el.style.height = `${size}px`;
+  el.className = 'seg';
   el.innerHTML = `<span class="initials">${initials(p.display_name)}</span>`;
   const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
   if (src && await preloadImage(src)) {
@@ -134,7 +137,7 @@ async function buildPicRow(p, ctx, dupInfo, onChanged) {
       <div class="line"><div class="lm-tokens">${tokensHtml(p, { compact: true })}</div></div>
       ${dupInfo ? `<div class="line foot"><div class="badges">${dupFlagHtml(p, dupInfo)}</div></div>` : ''}
     </div>`;
-  row.querySelector('.pic').appendChild(await faceEl(p, 48));
+  row.querySelector('.pic').appendChild(await picSegEl(p));
   row.addEventListener('click', (e) => { if (e.target.closest('button')) return; goToPerson(ctx, p); });
   wireDupFlag(row, p, dupInfo, store, onChanged);
   return row;

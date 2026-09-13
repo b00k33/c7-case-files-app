@@ -1448,6 +1448,65 @@ fine in testing only when that exact picture happened to be decoded already.
 Fixed the way faces already do it: `preloadImage()` first, then append and
 reveal. Never wait on a `load` event to un-hide the box the image is in.
 
+## 13y. Tile picture and font fix (v94, 2026-09-13)
+
+Her feedback right after the synth22 batch shipped: "not happy with the UI
+design in terms of the font and the display of the image of the tiles in
+the cases view. The image is too small. The tiles are okay." Two fixes,
+one a bug, one a real choice between mocked options.
+
+**The font — a real, app-wide bug, not a style pick.** `tokens.css` has
+declared `--font-title: 'Newsreader', Georgia, 'Times New Roman', serif`
+since the very first version of this design system, and every page
+title, tile name, panel heading and h1/h2/h3 in the app uses it — but no
+Google Font `<link>` ever actually loaded Newsreader. Confirmed with a
+canvas glyph-width measurement: the full font stack measured pixel-
+identical to `Georgia` alone, proof the browser was silently falling
+through past a font name it could never resolve. Every serif heading in
+the app has been rendering in Georgia this entire project, not the
+typeface the design system was built around. Fixed by adding Newsreader
+(400/500/600) to the same Google Fonts `<link>` the corkboard's Caveat
+already uses (SPEC §13x) — no design decision needed, just a correction.
+
+**The picture — mocked live in the sandbox, then two real options put to
+her.** The tile's picture band has always been 96px tall; the face inside
+it was hard-coded to 48px (40px for a family) — a small circle lost in a
+lot of empty dark space, confirmed by pulling a real photo (Barack
+Obama's own Wikipedia portrait, via the app's own `fetchProfile`) onto a
+test person rather than judging it off a thin initials-only fixture. Two
+real candidates were built directly in the sandbox and screenshotted
+(not abstract mocks): **A** — the same round-face tile, just sized to
+fill the band (76px); **B** — the photo full-bleed, edge to edge. She
+picked **B**, the bolder option, after seeing both live.
+
+**A live correction mid-build: full-bleed centre-crop cut off the top of
+the head.** Her exact words, seeing the first version: "full bleed cuts
+off the head. can you fix that? move photo to top." A portrait photo,
+object-fit: cover'd into a wide-short band, crops from the centre by
+default — for a headshot that means the crop line falls mid-forehead.
+Fixed with `object-position: top`, so the crop keeps the head in frame
+by anchoring to the top of the source image instead of its centre.
+
+**Full-bleed had no answer for a family of three** — the old tile
+overlapped three round faces; a photo can't overlap another photo and
+still read as three people. Not one of her literal answers — a judgment
+call, flagged here rather than assumed settled: a family tile is now a
+strip, one segment per person (photo if they have one, their initials at
+size if they don't), divided by a hairline. The event-kind mark (a
+solid violet gradient block) got the same full-bleed treatment for
+consistency — it already filled its circle almost edge to edge, so this
+mostly means it now genuinely fills the whole band rather than sitting
+inside a circle within it.
+
+**What changed under the hood:** `cases.js`'s and `people.js`'s own
+`faceEl()` (a fixed-size circular avatar, still used elsewhere — Relations
+tree nodes, face-cards, the avatar component, all untouched) is no longer
+called from tile rendering; both files gained a `picSegEl()` (a full-
+bleed photo-or-initials segment) and `markSegEl()`/inline equivalent for
+the no-photo and event cases. `.tile .pic` gained `.seg` children instead
+of `.face` children — `.face`'s own CSS (a shared, circular class used
+well beyond tiles) was left completely alone.
+
 ## 13x. The corkboard — theories, evidence and a red thread (v93, 2026-09-13)
 
 Stage 4 of the synth22 batch (§13u), the last stage: the Board becomes
