@@ -387,6 +387,39 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-15 — the Profile page becomes widgets (v100, SPEC §18), a
+synth22 batch.** Four requests batched under her own protocol: a redesign
+of the Profile tab's family/tree area ("code3 code7" — checked this
+file first, per the 2026-09-13 entry below, and confirmed code7 still
+doesn't exist for this project; applied code3 + code6), gating the
+Commercial tab to people with a real commercial footprint, numerology
+submasters (13/31/28) shown raw-and-reduced, and a divorce-year marker on
+the tree. She rejected my first proposal outright — three concrete
+tree-layout mocks (A/B/C) — and answered "make me widgets" instead: a
+genuinely bigger ask than what was offered, matching Book33's Day-page
+tile organiser (one ⚙ Arrange panel, not per-tile controls — her
+"clunky and high effort" verdict on that shape, carried over from the
+other project). Two lessons worth keeping:
+
+- **When she answers a totally different, bigger idea than any option
+  offered, that's not a rejection to push past — it's the real
+  requirement surfacing late.** Don't implement any of the original
+  options; find the closest existing precedent (checked memory rather
+  than guessing) and ask a proper follow-up before building.
+- **A rerender closure that reuses data fetched once at page-load, for a
+  panel that can itself cause a save (a confirm-link tap, an inline
+  edit), will silently show stale content after that save.** The new
+  compact Family-tree widget's own `rerender` callback re-ran `renderTree`
+  with the SAME relationships array captured when the page first opened,
+  so editing a divorce year through the widget saved correctly but the
+  tree kept showing the old state until a full page reload. The real
+  Relations tab never had this bug because its `rerender` is the whole
+  page's own `render()`, which always re-fetches. A widget that reuses
+  a bigger page's rendering function for a smaller surface needs to
+  either share that same full-page rerender or re-fetch its own slice of
+  data on every one of ITS rerenders — never close over a one-time
+  snapshot from the page that hosts it.
+
 **2026-09-15 — Their Story, a relationship's own timeline (v99, SPEC
 §17).** The bigger, fuzzier ask flagged in the v98 entry below (a
 relationship-timeline feature, raised in the same quick-succession burst

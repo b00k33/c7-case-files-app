@@ -59,6 +59,8 @@ const SHELL = [
   'js/milestone-kinds.js',
   'js/milestone-parse.js',
   'js/works.js',
+  'js/pages/relationship.js',
+  'js/profile-widgets.js',
   'vendor/sql-wasm.js',
   'vendor/sql-wasm.wasm',
   'icons/icon-192.png',

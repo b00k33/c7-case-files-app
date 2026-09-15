@@ -184,22 +184,37 @@ function numbersFor(p) {
  * The tree itself. opts.full = drawn inside the full-screen overlay (✕ to
  * close instead of Expand). Fit shrinks the tree to the box (never below
  * four-fifths); − / + zoom by hand; dragging pans.
+ *
+ * opts.compact = the Profile page's Family widget (2026-09-15): a small,
+ * toolbar-less slice — fixed ±1 generation around the focus, no numbers/
+ * godparent chrome, always fit — with one "Expand ⤢" door to the same full
+ * tree everything else here uses. opts.state, when given, is a fresh
+ * {up,down,scale} object the widget owns instead of the module-level
+ * `treeState` singleton below — panning/zooming a mini-tree must never
+ * move the real Relations-tab tree underneath it.
  */
-async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
-  const { full = false } = opts;
-  const numbers = localStorage.getItem(NUMBERS_KEY) === '1';
-  const godparents = localStorage.getItem(GOD_KEY) === '1';
-  const fit = localStorage.getItem(FIT_KEY) !== '0';
-  const up = focus ? treeState.up : Infinity;
-  const down = focus ? treeState.down : Infinity;
+export async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
+  const { full = false, compact = false, state = null } = opts;
+  const ts = state || treeState;
+  const numbers = !compact && localStorage.getItem(NUMBERS_KEY) === '1';
+  const godparents = !compact && localStorage.getItem(GOD_KEY) === '1';
+  const fit = compact ? true : localStorage.getItem(FIT_KEY) !== '0';
+  const up = compact ? 1 : (focus ? ts.up : Infinity);
+  const down = compact ? 1 : (focus ? ts.down : Infinity);
   const L = layoutTree(people, rels, { focusId: focus, up, down, nodeH: numbers ? 142 : 112 });
   const shownGens = new Set(L.nodes.map((n) => n.gen)).size;
   // a sibling block is one node but many people — the count must say people
   const shownCount = L.nodes.reduce((n, x) => n + (x.group ? x.items.length : 1), 0);
 
   const wrap = document.createElement('div');
-  wrap.className = 'tree-wrap';
-  wrap.innerHTML = `
+  wrap.className = compact ? 'tree-wrap compact' : 'tree-wrap';
+  wrap.innerHTML = compact ? `
+    <div class="row between" style="gap:8px;margin-bottom:6px">
+      <span class="mono" style="font-size:11px;color:var(--text-3)">${shownCount} of ${people.length} shown</span>
+      <button class="btn btn-ghost btn-sm" id="tree-expand" title="The tree on the whole screen">Expand ⤢</button>
+    </div>
+    <div class="tree-scroll"><div class="tree-scale"><div class="tree" style="width:${L.width}px;height:${L.height}px"></div></div></div>
+  ` : `
     <div class="row between wrap" style="gap:8px;margin-bottom:8px">
       <span class="mono" style="font-size:11px;color:var(--text-3)">${shownCount} of ${people.length} shown · ${shownGens} generation${shownGens === 1 ? '' : 's'}</span>
       <div class="row wrap" style="gap:6px">
@@ -286,8 +301,10 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
       const rel = relById.get(e.relId);
       if (rel) {
         const mx = (e.x1 + e.x2) / 2;
-        const my = (e.arc ? e.top - e.rise : e.y) - 8;
+        const lineY = e.arc ? e.top - e.rise : e.y;
+        const my = lineY - 8;
         const year = rel.start_date ? rel.start_date.slice(0, 4) : null;
+        const endYear = rel.end_date ? rel.end_date.slice(0, 4) : null;
         const openEditor = (ev) => {
           ev.stopPropagation();
           if (scrollBox.dataset.dragged) return;
@@ -304,6 +321,18 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
           dot2.appendChild(t);
           dot2.addEventListener('click', openEditor);
           svg.appendChild(dot2);
+        }
+        // the year they separated (her ask, 2026-09-15), mirrored below the
+        // line so it never collides with the marriage-year label above it.
+        // Only drawn once a marriage year exists AND an end date is on
+        // record — no quiet "add" dot for this one, since the overwhelming
+        // majority of married couples on a tree never divorce and a second
+        // empty-state target under the first would just be clutter.
+        if (year && endYear) {
+          const et = svgEl('text', { x: mx, y: lineY + 16, class: 'tree-marriage-year tree-divorce-year', 'text-anchor': 'middle' });
+          et.textContent = `d. ${endYear}`;
+          et.addEventListener('click', openEditor);
+          svg.appendChild(et);
         }
       }
     }
@@ -402,7 +431,7 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   // ---- scale: Fit, or the hand-set zoom ----
   const applyScale = () => {
     const boxW = scrollBox.clientWidth || L.width;
-    const s = fit ? Math.max(MIN_FIT, Math.min(1, boxW / (L.width || 1))) : treeState.scale;
+    const s = fit ? Math.max(MIN_FIT, Math.min(1, boxW / (L.width || 1))) : ts.scale;
     tree.style.transform = `scale(${s})`;
     scaleBox.style.width = `${Math.round(L.width * s)}px`;
     scaleBox.style.height = `${Math.round(L.height * s)}px`;
@@ -449,22 +478,22 @@ async function renderTree(slot, ctx, people, rels, focus, rerender, opts = {}) {
   scrollBox.addEventListener('pointerleave', endDrag);
 
   // ---- controls ----
-  wrap.querySelector('#tree-up')?.addEventListener('click', () => { treeState.up += 1; rerender(); });
-  wrap.querySelector('#tree-down')?.addEventListener('click', () => { treeState.down += 1; rerender(); });
-  wrap.querySelector('#tree-all')?.addEventListener('click', () => { treeState.up = 99; treeState.down = 99; rerender(); });
-  wrap.querySelector('#tree-more-up')?.addEventListener('click', () => { treeState.up += 1; rerender(); });
-  wrap.querySelector('#tree-more-down')?.addEventListener('click', () => { treeState.down += 1; rerender(); });
-  wrap.querySelector('#tree-numbers').addEventListener('click', () => { localStorage.setItem(NUMBERS_KEY, numbers ? '0' : '1'); rerender(); });
-  wrap.querySelector('#tree-god').addEventListener('click', () => { localStorage.setItem(GOD_KEY, godparents ? '0' : '1'); rerender(); });
-  wrap.querySelector('#tree-fit').addEventListener('click', () => { localStorage.setItem(FIT_KEY, fit ? '0' : '1'); if (fit) treeState.scale = parseFloat(wrap.dataset.scale) || 1; rerender(); });
+  wrap.querySelector('#tree-up')?.addEventListener('click', () => { ts.up += 1; rerender(); });
+  wrap.querySelector('#tree-down')?.addEventListener('click', () => { ts.down += 1; rerender(); });
+  wrap.querySelector('#tree-all')?.addEventListener('click', () => { ts.up = 99; ts.down = 99; rerender(); });
+  wrap.querySelector('#tree-more-up')?.addEventListener('click', () => { ts.up += 1; rerender(); });
+  wrap.querySelector('#tree-more-down')?.addEventListener('click', () => { ts.down += 1; rerender(); });
+  wrap.querySelector('#tree-numbers')?.addEventListener('click', () => { localStorage.setItem(NUMBERS_KEY, numbers ? '0' : '1'); rerender(); });
+  wrap.querySelector('#tree-god')?.addEventListener('click', () => { localStorage.setItem(GOD_KEY, godparents ? '0' : '1'); rerender(); });
+  wrap.querySelector('#tree-fit')?.addEventListener('click', () => { localStorage.setItem(FIT_KEY, fit ? '0' : '1'); if (fit) ts.scale = parseFloat(wrap.dataset.scale) || 1; rerender(); });
   const zoom = (dir) => {
     const current = parseFloat(wrap.dataset.scale) || 1;
-    treeState.scale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((current + dir * ZOOM_STEP) * 100) / 100));
+    ts.scale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((current + dir * ZOOM_STEP) * 100) / 100));
     localStorage.setItem(FIT_KEY, '0');
     rerender();
   };
-  wrap.querySelector('#tree-zoom-out').addEventListener('click', () => zoom(-1));
-  wrap.querySelector('#tree-zoom-in').addEventListener('click', () => zoom(1));
+  wrap.querySelector('#tree-zoom-out')?.addEventListener('click', () => zoom(-1));
+  wrap.querySelector('#tree-zoom-in')?.addEventListener('click', () => zoom(1));
   wrap.querySelector('#tree-expand')?.addEventListener('click', () => openFullTree(ctx, people, rels, focus, rerender));
   wrap.querySelector('#tree-close')?.addEventListener('click', () => opts.onClose && opts.onClose({}));
 }
@@ -999,12 +1028,16 @@ function renderAddRel(body, ctx, people) {
 /** The tiny "m. 2005" editor a tap on the tree's marriage marker opens — just the year, nothing else. */
 function renderEditMarriageYear(body, ctx, rel, coupleLabel, rerender) {
   const current = rel.start_date ? rel.start_date.slice(0, 4) : '';
+  const currentEnd = rel.end_date ? rel.end_date.slice(0, 4) : '';
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:16px">${coupleLabel}</h3>
-    <div class="field"><label>Year married</label><input type="number" id="my-year" value="${current}" placeholder="2005" style="max-width:120px"></div>
+    <div class="row" style="gap:8px">
+      <div class="field" style="flex:1"><label>Year married</label><input type="number" id="my-year" value="${current}" placeholder="2005"></div>
+      <div class="field" style="flex:1"><label>Year separated</label><input type="number" id="my-end-year" value="${currentEnd}" placeholder="2008"></div>
+    </div>
     <div class="row" style="gap:8px">
       <button class="btn btn-primary" id="my-save">Save</button>
-      ${current ? '<button class="btn btn-ghost" id="my-clear">Clear</button>' : ''}
+      ${current || currentEnd ? '<button class="btn btn-ghost" id="my-clear">Clear both</button>' : ''}
     </div>
     <button type="button" class="linklike brass" id="my-story" style="margin-top:16px">Their Story — met, engaged, milestones and evidence →</button>
   `;
@@ -1012,14 +1045,17 @@ function renderEditMarriageYear(body, ctx, rel, coupleLabel, rerender) {
   body.querySelector('#my-save').addEventListener('click', async () => {
     const btn = body.querySelector('#my-save');
     const raw = body.querySelector('#my-year').value.trim();
-    const y = parseInt(raw, 10);
-    if (!raw || !Number.isInteger(y) || y < 1000 || y > 3000) { inlineNote(btn, 'Enter a year, like 2005.'); return; }
-    await ctx.store.upsertRelationship({ id: rel.id, start_date: `${y}-01-01` });
+    const rawEnd = body.querySelector('#my-end-year').value.trim();
+    const y = raw ? parseInt(raw, 10) : null;
+    const yEnd = rawEnd ? parseInt(rawEnd, 10) : null;
+    if (raw && (!Number.isInteger(y) || y < 1000 || y > 3000)) { inlineNote(btn, 'Enter a year married, like 2005.'); return; }
+    if (rawEnd && (!Number.isInteger(yEnd) || yEnd < 1000 || yEnd > 3000)) { inlineNote(btn, 'Enter a year separated, like 2008.'); return; }
+    await ctx.store.upsertRelationship({ id: rel.id, start_date: y ? `${y}-01-01` : null, end_date: yEnd ? `${yEnd}-01-01` : null });
     ctx.closeDrawer();
     rerender();
   });
   body.querySelector('#my-clear')?.addEventListener('click', async () => {
-    await ctx.store.upsertRelationship({ id: rel.id, start_date: null });
+    await ctx.store.upsertRelationship({ id: rel.id, start_date: null, end_date: null });
     ctx.closeDrawer();
     rerender();
   });

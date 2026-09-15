@@ -1495,6 +1495,91 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 18. The Profile page becomes widgets, plus numerology submasters, gated Commercial, divorce year (v100, 2026-09-15)
+
+A synth22 batch (four requests collected under one "done," synthesised
+into one plan, approved as a whole): looking at Camilla's Profile tab,
+"just want to see the family tree, and easily add family and events to
+the profile" (with "code3 code7" — code7 doesn't exist for this project,
+see the 2026-09-13 CLAUDE.md entry; applied code3 + code6 instead);
+Commercial only matters "for singers, business owners, people of great
+net worth"; "13, 31, 28 are all submaster numbers... show them and
+reduced number e.g. 13/4 personal year"; and "i also want to see year of
+divorce." Her final answers, after a mock and two rounds of questions:
+the whole Profile page becomes drag-to-arrange widgets ("make me
+widgets," her rejection of three narrower tree-layout options), the same
+⚙ Arrange pattern as Book33's Day-page organiser; Commercial tucks into
+"⋯" rather than disappearing; numerology shows personal year + life path
++ lucky number, raw AND reduced, always.
+
+**Widgets** (`js/profile-widgets.js`, new). `WIDGET_DEFS` — nine panels:
+Life line, Family, Chart, Profile details, Contradictions, Addresses,
+Relations, Open questions, Attached evidence. One global (not per-person)
+`localStorage` preference list — order + on/off — merges forward for any
+widget a saved preference predates. Default matches what was actually on
+screen before: Life line + Family on, everything that used to live
+behind "Details ▸" off. `subject.js`'s Profile tab now renders every
+widget's container unconditionally (`hidden` when off) rather than
+conditionally including it in the template — every existing element id
+(`#chart-slot`, `#address-list`, `#rel-list`, `#ask-slot`,
+`#evidence-list`, …) stays put, so none of the render()'s later wiring
+code needed to change. `⚙ Arrange` opens a drawer (`renderArrangeDrawer`)
+matching Book33's tile organiser: drag handle, name, on/off, a brass line
+(not gold — gold is reserved for the life path number, STYLE §1) marks
+exactly where a dragged row will land. The Details ▸ toggle is gone,
+superseded by per-widget visibility.
+
+**Family widget = a compact tree, not the old circle-of-cards.**
+`relations.js`'s `renderTree` gained `opts.compact` (no toolbar, fixed ±1
+generation, no numbers/godparent chrome, always fit, one "Expand ⤢" door
+to the real full-screen tree) and `opts.state` — a fresh `{up,down,scale}`
+object the widget owns instead of the module-level `treeState` singleton,
+so panning or zooming the mini-tree can never move the real Relations-tab
+tree underneath it. The "Their Story →" link that used to live on a
+`renderCircle` spouse card is gone from the Profile page along with the
+circle itself (still exported from `lifemap.js`, just unused there now);
+reaching it now goes through the tree's own marriage-year marker
+(`renderEditMarriageYear`, unchanged) — already reachable from the
+compact widget, since it's the same function. `+ Add family` opens the
+add-tools drawer focused on the Look-up row's "Insert family" button
+(already pre-filled with her own name); `+ Add event` on the Life line
+widget does the same for the event form — both her request 1b, "easily
+add family and events," without a second copy of either flow.
+
+**Commercial-tab gating.** `isCommercialRelevant(person, events)`
+(`milestone-kinds.js`): occupation keyword match (singer, musician,
+actor, businessman, founder, …) OR an existing release/business/chart/
+certification/deal event — `award` deliberately excluded, since it's
+shared with non-commercial honours (a knighthood, a Nobel Prize) written
+by the general "+ Life events" tool and would false-positive exactly the
+people this gate should hide. `person.commercial_override` (new column,
+1/0/null) always wins when she's set it by hand, from a new field on the
+Edit form. Never circular: occupation is set the moment a Wikidata
+profile is pulled, well before any milestone would exist.
+
+**Numerology, raw and reduced.** Every caller of `reduce()` already
+exposed its pre-reduction total (`lifePath`/`personalYear`'s
+`.parts.total`, `birthdayNumber`'s `.day`) — no change needed in
+`numerology.js` itself. Life path and lucky-number chart tiles, the
+why-card's personal-year line, and the circle's spousal PY line
+(everywhere still in use) now read `raw/reduced` (e.g. "18/9"). **One
+surfaced constraint, not one of her literal answers:** life path's raw
+total can only ever reach 13 as a submaster (max possible is 27) — 28 and
+31 are mathematically impossible there; personal year's raw total can
+reach all three. **One kept judgment call, not yet confirmed by her:**
+the life-line poster's own 24px circular spine badges still show only the
+final reduced digit — cramming "13/4" into a 24px circle would break the
+poster's visual rhythm — with the full raw/reduced pair in the badge's
+hover title instead.
+
+**Tree divorce year.** `relationship.end_date`, already the schema's
+field, now has a UI: `renderEditMarriageYear` gained a second "Year
+separated" input beside "Year married," saved together. The tree draws
+"d. YYYY" in red (`.tree-divorce-year`, `var(--red)`) mirrored below the
+marriage-year line, drawn only when BOTH a marriage year and an end date
+are on record — no quiet "add" dot, since the overwhelming majority of
+married couples on a tree never divorce.
+
 ## 17. Their Story — a relationship's own timeline (v99, 2026-09-15)
 
 Her ask, looking at Camilla's profile with Charles's family tree drawn on
@@ -1539,13 +1624,16 @@ uses). Tapping a typed mark shows the full detail with Edit/Delete;
 tapping a synthesized "Married"/"Separated" mark opens the same
 year-editor the tree's own marker already uses — one place, not two.
 
-**Entry points.** A small "Their Story →" link on a spouse card in
-`renderCircle` (`lifemap.js`, new `onStory` param — only where `onStory`
-is passed, so a caller that doesn't wire it, if any is added later, loses
-nothing), and the same link inside the Tree's marriage-year drawer
-(`renderEditMarriageYear` in `relations.js`) — the two places she's
-already looking at a couple, not a new button competing for attention
-anywhere else.
+**Entry points.** A small "Their Story →" link inside the Tree's
+marriage-year drawer (`renderEditMarriageYear` in `relations.js`) — where
+she's already looking at a couple, not a new button competing for
+attention anywhere else. Originally also lived on a spouse card in
+`renderCircle` (`lifemap.js`, `onStory` param); superseded §18
+(2026-09-15) replaced the Profile page's circle-of-cards with a compact
+family tree, so that copy of the link is gone along with the circle —
+`renderEditMarriageYear`'s link is reachable from the compact tree too
+(same function), so nothing was actually lost. `renderCircle`/`onStory`
+still exist in `lifemap.js`, just unused for now.
 
 ## 16. Wikipedia first, everywhere data comes in (v98, 2026-09-14)
 

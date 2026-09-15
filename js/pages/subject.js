@@ -8,11 +8,14 @@ import { renderPairs } from '../contradictions.js';
 import { parseProfileText, parseDate } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
+import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
-import { buildLifeLine, renderLifeLine, renderWhyCard, renderCircle, renderCompare, tokensHtml } from '../lifemap.js';
+import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
+import { renderTree } from './relations.js';
+import { loadWidgetPrefs, renderArrangeDrawer } from '../profile-widgets.js';
 
 // the kinds she can give an event by hand (the life line's marks read them)
 const EVENT_KINDS = [
@@ -113,17 +116,17 @@ function chartPanel(person, status) {
   const big = (value, label, color) => `<div><div class="title" style="font-size:22px;color:${color === true ? 'var(--gold)' : (color || 'var(--text)')}">${value}</div><div class="section-label">${label}</div></div>`;
   wrap.innerHTML = `
     <div class="row wrap" style="gap:20px;align-items:flex-end">
-      ${big(`${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
+      ${big(`${lp.parts.total}/${lp.value}${lp.master ? '★' : ''}`, 'life path', true)}
       ${big(dayBorn, 'day born')}
       ${big(chinese.boundary ? '—' : animalLabel(chinese.animal), chinese.boundary ? 'animal · unresolved' : chinese.element.toLowerCase(), chinese.boundary ? null : zodiacColor(chinese.animal))}
       ${big(sun.sign, sun.cusp ? 'sun · cusp' : 'sun', signColor(sun.sign))}
-      ${big(`${bn.value}${bn.master ? '★' : ''}`, 'lucky number')}
+      ${big(`${bn.day}/${bn.value}${bn.master ? '★' : ''}`, 'lucky number')}
     </div>
     <details style="margin-top:4px">
       <summary style="cursor:pointer;font-size:11px;color:var(--text-3);list-style:none">show working ▸</summary>
       <div class="stack mono" style="font-size:12px;color:var(--text-2);margin-top:8px;gap:4px">
-        <div>Life path ${lp.value}${lp.master ? ' (master)' : ''} — ${lp.parts.day}→${lp.parts.dayReduced} · ${lp.parts.month}→${lp.parts.monthReduced} · ${lp.parts.year}→${lp.parts.yearReduced} · = ${lp.value}</div>
-        <div>Lucky number (birthday number) ${bn.value}${bn.master ? ' (master)' : ''} — from day ${dayBorn}</div>
+        <div>Life path ${lp.parts.total}/${lp.value}${lp.master ? ' (master)' : ''} — ${lp.parts.day}→${lp.parts.dayReduced} · ${lp.parts.month}→${lp.parts.monthReduced} · ${lp.parts.year}→${lp.parts.yearReduced} · = ${lp.parts.total} → ${lp.value}</div>
+        <div>Lucky number (birthday number) ${bn.day}/${bn.value}${bn.master ? ' (master)' : ''} — from day ${dayBorn}</div>
         <div>${chinese.boundary ? 'Animal year: unresolved (near lunar new year, no CNY date on file for this year)' : `${animalHtml(chinese.animal)} · ${chinese.element}`}</div>
         <div>${signHtml(sun.sign)}${sun.cusp ? ' (cusp)' : ''}</div>
       </div>
@@ -187,8 +190,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // a profile opened by link or bookmark makes its own case current — every
   // save on this page (family, evidence, claims) lands where the person lives
   if (person.case_id !== ctx.caseId) await ctx.setCaseId(person.case_id);
-  const moreOpen = sessionStorage.getItem('c7-tabs-more') === '1' || TABS_MORE.some(([k]) => k === tab);
-
   const [aliases, addresses, rels, events, links, questions, status, summary] = await Promise.all([
     store.listAliases(person.id),
     store.listAddresses(person.id),
@@ -199,6 +200,13 @@ export async function render(root, ctx, personId, tab = 'profile') {
     evidenceStatusForPerson(store, person.id),
     store.caseSummary(ctx.caseId),
   ]);
+  // Commercial tab (her ask, 2026-09-15): only for people with a real
+  // commercial footprint — tucked into "⋯" rather than gone entirely, so
+  // the rare miss is still two taps away, not lost
+  const commercialOn = isCommercialRelevant(person, events);
+  const tabs = commercialOn ? TABS : TABS.filter(([k]) => k !== 'commercial');
+  const tabsMore = commercialOn ? TABS_MORE : [['commercial', 'Commercial'], ...TABS_MORE];
+  const moreOpen = sessionStorage.getItem('c7-tabs-more') === '1' || tabsMore.some(([k]) => k === tab);
   // what's waiting on her in this case sits in the header as a door, the
   // same chip the Cases card shows — one tap, never a hunt (2026-09-08)
   const toReview = summary ? summary.toReview : 0;
@@ -231,48 +239,19 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>
       </div>
 
-      <div class="tab-strip" id="tab-strip">${[...TABS, ...(moreOpen ? TABS_MORE : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : 'Review · Evidence · Contradictions · Questions · Import'}">${moreOpen ? '‹' : '⋯'}</button></div>
+      <div class="tab-strip" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹' : '⋯'}</button></div>
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
       <div id="pi-result"></div>
 
-      <!-- the life map (her ask, 2026-09-07 — SPEC §13g): the person as a
-           picture. Years coloured by personal year, marks for what they did,
-           the why of a mark on tap; then the circle — married, family — with
-           the compatibility on each card. The old Chart / Profile grid /
-           lists sit behind "Details". -->
-      <div class="panel">
-        <div class="row between wrap" style="gap:8px">
-          <span class="section-label">Life line · tap a mark</span>
-          <button type="button" class="linklike" id="year-list-btn">year list ▸</button>
-        </div>
-        <div id="life-line"></div>
-        <div id="why-slot"></div>
-        <div id="year-list" hidden><div id="timeline-list" class="stack" style="gap:10px;margin-top:12px"></div></div>
+      <!-- the Profile page as widgets (her ask, 2026-09-15 — "make me
+           widgets", same ⚙ Arrange pattern as Book33's Day page): every
+           panel below is drag-to-reorder and on/off from one drawer, order
+           and visibility remembered across every person. -->
+      <div class="row" style="gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn-ghost btn-sm" id="arrange-btn" title="Reorder or hide the panels on this page">⚙ Arrange</button>
       </div>
 
-      <div class="panel">
-        <div class="row between wrap" style="gap:8px">
-          <span class="section-label">Married · family</span>
-          <span class="row" style="gap:6px">
-            <button type="button" class="btn btn-ghost btn-sm" id="compare-btn" title="Anyone, any case — the same verdicts, no relationship added">Compare with…</button>
-            <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">Tree →</a>
-          </span>
-        </div>
-        <div id="compare-slot"></div>
-        <div id="circle" class="lm-circle"></div>
-      </div>
-
-      <button type="button" class="btn btn-ghost btn-sm" id="details-btn" style="align-self:flex-start">Details ▸</button>
-      <div id="details" class="stack" hidden>
-      <div class="panel">
-        <div class="panel-title">Chart</div>
-        <div id="chart-slot"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">Profile</div>
-        <div class="profile-grid" id="profile-grid"></div>
-      </div>
+      <div id="widget-slots" class="stack"></div>
 
       <!-- everything that puts information ON a person lives behind "+ Add"
            (her pick, 2026-09-07): this block is moved into the drawer when
@@ -315,27 +294,70 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>
         <div id="lk-results" class="stack" style="gap:4px"></div>
       </div>
+      `}
+    </div>
+  `;
 
-      <div class="panel">
-        <div class="row between" style="margin-bottom:12px">
-          <div class="panel-title" style="margin:0">Contradictions <span class="mono" style="color:var(--text-3);font-size:11px" id="contra-count"></span></div>
-          <a href="#/subject/${person.id}/contradictions" class="btn btn-ghost btn-sm">All →</a>
-        </div>
-        <div id="contra-list" class="stack" style="gap:12px"></div>
-      </div>
-
-      <div class="grid-2">
+  // ---- the Profile page's panels, one widget per row, her order/visibility
+  // (⚙ Arrange) — every container stays in the DOM regardless of on/off so
+  // every id below is always found; "off" only ever sets `hidden` ----
+  if (tab === 'profile') {
+    const widgetHtml = (id) => {
+      if (id === 'life-line') return `
+        <div class="panel">
+          <div class="row between wrap" style="gap:8px">
+            <span class="section-label">Life line · tap a mark</span>
+            <span class="row" style="gap:6px">
+              <button type="button" class="btn btn-ghost btn-sm" id="ll-add-btn">+ Add event</button>
+              <button type="button" class="linklike" id="year-list-btn">year list ▸</button>
+            </span>
+          </div>
+          <div id="life-line"></div>
+          <div id="why-slot"></div>
+          <div id="year-list" hidden><div id="timeline-list" class="stack" style="gap:10px;margin-top:12px"></div></div>
+        </div>`;
+      if (id === 'family') return `
+        <div class="panel">
+          <div class="row between wrap" style="gap:8px">
+            <span class="section-label">Family</span>
+            <span class="row" style="gap:6px">
+              <button type="button" class="btn btn-ghost btn-sm" id="fam-add-btn">+ Add family</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="compare-btn" title="Anyone, any case — the same verdicts, no relationship added">Compare with…</button>
+              <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">Full tree →</a>
+            </span>
+          </div>
+          <div id="compare-slot"></div>
+          <div id="family-tree"></div>
+        </div>`;
+      if (id === 'chart') return `
+        <div class="panel">
+          <div class="panel-title">Chart</div>
+          <div id="chart-slot"></div>
+        </div>`;
+      if (id === 'profile-grid') return `
+        <div class="panel">
+          <div class="panel-title">Profile</div>
+          <div class="profile-grid" id="profile-grid"></div>
+        </div>`;
+      if (id === 'contradictions') return `
+        <div class="panel">
+          <div class="row between" style="margin-bottom:12px">
+            <div class="panel-title" style="margin:0">Contradictions <span class="mono" style="color:var(--text-3);font-size:11px" id="contra-count"></span></div>
+            <a href="#/subject/${person.id}/contradictions" class="btn btn-ghost btn-sm">All →</a>
+          </div>
+          <div id="contra-list" class="stack" style="gap:12px"></div>
+        </div>`;
+      if (id === 'addresses') return `
         <div class="panel">
           <div class="panel-title">Addresses</div>
           <div id="address-list" class="stack" style="gap:6px"></div>
-        </div>
+        </div>`;
+      if (id === 'relations-list') return `
         <div class="panel">
           <div class="panel-title">Relations</div>
           <div id="rel-list" class="stack" style="gap:6px"></div>
-        </div>
-      </div>
-
-      <div class="grid-2">
+        </div>`;
+      if (id === 'questions') return `
         <div class="panel">
           <div class="row between" style="gap:8px;margin-bottom:var(--sp-3)">
             <div class="panel-title" style="margin:0">Open questions</div>
@@ -343,15 +365,22 @@ export async function render(root, ctx, personId, tab = 'profile') {
           </div>
           <div id="ask-slot"></div>
           <div id="question-list" class="stack" style="gap:2px"></div>
-        </div>
+        </div>`;
+      if (id === 'evidence') return `
         <div class="panel">
           <div class="panel-title">Attached evidence</div>
           <div id="evidence-list" class="stack" style="gap:2px"></div>
-        </div>
-      </div>
-      </div>`}
-    </div>
-  `;
+        </div>`;
+      return '';
+    };
+    const widgetPrefs = loadWidgetPrefs();
+    root.querySelector('#widget-slots').innerHTML = widgetPrefs
+      .map((w) => `<div data-widget="${w.id}" ${w.on ? '' : 'hidden'}>${widgetHtml(w.id)}</div>`)
+      .join('');
+    root.querySelector('#arrange-btn').addEventListener('click', () => {
+      ctx.openDrawer((body) => renderArrangeDrawer(body, widgetPrefs, () => render(root, ctx, personId, tab)));
+    });
+  }
 
   // ⋯ shows the four quieter tabs; ‹ tucks them away again. Remembered for the session.
   root.querySelector('#tab-more').addEventListener('click', () => {
@@ -424,7 +453,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
 
-  // ---- the life map: the ribbon, the why of a mark, the circle, compare ----
+  // ---- the life map: the ribbon, the why of a mark, the family tree, compare ----
   const peopleInCase = await store.listPeople(ctx.caseId);
   const lifeData = buildLifeLine({ person, events, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() });
   const lifeEl = root.querySelector('#life-line');
@@ -448,28 +477,34 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // below; it only runs on a tap, long after this render has finished)
   const addFromEmpty = () => { openAdd(); setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80); };
   await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, onAdd: addFromEmpty, store, people: peopleInCase });
-  renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson, onAdd: addFromEmpty, onStory: (relId) => ctx.navigate(`#/relationship/${relId}`) });
-  root.querySelector('#compare-btn').addEventListener('click', () => {
+  root.querySelector('#ll-add-btn')?.addEventListener('click', addFromEmpty);
+
+  // ---- Family widget: a compact tree, not the old circle-of-cards (her
+  // ask, 2026-09-15: "I just want to see the family tree"). A fresh pan/
+  // zoom state per render — never relations.js's module-level treeState —
+  // so working this mini-tree can never move the real Relations-tab tree. ----
+  const famTreeSlot = root.querySelector('#family-tree');
+  const famTreeState = { up: 1, down: 1, scale: 1 };
+  // re-fetch relationships on every rerender, not the Promise.all snapshot
+  // above — a save inside this same tree (confirming a link, editing a
+  // marriage/divorce year) must show up immediately, the same as it does
+  // on the real Relations tab, whose own rerender re-renders the whole page
+  const rerenderFamTree = async () => {
+    const freshRels = await store.listRelationships(ctx.caseId);
+    famTreeSlot.innerHTML = '';
+    renderTree(famTreeSlot, ctx, peopleInCase, freshRels, person.id, rerenderFamTree, { compact: true, state: famTreeState });
+  };
+  if (famTreeSlot) rerenderFamTree();
+  root.querySelector('#compare-btn')?.addEventListener('click', () => {
     const slot = root.querySelector('#compare-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }
     renderCompare(slot, { person, store, onOpen: openPerson });
   });
-  root.querySelector('#year-list-btn').addEventListener('click', () => {
+  root.querySelector('#year-list-btn')?.addEventListener('click', () => {
     const yl = root.querySelector('#year-list');
     yl.hidden = !yl.hidden;
     root.querySelector('#year-list-btn').textContent = yl.hidden ? 'year list ▸' : 'year list ▾';
   });
-  // the old panels (chart numbers, facts grid, contradictions, addresses,
-  // questions, evidence) one tap away — remembered for the session
-  const det = root.querySelector('#details');
-  const detBtn = root.querySelector('#details-btn');
-  const setDetails = (open) => {
-    det.hidden = !open;
-    detBtn.textContent = open ? 'Details ▾' : 'Details ▸';
-    sessionStorage.setItem('c7-details-open', open ? '1' : '0');
-  };
-  setDetails(sessionStorage.getItem('c7-details-open') === '1');
-  detBtn.addEventListener('click', () => setDetails(det.hidden));
 
   // ---- "+ Add": everything that puts information on this person lives in
   // one sheet (her pick, 2026-09-07) — paste, look up, insert family, works.
@@ -482,6 +517,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
     body.appendChild(tools);
   });
   root.querySelector('#add-btn')?.addEventListener('click', openAdd);
+  // the Family widget's own "+ Add family" (her ask, 2026-09-15: "easily
+  // add family") — straight to the Look-up row's "Insert family" button,
+  // already pre-filled with her own name, instead of hunting for it
+  root.querySelector('#fam-add-btn')?.addEventListener('click', () => { openAdd(); setTimeout(() => tools.querySelector('#lk-name')?.focus(), 80); });
   // Enter in the Look up field looks up — not the sheet's first primary button (the paste save)
   tools.querySelector('#lk-name').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -1063,6 +1102,13 @@ function renderEditForm(body, ctx, person) {
     </div>
     <div class="field"><label>Marital status — leave blank to read it from the map (a spouse relationship)</label><input type="text" id="f-marital" value="${esc(person.marital_status)}" placeholder="divorced · widowed · single…"></div>
     <div class="field"><label>Occupation</label><input type="text" id="f-occ" value="${esc(person.occupation)}"></div>
+    <div class="field"><label>Commercial tab — auto-detects from occupation and any existing release/business milestone; override only if it's wrong</label>
+      <select id="f-comm">
+        <option value="" ${person.commercial_override == null ? 'selected' : ''}>Auto</option>
+        <option value="1" ${person.commercial_override === 1 ? 'selected' : ''}>Always show</option>
+        <option value="0" ${person.commercial_override === 0 ? 'selected' : ''}>Always hide</option>
+      </select>
+    </div>
     <div class="field"><label>Notes</label><textarea id="f-notes">${esc(person.notes)}</textarea></div>
     <button class="btn btn-primary" id="save-person-btn">Save</button>
   `;
@@ -1100,6 +1146,7 @@ function renderEditForm(body, ctx, person) {
       nationality: body.querySelector('#f-nat').value || null,
       marital_status: body.querySelector('#f-marital').value || null,
       occupation: body.querySelector('#f-occ').value || null,
+      commercial_override: body.querySelector('#f-comm').value === '' ? null : parseInt(body.querySelector('#f-comm').value, 10),
       notes: body.querySelector('#f-notes').value || null,
     };
     // do not allow duplicates (her ask, 2026-09-11) — renaming into an
