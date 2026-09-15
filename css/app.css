@@ -876,6 +876,16 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .subject-head { display: flex; gap: var(--sp-4); align-items: flex-start; }
 .subject-head > .stack { flex: 1; min-width: 0; }
 
+/* ------------------------------------------------------- Their Story */
+.rel-pair-head { display: flex; flex-direction: column; align-items: center; margin-top: var(--sp-3); }
+.rel-pair-pics { display: flex; }
+.rel-pair-avatar { width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--ink-3); box-shadow: var(--lift-2); cursor: default; position: relative; z-index: 1; }
+.rel-pair-avatar.b { margin-left: -18px; z-index: 0; }
+.rel-pair-names { text-align: center; margin-top: var(--sp-2); }
+.rel-pair-names .title { font-size: 17px; }
+.rel-pair-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
+.lm-story-link { margin-top: 6px; display: inline-block; }
+
 /* ---------------------------------------------------- profile basics */
 .basics-strip { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-2); font-size: 12px; color: var(--text-2); align-items: center; }
 .basics-strip .sep { color: var(--line); }

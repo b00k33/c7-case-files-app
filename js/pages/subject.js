@@ -448,7 +448,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // below; it only runs on a tap, long after this render has finished)
   const addFromEmpty = () => { openAdd(); setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80); };
   await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, onAdd: addFromEmpty, store, people: peopleInCase });
-  renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson, onAdd: addFromEmpty });
+  renderCircle(root.querySelector('#circle'), { person, rels, people: peopleInCase, data: lifeData, onOpen: openPerson, onAdd: addFromEmpty, onStory: (relId) => ctx.navigate(`#/relationship/${relId}`) });
   root.querySelector('#compare-btn').addEventListener('click', () => {
     const slot = root.querySelector('#compare-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }

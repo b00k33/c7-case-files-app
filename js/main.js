@@ -13,6 +13,7 @@ const ROUTES = {
   review: () => import('./pages/review.js'),
   questions: () => import('./pages/questions.js'),
   subject: () => import('./pages/subject.js'),
+  relationship: () => import('./pages/relationship.js'),
   video: () => import('./pages/video.js'),
   fun: () => import('./pages/fun.js'),
   contradictions: () => import('./pages/contradictions.js'),
@@ -29,10 +30,10 @@ const TITLES = {
   evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
   fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', people: 'People', inbox: 'Inbox',
-  compare: 'Compare',
+  compare: 'Compare', relationship: 'Their Story',
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav
-const INSIDE_CASE = new Set(['subject', 'family', 'event', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
+const INSIDE_CASE = new Set(['subject', 'relationship', 'family', 'event', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
 const HOME_ROUTE = 'cases';
 
 const connectRoot = document.getElementById('connect-root');

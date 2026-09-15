@@ -1495,6 +1495,58 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 17. Their Story — a relationship's own timeline (v99, 2026-09-15)
+
+Her ask, looking at Camilla's profile with Charles's family tree drawn on
+it: "i want to create boards and timelines of relationships like camilla
+and charles, when they met, etc etc milestones of relationship plus
+photos and evidence." A real new concept, not a tweak — the app had a
+timeline for a PERSON (the "Our Story" poster, §13g) but nothing for a
+RELATIONSHIP itself. Explored with a 3-way parallel design workflow, then
+a real two-option visual mock (her own actual Camilla/Charles data, real
+Wikipedia photos); she picked **Option A, a dedicated page**, and **the
+real thing, not a thin first pass**.
+
+**Data model.** `event.relationship_id` (nullable, via `ADDED_COLUMNS` in
+`db.js` — same mechanism `photo_path`/`wikidata_id` arrived through for
+the person poster) lets a milestone belong to a relationship instead of a
+person. Deliberately NOT reusing `event.person_id` for this: Camilla has
+two marriages on file (Andrew Parker Bowles, then Charles), and a
+person-scoped event can't say which one a mark belongs to — the exact
+trap one of the three design proposals flagged and the others didn't
+avoid. "Married"/"Separated" marks are synthesized straight from
+`relationship.start_date`/`end_date` (the same field the tree's "m. 2005"
+marker already reads and writes) UNLESS a typed milestone already covers
+that year and kind — so a hand-written "Married" with its own note and
+evidence is never shadowed by the bare date underneath it, and the date
+is never stored in two places for one fact.
+
+**Page.** New route `#/relationship/:id` (`js/pages/relationship.js`):
+both portraits overlapping at the top, the pair's name, `verdictChips(a,
+b)` (reused as-is from the person poster), then their own spine —
+`buildRelationshipLine`/`renderRelationshipLine` in `lifemap.js`, sharing
+`renderLifeLine`'s CSS and card shape but NOT its code: a relationship has
+no birth date, so there's no personal year to tone the spine with (every
+segment stays neutral rather than faking one), and a milestone's picture
+is its own uploaded photo — never a spouse's face or a Wikidata fetch,
+since the poster's `resolveMarkPicture` is Wikidata-specific and wouldn't
+show a hand-added one. `+ Milestone` opens a drawer: what happened, kind
+(met / engaged / married / separated / reunited / other), a date at its
+honest precision, where, notes ("notes / evidence" — a note, or where it
+comes from, same convention as the alt-birthday flow), and a photo
+(`compressImage` + `storeEvidenceFile`, same path the profile picture
+uses). Tapping a typed mark shows the full detail with Edit/Delete;
+tapping a synthesized "Married"/"Separated" mark opens the same
+year-editor the tree's own marker already uses — one place, not two.
+
+**Entry points.** A small "Their Story →" link on a spouse card in
+`renderCircle` (`lifemap.js`, new `onStory` param — only where `onStory`
+is passed, so a caller that doesn't wire it, if any is added later, loses
+nothing), and the same link inside the Tree's marriage-year drawer
+(`renderEditMarriageYear` in `relations.js`) — the two places she's
+already looking at a couple, not a new button competing for attention
+anywhere else.
+
 ## 16. Wikipedia first, everywhere data comes in (v98, 2026-09-14)
 
 Her ask, looking at the Relations toolbar (`+ Person`, `+ From Wikipedia`,

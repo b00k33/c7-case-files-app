@@ -300,6 +300,97 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
   el.appendChild(poster);
 }
 
+// ---- Their Story: a relationship's own timeline (her ask, 2026-09-15 —
+// "boards and timelines of relationships like camilla and charles, when
+// they met, etc etc milestones of relationship plus photos and evidence").
+// A relationship has no birth date, so there is no personal year to tone
+// the spine with — every segment stays neutral (lm-t-none) rather than
+// faking one. Reuses the poster's own CSS and card shape; not buildLifeLine
+// itself, because a milestone's picture is its own uploaded photo, never a
+// spouse's face or a Wikidata fetch.
+export const REL_KINDS = [
+  ['met', 'Met', '☆'],
+  ['engaged', 'Engaged', '◈'],
+  ['married', 'Married', '♥'],
+  ['separated', 'Separated', '✕'],
+  ['reunited', 'Reunited', '↻'],
+  ['other', 'Other', '◆'],
+];
+const REL_KIND_SET = new Set(REL_KINDS.map(([k]) => k));
+const REL_GLYPH = Object.fromEntries(REL_KINDS.map(([k, , g]) => [k, g]));
+
+/**
+ * The relationship's own marks: her typed milestones (met, engaged, a
+ * custom "on-and-off" note — each an event with relationship_id set, never
+ * person_id) plus "Married" / "Separated" synthesized from the
+ * relationship's own start_date/end_date — the same record the tree's "m.
+ * 2005" marker and each person's own poster already read — UNLESS a typed
+ * milestone already covers that year and kind, so a hand-written "Married"
+ * with its own evidence is never shadowed by the bare date underneath it.
+ */
+export function buildRelationshipLine({ relationship, events }) {
+  const marks = [];
+  for (const ev of events || []) {
+    if (ev.theory_id) continue;
+    const y = eventYear(ev);
+    if (y == null) continue;
+    const kind = REL_KIND_SET.has(ev.kind) ? ev.kind : 'other';
+    marks.push({ id: ev.id, year: y, kind, glyph: REL_GLYPH[kind], title: ev.title, date: ev.date, precision: ev.date ? (ev.date_precision || 'day') : 'year', event: ev });
+  }
+  const sy = yearOf(relationship.start_date), ey = yearOf(relationship.end_date);
+  if (sy && !marks.some((m) => m.kind === 'married' && m.year === sy)) marks.push({ id: `rel:${relationship.id}:start`, year: sy, kind: 'married', glyph: REL_GLYPH.married, title: 'Married', date: relationship.start_date, precision: 'year', event: null });
+  if (ey && !marks.some((m) => m.kind === 'separated' && m.year === ey)) marks.push({ id: `rel:${relationship.id}:end`, year: ey, kind: 'separated', glyph: REL_GLYPH.separated, title: 'Separated', date: relationship.end_date, precision: 'year', event: null });
+  marks.sort((a, b) => a.year - b.year || String(a.date || '').localeCompare(String(b.date || '')));
+  return { marks };
+}
+
+async function resolveRelMarkPicture(m) {
+  if (!m.event) return null;
+  const src = m.event.photo_path ? await resolveAssetUrl(m.event.photo_path, 'image/jpeg') : m.event.photo_url;
+  return src && await preloadImage(src) ? { src, label: m.title } : null;
+}
+
+/** The relationship's own spine — same card shape as renderLifeLine, no outcome judging, no personal-year tone. */
+export async function renderRelationshipLine(el, data, { onPick, onAdd = null } = {}) {
+  el.innerHTML = '';
+  if (!data.marks.length) {
+    el.appendChild(emptyState({ missing: 'No milestones yet.', why: 'When they met, got engaged, married — whatever you know, each with its own evidence.', action: onAdd ? '+ Milestone' : null, onAction: onAdd }));
+    return;
+  }
+  await Promise.all(data.marks.map(async (m) => { m._pic = await resolveRelMarkPicture(m); }));
+  const poster = document.createElement('div');
+  poster.className = 'lm-poster';
+  data.marks.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = `lm-poster-row ${i % 2 ? 'side-b' : 'side-a'}`;
+    const seg = document.createElement('i');
+    seg.className = 'lm-spine-seg lm-t-none';
+    const node = document.createElement('div');
+    node.className = 'lm-poster-node';
+    node.innerHTML = '<span class="lm-py lm-t-none">·</span>';
+    node.title = String(m.year);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'lm-mark';
+    card.dataset.id = m.id;
+    card.innerHTML = `
+      <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
+      <div class="lm-poster-body">
+        <div class="lm-poster-title">${esc(m.title)}</div>
+        <div class="lm-poster-date mono">${fmtWhen(m)}</div>
+      </div>`;
+    card.title = `${m.title} · ${m.year}`;
+    card.addEventListener('click', () => {
+      poster.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
+      card.classList.add('on');
+      onPick(m);
+    });
+    row.append(seg, node, card);
+    poster.appendChild(row);
+  });
+  el.appendChild(poster);
+}
+
 /** The verdict chips for a pair: animals (STYLE §5 glyph + word), her GG33 life-path tier, the Western elements (lighter). */
 export function verdictChips(a, b) {
   const out = [];
@@ -360,7 +451,7 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome }) {
 }
 
 /** The circle: spouse cards first (married → ended, both personal years), then family, each with the verdict chips. */
-export async function renderCircle(el, { person, rels, people, data, onOpen, onAdd = null }) {
+export async function renderCircle(el, { person, rels, people, data, onOpen, onAdd = null, onStory = null }) {
   el.innerHTML = '';
   const byId = new Map((people || []).map((p) => [p.id, p]));
   const items = [];
@@ -410,6 +501,14 @@ export async function renderCircle(el, { person, rels, people, data, onOpen, onA
     card.innerHTML = `<div class="lm-card-body"><div class="who">${esc(other.display_name)}</div><div class="rel">${line}</div><div class="lm-verdicts"></div></div>`;
     card.prepend(face);
     card.querySelector('.lm-verdicts').append(...verdictChips(person, other));
+    if (rel === 'spouse' && onStory) {
+      const story = document.createElement('button');
+      story.type = 'button';
+      story.className = 'linklike brass lm-story-link';
+      story.textContent = 'Their Story →';
+      story.addEventListener('click', (e) => { e.stopPropagation(); onStory(r.id); });
+      card.querySelector('.lm-card-body').appendChild(story);
+    }
     card.title = `${other.display_name} — open`;
     card.addEventListener('click', () => onOpen(other.id));
     return card;

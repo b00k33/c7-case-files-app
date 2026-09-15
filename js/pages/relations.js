@@ -1006,7 +1006,9 @@ function renderEditMarriageYear(body, ctx, rel, coupleLabel, rerender) {
       <button class="btn btn-primary" id="my-save">Save</button>
       ${current ? '<button class="btn btn-ghost" id="my-clear">Clear</button>' : ''}
     </div>
+    <button type="button" class="linklike brass" id="my-story" style="margin-top:16px">Their Story — met, engaged, milestones and evidence →</button>
   `;
+  body.querySelector('#my-story').addEventListener('click', () => { ctx.closeDrawer(); ctx.navigate(`#/relationship/${rel.id}`); });
   body.querySelector('#my-save').addEventListener('click', async () => {
     const btn = body.querySelector('#my-save');
     const raw = body.querySelector('#my-year').value.trim();

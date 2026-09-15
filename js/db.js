@@ -309,6 +309,7 @@ const ADDED_COLUMNS = [
   ['person', 'name_needs_formatting', 'INTEGER DEFAULT 0'], // names (2026-09-13): still eligible for a Wikidata relabel even after the app's own capitaliser has cased it — see lookup.js's looksUnformatted
   ['event', 'photo_path', 'TEXT'],       // the poster (2026-09-13): the place/school/award's own picture, fetched once from Wikipedia and cached as an asset
   ['event', 'photo_url', 'TEXT'],        // where it came from, or a remote fallback
+  ['event', 'relationship_id', 'TEXT'],  // Their Story (2026-09-15): a milestone that belongs to a relationship, not a person — lets a couple's own timeline exist even when one of them has more than one marriage on file
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

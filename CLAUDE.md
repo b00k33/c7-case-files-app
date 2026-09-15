@@ -387,6 +387,31 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-15 — Their Story, a relationship's own timeline (v99, SPEC
+§17).** The bigger, fuzzier ask flagged in the v98 entry below (a
+relationship-timeline feature, raised in the same quick-succession burst
+of messages) got its own proper design pass rather than a guess: a
+3-agent parallel Workflow produced three independently-grounded
+proposals (each required to read `schema.sql`, `lifemap.js`, `relations.js`
+and `subject.js` first, not assume), then a real two-option visual mock
+built with her own Camilla/Charles data and real Wikipedia photos — not
+a described choice, an actual rendered comparison — before asking which
+one via popup. She picked "a page just for them" and "build the real
+thing," both explicitly, so no further scoping questions were asked once
+those two were answered; only implementation details (which of three
+data-model shapes, exactly where the entry points sit) stayed mine to
+decide, per this project's established convention of not re-asking what's
+already settled. The three proposals disagreed on the data model, and
+the one this session picked (a nullable `event.relationship_id`, reusing
+the poster's own `event` row shape instead of a new table) was chosen
+specifically because Camilla's own case has a prior marriage on file
+(Andrew Parker Bowles before Charles) — a `person_id`-only design
+couldn't say which marriage a milestone belonged to, and a proposal that
+didn't test against her actual data wouldn't have caught that. Verified
+live against that same real multi-marriage case (not a clean mock) before
+calling it done — real messy data is the actual stress test, a tidy
+invented example would have passed either design.
+
 **2026-09-14 — Wikipedia-first data entry, two pages at once (v98, SPEC
 §16).** She named the same complaint from two different screens within a
 few messages of each other — the Relations toolbar's `+ Person / +
