@@ -40,6 +40,10 @@ export function pyTone(v) {
   if (v === 11 || v === 22 || v === 33) return 'violet';
   return v == null ? 'none' : 'grey';
 }
+// her own extension of "master numbers stay unreduced" (11/22/33): 13, 28,
+// 31 are "submaster" — still reduced to a final digit, but she wants the
+// raw total kept visible and the spine badge sized up, same as a master year
+const SUBMASTER_TOTALS = [13, 28, 31];
 
 // ---- her GG33 life-path compatibility tiers, read from the first number's side ----
 const LP = {
@@ -274,8 +278,12 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
     seg.className = `lm-spine-seg lm-t-${tone}`;
     const node = document.createElement('div');
     node.className = 'lm-poster-node';
-    node.innerHTML = py != null ? `<span class="lm-py lm-t-${tone}">${py}</span>` : `<span class="lm-py lm-t-none">·</span>`;
-    node.title = py != null ? `${m.year} · personal year ${y.total}/${py}${y.master ? ' (master)' : ''} — ${PY_GLOSS[py] || ''}` : String(m.year);
+    const isSubmaster = py != null && SUBMASTER_TOTALS.includes(y.total);
+    const isSpecial = py != null && (y.master || isSubmaster);
+    node.innerHTML = py != null
+      ? `<span class="lm-py stack${isSpecial ? ' special' : ''} lm-t-${tone}"><span class="lm-py-raw">${y.total}</span><span class="lm-py-reduced">${py}</span>${y.master ? '<span class="lm-py-star">★</span>' : ''}</span>`
+      : `<span class="lm-py dot lm-t-none">·</span>`;
+    node.title = py != null ? `${m.year} · personal year ${y.total}/${py}${y.master ? ' (master)' : isSubmaster ? ' (submaster)' : ''} — ${PY_GLOSS[py] || ''}` : String(m.year);
     const card = document.createElement('button');
     card.type = 'button';
     card.className = `lm-mark lm-o-${m.outcome || 'none'}`;
@@ -367,7 +375,7 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
     seg.className = 'lm-spine-seg lm-t-none';
     const node = document.createElement('div');
     node.className = 'lm-poster-node';
-    node.innerHTML = '<span class="lm-py lm-t-none">·</span>';
+    node.innerHTML = '<span class="lm-py dot lm-t-none">·</span>';
     node.title = String(m.year);
     const card = document.createElement('button');
     card.type = 'button';
@@ -442,7 +450,7 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome }) {
         ? `<span class="line" style="flex-direction:column;align-items:flex-start;gap:2px"><b>${m.glyph} ${esc(m.title)} · ${m.year}</b>${m.cluster.map((x) => `<span style="display:flex;gap:8px;align-items:baseline"><span class="mono dim" style="width:88px;flex:none">${fmtWhen(x)}</span><span>${esc(x.title)}</span>${x.outcome ? outcomeChip(x) : ''}</span>`).join('')}</span>`
         : `<span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}</span>`}
       <span class="k">their year</span>
-      <span class="line">${py != null ? `<span class="lm-py lm-t-${pyTone(py)}">${py}</span><span>personal year ${y.total}/${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}<span class="mono dim">${yearLine}</span></span>
+      <span class="line">${py != null ? `<span class="lm-py dot lm-t-${pyTone(py)}">${py}</span><span>personal year ${y.total}/${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}<span class="mono dim">${yearLine}</span></span>
       ${spouse ? '<span class="k">the two</span><span class="line" id="lm-pair"></span>' : ''}
       ${m.event ? `<span class="k">judge</span><span class="line"><button type="button" class="lm-v lm-v-best lm-tag ${m.tagged === 'worked' ? 'on' : ''}" data-oc="worked">✓ worked</button><button type="button" class="lm-v lm-v-enemy lm-tag ${m.tagged === 'failed' ? 'on' : ''}" data-oc="failed">✕ failed</button>${m.inferred ? '<span class="dim">from the record — tap to overrule</span>' : m.tagged ? '<span class="dim">your call — tap again to clear</span>' : ''}</span>` : `<span class="k">judge</span><span class="line dim">${m.cluster ? 'judge each one from the year list' : 'from the relationship record'}</span>`}
     </div>`;

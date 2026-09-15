@@ -387,6 +387,36 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-15 — the spine badge, redesigned (v101, SPEC §19).** §18 shipped
+with one flagged, unconfirmed judgment call named in its own summary to
+her; her reply was that exact paragraph quoted back with "- improve the
+ui" appended. Checked `feedback_improve_ui_means_quiet_sheet.md` before
+assuming it applied — it's an LCM/pharmacy-specific convention about a
+desktop table density treatment, a different app and a different meaning
+for the same three words — then read the instruction plainly in its own
+context instead. A 3-agent parallel Workflow produced three real,
+grounded badge-design candidates; a real mock (her own token colours,
+built as a published Artifact since the popup preview can't load the
+app's stylesheet) went up before asking. She picked "Stacked fraction"
+from four options. Mid-build, same sitting, a second message arrived
+while I was reading the CSS to plan the implementation: "make the
+submaster larger" — applied as asked, then extended, disclosed but
+unconfirmed, to master years too (11/22/33 alongside the submaster
+13/28/31), reasoning that a small master badge beside a now-larger
+submaster one would read as a bug rather than a deliberate choice, since
+both are already told apart by content (repeated number + star vs. a
+genuinely different raw/reduced pair) and didn't need size doing the same
+job twice.
+
+**A disclosed judgment call is a to-do, not a closed question, until she
+actually answers it.** §18 named the 24px-badge limitation explicitly
+in the summary sent to her rather than silently picking a side — she
+answered it in her very next message, by quoting the flagged paragraph
+straight back. Naming a trade-off doesn't settle it; it just tells her
+where to aim the next reply, and the next reply after a flagged call
+should be read as answering it even when she doesn't say so explicitly
+(here: my own words, plus three words appended).
+
 **2026-09-15 — the Profile page becomes widgets (v100, SPEC §18), a
 synth22 batch.** Four requests batched under her own protocol: a redesign
 of the Profile tab's family/tree area ("code3 code7" — checked this

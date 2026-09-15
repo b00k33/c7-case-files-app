@@ -1580,6 +1580,58 @@ marriage-year line, drawn only when BOTH a marriage year and an end date
 are on record — no quiet "add" dot, since the overwhelming majority of
 married couples on a tree never divorce.
 
+## 19. The spine badge, redesigned — raw AND reduced, always (v101, 2026-09-15)
+
+§18's one flagged, unconfirmed judgment call — the life-line poster's tiny
+24px spine badges still showing only the final reduced digit — got her
+answer: she quoted that exact paragraph back with "- improve the ui"
+appended. Not the LCM/pharmacy "improve the ui = quiet sheet" convention
+(checked `feedback_improve_ui_means_quiet_sheet.md` directly rather than
+pattern-matching the phrase — it's a different app's table-density
+convention, unrelated here); read plainly, in context, as "the badge
+should show both."
+
+**Reframed before designing.** Raw ≠ reduced for MOST years, not just the
+rare submaster/master ones — the raw total is a multi-step pre-reduction
+sum almost always ≥ 10 (e.g. "18/9"). The redesign had to read well for
+the ordinary case, not just the special ones. A 3-agent parallel Workflow
+produced three grounded candidates against this brief; a real mock (her
+own token colours, not the generic widget palette) went up as an Artifact
+before asking. She picked **"Stacked fraction"**: a two-line badge, raw
+small/muted on top, reduced bold/toned below, no cramming two numbers
+into one line.
+
+**`.lm-py` split into two shapes** (`css/app.css`). `.dot` — the original
+24px circle, unchanged — stays for the relationship-poster's "no personal
+year" case and the why-card's single-digit inline badge (`js/lifemap.js`:
+`renderRelationshipLine`, `renderWhyCard`). `.stack` is new: a 28×34
+rounded stadium, `.lm-py-raw` (8px, muted) over `.lm-py-reduced` (15px,
+bold, tone colour) — this is what `renderLifeLine` now emits for every
+personal-year node. A submaster year (13/28/31, `SUBMASTER_TOTALS` in
+`lifemap.js` — her own numerology term, distinct from true master numbers
+11/22/33) or a real master year gets `.stack.special` (34×40, bigger
+digits); a master year additionally gets a small `--brass` star badge
+(`.lm-py-star`) in the corner instead of repeating the unreduced number a
+second time, since master numbers are already visually distinguished by
+staying unreduced. Gold stays reserved for the life path number alone
+(STYLE §1) — the star uses `--brass`, not `--gold`.
+
+**Her mid-build follow-up, same sitting: "make the submaster larger."**
+Applied the `.special` size bump to submaster years as asked. Extended it
+to master years too, unasked but disclosed here: leaving master at the
+base 28×34 size next to an enlarged submaster badge would read as an
+inconsistency or a bug, not a deliberate distinction — both are already
+told apart by content (raw digit vs. repeated master number + star), so
+size didn't need to also carry that distinction. `.lm-poster-row`'s node
+grid track bumped 40px → 44px (mobile and desktop) to give the bigger
+badge room without crowding its neighbours.
+
+Verified live: an ordinary year (Charles III, 2005, PY 32/5) at base
+size, no star; a real submaster (Camilla, 2005, PY 31/4) at `.special`
+size; a constructed master-year test case (PY 22/22) showing the star,
+confirmed in both day (`--brass` = teal) and night (`--brass` = gold)
+themes, then the test event removed. 44/44 in `tests/browser-tests.html`.
+
 ## 17. Their Story — a relationship's own timeline (v99, 2026-09-15)
 
 Her ask, looking at Camilla's profile with Charles's family tree drawn on

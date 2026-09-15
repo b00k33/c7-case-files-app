@@ -770,7 +770,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
    above/below) — her own words, the one deliberate exception to one
    layout everywhere; the retired ribbon + legend line are gone. */
 .lm-poster { display: flex; flex-direction: column; margin-top: var(--sp-2); }
-.lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 96px; }
+.lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 44px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 96px; }
 .lm-spine-seg { grid-column: 2; position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; transform: translateX(-50%); border-radius: 2px; }
 .lm-poster-row:first-child .lm-spine-seg { top: 50%; }
 .lm-poster-row:last-child .lm-spine-seg { bottom: 50%; }
@@ -792,7 +792,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
 @media (min-width: 641px) {
   .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding-bottom: var(--sp-2); gap: 0; }
-  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 40px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
+  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 44px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
   .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 4px; width: auto; transform: translateY(-50%); border-radius: 2px; }
   .lm-poster-row:first-child .lm-spine-seg { left: 50%; }
   .lm-poster-row:last-child .lm-spine-seg { right: 50%; }
@@ -802,12 +802,30 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
   .lm-mark { flex-direction: column; text-align: center; max-width: 170px; }
   .lm-poster-title { -webkit-line-clamp: 2; }
 }
-.lm-py { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; font-family: var(--font-mono); font-size: 12px; font-weight: 600; flex: none; background: var(--ink-1); }
-.lm-py.lm-t-gold { color: var(--brass); background: none; }
-.lm-py.lm-t-teal { color: var(--teal); background: none; }
-.lm-py.lm-t-red { color: var(--red); background: none; }
-.lm-py.lm-t-violet { color: var(--violet); background: none; }
-.lm-py.lm-t-grey, .lm-py.lm-t-none { color: var(--text-2); background: none; }
+/* the spine badge (her ask, 2026-09-15: "always show both" raw+reduced,
+   then "improve the ui" once told the old single-digit ring couldn't fit
+   both — three real mocks built and shown, she picked the stacked
+   fraction). ".dot" is the old plain ring, kept for the one case with no
+   number at all (a relationship's spine, which has no personal year).
+   ".stack" is raw (small, muted) over reduced (bold, toned) in a taller
+   stadium; ".special" — a submaster year (13/28/31, her own term) or a
+   kept master (11/22/33) — sizes up further so the rare, meaningful years
+   read as bigger at a glance, not just differently labelled (her follow-up,
+   same conversation: "make the submaster larger"). */
+.lm-py { display: inline-flex; align-items: center; justify-content: center; border: 2px solid currentColor; font-family: var(--font-mono); font-weight: 600; flex: none; position: relative; }
+.lm-py.dot { width: 24px; height: 24px; border-radius: 50%; font-size: 12px; background: none; }
+.lm-py.stack { flex-direction: column; gap: 1px; width: 28px; height: 34px; border-radius: 999px; padding: 2px 1px; background: var(--ink-1); }
+.lm-py.stack.special { width: 34px; height: 40px; }
+.lm-py-raw { font-size: 8px; font-weight: 600; line-height: 1; color: var(--text-3); }
+.lm-py.special .lm-py-raw { font-size: 9.5px; }
+.lm-py-reduced { font-size: 15px; font-weight: 700; line-height: 1; color: currentColor; }
+.lm-py.special .lm-py-reduced { font-size: 18px; }
+.lm-py-star { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--brass); border: 2px solid var(--ink-1); display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: var(--ink-0); }
+.lm-py.lm-t-gold { color: var(--brass); }
+.lm-py.lm-t-teal { color: var(--teal); }
+.lm-py.lm-t-red { color: var(--red); }
+.lm-py.lm-t-violet { color: var(--violet); }
+.lm-py.lm-t-grey, .lm-py.lm-t-none { color: var(--text-2); }
 .lm-why { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2) var(--sp-3); align-items: center; margin-top: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-lg); background: var(--ink-2); font-size: 12px; }
 .lm-why .k { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
 .lm-why .line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); min-width: 0; }
