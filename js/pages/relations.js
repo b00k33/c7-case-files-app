@@ -118,11 +118,10 @@ export async function render(root, ctx, focusId = null) {
             ${genNarrowed ? '<button class="btn btn-ghost btn-sm" id="gen-all">All</button>' : ''}
           </span>` : ''}
         </div>
-        <div class="row" style="gap:8px">
-          <button class="btn btn-ghost btn-sm" id="add-person-btn">+ Person</button>
-          <button class="btn btn-ghost btn-sm" id="add-wiki-btn" title="Look up one or many people on Wikipedia and add them">+ From Wikipedia</button>
-          <button class="btn btn-ghost btn-sm" id="add-rel-btn">+ Relationship</button>
+        <div class="row" style="gap:8px;align-items:center">
+          <button class="btn btn-primary btn-sm" id="add-wiki-btn" title="Search Wikipedia, tick who to add — their family comes with them">+ From Wikipedia</button>
           <button class="btn btn-ghost btn-sm" id="questions-btn" title="The case's questions and the theories answering them">Questions</button>
+          <span class="row" id="add-more-slot" style="gap:8px;margin-left:4px"></span>
         </div>
       </div>
       <div id="map-slot"></div>
@@ -143,10 +142,15 @@ export async function render(root, ctx, focusId = null) {
     </div>
   `;
 
-  root.querySelector('#add-person-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx)));
   root.querySelector('#add-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')));
-  root.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelector('#questions-btn').addEventListener('click', () => ctx.navigate('#/questions'));
+  // the fast path is Wikipedia, full stop (her ask, 2026-09-14: "i only add
+  // from wiki") — typing a name in and hand-linking two people still work,
+  // just as small text, not buttons competing for the same attention
+  const addMoreSlot = root.querySelector('#add-more-slot');
+  addMoreSlot.innerHTML = `<button class="linkish" id="add-type-btn">or type a name in</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
+  addMoreSlot.querySelector('#add-type-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'type')));
+  addMoreSlot.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
   const setGen = (a, b) => { localStorage.setItem(genKey, `${Math.min(a, b)},${Math.max(a, b)}`); render(root, ctx, focus); };
   root.querySelector('#gen-from')?.addEventListener('change', (e) => setGen(Number(e.target.value), genTo));
@@ -156,7 +160,7 @@ export async function render(root, ctx, focusId = null) {
 
   const mapSlot = root.querySelector('#map-slot');
   if (!people.length) {
-    mapSlot.appendChild(emptyState({ missing: 'No people in this case yet.', why: 'Add the first person to start the tree.', action: '+ Person', onAction: () => ctx.openDrawer((body) => renderAddPerson(body, ctx)) }));
+    mapSlot.appendChild(emptyState({ missing: 'No people in this case yet.', why: 'Add the first person to start the tree.', action: '+ From Wikipedia', onAction: () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')) }));
   } else if (view === 'map') {
     await renderZodiacMap(mapSlot, ctx, people, rels);
   } else {
@@ -764,17 +768,18 @@ function renderGrid(gridSlot, ctlSlot, people) {
 // ----------------------------------------------------------------- forms --
 
 /**
- * The "+ Person" drawer: two ways in (her ask, 2026-09-03 — "both"). Type
- * it in, as before; or look one or many names up on Wikipedia and add
- * them together. The + From Wikipedia button opens the same drawer already
- * in look-up mode. `prefillName` (the family door, 2026-09-13: the case's
- * own name, e.g. "Kardashian") starts the search immediately — one tap
- * from an empty family page to a pick list.
+ * The "Add people" drawer: Wikipedia lookup by default (her ask,
+ * 2026-09-14: "i only add from wiki" — every entry point into this drawer
+ * now opens straight to search), with "Type it in" a click away for the
+ * rare private/fictional person Wikidata has never heard of.
+ * `prefillName` (the family door, 2026-09-13: the case's own name, e.g.
+ * "Kardashian") starts the search immediately — one tap from an empty
+ * family page to a pick list.
  */
-export function renderAddPerson(body, ctx, mode = 'type', prefillName = null) {
+export function renderAddPerson(body, ctx, mode = 'lookup', prefillName = null) {
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:12px">Add people</h3>
-    <span class="seg" style="margin-bottom:16px"><button data-m="type" class="${mode === 'type' ? 'active' : ''}">Type it in</button><button data-m="lookup" class="${mode === 'lookup' ? 'active' : ''}">Look up on Wikipedia</button></span>
+    <span class="seg" style="margin-bottom:16px"><button data-m="lookup" class="${mode === 'lookup' ? 'active' : ''}">Look up on Wikipedia</button><button data-m="type" class="${mode === 'type' ? 'active' : ''}">Type it in</button></span>
     <div id="ap-body"></div>
   `;
   body.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => renderAddPerson(body, ctx, b.dataset.m)));

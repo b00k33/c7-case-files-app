@@ -3,7 +3,10 @@ import { inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { searchPeople, fetchProfile, draftFromLookup } from '../lookup.js';
 import { autoCaseName, looksHurried } from '../names.js';
 
-let activeTab = 'describe';
+// Wikipedia first (her ask, 2026-09-14: "i dont use this, i only add from
+// wiki" — said looking at this page's old default, the hand-typed claim
+// form). Lookup is the tab she actually reaches for.
+let activeTab = 'lookup';
 
 const CLAIM_TYPES = [
   { field: 'birth_date', label: 'Birth date (existing person)', needsPerson: true, valueType: 'date' },
@@ -205,9 +208,9 @@ export async function render(root, ctx) {
       </div>
 
       <div class="tabs" id="tabs">
-        <button data-t="describe" class="${activeTab === 'describe' ? 'active' : ''}">Describe a topic</button>
-        <button data-t="paste" class="${activeTab === 'paste' ? 'active' : ''}">Paste text</button>
         <button data-t="lookup" class="${activeTab === 'lookup' ? 'active' : ''}">Look up a record</button>
+        <button data-t="paste" class="${activeTab === 'paste' ? 'active' : ''}">Paste text</button>
+        <button data-t="describe" class="${activeTab === 'describe' ? 'active' : ''}">Describe a topic</button>
       </div>
 
       <div id="tab-body" class="panel"></div>

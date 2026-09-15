@@ -387,6 +387,29 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-14 — Wikipedia-first data entry, two pages at once (v98, SPEC
+§16).** She named the same complaint from two different screens within a
+few messages of each other — the Relations toolbar's `+ Person / +
+From Wikipedia / + Relationship`, then Import's "Describe a topic" tab —
+both times: "I don't use this, I only add from wiki." Two screenshots,
+same underlying problem, so it got one fix across both pages rather than
+treating them as separate requests. **Demoted, not deleted:** manual
+entry (typing a name, hand-linking two people, Import's dropdown claim
+form) still works everywhere it did before — just as small text after
+the one primary button, or a tab that's no longer first — because this
+app also serves fictional/private cases Wikidata has never heard of, and
+her "I only add from wiki" was a statement about HER current workflow on
+a real, sourced case, not a request to remove a capability the app
+needs elsewhere. When a request would delete something with a real,
+different use case elsewhere in the app, demote first; only actually
+remove if she says so after seeing the demoted version and still not
+missing it. Also: this session's mid-turn messages arrived faster than
+usual (three requests in quick succession, one of them — a relationship-
+timeline feature — a genuinely new, bigger idea) without her invoking
+"synth22" by name; treated it in that spirit anyway — finished the
+clear, low-risk part immediately rather than making her wait on it while
+the bigger, fuzzier ask got scoped separately.
+
 **2026-09-13 — the case stamp, reused three places (v97, SPEC §15).**
 "i like the case stamp. i want more of that in the app" — a durable like
 about Review's "CASE REVIEWED" moment, not a bug or a complaint. Asked

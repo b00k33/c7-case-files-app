@@ -1495,6 +1495,44 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 16. Wikipedia first, everywhere data comes in (v98, 2026-09-14)
+
+Her ask, looking at the Relations toolbar (`+ Person`, `+ From Wikipedia`,
+`+ Relationship`, `Questions`): "i want to make inputting data easier...
+just a fast button to add relationships from wikipedia instead of these
+options... just use wiki to download info." Then, looking at Import's
+"Describe a topic" tab (its old default): "i dont use this, i only add
+from wiki." Same complaint from two different pages — she never hand-types
+a name, a date, or a relationship; Wikipedia lookup is the only path she
+actually uses, and the manual options were just clutter between her and
+it.
+
+**Relations page.** `+ Person` and `+ From Wikipedia` were already the
+SAME drawer (`renderAddPerson`) — the first just opened it on the "Type
+it in" tab, the second on "Look up on Wikipedia." That redundancy, plus
+`+ Relationship` as a third, separate button, is what read as "these
+options." Collapsed to one primary, bold button — `+ From Wikipedia` —
+that opens straight into search, no tab click needed (the drawer's
+default `mode` flipped from `'type'` to `'lookup'`, and its own two tabs
+reordered to match). `+ Person`'s manual path and `+ Relationship` still
+exist — capability isn't gone, a private or fictional person still needs
+a way in — but demoted to small underlined text after the primary button
+("or type a name in" · "link two people"), matching `.linkish` styling
+used elsewhere for low-priority actions. The empty-tree state's own
+action button changed the same way.
+
+**Import page.** Its three tabs — "Describe a topic" (a hand-filled
+dropdown form: pick a claim type, fill fields, submit), "Paste text"
+(regex-parsed, not Wikipedia), "Look up a record" (Wikidata facts for an
+existing person) — defaulted to "Describe a topic," the one she said she
+never uses. Reordered so "Look up a record" leads and is the default
+active tab; the other two are still there, just no longer first.
+
+Nothing was deleted on either page — every manual path she doesn't use
+today still works for the day she (or a future case) needs it, it's just
+no longer competing with the one button she actually reaches for. 44/44
+tests pass.
+
 ## 15. The case stamp, reused (v97, 2026-09-13)
 
 Her reaction to the Review page's "CASE REVIEWED" stamp: "i like the case
