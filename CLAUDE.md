@@ -387,6 +387,24 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-17, later — the shared empty state, redesigned (v103, SPEC
+§21).** "improve ui. give me several options," looking at Review's own
+empty queue card. This is a TASTE call, not a competence call (per the
+2026-09-16 standing rule below it) — three real candidates went up as
+AskUserQuestion inline previews before anything was built, same as every
+other visible-UI change on this project. Worth naming explicitly: **a
+component reused across nearly every page in the app (`emptyState()`, used
+on Cases/People/Review/Board/Evidence/the life line and more) is a bigger
+blast radius than the one screen she happened to be looking at when she
+asked** — the screenshot she sent was Review's, but the actual change
+touches every "nothing here yet" moment in the app at once. Recognising
+that scope early (rather than assuming "just fix this screen") is what
+made this the right thing to build ONE shared redesign for, not a
+Review-specific tweak. Her "show me" answer was read the same way the
+2026-09-07 night entry below already documents — stop asking, build the
+recommended option — without needing to ask her to repeat that instruction
+a second time in this same session's newer context.
+
 **2026-09-17 — four unrelated small requests, one Workflow, zero questions
 asked (v102, SPEC §20).** A synth22 batch: zodiac on the life-line why-card,
 People-tab "+ Person," two overflow bugs, and a Wikidata "list of awards"

@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 21. The empty state, redesigned — "editorial calm" (v103, 2026-09-17)
+
+Her ask, looking at Review's own "The review queue is empty" card: "improve ui. give me several options." This is the ONE shared `emptyState()` component (`js/indicators.js`, `.empty-state` in `css/app.css`) used everywhere the app has nothing to show — Cases, People, Review, Board, Evidence, the life line, and more — so any redesign here changes the whole app at once, not just the screen she was looking at. Three real candidates built against the actual Review-queue-empty content and the app's real day-theme tokens (not the generic mock palette): an icon-led card, a no-icon "editorial calm" treatment leaning on typography and a thin rule, and a minimal left-accent-stripe refinement of the existing card. Shown via the popup's inline previews; her answer was "show me" — this project's own established signal to stop asking and build the recommended option (`feedback_popup_previews_inline` / this file's 2026-09-07 CLAUDE.md entry) — so **editorial calm** shipped without a further round.
+
+**The shape**: a thin 32px rule, a bold 16px headline, a muted 13px "why" line, a second thin rule (only when there's an action), then the action as a small uppercase teal link — never a ghost button — centered rather than left-aligned. No icon, so every existing call site needed zero changes to its own arguments; `emptyState({missing, why, action, onAction})`'s signature is unchanged.
+
+**One bug fixed in passing, found while rewriting the exact lines it lived in**: the old markup printed `<p class="empty-why">${why}</p>` unconditionally — a call site with no `why` (e.g. Commercial's "This person could not be found") would have literally rendered the word "undefined" beneath the headline. `why` is now conditional, only rendered when given.
+
+Verified live across three genuinely different contexts (a narrow Review panel, a wide Evidence panel, both light and dark theme) rather than just the isolated comparison mock, since a centered layout that reads well in a small square card can still look lost in a much wider real panel — it read well in all three. 44/44 in `tests/browser-tests.html`.
+
 ## 20. Zodiac on the why-card, People-tab "+ Person", two overflow fixes, a Wikipedia awards-list link (v102, 2026-09-17)
 
 A synth22 batch of four unrelated small requests, collected under her own trigger and built as one pass once she said "work on all of the above." Ultracode was on, so each item's design questions were resolved by a background research Workflow (4 parallel read-only agents, one per item) before any code was touched — every open question came back answered with a concrete, grounded recommendation, so nothing needed asking: per the 2026-09-16 standing rule ("build competence calls, ask only taste calls"), this batch was all competence calls.

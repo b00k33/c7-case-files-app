@@ -207,14 +207,22 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* ---------------------------------------------------------- empty state */
 
 .empty-state {
-  padding: var(--sp-5) var(--sp-4);
+  padding: var(--sp-6) var(--sp-4);
   background: var(--ink-1);
   border-radius: var(--r-lg);
-  text-align: left;
-  display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start;
+  text-align: center;
+  display: flex; flex-direction: column; gap: var(--sp-2); align-items: center;
 }
-.empty-missing { color: var(--text); font-weight: 600; margin: 0; }
-.empty-why { color: var(--text-3); margin: 0; font-size: 12px; }
+.empty-rule { width: 32px; height: 1px; background: var(--line); flex: none; }
+.empty-missing { color: var(--text); font-weight: 700; font-size: 16px; line-height: 1.5; letter-spacing: -0.01em; margin: 0; max-width: 320px; }
+.empty-why { color: var(--text-3); margin: 0; font-size: 13px; line-height: 1.6; max-width: 280px; }
+.empty-action {
+  appearance: none; background: none; border: none; padding: 0; margin-top: var(--sp-1);
+  font-family: inherit; cursor: pointer;
+  font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--brass); text-decoration: none;
+}
+.empty-action:hover, .empty-action:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ----------------------------------------------------------- indicators */
 

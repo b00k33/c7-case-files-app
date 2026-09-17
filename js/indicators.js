@@ -351,16 +351,27 @@ export function relationGlyph(kind, { unsettled = false } = {}) {
 
 // --- empty state, per STYLE.md section 8: missing / why / one action ----
 
+// "Editorial calm" (her pick, 2026-09-17, from 3 real candidates after
+// "improve ui. give me several options." on the Review page): a thin rule
+// above and below carries the moment instead of an icon, so this one
+// component stays right for every "nothing here yet" surface in the app
+// (Cases, People, Review, Board, evidence, …) without a per-page icon to
+// maintain. `why` stays optional — some call sites (a person not found)
+// never had one, and the old unconditional `${why}` literally printed the
+// word "undefined" there.
 export function emptyState({ missing, why, action, onAction }) {
   const el = document.createElement('div');
   el.className = 'empty-state';
   el.innerHTML = `
+    <div class="empty-rule"></div>
     <p class="empty-missing">${missing}</p>
-    <p class="empty-why">${why}</p>
+    ${why ? `<p class="empty-why">${why}</p>` : ''}
+    ${action ? '<div class="empty-rule"></div>' : ''}
   `;
   if (action) {
     const btn = document.createElement('button');
-    btn.className = 'btn btn-ghost';
+    btn.type = 'button';
+    btn.className = 'empty-action';
     btn.textContent = action;
     if (onAction) btn.addEventListener('click', onAction);
     el.appendChild(btn);
