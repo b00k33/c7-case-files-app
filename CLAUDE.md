@@ -387,7 +387,26 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-17, latest — the nav rail's collapsed state gets its labels back
+**2026-09-18, latest — ask28: backfill on Insert family, one true "to
+review" count (v111, SPEC §29).** "ask28" on a screenshot of Sofía
+Vergara's profile: blank Demographics next to an "11 to review →" pill and
+a "Family inserted" banner. Rather than re-running the historical 28
+questions, treated "ask28" as an invocation of the same batched-question
+mechanism on fresh friction — delegated a grounding investigation first
+(4 hypotheses, each required to cite exact file:line in the real code)
+and only then asked exactly 4 questions from what it found, matching
+[[project_c7_ask28_stage_plan]]'s own convention. Two of the four needed
+code (backfill the anchor's own demographics from the same Wikidata item
+already supplying the relatives; make the "to review" pill count
+unconfirmed relationships the same way Review's real queue does), two
+were "confirmed fine as-is" and just needed recording so they don't get
+re-litigated. Worth remembering: when a terse process name is invoked
+without restating the questions, look up what that name has meant in this
+project before, rather than treating it as a request to repeat the
+original ritual verbatim — the memory that names the process is also the
+one that defines what invoking it again should actually do.
+
+**2026-09-17, later — the nav rail's collapsed state gets its labels back
 (v110, SPEC §28).** A screenshot of the narrow (641-1199px) `#nav-rail` plus
 one word: "improve." No stated complaint — the screenshot WAS the
 complaint. Recognised it from a cross-project memory, not from anything
@@ -406,7 +425,7 @@ whether she's already answered this exact class of complaint elsewhere
 first, and if a directly-reusable pattern already exists in the same
 codebase, that's a strong signal it's a competence call, not a taste one.
 
-**2026-09-17, later — the life-line mark reorganised into 3 widgets (v109,
+**2026-09-17, still later — the life-line mark reorganised into 3 widgets (v109,
 SPEC §27).** "i like the details but reorganise it, give me 3 widgets," on a
 screenshot of the v108 badge. Same "3 widgets" phrase she used for the
 subject header (SPEC §23) — but this time the 3 candidates deliberately
@@ -439,7 +458,7 @@ offset badges land inside their own zone's padding cushion, nowhere near the
 card's outer edge — the exact same reasoning, re-applied, that fixed the
 v106 clipping bug two entries below.
 
-**2026-09-17, still later — the life-line badge grows a year zodiac (v108, SPEC
+**2026-09-17, even later — the life-line badge grows a year zodiac (v108, SPEC
 §26).** "it needs year zodiac," on a screenshot of the just-shipped v107
 badge. The fact already existed in the codebase — `renderWhyCard()`'s
 tap-to-open panel has shown the year's Chinese zodiac since an earlier same-
@@ -459,7 +478,7 @@ content the way `minmax(44px, auto)` does. Caught by measuring
 forced `.special` badge, not by eyeballing a screenshot — same
 verify-the-measurement habit as the v106 clipping fix two entries below.
 
-**2026-09-17, even later — the life line restyled "quiet editorial" (v107, SPEC
+**2026-09-17, earlier still — the life line restyled "quiet editorial" (v107, SPEC
 §25).** Second half of the same message as the v106 entry below: "mock 3
 better styles for the page" — a taste call this time, not a competence one,
 so it got the mock-first protocol instead of a direct fix. Read the
@@ -485,7 +504,7 @@ with the real `renderLifeLine()` fed the real dataset directly (the sandbox
 itself only has one thin synth subject) to check alternation and per-mark
 tone actually work, not just look right in the mock.
 
-**2026-09-17, earlier still — the life-line outcome badge, un-clipped (v106, SPEC
+**2026-09-17, earliest — the life-line outcome badge, un-clipped (v106, SPEC
 §24).** "ui audit, code7 see how ticks are cut off?" on a live screenshot.
 `code7` doesn't exist for this project (2026-09-13 entry below); read as
 code6 + code3, same as every other prior "code7" invocation here. A pure

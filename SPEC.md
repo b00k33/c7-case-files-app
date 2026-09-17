@@ -1495,6 +1495,20 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 29. ask28: backfill on Insert family, one true "to review" count (v111, 2026-09-18)
+
+Her ask: "ask28" on a screenshot of Sofía Vergara's profile — blank Demographics next to a "Family inserted" banner, an "11 to review →" pill, an auto-inferred outcome badge, and a life line. Investigated each of the four before asking anything (`js/lookup.js`, `js/pages/subject.js`, `js/lifemap.js`, `js/store.js` / `js/pages/review.js`), then asked exactly four grounded questions rather than re-running the historical 28 — see [[project_c7_ask28_stage_plan]].
+
+**1. Backfill (decided: yes).** `insertFamily()` (`js/lookup.js`) already calls `fillFromWikidata()` for every new or bare *relative* it inserts, but never for the anchor subject whose page she's standing on — even though the same Wikidata item that supplies the relatives also carries the anchor's own birth date, gender, nationality and birthplace. Fixed by calling `fillFromWikidata(store, caseId, personId, qid)` on the anchor too, right after its `wikidata_id` is set. `fillFromWikidata` only ever touches fields still blank, so this is safe to call unconditionally — it can't clobber anything she's already filled in by hand. Verified live: a bare anchor person run through `insertFamily('Q2831')` (Michael Jackson's real Wikidata record) came back with birth date, gender, nationality and birthplace filled, each recorded as an accepted claim citing Wikidata — same audit trail as a relative's backfill.
+
+**2. Review count (decided: one true count).** The "N to review" pill (`caseSummary()` in `js/store.js`) only ever counted drafted claims, but Review's own queue (`js/pages/review.js`) merges drafted claims *and* unconfirmed, non-theory relationships into what she actually sees and works through — so the pill could under-report by exactly however many relationships were sitting unconfirmed (the "11 to review" in her screenshot, immediately after an Insert family, was almost certainly mostly relationships, not claims). Fixed `caseSummary()` to add `COUNT(relationship WHERE confirmed=0 AND theory_id IS NULL)` to the claims count. Verified live: after adding one unconfirmed relationship to the seed case, the pill and a hand-built copy of Review's own queue-length logic both read 4 — they now agree by construction, not by coincidence.
+
+**3. Auto-inferred outcome tag (decided: leave as-is).** The life line's `.lm-o-failed`-style outcome badge renders identically whether a human confirmed the outcome or the app inferred it from a later event. She confirmed this is fine — recorded here so it isn't re-investigated as a bug later.
+
+**4. "Family inserted" banner (decided: leave as-is).** The one-shot `sessionStorage` banner (no close button, clears on next navigation) is fine as she has it. Recorded for the same reason.
+
+44/44 in `tests/browser-tests.html`.
+
 ## 28. The nav rail's collapsed state gets its labels back (v110, 2026-09-17)
 
 Her ask: a screenshot of the desktop `#nav-rail` at its narrow (641–1199px) collapsed width, plus one word — "improve." No stated complaint, but the screenshot itself was the complaint: six icons (▤ ◉ ✓ ▣ ▩ ✦), no labels, no tooltips — exactly the pattern she's flagged before, elsewhere, more than once: "I don't always remember the page names, I hate the icon" (Book33's own nav rail, 2026-08-30), and separately picked visible text labels over icon+tooltip for LCM's header actions (2026-09-07) — see [[feedback_nav_labels_over_icons]]. A competence call, not a taste one: an already-established, twice-validated standing preference, not a fresh design question, so built directly rather than mocking 3 options.

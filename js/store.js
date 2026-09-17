@@ -63,7 +63,12 @@ export async function searchAll(q) {
 /** What a case card needs: its people (with pictures) and the counts that earn a badge. */
 export async function caseSummary(caseId) {
   const people = await listPeople(caseId);
-  const toReview = db.exec(`SELECT COUNT(*) AS n FROM claim WHERE case_id=? AND state='drafted'`, [caseId])[0]?.n || 0;
+  // one true count (her ask28, 2026-09-18): Review's own queue is drafted
+  // claims PLUS unconfirmed, non-theory relationships (js/pages/review.js) —
+  // count both here too, so the "N to review" pill never disagrees with it
+  const draftedClaims = db.exec(`SELECT COUNT(*) AS n FROM claim WHERE case_id=? AND state='drafted'`, [caseId])[0]?.n || 0;
+  const unconfirmedRels = db.exec(`SELECT COUNT(*) AS n FROM relationship WHERE case_id=? AND confirmed=0 AND theory_id IS NULL`, [caseId])[0]?.n || 0;
+  const toReview = draftedClaims + unconfirmedRels;
   const questions = db.exec(`SELECT COUNT(*) AS n FROM question WHERE case_id=? AND resolved=0 AND parent_id IS NULL`, [caseId])[0]?.n || 0;
   const inbox = await countInbox(caseId);
   return { people, toReview, questions, inbox };
