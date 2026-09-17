@@ -81,6 +81,32 @@ export async function fetchLifeEvents(qid) {
   return [...out.values()].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 }
 
+// A prolific award-winner's full history often lives in a SEPARATE Wikipedia
+// article ("List of awards and nominations received by <name>") rather than
+// as individual P166 statements on their own item — her ask, 2026-09-17,
+// after Sandra Bullock's Commercial tab showed 8 awards from Wikidata
+// against dozens on that article. Parsing that article's wikitext tables
+// automatically isn't attempted: real ones use nested rowspans (ceremony and
+// category each spanning a different, independent run of rows) that a
+// mis-parse could silently mis-attribute a year/category — this app's own
+// rule is that sourcing stays real, never guessed. So this only detects
+// whether the article exists and hands back its URL, to open and paste
+// specific rows from into "+ Add milestones" — a link, not an auto-import.
+const LIST_ARTICLE_QUERY = (qid) => `SELECT ?article WHERE {
+  ?list wdt:P1269 wd:${qid} .
+  ?list wdt:P31 wd:Q13406463 .
+  ?article schema:about ?list ; schema:isPartOf <https://en.wikipedia.org/> .
+  FILTER(CONTAINS(LCASE(STR(?article)), "award"))
+} LIMIT 1`;
+
+export async function fetchAwardsListArticle(qid) {
+  try {
+    const data = await getJSON(`${SPARQL}?format=json&query=${encodeURIComponent(LIST_ARTICLE_QUERY(qid))}`);
+    const rows = (data.results && data.results.bindings) || [];
+    return (rows[0] && rows[0].article && rows[0].article.value) || null;
+  } catch { return null; }
+}
+
 export function countByGroup(list) {
   const n = {};
   for (const g of LIFE_GROUPS) n[g.key] = list.filter((c) => c.group === g.key).length;

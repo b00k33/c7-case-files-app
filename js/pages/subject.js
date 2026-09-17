@@ -270,7 +270,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <label>Alternate birthday — a date you're not sure about, with why</label>
           <div class="row wrap" style="gap:8px">
             <input type="text" id="alt-bday-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
-            <input type="text" id="alt-bday-source" placeholder="Where this comes from — a document, a page, a link" style="flex:2 1 220px">
+            <input type="text" id="alt-bday-source" placeholder="a document, a page, a link" title="Where this comes from — a document, a page, a link" style="flex:2 1 220px">
             <button class="btn btn-primary btn-sm" id="alt-bday-save">Save as a candidate</button>
           </div>
         </div>
@@ -284,7 +284,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>
         <div class="field" style="margin-top:16px">
           <label>Look up</label>
-          <div class="row" style="gap:8px">
+          <div class="row wrap" style="gap:8px">
             <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
             <button class="btn btn-ghost btn-sm" id="lk-search">Look up</button>
             <button class="btn btn-ghost btn-sm" id="lk-works" title="Albums, EPs, singles and songs with their release dates — from Wikidata, as the record">+ Works</button>

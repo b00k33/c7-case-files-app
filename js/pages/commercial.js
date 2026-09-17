@@ -12,7 +12,7 @@ import { MILESTONE_KINDS, MILESTONE_KIND_LABEL } from '../milestone-kinds.js';
 import { twoTapConfirm, clearInlineNote, inlineNote } from '../ui.js';
 import { searchPeople } from '../lookup.js';
 import { fetchWorks, addWorks } from '../works.js';
-import { fetchLifeEvents, addLifeEvents, alreadyHere } from '../life-events.js';
+import { fetchLifeEvents, addLifeEvents, alreadyHere, fetchAwardsListArticle } from '../life-events.js';
 
 const VERIFICATIONS = ['single', 'two_plus', 'disputed', 'dead_link', 'drafted'];
 
@@ -40,17 +40,25 @@ async function showCommercialPicker(root, slot, ctx, store, person, m) {
   if (!person.wikidata_id) await store.updatePerson(person.id, { wikidata_id: m.id });
   slot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="cm-wiki-reading">Reading releases and awards from Wikidata — up to a minute for a long catalogue…</div>';
   const reading = slot.querySelector('#cm-wiki-reading');
-  let works = [], lifeEvents = [];
+  let works = [], lifeEvents = [], listArticleUrl = null;
   try {
     works = await fetchWorks(m.id, (msg) => { if (reading.isConnected) reading.textContent = `Reading releases — ${msg}`; });
     lifeEvents = await fetchLifeEvents(m.id);
+    listArticleUrl = await fetchAwardsListArticle(m.id);
   } catch (e) {
     slot.innerHTML = `<div class="inline-note">Could not be read — ${e.message}</div>`;
     return;
   }
   const awards = lifeEvents.filter((c) => c.group === 'award');
+  // a fuller award history often lives on its own Wikipedia article rather
+  // than as statements on this item (her ask, 2026-09-17) — surfaced as a
+  // link to open and paste specific rows from below, not auto-imported: see
+  // fetchAwardsListArticle's own note on why an automatic parse isn't safe
+  const listArticleNote = listArticleUrl
+    ? `<div class="inline-note" style="border-left-color:var(--brass)">A fuller award list exists on Wikipedia — <a href="${esc(listArticleUrl)}" target="_blank" rel="noopener">open it →</a>, then paste specific rows into "+ Add milestones" below.</div>`
+    : '';
   if (!works.length && !awards.length) {
-    slot.innerHTML = '<div class="inline-note">Wikidata lists no releases or awards on that record.</div>';
+    slot.innerHTML = listArticleNote || '<div class="inline-note">Wikidata lists no releases or awards on that record.</div>';
     return;
   }
   const existingEvents = await store.listEventsForCase(ctx.caseId);
@@ -65,6 +73,7 @@ async function showCommercialPicker(root, slot, ctx, store, person, m) {
   const paint = () => {
     const n = countNew();
     slot.innerHTML = `
+      ${listArticleNote}
       <div class="stack" style="gap:2px;max-height:320px;overflow:auto;margin-top:12px">
         ${works.length ? `<div class="section-label">Releases · ${works.length}</div>${works.map((w) => `
           <label class="list-row" style="min-height:32px;padding:4px 8px;gap:8px;cursor:pointer">
@@ -151,7 +160,7 @@ export async function render(root, ctx, personId) {
       <div class="panel">
         <div class="row between">
           <div class="panel-title" style="margin:0">Commercial milestones</div>
-          <div class="row" style="gap:8px">
+          <div class="row wrap" style="gap:8px">
             <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
             <button class="btn btn-ghost btn-sm" id="cm-wiki-btn" title="Read releases and awards from Wikidata">+ From Wikipedia</button>
             <button class="btn btn-primary btn-sm" id="cm-add-btn">+ Add milestones</button>

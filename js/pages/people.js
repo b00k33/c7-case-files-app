@@ -9,8 +9,9 @@
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
-import { twoTapConfirm } from '../ui.js';
+import { twoTapConfirm, inlineNameForm, duplicateNameBlock } from '../ui.js';
 import { markOpened } from './cases.js';
+import { createCaseOfKind } from './dashboard.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -39,6 +40,29 @@ async function picSegEl(p) {
 }
 
 function goToPerson(ctx, p) { markOpened(p.case_id); ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); }
+
+// + Person (her ask, 2026-09-17): this page spans every case, so there is
+// no "current case" to add into the way Relations' own "+ Person" has —
+// reuses Cases' "+ New" pattern verbatim instead (same duplicate guard,
+// same createCaseOfKind), landing on a fresh one-person case rather than
+// asking her to pick or make one first.
+function openAddPerson(slot, ctx) {
+  const { store } = ctx;
+  if (slot.querySelector('.inline-form')) return;
+  const form = inlineNameForm({
+    placeholder: 'Their name',
+    onSubmit: async (name) => {
+      const matches = store.findPeopleByName(null, name, 'person');
+      if (matches.length) {
+        duplicateNameBlock(form.querySelector('input'), matches, (p) => goToPerson(ctx, p));
+        return;
+      }
+      const kase = await createCaseOfKind(store, ctx, name, 'person', null);
+      markOpened(kase.id);
+    },
+  });
+  slot.appendChild(form);
+}
 
 // ---- duplicates, anywhere in the app (her ask, 2026-09-11: "lisa is
 // duplicated but i dont know how to resolve it," then "the app should not
@@ -151,15 +175,21 @@ export async function render(root, ctx) {
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
         <span class="mono" style="font-size:11px;color:var(--text-3)">${people.length} ${people.length === 1 ? 'person' : 'people'} · every case</span>
-        <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
+        <div class="row" style="gap:8px">
+          <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
+          <button class="btn btn-primary btn-sm" id="new-person-btn">+ Person</button>
+        </div>
       </div>
+      <div id="new-person-slot"></div>
       <div id="people-body"></div>
     </div>
   `;
 
+  root.querySelector('#new-person-btn').addEventListener('click', () => openAddPerson(root.querySelector('#new-person-slot'), ctx));
+
   const body = root.querySelector('#people-body');
   if (!people.length) {
-    body.appendChild(emptyState({ missing: 'No people yet.', why: 'Create a case about a person and they appear here.' }));
+    body.appendChild(emptyState({ missing: 'No people yet.', why: 'Create a case about a person and they appear here.', action: '+ Person', onAction: () => openAddPerson(root.querySelector('#new-person-slot'), ctx) }));
     return;
   }
   const dupOf = findDuplicatePeople(people);

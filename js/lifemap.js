@@ -440,9 +440,13 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome }) {
   const yearAnimal = ANIMALS[yIdx];
   const yr = me.ok && !me.boundary ? relation(me.animalIndex, yIdx) : null;
   const spouse = m.spouseId ? (people || []).find((p) => p.id === m.spouseId) : null;
+  // the year's own animal (her ask, 2026-09-17: "include chinese zodiac" —
+  // already used to work out `yr` above, just never shown as its own badge)
+  // gets the same chip look tokensHtml() gives the header's birth-year one,
+  // so the sentence below only has to carry the RELATION, not the animal name
   const yearLine = yr
-    ? `${m.year} = ${yearAnimal} year — ${yr === 'neutral' ? 'neutral to' : yr + ' with'} a ${animalLabel(me.animal)}`
-    : `${m.year} = ${yearAnimal} year`;
+    ? `${m.year} — ${yr === 'neutral' ? 'neutral to' : yr + ' with'} a ${animalLabel(me.animal)}`
+    : `${m.year}`;
   el.innerHTML = `
     <div class="lm-why">
       <span class="k">what</span>
@@ -450,7 +454,7 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome }) {
         ? `<span class="line" style="flex-direction:column;align-items:flex-start;gap:2px"><b>${m.glyph} ${esc(m.title)} · ${m.year}</b>${m.cluster.map((x) => `<span style="display:flex;gap:8px;align-items:baseline"><span class="mono dim" style="width:88px;flex:none">${fmtWhen(x)}</span><span>${esc(x.title)}</span>${x.outcome ? outcomeChip(x) : ''}</span>`).join('')}</span>`
         : `<span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}</span>`}
       <span class="k">their year</span>
-      <span class="line">${py != null ? `<span class="lm-py dot lm-t-${pyTone(py)}">${py}</span><span>personal year ${y.total}/${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}<span class="mono dim">${yearLine}</span></span>
+      <span class="line">${py != null ? `<span class="lm-py dot lm-t-${pyTone(py)}">${py}</span><span>personal year ${y.total}/${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}${animalChipHtml(yearAnimal)}<span class="mono dim">${yearLine}</span></span>
       ${spouse ? '<span class="k">the two</span><span class="line" id="lm-pair"></span>' : ''}
       ${m.event ? `<span class="k">judge</span><span class="line"><button type="button" class="lm-v lm-v-best lm-tag ${m.tagged === 'worked' ? 'on' : ''}" data-oc="worked">✓ worked</button><button type="button" class="lm-v lm-v-enemy lm-tag ${m.tagged === 'failed' ? 'on' : ''}" data-oc="failed">✕ failed</button>${m.inferred ? '<span class="dim">from the record — tap to overrule</span>' : m.tagged ? '<span class="dim">your call — tap again to clear</span>' : ''}</span>` : `<span class="k">judge</span><span class="line dim">${m.cluster ? 'judge each one from the year list' : 'from the relationship record'}</span>`}
     </div>`;

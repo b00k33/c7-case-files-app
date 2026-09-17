@@ -387,6 +387,53 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-17 — four unrelated small requests, one Workflow, zero questions
+asked (v102, SPEC §20).** A synth22 batch: zodiac on the life-line why-card,
+People-tab "+ Person," two overflow bugs, and a Wikidata "list of awards"
+page gap — collected across several short messages, built once she said
+"work on all of the above." Ultracode was on for this session, so instead
+of reading each item's code myself serially, a single background Workflow
+ran 4 parallel read-only research agents (one per item) before any file was
+touched — each came back with exact file/function names, line numbers, and
+a concrete recommendation, so every design question this batch could have
+raised was already answered by the time implementation started. Combined
+with the 2026-09-16 standing rule ("build competence calls, ask only taste
+calls"), this meant zero AskUserQuestion popups for a 4-feature batch —
+worth naming as the pattern to reach for again: **parallel research
+BEFORE implementation turns a batch of "which approach" judgment calls
+into a batch of "here's the one correct way" competence calls**, as long as
+the research agents are told to read the actual code in full and give a
+specific recommendation, not just describe options.
+
+**A generic-sounding fix a task names as "the working example" is worth
+re-verifying, not copying blind.** The Import-screen overflow research was
+asked to find a non-overflowing button row elsewhere in the app "to copy
+the pattern from," and named the Commercial tab's own row as that
+example — it wasn't: it has the identical missing `.row.wrap` bug, just not
+yet visibly triggered because that panel is wider than the 420px drawer the
+actual bug lived in. The two real, working siblings were the OTHER two rows
+in the very same sheet the bug was in. Fixed both while there, since it's
+the same one-line cause found in the same pass — but the lesson is to check
+a cited "already correct" example against its own source before trusting it
+as the pattern to copy, rather than assuming a comparison a task supplies is
+already validated.
+
+**Detecting a gap is not the same job as safely filling it — say so
+plainly when it isn't.** Her ask read as "the app misses a whole category
+of awards"; live-fetching the actual Wikipedia list article confirmed the
+data gap was real (8 Wikidata statements vs. dozens in the article) but
+also surfaced that the article's own wikitext uses nested, independently-
+scoped rowspans (ceremony and category each span a different, uneven run
+of rows) that a first-version parser could easily misattribute — silently
+saving a wrong year or category under this app's own "sourced" citation
+shape. Given the standing "sourcing stays real, never guessed" rule, the
+honest v1 is detect-and-link (surface the article, let her paste specific
+rows through the existing manual flow), not an automatic parse dressed up
+as equally reliable. When a fuller technical fix is genuinely riskier than
+it looks from the outside, ship the safe version and say plainly why the
+fuller one isn't ready, rather than quietly shipping a fragile parser
+because the ask implied "make it automatic."
+
 **2026-09-15 — the spine badge, redesigned (v101, SPEC §19).** §18 shipped
 with one flagged, unconfirmed judgment call named in its own summary to
 her; her reply was that exact paragraph quoted back with "- improve the
