@@ -2116,8 +2116,9 @@ undated award, which want a second look first — "Add N milestones" runs
 positions, certifications and deals have no reliable Wikidata source and
 stay exactly where they were, in the paste box below.
 
-Remaining synth22 stages (not yet built): the "Our Story" poster life
-line, and the Board as a detective's corkboard.
+Remaining synth22 stages (not yet built at v91; both followed the same
+day — the "Our Story" poster life line in v92, §13w, and the Board as a
+detective's corkboard in v93, §13x).
 
 ## 13u. Names capitalised; Cases and People become tiles (v90, 2026-09-13)
 
