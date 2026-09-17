@@ -387,7 +387,39 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-18, latest — ask28: backfill on Insert family, one true "to
+**2026-09-18, latest — the Add-flow's four buttons become one, plus "more"
+(v112, SPEC §30).** "too many buttons to add... make that more seamless,"
+on a screenshot of the "+ Add" sheet. Read the code first: "Look up,"
+"+ Works," "+ Life events," "Insert family" were four flat buttons that
+each independently re-ran the SAME Wikidata search. A genuine taste call
+— 3 real click-through mockups (a Workflow, 3 agents each on a distinct
+structural direction, each required to disclose its trade-off), sent as
+real files plus a visualize compare-card. She picked "one primary action,
+the rest behind more": one search, "Use this ▸" (facts + family together)
+per match, "+ Works"/"+ Life events" tucked behind a text-labelled
+"more ▾" — never an icon-only affordance, per [[feedback_nav_labels_over_icons]].
+
+Two real bugs surfaced by testing, not by reading: (1) grafting an
+unrelated celebrity's family onto a blank test profile silently overwrote
+that profile's gender/nationality/death-date/photo with the celebrity's
+own, because v111's anchor-backfill (§29) had no way to tell "searching
+myself" from "searching someone else's family to import" — fixed with a
+`looksLikeSelf` name-match guard in `insertFamily()`, gating BOTH the
+demographic backfill and (caught only on a second adversarial review
+pass) the `wikidata_id` identity link itself, which the first fix had
+left unguarded. (2) an adversarial 3-lens review (correctness,
+conventions, accessibility) caught a shared-DOM-slot race between "Use
+this" and the "more" checklists (tapping one mid-fetch on the other could
+silently destroy an un-added tick-list) and a genuine failure message
+rendered in the same green "success" border every prior message on that
+sessionStorage key had ever used — both fixed. Lesson to carry: when one
+fix (v111's backfill) creates a NEW code path, re-test that path's OTHER
+use case (grafting someone else's family, not just self-lookup) before
+trusting it — and a second adversarial review pass, even after live
+testing already found one bug, is worth running before shipping something
+this interconnected; it found two more.
+
+**2026-09-18, later — ask28: backfill on Insert family, one true "to
 review" count (v111, SPEC §29).** "ask28" on a screenshot of Sofía
 Vergara's profile: blank Demographics next to an "11 to review →" pill and
 a "Family inserted" banner. Rather than re-running the historical 28

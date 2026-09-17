@@ -279,15 +279,24 @@ export async function insertFamily(store, caseId, personId, qid, onProgress = ()
   const relatives = (facts.relatives || []).filter((r) => r.name && !/^Q\d+$/.test(r.name));
   const people = await store.listPeople(caseId);
   const byName = (n) => people.find((p) => p.display_name.trim().toLowerCase() === n.trim().toLowerCase());
-  // the subject is this item from now on, so a later lookup from a
-  // relative's side finds them by identity, whatever spelling she typed
+  // the subject is this item from now on ONLY when this record plausibly
+  // IS them — Insert Family is also used to graft a different public
+  // figure's family onto an unrelated profile (found live, 2026-09-18: a
+  // fictional case's own anchor silently inherited an unrelated searched
+  // celebrity's wikidata_id, then its death date, gender and photo, purely
+  // because the anchor had no wikidata_id yet — this qid is someone whose
+  // FAMILY she wants, not necessarily who she is, so both the identity
+  // link and the demographic backfill are gated on the same check)
   const subject = await store.getPerson(personId);
-  if (subject && !subject.wikidata_id) await store.updatePerson(personId, { wikidata_id: qid });
+  const looksLikeSelf = subject && facts.label && subject.display_name.trim().toLowerCase() === facts.label.trim().toLowerCase();
+  if (subject && !subject.wikidata_id && looksLikeSelf) await store.updatePerson(personId, { wikidata_id: qid });
   // she flagged (ask28, 2026-09-18) that the profile she's importing family
   // FOR can stay half-blank even though the same Wikidata item that supplies
   // the relatives also has her own dates/birthplace/nationality/gender —
   // backfill the anchor the same way each relative gets filled below
-  try { await fillFromWikidata(store, caseId, personId, qid); } catch (e) { /* leave blanks if Wikidata has nothing usable here */ }
+  if (looksLikeSelf) {
+    try { await fillFromWikidata(store, caseId, personId, qid); } catch (e) { /* leave blanks if Wikidata has nothing usable here */ }
+  }
   const result = { created: [], linked: [], relationships: 0, pictures: 0, failed: [], total: relatives.length };
   let i = 0;
   for (const rel of relatives) {
