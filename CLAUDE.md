@@ -387,7 +387,40 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-17, latest — the life-line badge grows a year zodiac (v108, SPEC
+**2026-09-17, latest — the life-line mark reorganised into 3 widgets (v109,
+SPEC §27).** "i like the details but reorganise it, give me 3 widgets," on a
+screenshot of the v108 badge. Same "3 widgets" phrase she used for the
+subject header (SPEC §23) — but this time the 3 candidates deliberately
+each answered it differently (a Workflow brief with 3 distinct directions,
+not 3 agents free to converge on the same idea): one candidate fused
+everything into a single 3-zone card, one kept 3 separate pieces stitched
+together, one left the event card alone and only reorganised the small
+badge. Her pick — fuse everything into one card — was the BIGGEST structural
+change of the three, moving the personal-year ring clean off the spine
+(where it deliberately lived since v92, "the ring on the spine carries the
+number") and into the card itself. Worth remembering: when a redesign risks
+touching an EARLIER deliberate decision, brief the design agents to name the
+trade-off explicitly in their own rationale rather than silently overriding
+or silently preserving it — every one of the 3 mocks disclosed exactly what
+it would cost the spine architecture, which is what made picking among them
+an informed choice instead of a guess.
+
+Ran a code-review agent before shipping (the change touched two render
+functions and a full CSS section, more moving parts than the two simple
+CSS-only restyles right before it) and it earned its cost: caught that the
+zodiac emoji had gone from plain visible text to unconditionally
+`aria-hidden="true"`, which for the relationship-line's own marks (no
+personal year, no outcome — the zodiac is the ONLY fact in that zone) meant
+a screen-reader user got literally nothing there besides an unreliable
+`title` tooltip. Fixed with `aria-label` before shipping. Reviewer also
+confirmed, by tracing the actual padding numbers rather than assuming: the
+new card's `overflow:hidden` (needed for the zone corners to round cleanly)
+does NOT clip the outcome badge or master-year star, because both negative-
+offset badges land inside their own zone's padding cushion, nowhere near the
+card's outer edge — the exact same reasoning, re-applied, that fixed the
+v106 clipping bug two entries below.
+
+**2026-09-17, later — the life-line badge grows a year zodiac (v108, SPEC
 §26).** "it needs year zodiac," on a screenshot of the just-shipped v107
 badge. The fact already existed in the codebase — `renderWhyCard()`'s
 tap-to-open panel has shown the year's Chinese zodiac since an earlier same-
@@ -407,7 +440,7 @@ content the way `minmax(44px, auto)` does. Caught by measuring
 forced `.special` badge, not by eyeballing a screenshot — same
 verify-the-measurement habit as the v106 clipping fix two entries below.
 
-**2026-09-17, later — the life line restyled "quiet editorial" (v107, SPEC
+**2026-09-17, still later — the life line restyled "quiet editorial" (v107, SPEC
 §25).** Second half of the same message as the v106 entry below: "mock 3
 better styles for the page" — a taste call this time, not a competence one,
 so it got the mock-first protocol instead of a direct fix. Read the
@@ -433,7 +466,7 @@ with the real `renderLifeLine()` fed the real dataset directly (the sandbox
 itself only has one thin synth subject) to check alternation and per-mark
 tone actually work, not just look right in the mock.
 
-**2026-09-17, still later — the life-line outcome badge, un-clipped (v106, SPEC
+**2026-09-17, even later — the life-line outcome badge, un-clipped (v106, SPEC
 §24).** "ui audit, code7 see how ticks are cut off?" on a live screenshot.
 `code7` doesn't exist for this project (2026-09-13 entry below); read as
 code6 + code3, same as every other prior "code7" invocation here. A pure

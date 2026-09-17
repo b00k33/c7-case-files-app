@@ -800,90 +800,83 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .lm-t-grey, .lm-t-none { background: var(--ink-3); }
 
 /* ---- the poster (her ask, 2026-09-13 — "our story"): a spine of dated
-   cards, each stretch toned by that card's own personal year; the ring on
-   the spine carries the number, the card carries the picture. Vertical on
-   the phone (cards left/right), horizontal on the desktop (cards
-   above/below) — her own words, the one deliberate exception to one
-   layout everywhere; the retired ribbon + legend line are gone.
-   Restyled "quiet editorial" (v107, 2026-09-17, her pick of 3 style mocks
-   after "mock 3 better styles for the page"): the interface does less —
-   spine thins to a hairline, cards drop their shadow for a hairline
-   border, and colour now lives as a thin accent (the tone tick, the spine
-   segment) rather than filling a shape. Calmer on a long timeline. */
+   cards. Vertical on the phone (cards left/right), horizontal on the
+   desktop (cards above/below) — her own words, the one deliberate
+   exception to one layout everywhere; the retired ribbon + legend line
+   are gone.
+   Reorganised into "3 widgets" (v109, 2026-09-17, her pick of 3 mocks
+   after "i like the details but reorganise it, give me 3 widgets"): the
+   personal-year ring moved OFF the spine and INTO the card as its own
+   zone. The spine's own node is now just a small connector dot
+   (.lm-poster-dot) — the ring that used to sit there is gone; each card
+   is now one bordered unit split by hairlines into 3 zones: picture (with
+   the outcome mark corner-anchored on it, same spot as before), title+
+   date, and personal-year+zodiac (a faint tone-tinted step + left edge,
+   not a filled badge — carries the quiet-editorial restyle's "colour as a
+   thin accent" bet (v107) into the new zone). */
 .lm-poster { display: flex; flex-direction: column; margin-top: var(--sp-2); }
-.lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 44px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 96px; }
+.lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 16px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 220px; }
 .lm-spine-seg { grid-column: 2; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); border-radius: 1px; }
 .lm-poster-row:first-child .lm-spine-seg { top: 50%; }
 .lm-poster-row:last-child .lm-spine-seg { bottom: 50%; }
-.lm-poster-node { grid-column: 2; justify-self: center; z-index: 1; }
+.lm-poster-node { grid-column: 2; justify-self: center; z-index: 1; display: flex; align-items: center; justify-content: center; }
+.lm-poster-dot { display: block; width: 8px; height: 8px; border-radius: 50%; }
 .lm-poster-row.side-a .lm-mark { grid-column: 1; justify-self: end; }
 .lm-poster-row.side-b .lm-mark { grid-column: 3; justify-self: start; }
-.lm-mark { display: flex; align-items: center; gap: var(--sp-2); width: 100%; max-width: 230px; padding: var(--sp-2); border-radius: var(--r-lg); background: var(--ink-1); border: 1px solid var(--line); cursor: pointer; text-align: left; position: relative; color: var(--text); }
-.lm-mark:hover { background: var(--ink-2); border-color: var(--text-3); }
+.lm-mark { display: flex; flex-direction: column; width: 100%; max-width: 230px; background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; text-align: center; position: relative; color: var(--text); }
+.lm-mark:hover { border-color: var(--text-3); }
 .lm-mark.on { border-color: transparent; box-shadow: 0 0 0 2px var(--brass); }
-.lm-poster-pic { width: 44px; height: 44px; border-radius: var(--r-md); overflow: hidden; flex: none; background: var(--ink-3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+.lm-poster-piczone { background: var(--ink-1); padding: var(--sp-4) 0 var(--sp-3); display: flex; align-items: center; justify-content: center; }
+.lm-poster-picwrap { position: relative; }
+.lm-poster-pic { width: 60px; height: 60px; border-radius: var(--r-lg); overflow: hidden; background: var(--ink-3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
 .lm-poster-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.lm-poster-pic.glyph .g { font-size: 18px; color: var(--text-2); line-height: 1; }
-.lm-poster-body { min-width: 0; flex: 1; }
-.lm-poster-title { font-size: 13px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.lm-poster-date { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.lm-poster-pic.glyph .g { font-size: 24px; color: var(--text-2); line-height: 1; }
+.lm-poster-body { min-width: 0; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--line); }
+.lm-poster-title { font-size: 13px; font-weight: 600; line-height: 1.28; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lm-poster-date { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3); margin-top: 3px; }
 .lm-poster-date .n { color: var(--brass); }
-.lm-poster-oc { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; background: var(--ink-1); border: 1.5px solid var(--text-3); }
+.lm-poster-oc { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; background: var(--ink-1); border: 1.5px solid var(--text-3); }
 .lm-poster-oc.lm-o-worked { border-color: var(--green); color: var(--green); }
 .lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
 @media (min-width: 641px) {
-  /* `overflow-x: auto` with no overflow-y set forces overflow-y to `auto`
-     too (the CSS spec's own overflow-x/y coupling rule) — with zero
-     top padding that clipped the outcome badge's -6px top offset right at
-     the scroll box's own edge (seen live, 2026-09-17: her "see how ticks
-     are cut off?"). Padding gives the badge room inside the scrollable box
-     instead of past it. */
   .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding: var(--sp-2) 0; gap: 0; }
-  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr minmax(44px, auto) 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
+  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 16px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
   .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 2px; width: auto; transform: translateY(-50%); border-radius: 1px; }
   .lm-poster-row:first-child .lm-spine-seg { left: 50%; }
   .lm-poster-row:last-child .lm-spine-seg { right: 50%; }
   .lm-poster-node { grid-row: 2; grid-column: 1; }
   .lm-poster-row.side-a .lm-mark { grid-row: 1; grid-column: 1; justify-self: center; align-self: end; }
   .lm-poster-row.side-b .lm-mark { grid-row: 3; grid-column: 1; justify-self: center; align-self: start; }
-  .lm-mark { flex-direction: column; text-align: center; max-width: 170px; }
-  .lm-poster-title { -webkit-line-clamp: 2; }
+  .lm-mark { max-width: 170px; }
 }
-/* the spine badge (her ask, 2026-09-15: "always show both" raw+reduced,
-   then "improve the ui" once told the old single-digit ring couldn't fit
-   both — three real mocks built and shown, she picked the stacked
-   fraction). ".dot" is the old plain ring, kept for the one case with no
-   number at all (a relationship's spine, which has no personal year).
-   Quiet-editorial restyle (v107): ".stack" is now a hairline-bordered
-   chip — a coloured tick (::before, spans both rows) with raw (small,
-   muted) over reduced (bold, toned) beside it, not a filled ring — the
-   tone lives in the tick and the reduced digit, not the whole badge.
-   ".special" — a submaster year (13/28/31, her own term) or a kept master
-   (11/22/33) — sizes up further so the rare, meaningful years read as
-   bigger at a glance, not just differently labelled (her follow-up, same
-   conversation: "make the submaster larger"). */
+/* the personal-year + zodiac zone: a tone-tinted background step and left
+   edge, raw total over reduced digit (both still shown — her earlier
+   "always show both" ask survives the reorganise) beside the year's own
+   zodiac animal (plain emoji, no birth date needed). ".special" — a
+   submaster year (13/28/31, her own term) or a kept master (11/22/33) —
+   sizes up so the rare years still read as bigger at a glance. The tone
+   itself is a CSS custom property set by a .tone-* class on .lm-mark, not
+   the .lm-t-*/.lm-py system below — that one is still used by the "why"
+   card's own single-digit ring and must stay untouched. */
+.tone-gold { --tone: var(--brass); }
+.tone-teal { --tone: var(--teal); }
+.tone-red { --tone: var(--red); }
+.tone-violet { --tone: var(--violet); }
+.tone-grey, .tone-none { --tone: var(--text-2); }
+.lm-poster-py { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); border-left: 3px solid var(--tone); background: color-mix(in srgb, var(--tone) 8%, var(--ink-2)); position: relative; }
+.lm-poster-py-frac { display: flex; align-items: baseline; gap: 3px; font-family: var(--font-mono); }
+.lm-poster-py-raw { font-size: 11px; font-weight: 600; color: var(--text-3); }
+.lm-poster-py.special .lm-poster-py-raw { font-size: 12.5px; }
+.lm-poster-py-sep { font-size: 11px; color: var(--text-3); }
+.lm-poster-py-reduced { font-size: 19px; font-weight: 700; color: var(--tone); }
+.lm-poster-py.special .lm-poster-py-reduced { font-size: 22px; }
+.lm-poster-py-zodiac { font-size: 16px; line-height: 1; filter: grayscale(.15); }
+.lm-poster-py-star { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--brass); border: 2px solid var(--ink-1); display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: var(--ink-0); }
+/* the "why" card's own small ring — a DIFFERENT, smaller usage (the
+   reduced digit alone, no raw total) than the poster's own badge used to
+   be; untouched by the v109 reorganise above. */
 .lm-py { display: inline-flex; align-items: center; font-family: var(--font-mono); font-weight: 600; flex: none; position: relative; }
 .lm-py.dot { width: auto; height: auto; padding: 3px 7px; border-radius: 3px; font-size: 13px; background: var(--ink-1); border: 1px solid var(--line); color: var(--text-3); }
-.lm-py.stack { display: grid; grid-template-columns: 2px auto; grid-template-rows: auto auto auto; align-items: center; column-gap: 5px; width: auto; height: auto; padding: 3px 6px 3px 4px; border-radius: 3px; background: var(--ink-1); border: 1px solid var(--line); }
-.lm-py.stack::before { content: ''; grid-row: 1 / 4; grid-column: 1; height: 100%; min-height: 16px; border-radius: 1px; background: currentColor; }
-.lm-py.stack.special { padding: 4px 7px 4px 5px; }
-.lm-py.stack.special::before { min-height: 20px; }
-.lm-py-raw { grid-column: 2; grid-row: 1; font-size: 8px; font-weight: 600; line-height: 1; color: var(--text-3); }
-.lm-py.special .lm-py-raw { font-size: 9.5px; }
-.lm-py-reduced { grid-column: 2; grid-row: 2; margin-top: 2px; font-size: 15px; font-weight: 700; line-height: 1; color: currentColor; }
-.lm-py.special .lm-py-reduced { font-size: 18px; }
-/* the year's own Chinese zodiac animal (her ask, 2026-09-17, on the poster
-   badge directly — "it needs year zodiac"; the fact already existed in the
-   tap-to-open "why" card, just not visible without tapping). It needs no
-   birth date, only the calendar year, so it shows even when there is no
-   personal year to tone the badge with (the ".dot" fallback). Plain emoji,
-   not the duotone trine-tinted picture the header's numerology row uses —
-   that filter is built for a much bigger context; a second loud colour
-   signal on this tiny badge would fight the quiet-editorial restyle (v107)
-   right above it. */
-.lm-py-animal { grid-column: 2; grid-row: 3; margin-top: 2px; font-size: 9px; line-height: 1; filter: grayscale(.25); opacity: .85; }
-.lm-py.special .lm-py-animal { font-size: 10px; }
-.lm-py-star { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--brass); border: 2px solid var(--ink-1); display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: var(--ink-0); }
 .lm-py.lm-t-gold { color: var(--brass); }
 .lm-py.lm-t-teal { color: var(--teal); }
 .lm-py.lm-t-red { color: var(--red); }

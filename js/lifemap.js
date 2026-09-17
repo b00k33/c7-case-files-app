@@ -276,33 +276,44 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
     row.className = `lm-poster-row ${i % 2 ? 'side-b' : 'side-a'}`;
     const seg = document.createElement('i');
     seg.className = `lm-spine-seg lm-t-${tone}`;
+    // the node on the spine is now just a small connector dot — the ring
+    // that used to live here moved into the card itself, as its own zone
+    // (her ask, 2026-09-17: "i like the details but reorganise it, give me
+    // 3 widgets"; her pick, option A — "one card, 3 zones").
     const node = document.createElement('div');
     node.className = 'lm-poster-node';
+    node.innerHTML = `<span class="lm-poster-dot lm-t-${tone}"></span>`;
     const isSubmaster = py != null && SUBMASTER_TOTALS.includes(y.total);
     const isSpecial = py != null && (y.master || isSubmaster);
     // the year's own Chinese zodiac (her ask, 2026-09-17: "it needs year
     // zodiac") — a calendar-year fact, not a personal-year one, so it shows
-    // on the badge whether or not a birth date gives us a personal year.
+    // whether or not a birth date gives us a personal year.
     const yearAnimal = ANIMALS[animalIndex(m.year)];
     const animalGlyph = animalIcon(yearAnimal) || '';
-    const animalSpan = animalGlyph ? `<span class="lm-py-animal" aria-hidden="true">${animalGlyph}</span>` : '';
-    node.innerHTML = py != null
-      ? `<span class="lm-py stack${isSpecial ? ' special' : ''} lm-t-${tone}"><span class="lm-py-raw">${y.total}</span><span class="lm-py-reduced">${py}</span>${animalSpan}${y.master ? '<span class="lm-py-star">★</span>' : ''}</span>`
-      : `<span class="lm-py dot lm-t-none">${animalGlyph || '·'}</span>`;
-    node.title = (py != null ? `${m.year} · personal year ${y.total}/${py}${y.master ? ' (master)' : isSubmaster ? ' (submaster)' : ''} — ${PY_GLOSS[py] || ''}` : String(m.year)) + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = `lm-mark lm-o-${m.outcome || 'none'}`;
+    card.className = `lm-mark tone-${tone} lm-o-${m.outcome || 'none'}`;
     card.dataset.id = m.id;
     card.dataset.year = String(m.year);
     card.innerHTML = `
-      <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" title="${esc(m._pic.label)}" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
+      <div class="lm-poster-piczone">
+        <div class="lm-poster-picwrap">
+          <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" title="${esc(m._pic.label)}" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
+          ${m.outcome ? `<span class="lm-poster-oc lm-o-${m.outcome}">${m.outcome === 'worked' ? '✓' : m.outcome === 'end' ? '✝' : '✕'}</span>` : ''}
+        </div>
+      </div>
       <div class="lm-poster-body">
         <div class="lm-poster-title">${esc(m.title)}</div>
         <div class="lm-poster-date mono">${fmtWhen(m)}${m.cluster ? ` <span class="n">×${m.cluster.length}</span>` : ''}</div>
       </div>
-      ${m.outcome ? `<span class="lm-poster-oc lm-o-${m.outcome}">${m.outcome === 'worked' ? '✓' : m.outcome === 'end' ? '✝' : '✕'}</span>` : ''}`;
-    card.title = `${m.title} · ${m.year}${m.outcome ? ' · ' + m.outcome : ''}`;
+      <div class="lm-poster-py${isSpecial ? ' special' : ''}">
+        ${py != null ? `<span class="lm-poster-py-frac"><span class="lm-poster-py-raw">${y.total}</span><span class="lm-poster-py-sep">/</span><span class="lm-poster-py-reduced">${py}</span></span>` : ''}
+        ${animalGlyph ? `<span class="lm-poster-py-zodiac" aria-label="${esc(animalLabel(yearAnimal))}">${animalGlyph}</span>` : ''}
+        ${py != null && y.master ? '<span class="lm-poster-py-star">★</span>' : ''}
+      </div>`;
+    card.title = `${m.title} · ${m.year}${m.outcome ? ' · ' + m.outcome : ''}`
+      + (py != null ? ` · personal year ${y.total}/${py}${y.master ? ' (master)' : isSubmaster ? ' (submaster)' : ''} — ${PY_GLOSS[py] || ''}` : '')
+      + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     card.addEventListener('click', () => {
       poster.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
       card.classList.add('on');
@@ -381,21 +392,25 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
     seg.className = 'lm-spine-seg lm-t-none';
     const node = document.createElement('div');
     node.className = 'lm-poster-node';
+    node.innerHTML = '<span class="lm-poster-dot lm-t-none"></span>';
     const yearAnimal = ANIMALS[animalIndex(m.year)];
     const animalGlyph = animalIcon(yearAnimal) || '';
-    node.innerHTML = `<span class="lm-py dot lm-t-none">${animalGlyph || '·'}</span>`;
-    node.title = String(m.year) + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'lm-mark';
+    card.className = 'lm-mark tone-none';
     card.dataset.id = m.id;
     card.innerHTML = `
-      <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
+      <div class="lm-poster-piczone">
+        <div class="lm-poster-picwrap">
+          <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
+        </div>
+      </div>
       <div class="lm-poster-body">
         <div class="lm-poster-title">${esc(m.title)}</div>
         <div class="lm-poster-date mono">${fmtWhen(m)}</div>
-      </div>`;
-    card.title = `${m.title} · ${m.year}`;
+      </div>
+      ${animalGlyph ? `<div class="lm-poster-py"><span class="lm-poster-py-zodiac" aria-label="${esc(animalLabel(yearAnimal))}">${animalGlyph}</span></div>` : ''}`;
+    card.title = `${m.title} · ${m.year}` + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     card.addEventListener('click', () => {
       poster.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
       card.classList.add('on');
