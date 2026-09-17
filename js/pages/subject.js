@@ -213,30 +213,38 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
   root.innerHTML = `
     <div class="stack">
-      <div class="panel">
-        <div class="subject-head">
+      <div class="subject-head">
+        <div class="sh-zone1">
           <div class="avatar" id="avatar" title="${person.photo_path || person.photo_url ? 'Change picture' : 'Add a picture'}">
             <span class="initials">${person.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
             <span class="hint">${person.photo_path || person.photo_url ? 'change' : '+ picture'}</span>
           </div>
-          <div class="stack" style="gap:0">
-            <div class="row between">
-              <div class="mono" style="color:var(--text-3);font-size:11px">
-                ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip">${person.status}</span>
-                ${person.occupation ? ` · <span style="color:var(--text-2)">${person.occupation}</span>` : ''}
-              </div>
-              <div class="row" style="gap:6px;flex:0 0 auto">
-                ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
-                ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
-                <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
-              </div>
+          <div class="sh-identity">
+            <div class="sh-meta">
+              ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip brass">${person.status}</span>
+              ${person.occupation ? ` · <span class="occ">${person.occupation}</span>` : ''}
             </div>
-            <div class="basics-strip" id="basics-strip"></div>
-            <div class="lm-tokens" id="lm-tokens">${tokensHtml(person)}</div>
-            ${aliases.length ? `<div class="row wrap" style="margin-top:12px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
-            ${person.notes ? `<p style="margin-top:8px;color:var(--text-3);font-size:12px">${person.notes}</p>` : ''}
+            ${aliases.length ? `<div class="row wrap" style="margin-top:6px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
+          </div>
+          <div class="sh-actions">
+            ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
+            ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
+            <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
           </div>
         </div>
+        <div class="sh-divider"></div>
+        <div class="sh-lowerrow">
+          <div class="sh-zone2">
+            <p class="zone-label">Demographics</p>
+            <div class="profile-grid" id="basics-strip"></div>
+          </div>
+          <div class="sh-zonedivider"></div>
+          <div class="sh-zone3">
+            <p class="zone-label">Numerology &amp; Zodiac</p>
+            <div class="lm-tokens sh-numerology" id="lm-tokens">${tokensHtml(person)}</div>
+          </div>
+        </div>
+        ${person.notes ? `<p class="sh-notes">${person.notes}</p>` : ''}
       </div>
 
       <div class="tab-strip" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹' : '⋯'}</button></div>
@@ -431,16 +439,21 @@ export async function render(root, ctx, personId, tab = 'profile') {
     : (spouseName ? `Married · ${spouseName}` : null);
   const born = bornText(person);
   const age = ageText(person);
+  // a grid row per fact (candidate B, her pick 2026-09-17: "compact three-
+  // zone header" — same k/v language as the Profile-details widget below,
+  // just the five she reads at a glance; a blank one stays tappable, same
+  // as the old dot-strip
   const basics = [
-    { key: 'age', text: age === 'unknown' ? null : `<b style="font-weight:500;color:var(--text)">${age}</b>${born ? ` <span style="color:var(--text-3)">born ${born}</span>` : ''}`, missing: 'age' },
-    { key: 'gender', text: person.gender || null, missing: 'gender' },
-    { key: 'nationality', text: person.nationality || null, missing: 'nationality' },
-    { key: 'birth_place', text: person.birth_place ? `born ${person.birth_place}` : null, missing: 'birthplace' },
-    { key: 'marital', text: marital, missing: 'marital status' },
+    { k: 'Born', text: born, missing: 'birth date' },
+    { k: 'Age', text: age === 'unknown' ? null : age, missing: 'age' },
+    { k: 'Gender', text: person.gender || null, missing: 'gender' },
+    { k: 'Nationality', text: person.nationality || null, missing: 'nationality' },
+    { k: 'Birthplace', text: person.birth_place || null, missing: 'birthplace' },
+    { k: 'Marital', text: marital, missing: 'marital status' },
   ];
   const strip = root.querySelector('#basics-strip');
-  strip.innerHTML = basics.map((b) => b.text ? `<span>${b.text}</span>` : `<span class="missing" title="Tap to fill in">— <span style="font-size:10px">${b.missing}</span></span>`).join('<span class="sep">·</span>');
-  strip.querySelectorAll('.missing').forEach((el) => el.addEventListener('click', openEdit));
+  strip.innerHTML = basics.map((b) => `<div class="k">${b.k}</div><div class="v${b.text ? '' : ' missing'}" ${b.text ? '' : 'title="Tap to fill in"'}>${b.text || `— <span style="font-size:10px">${b.missing}</span>`}</div>`).join('');
+  strip.querySelectorAll('.v.missing').forEach((el) => el.addEventListener('click', openEdit));
 
   // any other tab: mount that page under the header and stop here
   if (tab !== 'profile') {

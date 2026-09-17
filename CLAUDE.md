@@ -387,6 +387,44 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-17, latest — the subject header split into 3 widgets, and the
+mock-delivery path itself had to change mid-task (v105, SPEC §23).** "improve
+this ui, make 3 widgets" + "make it visually scannable," on a screenshot of
+the Profile identity card. Grounded the redesign properly first: read the
+real `subject.js`/`app.css` source rather than guessing at the markup,
+found the app already has an established "widget" visual language
+(`profile-widgets.js`, v100) and an existing `.profile-grid` k/v component
+(the "Profile details" panel) showing the SAME demographic facts at a
+fuller density — reused that component rather than inventing a second grid
+style, per code6's "reuse existing components" rule. Three real candidates
+(grounded in real Sandra Bullock data + real tokens, one Workflow, 3
+parallel design agents) went up as an AskUserQuestion popup with inline
+previews — same convention as every prior taste call this session. **She
+dismissed it and said "you keep asking me but i cant open the mocks."**
+This is a real, repeating failure mode (the same complaint surfaced earlier
+in the v103/v104 empty-state round too, worked around that time by
+restarting a stopped preview server) — but restarting the server was not
+the fix this time; whatever is blocking her either isn't the server or
+isn't only the server. **The actual fix: stopped relying on any
+localhost-link or popup-preview delivery path entirely and used the
+`visualize` (`show_widget`) tool instead** — a widget rendered directly
+inline in the conversation itself, no separate window, no link to click,
+no dev server in the loop. She replied "i like b" within the same turn.
+**The lesson to keep:** when a mock-delivery mechanism fails a SECOND time
+after already being "fixed" once, the fix was probably aimed at the wrong
+layer (the specific server-down incident) rather than the real one (this
+category of delivery path doesn't reliably reach her); look for a
+structurally different channel rather than repeating the same repair.
+
+One more implementation-time catch: all 3 candidate mockups (independently
+built by parallel agents) added "Sandra Bullock" as a name inside the
+card — copying that literally would have broken this project's own
+2026-09-02 "a name is said once per screen" rule the moment it shipped,
+since the page's own top-bar title already names her once. Approved a
+candidate's STRUCTURE, not its every literal pixel — reconciling a mock
+against the app's own standing rules is still Claude's job during
+implementation, not something a mock's approval waives.
+
 **2026-09-17, still later — the same empty state, redesigned again (v104,
 SPEC §22).** "Editorial calm" (v103, directly below) lasted one round. Her
 next screenshot of the same Review card: "give me 3 redesigns of this
