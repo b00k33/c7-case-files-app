@@ -387,7 +387,33 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-17, latest — the life-line outcome badge, un-clipped (v106, SPEC
+**2026-09-17, latest — the life line restyled "quiet editorial" (v107, SPEC
+§25).** Second half of the same message as the v106 entry below: "mock 3
+better styles for the page" — a taste call this time, not a competence one,
+so it got the mock-first protocol instead of a direct fix. Read the
+original poster's own deliberate constraints back from SPEC §13w before
+designing anything (orientation flip, index-parity alternation not category
+lanes, per-mark `pyTone()`, both raw+reduced numbers always shown, corner-
+anchored outcome badge) and gave them to a Workflow as hard constraints, not
+suggestions — "style refinement, not structural redesign." 3 real candidates
+came back, each rendered with the exact real 4-event dataset at both
+breakpoints, shown as compact CSS swatches in an inline `visualize` widget
+per the mock-delivery-fallback lesson two entries below. Her pick: B, "quiet
+editorial" — shadows off, spine to a hairline, the personal-year ring
+becomes a bordered tick chip. Turned out to be a pure `css/app.css` restyle;
+`js/lifemap.js`'s markup already had the right shape, no DOM change needed.
+One trap avoided: `.lm-mark`/`.lm-poster-pic`/`.lm-spine-seg` are also
+styled by shared page-wide shadow rules declared later in the file
+(`.card, .lm-card, .lm-mark { box-shadow: var(--lift-2) }`) — overriding
+`.lm-mark` directly would've lost to source order at equal specificity, so
+the override went in scoped as `.lm-poster .lm-mark` (two classes beats one,
+wins regardless of where it sits in the file) rather than touching the
+shared rule and dimming every other card's shadow in the app. Verified live
+with the real `renderLifeLine()` fed the real dataset directly (the sandbox
+itself only has one thin synth subject) to check alternation and per-mark
+tone actually work, not just look right in the mock.
+
+**2026-09-17, later — the life-line outcome badge, un-clipped (v106, SPEC
 §24).** "ui audit, code7 see how ticks are cut off?" on a live screenshot.
 `code7` doesn't exist for this project (2026-09-13 entry below); read as
 code6 + code3, same as every other prior "code7" invocation here. A pure

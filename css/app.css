@@ -804,26 +804,31 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
    the spine carries the number, the card carries the picture. Vertical on
    the phone (cards left/right), horizontal on the desktop (cards
    above/below) — her own words, the one deliberate exception to one
-   layout everywhere; the retired ribbon + legend line are gone. */
+   layout everywhere; the retired ribbon + legend line are gone.
+   Restyled "quiet editorial" (v107, 2026-09-17, her pick of 3 style mocks
+   after "mock 3 better styles for the page"): the interface does less —
+   spine thins to a hairline, cards drop their shadow for a hairline
+   border, and colour now lives as a thin accent (the tone tick, the spine
+   segment) rather than filling a shape. Calmer on a long timeline. */
 .lm-poster { display: flex; flex-direction: column; margin-top: var(--sp-2); }
 .lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 44px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 96px; }
-.lm-spine-seg { grid-column: 2; position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; transform: translateX(-50%); border-radius: 2px; }
+.lm-spine-seg { grid-column: 2; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); border-radius: 1px; }
 .lm-poster-row:first-child .lm-spine-seg { top: 50%; }
 .lm-poster-row:last-child .lm-spine-seg { bottom: 50%; }
 .lm-poster-node { grid-column: 2; justify-self: center; z-index: 1; }
 .lm-poster-row.side-a .lm-mark { grid-column: 1; justify-self: end; }
 .lm-poster-row.side-b .lm-mark { grid-column: 3; justify-self: start; }
-.lm-mark { display: flex; align-items: center; gap: var(--sp-2); width: 100%; max-width: 230px; padding: var(--sp-2); border-radius: var(--r-lg); background: var(--ink-2); border: 0; cursor: pointer; text-align: left; position: relative; color: var(--text); }
-.lm-mark:hover { background: var(--ink-3); }
-.lm-mark.on { box-shadow: 0 0 0 2px var(--brass), var(--lift-2); }
-.lm-poster-pic { width: 44px; height: 44px; border-radius: var(--r-md); overflow: hidden; flex: none; background: var(--ink-3); display: flex; align-items: center; justify-content: center; }
+.lm-mark { display: flex; align-items: center; gap: var(--sp-2); width: 100%; max-width: 230px; padding: var(--sp-2); border-radius: var(--r-lg); background: var(--ink-1); border: 1px solid var(--line); cursor: pointer; text-align: left; position: relative; color: var(--text); }
+.lm-mark:hover { background: var(--ink-2); border-color: var(--text-3); }
+.lm-mark.on { border-color: transparent; box-shadow: 0 0 0 2px var(--brass); }
+.lm-poster-pic { width: 44px; height: 44px; border-radius: var(--r-md); overflow: hidden; flex: none; background: var(--ink-3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
 .lm-poster-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lm-poster-pic.glyph .g { font-size: 18px; color: var(--text-2); line-height: 1; }
 .lm-poster-body { min-width: 0; flex: 1; }
 .lm-poster-title { font-size: 13px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .lm-poster-date { font-size: 10px; color: var(--text-3); margin-top: 2px; }
 .lm-poster-date .n { color: var(--brass); }
-.lm-poster-oc { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; line-height: 1; background: var(--ink-1); border: 2px solid var(--text-3); }
+.lm-poster-oc { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; background: var(--ink-1); border: 1.5px solid var(--text-3); }
 .lm-poster-oc.lm-o-worked { border-color: var(--green); color: var(--green); }
 .lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
 @media (min-width: 641px) {
@@ -835,7 +840,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
      instead of past it. */
   .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding: var(--sp-2) 0; gap: 0; }
   .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 44px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
-  .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 4px; width: auto; transform: translateY(-50%); border-radius: 2px; }
+  .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 2px; width: auto; transform: translateY(-50%); border-radius: 1px; }
   .lm-poster-row:first-child .lm-spine-seg { left: 50%; }
   .lm-poster-row:last-child .lm-spine-seg { right: 50%; }
   .lm-poster-node { grid-row: 2; grid-column: 1; }
@@ -849,18 +854,23 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
    both — three real mocks built and shown, she picked the stacked
    fraction). ".dot" is the old plain ring, kept for the one case with no
    number at all (a relationship's spine, which has no personal year).
-   ".stack" is raw (small, muted) over reduced (bold, toned) in a taller
-   stadium; ".special" — a submaster year (13/28/31, her own term) or a
-   kept master (11/22/33) — sizes up further so the rare, meaningful years
-   read as bigger at a glance, not just differently labelled (her follow-up,
-   same conversation: "make the submaster larger"). */
-.lm-py { display: inline-flex; align-items: center; justify-content: center; border: 2px solid currentColor; font-family: var(--font-mono); font-weight: 600; flex: none; position: relative; }
-.lm-py.dot { width: 24px; height: 24px; border-radius: 50%; font-size: 12px; background: none; }
-.lm-py.stack { flex-direction: column; gap: 1px; width: 28px; height: 34px; border-radius: 999px; padding: 2px 1px; background: var(--ink-1); }
-.lm-py.stack.special { width: 34px; height: 40px; }
-.lm-py-raw { font-size: 8px; font-weight: 600; line-height: 1; color: var(--text-3); }
+   Quiet-editorial restyle (v107): ".stack" is now a hairline-bordered
+   chip — a coloured tick (::before, spans both rows) with raw (small,
+   muted) over reduced (bold, toned) beside it, not a filled ring — the
+   tone lives in the tick and the reduced digit, not the whole badge.
+   ".special" — a submaster year (13/28/31, her own term) or a kept master
+   (11/22/33) — sizes up further so the rare, meaningful years read as
+   bigger at a glance, not just differently labelled (her follow-up, same
+   conversation: "make the submaster larger"). */
+.lm-py { display: inline-flex; align-items: center; font-family: var(--font-mono); font-weight: 600; flex: none; position: relative; }
+.lm-py.dot { width: auto; height: auto; padding: 3px 7px; border-radius: 3px; font-size: 12px; background: var(--ink-1); border: 1px solid var(--line); color: var(--text-3); }
+.lm-py.stack { display: grid; grid-template-columns: 2px auto; grid-template-rows: auto auto; align-items: center; column-gap: 5px; width: auto; height: auto; padding: 3px 6px 3px 4px; border-radius: 3px; background: var(--ink-1); border: 1px solid var(--line); }
+.lm-py.stack::before { content: ''; grid-row: 1 / 3; grid-column: 1; height: 100%; min-height: 16px; border-radius: 1px; background: currentColor; }
+.lm-py.stack.special { padding: 4px 7px 4px 5px; }
+.lm-py.stack.special::before { min-height: 20px; }
+.lm-py-raw { grid-column: 2; grid-row: 1; font-size: 8px; font-weight: 600; line-height: 1; color: var(--text-3); }
 .lm-py.special .lm-py-raw { font-size: 9.5px; }
-.lm-py-reduced { font-size: 15px; font-weight: 700; line-height: 1; color: currentColor; }
+.lm-py-reduced { grid-column: 2; grid-row: 2; margin-top: 2px; font-size: 15px; font-weight: 700; line-height: 1; color: currentColor; }
 .lm-py.special .lm-py-reduced { font-size: 18px; }
 .lm-py-star { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--brass); border: 2px solid var(--ink-1); display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: var(--ink-0); }
 .lm-py.lm-t-gold { color: var(--brass); }
@@ -1165,8 +1175,12 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .btn-ghost, .btn-danger, .tab-strip .tab-more { box-shadow: none; }
 .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--press); }
 .btn-ghost:active:not(:disabled), .btn-danger:active:not(:disabled) { box-shadow: none; }
-.lm-spine-seg { box-shadow: var(--sink); }
-.lm-poster-pic { box-shadow: var(--lift-mark); }
+/* the poster went shadow-free in the quiet-editorial restyle (v107) —
+   .lm-card/.lm-mark keep their lift everywhere else on the page; scope the
+   override to .lm-poster so it wins on specificity without touching those
+   shared classes. */
+.lm-poster .lm-mark, .lm-poster .lm-mark:hover, .lm-poster .lm-poster-pic, .lm-poster .lm-spine-seg { box-shadow: none; }
+.lm-poster .lm-mark:hover { transform: none; }
 /* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
 #drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
