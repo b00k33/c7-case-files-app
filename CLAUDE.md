@@ -387,6 +387,47 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-17, still later — the same empty state, redesigned again (v104,
+SPEC §22).** "Editorial calm" (v103, directly below) lasted one round. Her
+next screenshot of the same Review card: "give me 3 redesigns of this
+including icons, font etc." — three more static candidates went up as an
+AskUserQuestion popup; she dismissed it without picking. Per the tool's own
+explicit semantics, a dismissal means "do not proceed, wait for the next
+instruction" — NOT "build the recommended option anyway," which is the
+opposite read from a genuine "show me" (2026-09-07 convention, reused just
+above for v103). Waited. Her next words: "i want modern, interactive
+designs. this will also be for the entire app" — redirecting from static
+layout comparison toward real motion, and volunteering the app-wide scope
+confirmation unprompted (matching what v103's own entry had already
+reasoned out about this component's blast radius). **The lesson to keep:**
+when a taste-call popup gets dismissed rather than answered, that is
+itself information — she wanted to interact with the thing, not read a
+description of it, which is exactly what the next round built (working CSS
+entrance animation + a "↻ replay" button per candidate, not more static
+screenshots). A dismissal followed by a sharper, more specific ask is the
+signal that the FORMAT of the choice was wrong, not just that the options
+were.
+
+Two build-time findings worth keeping: (1) this app already has its own
+established reduced-motion convention — run every animation unconditionally
+and strip it with `@media (prefers-reduced-motion: reduce) { animation:
+none; }` (`.review-card`, `.stamp-moment`, `.answer-flash`) — the opposite
+direction from the round-3 scratchpad mock's `@media (prefers-reduced-
+motion: no-preference)` gate-in. Matched the app's own convention rather
+than the mock's, which meant every animated CSS property (SVG dash-offset,
+opacity, transform) had to live ONLY inside the animation's own fill-mode
+(`both`), never as a separate static rule, so stripping `animation` cleanly
+falls back to a correct settled state with no extra code — confirmed live
+by forcing `animation: none` and reading computed styles back, not just by
+eyeballing it. (2) rewriting `emptyState()`'s exact template-literal lines
+surfaced a real latent bug unrelated to the redesign: `missing`/`why` were
+interpolated into `innerHTML` unescaped, and one call site
+(`dashboard.js`'s search-empty state) builds its string from the user's own
+search box text — harmless everywhere else, a real injection point there.
+Fixed with the same small `esc()` pattern already duplicated in a dozen
+other page modules, in the same edit, since it was two lines inside code
+already being rewritten — not a separate initiative.
+
 **2026-09-17, later — the shared empty state, redesigned (v103, SPEC
 §21).** "improve ui. give me several options," looking at Review's own
 empty queue card. This is a TASTE call, not a competence call (per the

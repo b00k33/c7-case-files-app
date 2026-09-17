@@ -351,28 +351,38 @@ export function relationGlyph(kind, { unsettled = false } = {}) {
 
 // --- empty state, per STYLE.md section 8: missing / why / one action ----
 
-// "Editorial calm" (her pick, 2026-09-17, from 3 real candidates after
-// "improve ui. give me several options." on the Review page): a thin rule
-// above and below carries the moment instead of an icon, so this one
-// component stays right for every "nothing here yet" surface in the app
-// (Cases, People, Review, Board, evidence, …) without a per-page icon to
-// maintain. `why` stays optional — some call sites (a person not found)
-// never had one, and the old unconditional `${why}` literally printed the
-// word "undefined" there.
+const escEmpty = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// "The icon is alive" (her pick, 2026-09-17, from 3 modern/interactive
+// candidates after "i want modern, interactive designs. this will also be
+// for the entire app" — the round-3 follow-up to "editorial calm" above,
+// which she then asked to redo with real motion). A magnifying glass draws
+// itself in on mount, then breathes gently forever — an ambient "this page
+// is alive, not stuck" signal for every "nothing here yet" surface in the
+// app (Cases, People, Review, Board, evidence, …). `why` stays optional —
+// some call sites (a person not found) never had one.
 export function emptyState({ missing, why, action, onAction }) {
   const el = document.createElement('div');
   el.className = 'empty-state';
   el.innerHTML = `
-    <div class="empty-rule"></div>
-    <p class="empty-missing">${missing}</p>
-    ${why ? `<p class="empty-why">${why}</p>` : ''}
-    ${action ? '<div class="empty-rule"></div>' : ''}
+    <div class="empty-icon-wrap" aria-hidden="true">
+      <span class="empty-icon-ring"></span>
+      <svg class="empty-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle class="empty-icon-lens" cx="26" cy="26" r="14" stroke="currentColor" stroke-width="3"/>
+        <line class="empty-icon-handle" x1="36" y1="36" x2="48" y2="48" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <p class="empty-missing">${escEmpty(missing)}</p>
+    ${why ? `<p class="empty-why">${escEmpty(why)}</p>` : ''}
   `;
   if (action) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'empty-action';
-    btn.textContent = action;
+    const label = document.createElement('span');
+    label.textContent = action;
+    btn.appendChild(label);
+    btn.insertAdjacentHTML('beforeend', '<svg class="empty-action-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
     if (onAction) btn.addEventListener('click', onAction);
     el.appendChild(btn);
   }

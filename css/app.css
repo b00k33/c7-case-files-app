@@ -207,22 +207,50 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* ---------------------------------------------------------- empty state */
 
 .empty-state {
-  padding: var(--sp-6) var(--sp-4);
+  padding: var(--sp-7) var(--sp-4);
   background: var(--ink-1);
   border-radius: var(--r-lg);
   text-align: center;
-  display: flex; flex-direction: column; gap: var(--sp-2); align-items: center;
+  display: flex; flex-direction: column; align-items: center;
 }
-.empty-rule { width: 32px; height: 1px; background: var(--line); flex: none; }
-.empty-missing { color: var(--text); font-weight: 700; font-size: 16px; line-height: 1.5; letter-spacing: -0.01em; margin: 0; max-width: 320px; }
-.empty-why { color: var(--text-3); margin: 0; font-size: 13px; line-height: 1.6; max-width: 280px; }
+.empty-icon-wrap { position: relative; width: 64px; height: 64px; margin-bottom: var(--sp-5); display: flex; align-items: center; justify-content: center; color: var(--brass); flex: none; }
+.empty-icon { width: 40px; height: 40px; position: relative; z-index: 1; }
+.empty-icon-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--brass); opacity: .35; }
+.empty-missing { color: var(--text); font-weight: 700; font-size: 16px; line-height: 1.5; letter-spacing: -0.01em; margin: 0 0 var(--sp-2); max-width: 320px; }
+.empty-why { color: var(--text-3); margin: 0 0 var(--sp-5); font-size: 13px; line-height: 1.6; max-width: 280px; }
+.empty-state .empty-missing:last-child, .empty-state .empty-why:last-child { margin-bottom: 0; }
 .empty-action {
-  appearance: none; background: none; border: none; padding: 0; margin-top: var(--sp-1);
-  font-family: inherit; cursor: pointer;
-  font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--brass); text-decoration: none;
+  appearance: none; border: none; font: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--brass); color: var(--on-brass); font-weight: 600; font-size: 14px;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out;
 }
-.empty-action:hover, .empty-action:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.empty-action-arrow { flex: 0 0 auto; transition: transform 160ms ease-out; }
+.empty-action:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
+.empty-action:focus-visible { transform: translateY(-2px); box-shadow: var(--focus), var(--lift-2-hover); }
+.empty-action:hover .empty-action-arrow, .empty-action:focus-visible .empty-action-arrow { transform: translateX(3px); }
+
+/* mount: lens draws itself in, then the ring breathes gently forever —
+   dashoffset/opacity live only inside the animation (fill-mode `both`),
+   never as a static property, so `animation: none` below reverts each
+   element to its plain, fully-settled CSS with no extra work. */
+.empty-icon-lens { stroke-dasharray: 88; animation: empty-draw-lens .7s cubic-bezier(.22,.61,.36,1) .15s both; }
+.empty-icon-handle { stroke-dasharray: 17; animation: empty-draw-handle .35s cubic-bezier(.22,.61,.36,1) .75s both; }
+.empty-icon-ring { animation: empty-ring-in .5s cubic-bezier(.22,.61,.36,1) .9s both, empty-breathe 3.6s cubic-bezier(.45,0,.55,1) 1.4s infinite; }
+.empty-missing, .empty-why, .empty-action { animation: empty-fade-up .45s cubic-bezier(.22,.61,.36,1) both; }
+.empty-missing { animation-delay: .35s; }
+.empty-why { animation-delay: .45s; }
+.empty-action { animation-delay: .55s; }
+@keyframes empty-draw-lens { from { stroke-dashoffset: 88; } to { stroke-dashoffset: 0; } }
+@keyframes empty-draw-handle { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
+@keyframes empty-ring-in { from { opacity: 0; transform: scale(.92); } to { opacity: .35; transform: scale(1); } }
+@keyframes empty-breathe { 0%, 100% { transform: scale(1); opacity: .35; } 50% { transform: scale(1.035); opacity: .55; } }
+@keyframes empty-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .empty-icon-lens, .empty-icon-handle, .empty-icon-ring, .empty-missing, .empty-why, .empty-action { animation: none; }
+}
 
 /* ----------------------------------------------------------- indicators */
 
