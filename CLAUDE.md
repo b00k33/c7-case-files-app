@@ -387,7 +387,26 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-17, latest — the life-line mark reorganised into 3 widgets (v109,
+**2026-09-17, latest — the nav rail's collapsed state gets its labels back
+(v110, SPEC §28).** A screenshot of the narrow (641-1199px) `#nav-rail` plus
+one word: "improve." No stated complaint — the screenshot WAS the
+complaint. Recognised it from a cross-project memory, not from anything
+said in this conversation: she's flagged icon-only nav before, more than
+once, in OTHER apps ([[feedback_nav_labels_over_icons]] — Book33's own rail,
+2026-08-30, and LCM's header actions, 2026-09-07, both resolved the same
+way, visible labels over icon+tooltip). Treated as a competence call
+because of that — an already-validated standing preference, not a fresh
+question — and built directly, no 3-mock cycle. The fix itself borrowed a
+pattern already live in the SAME app: the phone `#tab-bar` already solves
+"identifiable in a narrow column" with icon-over-label; applied that same
+shape to the desktop rail's collapsed band instead of inventing a new
+solution. Worth remembering generally: a one-word "improve" plus a
+screenshot isn't automatically an open design question — check memory for
+whether she's already answered this exact class of complaint elsewhere
+first, and if a directly-reusable pattern already exists in the same
+codebase, that's a strong signal it's a competence call, not a taste one.
+
+**2026-09-17, later — the life-line mark reorganised into 3 widgets (v109,
 SPEC §27).** "i like the details but reorganise it, give me 3 widgets," on a
 screenshot of the v108 badge. Same "3 widgets" phrase she used for the
 subject header (SPEC §23) — but this time the 3 candidates deliberately
@@ -420,7 +439,7 @@ offset badges land inside their own zone's padding cushion, nowhere near the
 card's outer edge — the exact same reasoning, re-applied, that fixed the
 v106 clipping bug two entries below.
 
-**2026-09-17, later — the life-line badge grows a year zodiac (v108, SPEC
+**2026-09-17, still later — the life-line badge grows a year zodiac (v108, SPEC
 §26).** "it needs year zodiac," on a screenshot of the just-shipped v107
 badge. The fact already existed in the codebase — `renderWhyCard()`'s
 tap-to-open panel has shown the year's Chinese zodiac since an earlier same-
@@ -440,7 +459,7 @@ content the way `minmax(44px, auto)` does. Caught by measuring
 forced `.special` badge, not by eyeballing a screenshot — same
 verify-the-measurement habit as the v106 clipping fix two entries below.
 
-**2026-09-17, still later — the life line restyled "quiet editorial" (v107, SPEC
+**2026-09-17, even later — the life line restyled "quiet editorial" (v107, SPEC
 §25).** Second half of the same message as the v106 entry below: "mock 3
 better styles for the page" — a taste call this time, not a competence one,
 so it got the mock-first protocol instead of a direct fix. Read the
@@ -466,7 +485,7 @@ with the real `renderLifeLine()` fed the real dataset directly (the sandbox
 itself only has one thin synth subject) to check alternation and per-mark
 tone actually work, not just look right in the mock.
 
-**2026-09-17, even later — the life-line outcome badge, un-clipped (v106, SPEC
+**2026-09-17, earlier still — the life-line outcome badge, un-clipped (v106, SPEC
 §24).** "ui audit, code7 see how ticks are cut off?" on a live screenshot.
 `code7` doesn't exist for this project (2026-09-13 entry below); read as
 code6 + code3, same as every other prior "code7" invocation here. A pure
