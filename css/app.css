@@ -827,7 +827,13 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .lm-poster-oc.lm-o-worked { border-color: var(--green); color: var(--green); }
 .lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
 @media (min-width: 641px) {
-  .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding-bottom: var(--sp-2); gap: 0; }
+  /* `overflow-x: auto` with no overflow-y set forces overflow-y to `auto`
+     too (the CSS spec's own overflow-x/y coupling rule) — with zero
+     top padding that clipped the outcome badge's -6px top offset right at
+     the scroll box's own edge (seen live, 2026-09-17: her "see how ticks
+     are cut off?"). Padding gives the badge room inside the scrollable box
+     instead of past it. */
+  .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding: var(--sp-2) 0; gap: 0; }
   .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 44px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
   .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 4px; width: auto; transform: translateY(-50%); border-radius: 2px; }
   .lm-poster-row:first-child .lm-spine-seg { left: 50%; }

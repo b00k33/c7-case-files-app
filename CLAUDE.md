@@ -387,6 +387,22 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
+**2026-09-17, latest — the life-line outcome badge, un-clipped (v106, SPEC
+§24).** "ui audit, code7 see how ticks are cut off?" on a live screenshot.
+`code7` doesn't exist for this project (2026-09-13 entry below); read as
+code6 + code3, same as every other prior "code7" invocation here. A pure
+correctness bug — the ✓/✕ outcome badge on each life-line poster card pokes
+`top:-6px;right:-6px` past its own card on purpose, and the desktop
+horizontal-scroll rule (`.lm-poster { overflow-x: auto }`) had zero top
+padding; per the CSS spec, `overflow-x` set to anything but `visible` while
+`overflow-y` is unset forces `overflow-y` to `auto` too — so the badge's own
+top ~8px sat outside that now-scrollable box and got clipped outright.
+Confirmed with `getBoundingClientRect()` (badge top vs. container top)
+before touching anything, not by eyeballing a screenshot — turned an
+8px overlap into 2px of clean headroom by adding `padding-top` alongside
+the existing `padding-bottom`. Fixed directly, no mock or ask — an invisible
+layout bug is a competence call, not a taste one.
+
 **2026-09-17, latest — the subject header split into 3 widgets, and the
 mock-delivery path itself had to change mid-task (v105, SPEC §23).** "improve
 this ui, make 3 widgets" + "make it visually scannable," on a screenshot of
