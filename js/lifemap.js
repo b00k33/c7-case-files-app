@@ -10,7 +10,7 @@ import { signFor, animalIndex, ANIMALS } from './chinese.js';
 import { sunSign } from './western.js';
 import { relation } from './relations.js';
 import { exactBirth, exactDeath } from './person-dates.js';
-import { relationGlyph, animalLabel, animalChipHtml, signChipHtml, signGlyph, signElement, emptyState } from './indicators.js';
+import { relationGlyph, animalLabel, animalIcon, animalChipHtml, signChipHtml, signGlyph, signElement, emptyState } from './indicators.js';
 import { resolveAssetUrl, preloadImage } from './assets.js';
 import { fetchItemPhoto, saveEventPhotoFromUrl } from './lookup.js';
 
@@ -280,10 +280,16 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
     node.className = 'lm-poster-node';
     const isSubmaster = py != null && SUBMASTER_TOTALS.includes(y.total);
     const isSpecial = py != null && (y.master || isSubmaster);
+    // the year's own Chinese zodiac (her ask, 2026-09-17: "it needs year
+    // zodiac") — a calendar-year fact, not a personal-year one, so it shows
+    // on the badge whether or not a birth date gives us a personal year.
+    const yearAnimal = ANIMALS[animalIndex(m.year)];
+    const animalGlyph = animalIcon(yearAnimal) || '';
+    const animalSpan = animalGlyph ? `<span class="lm-py-animal" aria-hidden="true">${animalGlyph}</span>` : '';
     node.innerHTML = py != null
-      ? `<span class="lm-py stack${isSpecial ? ' special' : ''} lm-t-${tone}"><span class="lm-py-raw">${y.total}</span><span class="lm-py-reduced">${py}</span>${y.master ? '<span class="lm-py-star">★</span>' : ''}</span>`
-      : `<span class="lm-py dot lm-t-none">·</span>`;
-    node.title = py != null ? `${m.year} · personal year ${y.total}/${py}${y.master ? ' (master)' : isSubmaster ? ' (submaster)' : ''} — ${PY_GLOSS[py] || ''}` : String(m.year);
+      ? `<span class="lm-py stack${isSpecial ? ' special' : ''} lm-t-${tone}"><span class="lm-py-raw">${y.total}</span><span class="lm-py-reduced">${py}</span>${animalSpan}${y.master ? '<span class="lm-py-star">★</span>' : ''}</span>`
+      : `<span class="lm-py dot lm-t-none">${animalGlyph || '·'}</span>`;
+    node.title = (py != null ? `${m.year} · personal year ${y.total}/${py}${y.master ? ' (master)' : isSubmaster ? ' (submaster)' : ''} — ${PY_GLOSS[py] || ''}` : String(m.year)) + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     const card = document.createElement('button');
     card.type = 'button';
     card.className = `lm-mark lm-o-${m.outcome || 'none'}`;
@@ -375,8 +381,10 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
     seg.className = 'lm-spine-seg lm-t-none';
     const node = document.createElement('div');
     node.className = 'lm-poster-node';
-    node.innerHTML = '<span class="lm-py dot lm-t-none">·</span>';
-    node.title = String(m.year);
+    const yearAnimal = ANIMALS[animalIndex(m.year)];
+    const animalGlyph = animalIcon(yearAnimal) || '';
+    node.innerHTML = `<span class="lm-py dot lm-t-none">${animalGlyph || '·'}</span>`;
+    node.title = String(m.year) + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'lm-mark';

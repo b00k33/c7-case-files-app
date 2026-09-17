@@ -839,7 +839,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
      are cut off?"). Padding gives the badge room inside the scrollable box
      instead of past it. */
   .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding: var(--sp-2) 0; gap: 0; }
-  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 44px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
+  .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr minmax(44px, auto) 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
   .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 2px; width: auto; transform: translateY(-50%); border-radius: 1px; }
   .lm-poster-row:first-child .lm-spine-seg { left: 50%; }
   .lm-poster-row:last-child .lm-spine-seg { right: 50%; }
@@ -863,15 +863,26 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
    bigger at a glance, not just differently labelled (her follow-up, same
    conversation: "make the submaster larger"). */
 .lm-py { display: inline-flex; align-items: center; font-family: var(--font-mono); font-weight: 600; flex: none; position: relative; }
-.lm-py.dot { width: auto; height: auto; padding: 3px 7px; border-radius: 3px; font-size: 12px; background: var(--ink-1); border: 1px solid var(--line); color: var(--text-3); }
-.lm-py.stack { display: grid; grid-template-columns: 2px auto; grid-template-rows: auto auto; align-items: center; column-gap: 5px; width: auto; height: auto; padding: 3px 6px 3px 4px; border-radius: 3px; background: var(--ink-1); border: 1px solid var(--line); }
-.lm-py.stack::before { content: ''; grid-row: 1 / 3; grid-column: 1; height: 100%; min-height: 16px; border-radius: 1px; background: currentColor; }
+.lm-py.dot { width: auto; height: auto; padding: 3px 7px; border-radius: 3px; font-size: 13px; background: var(--ink-1); border: 1px solid var(--line); color: var(--text-3); }
+.lm-py.stack { display: grid; grid-template-columns: 2px auto; grid-template-rows: auto auto auto; align-items: center; column-gap: 5px; width: auto; height: auto; padding: 3px 6px 3px 4px; border-radius: 3px; background: var(--ink-1); border: 1px solid var(--line); }
+.lm-py.stack::before { content: ''; grid-row: 1 / 4; grid-column: 1; height: 100%; min-height: 16px; border-radius: 1px; background: currentColor; }
 .lm-py.stack.special { padding: 4px 7px 4px 5px; }
 .lm-py.stack.special::before { min-height: 20px; }
 .lm-py-raw { grid-column: 2; grid-row: 1; font-size: 8px; font-weight: 600; line-height: 1; color: var(--text-3); }
 .lm-py.special .lm-py-raw { font-size: 9.5px; }
 .lm-py-reduced { grid-column: 2; grid-row: 2; margin-top: 2px; font-size: 15px; font-weight: 700; line-height: 1; color: currentColor; }
 .lm-py.special .lm-py-reduced { font-size: 18px; }
+/* the year's own Chinese zodiac animal (her ask, 2026-09-17, on the poster
+   badge directly — "it needs year zodiac"; the fact already existed in the
+   tap-to-open "why" card, just not visible without tapping). It needs no
+   birth date, only the calendar year, so it shows even when there is no
+   personal year to tone the badge with (the ".dot" fallback). Plain emoji,
+   not the duotone trine-tinted picture the header's numerology row uses —
+   that filter is built for a much bigger context; a second loud colour
+   signal on this tiny badge would fight the quiet-editorial restyle (v107)
+   right above it. */
+.lm-py-animal { grid-column: 2; grid-row: 3; margin-top: 2px; font-size: 9px; line-height: 1; filter: grayscale(.25); opacity: .85; }
+.lm-py.special .lm-py-animal { font-size: 10px; }
 .lm-py-star { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--brass); border: 2px solid var(--ink-1); display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: var(--ink-0); }
 .lm-py.lm-t-gold { color: var(--brass); }
 .lm-py.lm-t-teal { color: var(--teal); }

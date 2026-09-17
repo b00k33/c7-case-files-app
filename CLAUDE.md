@@ -387,7 +387,27 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-17, latest — the life line restyled "quiet editorial" (v107, SPEC
+**2026-09-17, latest — the life-line badge grows a year zodiac (v108, SPEC
+§26).** "it needs year zodiac," on a screenshot of the just-shipped v107
+badge. The fact already existed in the codebase — `renderWhyCard()`'s
+tap-to-open panel has shown the year's Chinese zodiac since an earlier same-
+day ask — just not on the poster badge itself, where she'd see it without
+tapping. A concrete, unambiguous ask about existing information, not a style
+question — built directly, no mock. Two things worth remembering: (1) the
+year's animal comes from the calendar year alone (`animalIndex(year)`), not
+the person's birth date, so it can show even when there's no personal year
+at all — extended it to the `.dot` fallback badge too (used by a mark with
+no birth date, and by the relationship-line spine, which reuses the same
+badge shape) rather than leaving an inconsistency where one spine shows it
+and the sibling one doesn't; (2) the desktop badge row was a *fixed* `44px`
+grid track — a third text row would have overflowed the `.special` (master/
+submaster) badge variant past it, since a fixed track doesn't grow for
+content the way `minmax(44px, auto)` does. Caught by measuring
+`getBoundingClientRect()` across a synthetic 6-mark render including a
+forced `.special` badge, not by eyeballing a screenshot — same
+verify-the-measurement habit as the v106 clipping fix two entries below.
+
+**2026-09-17, later — the life line restyled "quiet editorial" (v107, SPEC
 §25).** Second half of the same message as the v106 entry below: "mock 3
 better styles for the page" — a taste call this time, not a competence one,
 so it got the mock-first protocol instead of a direct fix. Read the
@@ -413,7 +433,7 @@ with the real `renderLifeLine()` fed the real dataset directly (the sandbox
 itself only has one thin synth subject) to check alternation and per-mark
 tone actually work, not just look right in the mock.
 
-**2026-09-17, later — the life-line outcome badge, un-clipped (v106, SPEC
+**2026-09-17, still later — the life-line outcome badge, un-clipped (v106, SPEC
 §24).** "ui audit, code7 see how ticks are cut off?" on a live screenshot.
 `code7` doesn't exist for this project (2026-09-13 entry below); read as
 code6 + code3, same as every other prior "code7" invocation here. A pure
