@@ -387,7 +387,38 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-18, latest — the Add-flow's four buttons become one, plus "more"
+**2026-09-19, latest — the Add sheet reordered, Wikidata first (v113, SPEC
+§31).** "improve ui, i want wiki retrieval at the top and manual adding
+last. improve user friendly ui" — on the same "+ Add" sheet as v112, one
+day later. A literal reorder (competence call, no mocks) plus restrained
+polish: Look up → Import → a quiet ".section-label" divider "By hand" →
+Add an event → Alternate birthday, most-automatic to most-manual. Every
+field kept its id; the reorder itself is presentation-only.
+
+An adversarial 2-lens review (correctness, UX/conventions) caught four
+real bugs a purely-cosmetic reorder doesn't obviously suggest it could
+cause, all confirmed by independent verification: (1) `main.js`'s
+drawer-wide Enter fallback clicks the first `.btn-primary` in DOM order
+for any field lacking its own keydown handler — `#ev-kind` had none, so
+Enter there used to coincidentally land on `#ev-save` (which happened to
+be first) and now silently fired an unrelated Wikidata search instead,
+since `#lk-search` is first post-reorder; fixed by giving `#ev-kind` the
+same explicit Enter handler as `#ev-title`. (2) an inline note said "the
+paste box **above** still works" — true under the old order, backwards
+under the new one; fixed to "below." (3) the new Look-up label restated
+the adjacent button's text AND its title attribute, a three-way echo,
+right at the sheet's new first position — trimmed to describe the input
+("the name to search") like every other label in the sheet already does,
+instead of the outcome. (4) the new "By hand" divider sat directly above
+"Add an event," repeating "Add" twice in a row — dropped the word.
+Lesson to carry: a DOM reorder in code with NO other changes can still be
+a genuine regression risk wherever something depends on *position*
+rather than *id* — a global "Enter clicks the first primary button"
+fallback is exactly that kind of hidden coupling, and it only broke
+silently because the previous order happened to put the "right" button
+first by coincidence, not by design.
+
+**2026-09-18, later — the Add-flow's four buttons become one, plus "more"
 (v112, SPEC §30).** "too many buttons to add... make that more seamless,"
 on a screenshot of the "+ Add" sheet. Read the code first: "Look up,"
 "+ Works," "+ Life events," "Insert family" were four flat buttons that

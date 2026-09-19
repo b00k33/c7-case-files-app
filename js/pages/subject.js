@@ -266,6 +266,23 @@ export async function render(root, ctx, personId, tab = 'profile') {
            she taps it, so the page itself only shows what she reads -->
       <div id="add-tools" hidden>
         <div class="field">
+          <label>Look up — the name to search</label>
+          <div class="row wrap" style="gap:8px">
+            <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
+            <button class="btn btn-primary btn-sm" id="lk-search" title="Facts drafted to Review and family inserted with their own profiles — from Wikidata, as the record">Add from Wikidata</button>
+          </div>
+        </div>
+        <div id="lk-results" class="stack" style="gap:4px"></div>
+        <div class="field" style="margin-top:16px">
+          <label>Import information — paste anything, it saves what it recognises</label>
+          <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
+        </div>
+        <div class="row" style="gap:8px;align-items:center">
+          <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
+          <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
+        </div>
+        <div class="section-label" style="margin-top:24px;margin-bottom:8px">By hand</div>
+        <div class="field">
           <label>Add an event — what happened, when</label>
           <div class="row wrap" style="gap:8px">
             <input type="text" id="ev-title" placeholder="Married Debbie Rowe · won a Grammy · moved to Paris" style="flex:2 1 220px">
@@ -282,22 +299,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
             <button class="btn btn-primary btn-sm" id="alt-bday-save">Save as a candidate</button>
           </div>
         </div>
-        <div class="field" style="margin-top:16px">
-          <label>Import information — paste anything, it saves what it recognises</label>
-          <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
-        </div>
-        <div class="row" style="gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
-          <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
-        </div>
-        <div class="field" style="margin-top:16px">
-          <label>Look up</label>
-          <div class="row wrap" style="gap:8px">
-            <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
-            <button class="btn btn-primary btn-sm" id="lk-search" title="Facts drafted to Review and family inserted with their own profiles — from Wikidata, as the record">Add from Wikidata</button>
-          </div>
-        </div>
-        <div id="lk-results" class="stack" style="gap:4px"></div>
       </div>
       `}
     </div>
@@ -528,10 +529,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
   });
   root.querySelector('#add-btn')?.addEventListener('click', openAdd);
   // the Family widget's own "+ Add family" (her ask, 2026-09-15: "easily
-  // add family") — straight to the Look-up row's "Insert family" button,
-  // already pre-filled with her own name, instead of hunting for it
+  // add family") — straight to the Look-up field, already pre-filled with
+  // her own name and now the sheet's first field (ask28, 2026-09-19: wiki
+  // lookup moved to the top), instead of hunting for it
   root.querySelector('#fam-add-btn')?.addEventListener('click', () => { openAdd(); setTimeout(() => tools.querySelector('#lk-name')?.focus(), 80); });
-  // Enter in the Look up field looks up — not the sheet's first primary button (the paste save)
+  // Enter in the Look up field looks up, explicitly — there's no <form> here to do it for free
   tools.querySelector('#lk-name').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault(); e.stopPropagation();
@@ -556,6 +558,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
     render(root, ctx, personId, tab);
   });
   tools.querySelector('#ev-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-date').focus(); } });
+  // without this, Enter here bubbles to the drawer-wide fallback (main.js)
+  // and clicks whichever .btn-primary happens to come first in the sheet —
+  // found in review, 2026-09-19: that used to be #ev-save by coincidence,
+  // but now that Look-up is first, it silently fired a Wikidata search instead
+  tools.querySelector('#ev-kind').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-date').focus(); } });
   tools.querySelector('#ev-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); tools.querySelector('#ev-save').click(); } });
 
   // ---- Alternate birthday (her ask, 2026-09-08: "add an alternate birthday
@@ -712,7 +719,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
     // the profile's own item comes first when it already knows one
     if (person.wikidata_id && !matches.some((m) => m.id === person.wikidata_id)) matches.unshift({ id: person.wikidata_id, label: person.display_name, description: 'this profile’s own Wikidata record' });
     if (!matches.length) {
-      if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person, which is fine; the paste box above still works.');
+      if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person, which is fine; the paste box below still works.');
       return;
     }
     for (const m of matches) {

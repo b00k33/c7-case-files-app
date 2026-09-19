@@ -1495,6 +1495,20 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 31. The Add sheet, reordered — Wikidata first, hand-typed fields last (v113, 2026-09-19)
+
+Her ask: "improve ui, i want wiki retrieval at the top and manual adding last. improve user friendly ui" — on the "+ Add" sheet built in §30. A literal, unambiguous reorder (a competence call, no mocks needed) plus a restrained polish pass, per the standing rule that "improve the ui" means quiet, existing-convention polish, not new chrome or a paradigm change.
+
+**Built:** the sheet's four field-groups now read Look up (Wikidata) → Import information (paste-parse) → a quiet `.section-label` divider "By hand" → Add an event → Alternate birthday — most-automatic to most-manual, top to bottom. Every field keeps its existing id; every handler is still wired by `tools.querySelector('#id')`, so the reorder itself is presentation-only. The Look-up label was trimmed from a bare "Look up" to "Look up — the name to search," matching the sheet's own convention (each label says what to type, not what the button does).
+
+**Four real bugs found by an adversarial 2-lens review (correctness, UX/conventions), all confirmed by independent verification and fixed before shipping:**
+1. `js/main.js`'s drawer-wide Enter fallback clicks the first `.btn-primary:not([disabled])` in DOM order for any field with no local keydown handler. `#ev-kind` (the event-kind dropdown) had no such handler — harmless before, since `#ev-save` was coincidentally first; after the reorder, `#lk-search` is first, so Enter on the kind dropdown silently fired an unrelated Wikidata search instead of doing nothing useful. Fixed: `#ev-kind` now gets the same explicit Enter handler as `#ev-title`, moving focus to `#ev-date`.
+2. The "no match on Wikidata" note still said "the paste box **above** still works" — true under the old order, backwards under the new one (Import now sits directly below Look-up). Fixed the wording to "below."
+3. The new Look-up label ("facts and family, in one go") repeated what the button text and its title already said, three times over in one small cluster — the one label in the sheet that described the outcome instead of the input. Fixed by shortening it (see above).
+4. The new "By hand" divider (originally "Add by hand") sat directly above "Add an event," repeating "Add" twice in a row. Fixed by dropping the word from the divider.
+
+44/44 in `tests/browser-tests.html`. Verified live: reorder renders correctly, Enter on the kind dropdown now advances to the date field instead of triggering a search, and the "no match" note reads correctly.
+
 ## 30. The Add-flow's four buttons become one, plus "more" (v112, 2026-09-18)
 
 Her ask: a screenshot of the "+ Add" sheet's Look-up field-group, plus "too many buttons to add. lookup wiki, add family, add work etc. make that more seamless." Read the actual code before mocking anything: "Look up," "+ Works," "+ Life events," and "Insert family" were four flat buttons that each independently re-ran the SAME Wikidata name search, differing only in what a clicked match did next. Wanting facts and family for the same person meant searching the same name three times.
