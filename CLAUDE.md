@@ -387,7 +387,20 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-20, latest — two more sources when Wikidata has nothing: Wikipedia,
+**2026-09-20, latest — createPerson silently dropped gender, nationality,
+marital status (v118, SPEC §36).** Asked "any backlog?" after the britroyals
+pull; turned up an old note from 2026-09-06 flagging `createPerson()`'s
+INSERT as missing three of the `person` table's own columns, logged as
+"dormant, not an active bug" and never revisited. Checked live before
+fixing anything: traced all ~15 call sites that create a person, confirmed
+none of them actually try to pass those three fields at creation (they're
+always set afterward via `updatePerson`), so nothing was silently breaking
+today. Fixed anyway — a function that can't do what its own table promises
+is a trap waiting for the next caller. Added the three columns to the
+INSERT, verified live that a person created with all three set reads them
+back correctly instead of null. 44/44 in `tests/browser-tests.html`.
+
+**2026-09-20, earlier — two more sources when Wikidata has nothing: Wikipedia,
 and D-Addicts for fiction (v117, SPEC §35).** "i want multiple sources for
 retrieving information, like wikipedia," refined over several messages to
 "one search box, source picked automatically" and, once she named

@@ -145,15 +145,16 @@ export async function createPerson(obj) {
   db.run(
     `INSERT INTO person (id,case_id,kind,display_name,name_at_birth,ref_code,
        birth_date,birth_precision,birth_year_min,birth_year_max,birth_time,birth_time_precision,
-       birth_place,birth_lat,birth_lng,birth_tz,death_date,death_precision,occupation,status,notes,
-       wikidata_id,name_needs_formatting,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       birth_place,birth_lat,birth_lng,birth_tz,death_date,death_precision,gender,nationality,
+       marital_status,occupation,status,notes,wikidata_id,name_needs_formatting,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       id, obj.case_id, obj.kind || 'person', obj.display_name, obj.name_at_birth || null, obj.ref_code || null,
       obj.birth_date || null, obj.birth_precision || 'unknown', obj.birth_year_min ?? null, obj.birth_year_max ?? null,
       obj.birth_time || null, obj.birth_time_precision || 'unknown',
       obj.birth_place || null, obj.birth_lat ?? null, obj.birth_lng ?? null, obj.birth_tz || null,
-      obj.death_date || null, obj.death_precision || 'unknown', obj.occupation || null, obj.status || 'active', obj.notes || null,
+      obj.death_date || null, obj.death_precision || 'unknown', obj.gender || null, obj.nationality || null,
+      obj.marital_status || null, obj.occupation || null, obj.status || 'active', obj.notes || null,
       obj.wikidata_id || null, obj.name_needs_formatting ? 1 : 0, now, now,
     ]
   );

@@ -1495,6 +1495,14 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 36. createPerson silently dropped gender, nationality, marital status (v118, 2026-09-20)
+
+Flagged in passing on 2026-09-06 (§13d, v70) as "dormant, not an active bug — but worth closing": `createPerson()`'s INSERT statement never listed the `person` table's own `gender`, `nationality` or `marital_status` columns, so anything passed under those keys was silently discarded rather than saved. Never followed up until asked directly, two weeks later, whether any backlog remained.
+
+**Verified genuinely dormant before touching it** — traced all ~15 call sites across the app that create a person; none of them ever pass `gender`, `nationality` or `marital_status` at creation time, so nothing was actually losing data today. Every place that sets those fields does it afterward through `updatePerson()` (the Edit form, or a `gender`/`nationality`/`marital_status`-field claim applied from Review). Fixed anyway, since a `createPerson()` that can't do what its own table's columns promise is a trap for the next caller, not just today's non-issue.
+
+Added the three columns to the INSERT (28 columns now, was 25), each `obj.field || null` like every other optional text column here. Verified live: a test person created with all three set now reads them straight back, instead of `null`. 44/44 in `tests/browser-tests.html`, unaffected (nothing in the suite exercises `createPerson`'s demographic fields either way).
+
 ## 35. Two more sources when Wikidata has nothing — Wikipedia, and D-Addicts for fiction (v117, 2026-09-20)
 
 Her ask, refined over several rapid messages: "i want multiple sources for retrieving information, like wikipedia" → "combine multiple sources to search google to add relevant data." A browser page can't run an actual Google search — no free, key-less, CORS-open endpoint exists for that — but Wikipedia (and any other wiki running plain MediaWiki with anonymous API access) exposes the same two operations Wikidata already gave the app: a name search and a page's plain-text content. Three rounds of clarifying questions settled the shape: **mechanism** — "Add Wikipedia as its own one-click source," not a bigger paste box; **layout** — "One search box, source picked automatically," so the common case (Wikidata already has this person) must look exactly as it always has; and, once she separately named `wiki.d-addicts.com` ("use this for fictional cases and people"), **gating** — "Only offer it on cases marked fictional."
