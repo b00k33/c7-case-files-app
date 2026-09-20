@@ -387,7 +387,50 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-19, latest — the Add sheet reordered, Wikidata first (v113, SPEC
+**2026-09-20, latest — the life line rebuilt: rhythm strip, decade eras, size
+tiers (v114, SPEC §32).** "improve ui. make 3 widgets" on a screenshot of the
+poster — the exact phrase that had already triggered the §27 redesign two
+days earlier, which shipped the current screenshot's own design. Recognising
+a verbatim-repeated ask as a signal (per the repeat = wrong layer convention)
+rather than re-running the mockup process blindly, one clarifying question
+surfaced the real complaint: "make it interactive and better, more user
+friendly. looks too plain and boring." Three real, fully interactive mockups
+went up (Motion & micro-interaction / Rich editorial timeline / Playful &
+gamified, against real Queen Elizabeth II data); she picked **B, "Rich
+editorial timeline."**
+
+Direction B's own honest trade-off — hand-authored chapter titles, a hand-
+curated size hierarchy, hand-written narrative blurbs, all built for one
+specific, exhaustively documented person — had no equivalent in this app's
+generic data model. Four generalization calls, each disclosed rather than
+silently resolved: chapter titles became plain decade dividers (a real
+chapter name is a biographical judgment this app has no data to make); card
+size is now SCORED by `markTier()` from data every subject already has
+(relationship-defining kind, a special personal year, a real photo, a big
+cluster — never hand-picked); the rhythm strip (one tick per year, "life at
+a glance") uses real `pyTone()` colour, dropping the mockup's invented
+5-item narrative legend in favour of nothing rather than fabricating
+meaning; and `onPick` still drives the SAME existing "why" verdict panel
+elsewhere on the page — no second detail dock was built on top of it. The
+v107 "quiet editorial, shadows off" flattening is now graduated by tier
+instead of uniformly flat, since a size hierarchy that stayed identically
+flat across every tier would have undercut its own point.
+
+An adversarial 2-lens review (correctness, UX/conventions) found 8 real
+bugs, all independently verified, all fixed before shipping — the two worth
+carrying forward as lessons: (1) a `:first-child`→`:first-of-type` selector
+"fix" didn't fix anything, because `:first-of-type` matches by TAG, not
+class, and the new sibling (an era divider) was the same tag — the
+eventual fix was to stop leaning on sibling position at all and mark the
+real first/last row explicitly in JS; (2) a new tier-graduated shadow rule
+had the same specificity as the existing `.lm-mark.on` selection ring, and
+being declared later in the file silently ate it for the two tiers (large,
+hero) that make up most of a poster's emotionally significant marks — a
+reminder that a same-specificity addition anywhere in a large stylesheet is
+a live collision risk with anything else at that same specificity, not just
+with what sits next to it. Full list in SPEC §32.
+
+**2026-09-19, later — the Add sheet reordered, Wikidata first (v113, SPEC
 §31).** "improve ui, i want wiki retrieval at the top and manual adding
 last. improve user friendly ui" — on the same "+ Add" sheet as v112, one
 day later. A literal reorder (competence call, no mocks) plus restrained

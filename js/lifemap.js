@@ -193,6 +193,26 @@ function outcomeChip(m) {
   return '<span class="lm-v lm-v-neutral">not yet judged</span>';
 }
 
+// how much visual weight a mark earns on the poster: relationship-defining
+// kinds, a numerologically special year, a real photo, or a big cluster all
+// read as more significant than a routine dated line — every input already
+// exists on the record, so this works the same for any subject, not just a
+// hand-curated one (her ask, 2026-09-20: "make it interactive and better...
+// looks too plain and boring" — SPEC §32)
+function markTier(m, { isSpecial, hasPhoto }) {
+  let score = 0;
+  if (m.kind === 'death' || m.kind === 'marriage' || m.kind === 'divorce') score += 3;
+  if (m.kind === 'trial' || m.kind === 'crisis') score += 2;
+  if (m.kind === 'milestone') score += 1;
+  if (isSpecial) score += 2;
+  if (hasPhoto) score += 1;
+  if (m.cluster && m.cluster.length >= 3) score += 1;
+  if (score >= 5) return 'hero';
+  if (score >= 3) return 'large';
+  if (score >= 1) return 'medium';
+  return 'small';
+}
+
 // life-events.js encodes a fetched item as `${personQid}/${prop}/${itemQid}`
 // (a marriage/divorce candidate adds a trailing /start or /end) — the
 // poster's picture fetch wants just the item on the far end: the award,
@@ -243,6 +263,19 @@ async function resolveMarkPicture(m, { people, store }) {
  * everywhere (CSS carries the flip; this file builds one DOM shape).
  * onPick(mark, button) when a card is tapped; the verdict panel it drives
  * lives elsewhere on the page, unchanged.
+ *
+ * v114 (2026-09-20, "make it interactive and better... looks too plain and
+ * boring"): a rhythm strip (one tick per year, toned by personal year) sits
+ * above the spine for a glance at the whole life before scrolling into any
+ * one mark; marks now group under a plain decade divider (".lm-era")
+ * instead of a hand-authored chapter title — a real chapter name ("Princess
+ * & Heir") is a biographical judgment call this app has no data to make for
+ * an arbitrary subject, but the calendar year is always there. Each card's
+ * SIZE now carries weight too (markTier above): a relationship-defining
+ * kind, a special personal year, a real photo, or a big cluster earns a
+ * bigger card, and a hero-tier one spans the full row. onPick(mark, button)
+ * still drives the SAME verdict panel elsewhere on the page — no second
+ * detail view was added on top of it.
  */
 export async function renderLifeLine(el, data, { onPick, onAdd = null, store = null, people = [] } = {}) {
   el.innerHTML = '';
@@ -266,14 +299,65 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
   }
   await Promise.all(shown.map(async (m) => { m._pic = await resolveMarkPicture(m, { people, store }); }));
 
+  const wrap = document.createElement('div');
+  wrap.className = 'lm-wrap';
+  const eras = []; // { decade, el } — filled in as the poster below builds
+
+  // the rhythm strip: one tick per calendar year, toned the same as its
+  // spine segment, so the whole life reads at a glance before scrolling
+  // into any one mark. Tapping a year jumps to its decade. Purely a
+  // pointer/visual enhancement — aria-hidden and untabbable, because the
+  // page's own "year list" toggle right above already gives a full plain-
+  // text, fully accessible list of every dated item (review-found, v114:
+  // a real <button> per year of a long life put 70-90 tab stops between
+  // the header and any real content otherwise).
+  const rhythm = document.createElement('div');
+  rhythm.className = 'lm-rhythm';
+  rhythm.setAttribute('aria-hidden', 'true');
+  const jumpToYear = (year) => {
+    const decade = Math.floor(year / 10) * 10;
+    const era = [...eras].reverse().find((e) => e.decade <= decade) || eras[0];
+    if (era) era.el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  };
+  data.years.forEach((y) => {
+    const tone = pyTone(y.py);
+    const tick = document.createElement('button');
+    tick.type = 'button';
+    tick.tabIndex = -1;
+    tick.className = `lm-rhythm-tick lm-t-${tone}`;
+    tick.title = y.py != null
+      ? `${y.year} · personal year ${y.total}/${y.py}${y.master ? ' (master)' : ''} — ${PY_GLOSS[y.py] || ''}`
+      : String(y.year);
+    tick.addEventListener('click', () => jumpToYear(y.year));
+    rhythm.appendChild(tick);
+  });
+  wrap.appendChild(rhythm);
+
   const poster = document.createElement('div');
   poster.className = 'lm-poster';
+  let prevDecade = null;
   shown.forEach((m, i) => {
+    const decade = Math.floor(m.year / 10) * 10;
+    if (decade !== prevDecade) {
+      const eraEl = document.createElement('div');
+      eraEl.className = 'lm-era';
+      eraEl.innerHTML = `<span class="lm-era-label">${decade}s</span>`;
+      poster.appendChild(eraEl);
+      eras.push({ decade, el: eraEl });
+      prevDecade = decade;
+    }
     const y = data.years.find((x) => x.year === m.year);
     const py = y ? y.py : null;
     const tone = pyTone(py);
     const row = document.createElement('div');
     row.className = `lm-poster-row ${i % 2 ? 'side-b' : 'side-a'}`;
+    // era dividers sit between rows now, so the first/last .lm-poster-row
+    // is no longer always the first/last DOM child — :first-of-type still
+    // matched by TAG, not class, so a .lm-era div in that spot defeated it
+    // the same way :first-child did (review-found, v114). Mark them
+    // explicitly instead of leaning on sibling position at all.
+    if (i === 0) row.classList.add('lm-row-first');
+    if (i === shown.length - 1) row.classList.add('lm-row-last');
     const seg = document.createElement('i');
     seg.className = `lm-spine-seg lm-t-${tone}`;
     // the node on the spine is now just a small connector dot — the ring
@@ -290,9 +374,12 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
     // whether or not a birth date gives us a personal year.
     const yearAnimal = ANIMALS[animalIndex(m.year)];
     const animalGlyph = animalIcon(yearAnimal) || '';
+    const tier = markTier(m, { isSpecial, hasPhoto: !!m._pic });
+    if (tier === 'hero') row.classList.add('lm-row-hero');
+    else if (tier === 'large') row.classList.add('lm-row-large');
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = `lm-mark tone-${tone} lm-o-${m.outcome || 'none'}`;
+    card.className = `lm-mark tone-${tone} lm-o-${m.outcome || 'none'} lm-size-${tier}`;
     card.dataset.id = m.id;
     card.dataset.year = String(m.year);
     card.innerHTML = `
@@ -322,7 +409,8 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
     row.append(seg, node, card);
     poster.appendChild(row);
   });
-  el.appendChild(poster);
+  wrap.appendChild(poster);
+  el.appendChild(wrap);
 }
 
 // ---- Their Story: a relationship's own timeline (her ask, 2026-09-15 —
@@ -388,6 +476,11 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
   data.marks.forEach((m, i) => {
     const row = document.createElement('div');
     row.className = `lm-poster-row ${i % 2 ? 'side-b' : 'side-a'}`;
+    // same explicit first/last marking as renderLifeLine — no era dividers
+    // here, but the two functions share the same CSS truncation rule, so
+    // it must be set the same way in both (v114 fix, see renderLifeLine).
+    if (i === 0) row.classList.add('lm-row-first');
+    if (i === data.marks.length - 1) row.classList.add('lm-row-last');
     const seg = document.createElement('i');
     seg.className = 'lm-spine-seg lm-t-none';
     const node = document.createElement('div');

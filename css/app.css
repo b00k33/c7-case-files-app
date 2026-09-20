@@ -814,18 +814,67 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
    date, and personal-year+zodiac (a faint tone-tinted step + left edge,
    not a filled badge — carries the quiet-editorial restyle's "colour as a
    thin accent" bet (v107) into the new zone). */
+.lm-wrap { display: flex; flex-direction: column; }
+/* the rhythm strip (v114): one tick per calendar year, toned like its
+   spine segment — a glance at the whole life before scrolling into any one
+   mark. Ticks are real <button>s, sized by flex so a long life still fits
+   without individually measuring years. */
+.lm-rhythm { display: flex; gap: 2px; overflow-x: auto; padding: var(--sp-1) 2px; }
+.lm-rhythm-tick { flex: 1 1 3px; min-width: 3px; height: 20px; border: none; border-radius: 2px; padding: 0; cursor: pointer; opacity: .55; transition: opacity 120ms ease-out, transform 120ms ease-out; }
+.lm-rhythm-tick:hover, .lm-rhythm-tick:focus-visible { opacity: 1; transform: scaleY(1.2); }
+.lm-rhythm-tick.lm-t-none { opacity: .35; }
+/* a plain decade divider — not a hand-authored chapter title, see the
+   doc comment on renderLifeLine for why. Sits as a flex sibling of
+   .lm-poster-row so it takes its own place in the same zigzag flow. */
+.lm-era { flex: none; display: flex; align-items: center; justify-content: center; padding: var(--sp-2); border-top: 1px dashed var(--line); }
+.lm-era:first-child { border-top: none; }
+.lm-era-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
 .lm-poster { display: flex; flex-direction: column; margin-top: var(--sp-2); }
 .lm-poster-row { position: relative; display: grid; grid-template-columns: 1fr 16px 1fr; align-items: center; gap: 0 var(--sp-3); min-height: 220px; }
 .lm-spine-seg { grid-column: 2; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); border-radius: 1px; }
-.lm-poster-row:first-child .lm-spine-seg { top: 50%; }
-.lm-poster-row:last-child .lm-spine-seg { bottom: 50%; }
+/* explicit classes, not :first-of-type/:last-of-type — a .lm-era divider
+   is a <div> too, so "first div among siblings" stops meaning "first row"
+   the moment eras exist; lifemap.js marks the real first/last row itself
+   (v114 fix). */
+.lm-poster-row.lm-row-first .lm-spine-seg { top: 50%; }
+.lm-poster-row.lm-row-last .lm-spine-seg { bottom: 50%; }
 .lm-poster-node { grid-column: 2; justify-self: center; z-index: 1; display: flex; align-items: center; justify-content: center; }
 .lm-poster-dot { display: block; width: 8px; height: 8px; border-radius: 50%; }
 .lm-poster-row.side-a .lm-mark { grid-column: 1; justify-self: end; }
 .lm-poster-row.side-b .lm-mark { grid-column: 3; justify-self: start; }
+/* a hero-tier mark (markTier() in lifemap.js) breaks the zigzag on purpose —
+   it spans the row and centres, the one deliberate emphasis point per mark
+   rather than a uniform card size for everything (v114). */
+.lm-poster-row.lm-row-hero .lm-mark { grid-column: 1 / -1; justify-self: center; }
+/* the spine's own connector dot sits in the same track a hero card now
+   spans (v114) — .lm-poster-node's z-index:1 would otherwise float it on
+   top of the card wherever they overlap (review-found). The hero card
+   already marks its own spot on the spine; the dot is redundant there. */
+.lm-poster-row.lm-row-hero .lm-poster-node { display: none; }
 .lm-mark { display: flex; flex-direction: column; width: 100%; max-width: 230px; background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; text-align: center; position: relative; color: var(--text); }
 .lm-mark:hover { border-color: var(--text-3); }
 .lm-mark.on { border-color: transparent; box-shadow: 0 0 0 2px var(--brass); }
+/* size tiers (v114) — small/medium/large/hero, scored purely from the
+   record (kind, a special personal year, a real photo, cluster size); see
+   markTier() in lifemap.js. There is no .lm-size-medium rule at all — it
+   IS the pre-v114 .lm-mark look, untouched — but medium is the tier for a
+   mark with at least ONE point of weight, not the default: a mark with
+   NONE of those signals (the plainest possible line — a lone, unclustered
+   release/move/other in an ordinary year, no photo) goes a size down to
+   small instead, freeing real room for whatever the poster is actually
+   trying to say mattered more. */
+.lm-mark.lm-size-small { max-width: 170px; }
+.lm-mark.lm-size-small .lm-poster-pic { width: 44px; height: 44px; }
+.lm-mark.lm-size-small .lm-poster-pic.glyph .g { font-size: 18px; }
+.lm-mark.lm-size-small .lm-poster-title { font-size: 12px; -webkit-line-clamp: 1; }
+.lm-mark.lm-size-large { max-width: 260px; }
+.lm-mark.lm-size-large .lm-poster-pic { width: 72px; height: 72px; }
+.lm-mark.lm-size-large .lm-poster-pic.glyph .g { font-size: 32px; }
+.lm-mark.lm-size-large .lm-poster-title { font-size: 14px; }
+.lm-mark.lm-size-hero { max-width: 320px; border-width: 2px; border-color: var(--tone); }
+.lm-mark.lm-size-hero .lm-poster-pic { width: 92px; height: 92px; }
+.lm-mark.lm-size-hero .lm-poster-pic.glyph .g { font-size: 40px; }
+.lm-mark.lm-size-hero .lm-poster-title { font-size: 16px; font-weight: 700; }
 .lm-poster-piczone { background: var(--ink-1); padding: var(--sp-4) 0 var(--sp-3); display: flex; align-items: center; justify-content: center; }
 .lm-poster-picwrap { position: relative; }
 .lm-poster-pic { width: 60px; height: 60px; border-radius: var(--r-lg); overflow: hidden; background: var(--ink-3); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
@@ -839,15 +888,30 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .lm-poster-oc.lm-o-worked { border-color: var(--green); color: var(--green); }
 .lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
 @media (min-width: 641px) {
+  .lm-era { flex-direction: column; padding: 0 var(--sp-2); border-top: none; border-left: 1px dashed var(--line); }
+  .lm-era:first-child { border-left: none; }
+  .lm-era-label { writing-mode: vertical-rl; transform: rotate(180deg); }
   .lm-poster { flex-direction: row; align-items: stretch; overflow-x: auto; padding: var(--sp-2) 0; gap: 0; }
   .lm-poster-row { grid-template-columns: 1fr; grid-template-rows: 1fr 16px 1fr; min-height: auto; min-width: 200px; flex: none; gap: var(--sp-2) 0; }
   .lm-spine-seg { grid-row: 2; grid-column: 1; position: absolute; top: 50%; left: 0; right: 0; height: 2px; width: auto; transform: translateY(-50%); border-radius: 1px; }
-  .lm-poster-row:first-child .lm-spine-seg { left: 50%; }
-  .lm-poster-row:last-child .lm-spine-seg { right: 50%; }
+  .lm-poster-row.lm-row-first .lm-spine-seg { left: 50%; }
+  .lm-poster-row.lm-row-last .lm-spine-seg { right: 50%; }
   .lm-poster-node { grid-row: 2; grid-column: 1; }
   .lm-poster-row.side-a .lm-mark { grid-row: 1; grid-column: 1; justify-self: center; align-self: end; }
   .lm-poster-row.side-b .lm-mark { grid-row: 3; grid-column: 1; justify-self: center; align-self: start; }
+  .lm-poster-row.lm-row-hero .lm-mark { grid-row: 1 / -1; align-self: center; }
   .lm-mark { max-width: 170px; }
+  .lm-mark.lm-size-small { max-width: 130px; }
+  .lm-mark.lm-size-large { max-width: 200px; }
+  .lm-mark.lm-size-hero { max-width: 240px; }
+  /* .lm-poster-row has no gap between rows here (a flex row, not a grid) —
+     a large/hero card whose max-width reaches or exceeds the row's own
+     200px min-width leaves 0px between it and its neighbour (review-found,
+     v114, measured). Give those two tiers' OWN rows a wider floor so
+     centring still leaves real breathing room, without touching the
+     shared .lm-poster-row rule everything else still uses. */
+  .lm-poster-row.lm-row-large { min-width: 224px; }
+  .lm-poster-row.lm-row-hero { min-width: 264px; }
 }
 /* the personal-year + zodiac zone: a tone-tinted background step and left
    edge, raw total over reduced digit (both still shown — her earlier
@@ -1188,12 +1252,24 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .btn-ghost, .btn-danger, .tab-strip .tab-more { box-shadow: none; }
 .btn:active:not(:disabled) { transform: translateY(1px); box-shadow: var(--press); }
 .btn-ghost:active:not(:disabled), .btn-danger:active:not(:disabled) { box-shadow: none; }
-/* the poster went shadow-free in the quiet-editorial restyle (v107) —
-   .lm-card/.lm-mark keep their lift everywhere else on the page; scope the
-   override to .lm-poster so it wins on specificity without touching those
-   shared classes. */
-.lm-poster .lm-mark, .lm-poster .lm-mark:hover, .lm-poster .lm-poster-pic, .lm-poster .lm-spine-seg { box-shadow: none; }
-.lm-poster .lm-mark:hover { transform: none; }
+/* the poster went shadow-free in the quiet-editorial restyle (v107); v114's
+   size tiers bring depth back on purpose (a bigger card should feel like it
+   sits higher), graduated by tier rather than flat "no shadow" — still
+   scoped to .lm-poster so it wins on specificity without touching
+   .lm-card/.lm-mark's own lift everywhere else on the page. The picture
+   and spine stay flat regardless of tier; only the card itself lifts. */
+.lm-poster .lm-poster-pic, .lm-poster .lm-spine-seg { box-shadow: none; }
+.lm-poster .lm-mark { box-shadow: none; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.lm-poster .lm-mark:hover { transform: translateY(-2px); box-shadow: var(--lift-1); }
+.lm-poster .lm-mark.lm-size-large, .lm-poster .lm-mark.lm-size-hero { box-shadow: var(--lift-1); }
+.lm-poster .lm-mark.lm-size-large:hover, .lm-poster .lm-mark.lm-size-hero:hover { box-shadow: var(--lift-2-hover); }
+/* .lm-mark.on's own selection ring (declared much earlier in the file) is
+   only 2 classes deep — the tier shadow rule just above is 3, so a
+   selected large/hero card lost its brass ring and (hero only) its
+   transparent border to the tier's own box-shadow/border-color at higher
+   specificity (review-found, v114). Match that specificity here instead
+   of touching the shared .lm-mark.on rule everything else still uses. */
+.lm-poster .lm-mark.on { border-color: transparent; box-shadow: 0 0 0 2px var(--brass); }
 /* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
 #drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
