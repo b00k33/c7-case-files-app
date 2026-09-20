@@ -387,7 +387,43 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-20, latest — widowed, from the other spouse's own card too (v116,
+**2026-09-20, latest — two more sources when Wikidata has nothing: Wikipedia,
+and D-Addicts for fiction (v117, SPEC §35).** "i want multiple sources for
+retrieving information, like wikipedia," refined over several messages to
+"one search box, source picked automatically" and, once she named
+wiki.d-addicts.com by name, "only offer it on cases marked fictional." Built
+as a new `js/wiki-lookup.js` module mirroring `lookup.js`'s Wikidata shape —
+`searchWiki()`/`fetchWikiArticle()`/`draftFromWikiText()` — reusing the
+existing (previously unused outside `cases.js`) `case_file.world` field
+rather than inventing a second fictional-flag. The fallback only ever runs
+when Wikidata's own search comes back empty, so the common case looks
+exactly as it always has; a wiki match drafts birth/death dates only (not
+occupation/nationality/etc — tested and dropped after `parseProfileText()`
+drafted a nonsense mid-sentence fragment from real Wikipedia prose) and
+cites the exact page as evidence, same mechanism as a Wikidata lookup.
+
+An adversarial 2-lens review (correctness, UX) caught a real cross-row race
+— two wiki-sourced rows can describe the SAME subject just searched (unlike
+two same-named Wikidata candidates, usually different people), so clicking
+"Use this" on one while another was still reading could draft a duplicate
+date under two citations, since each fetch's dedup check snapshotted
+existing claims before either had written anything. Fixed by disabling
+every match row's button the instant any one is clicked, not just its own.
+Also fixed live before that review even started: `fetchWikiArticle()` was
+missing `redirects=1`, so a search hit that's actually a redirect (a
+nickname, or a character folded into a "List of…" page) silently came back
+with an empty extract — indistinguishable from "no dates here" until
+checked against real fetched data. One UX suggestion (surface MediaWiki's
+opensearch "description" field to tell same-titled candidates apart) was
+checked live against the real API for both wikis, found to always return
+empty, and correctly NOT built — no data existed behind it. 44/44 in
+`tests/browser-tests.html`, verified live end-to-end through the real UI
+(not just direct module calls): the graceful empty state, a successful
+Wikipedia-fallback match with the redirect fix, and D-Addicts appearing
+only on a fictional-marked case — each on a disposable test case, cleaned
+up after.
+
+**2026-09-20, earlier — widowed, from the other spouse's own card too (v116,
 SPEC §34).** She caught it herself, live: a screenshot of Prince Philip's
 OWN life line showing a red "✕ Ended with Elizabeth II" card sitting right
 next to his correct "✝ Died" card — both dated 9 Apr 2021. The v115 fix

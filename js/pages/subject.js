@@ -7,6 +7,7 @@ import { exactBirth } from '../person-dates.js';
 import { renderPairs } from '../contradictions.js';
 import { parseProfileText, parseDate } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
+import { WIKIS, searchWiki, fetchWikiArticle, draftFromWikiText } from '../wiki-lookup.js';
 import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
@@ -269,7 +270,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <label>Look up — the name to search</label>
           <div class="row wrap" style="gap:8px">
             <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
-            <button class="btn btn-primary btn-sm" id="lk-search" title="Facts drafted to Review and family inserted with their own profiles — from Wikidata, as the record">Add from Wikidata</button>
+            <button class="btn btn-primary btn-sm" id="lk-search" title="Facts drafted to Review, from the record — Wikidata first; Wikipedia (and D-Addicts, for a fictional case) too, when Wikidata has nothing">Look up</button>
           </div>
         </div>
         <div id="lk-results" class="stack" style="gap:4px"></div>
@@ -698,45 +699,84 @@ export async function render(root, ctx, personId, tab = 'profile') {
     ctx.closeDrawer(); // the sheet's job is done; the result reads on the page
     render(root, ctx, personId);
   });
-  // ---- Add from Wikidata: one search, then one primary action on the
-  // matched record — facts drafted to Review AND family inserted together,
-  // since those two are the core ask — with Works and Life events one tap
-  // away behind a text-labelled "more" menu instead of their own flat
-  // buttons (ask28, 2026-09-18: "too many buttons to add... make that more
+  // ---- Look up: one search, then one primary action on the matched
+  // record — facts drafted to Review AND family inserted together, since
+  // those two are the core ask — with Works and Life events one tap away
+  // behind a text-labelled "more" menu instead of their own flat buttons
+  // (ask28, 2026-09-18: "too many buttons to add... make that more
   // seamless" — four buttons used to each re-run the same search; she
   // picked this over per-match action chips and a pick-categories-first
-  // flow; SPEC §30) ----
+  // flow; SPEC §30).
+  //
+  // Wikidata stays the primary, structured source (facts AND family, both
+  // straight from a knowledge graph). It runs first, alone, so the common
+  // case — a public figure Wikidata already has — looks exactly like it
+  // always has: one row, no extra sources shown. Only when Wikidata comes
+  // back with nothing does a second, looser-trust pass run: Wikipedia
+  // (any subject), plus D-Addicts too when this case is marked fictional
+  // (case_file.world) — her ask, 2026-09-20: "multiple sources... like
+  // wikipedia", clarified to "combine multiple sources... to add relevant
+  // data" and then named a drama wiki for fictional cases specifically. A
+  // wiki match has no family to insert and no Works/Life-events list — a
+  // prose article isn't a knowledge graph — so it only ever gets the
+  // simpler "Use this ▸", nothing tucked behind a "more".
   tools.querySelector('#lk-search').addEventListener('click', async () => {
     const btn = tools.querySelector('#lk-search');
     const resultsEl = tools.querySelector('#lk-results');
     clearInlineNote(btn);
     resultsEl.innerHTML = '';
     btn.disabled = true; btn.textContent = 'Searching…';
+    const name = tools.querySelector('#lk-name').value;
     let matches = [];
-    try { matches = await searchPeople(tools.querySelector('#lk-name').value); }
-    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
-    btn.disabled = false; btn.textContent = 'Add from Wikidata';
+    const errors = [];
+    try { matches = (await searchPeople(name)).map((m) => ({ ...m, source: 'wikidata' })); }
+    catch (e) { errors.push(`Wikidata — ${e.message}`); }
     // the profile's own item comes first when it already knows one
-    if (person.wikidata_id && !matches.some((m) => m.id === person.wikidata_id)) matches.unshift({ id: person.wikidata_id, label: person.display_name, description: 'this profile’s own Wikidata record' });
+    if (person.wikidata_id && !matches.some((m) => m.source === 'wikidata' && m.id === person.wikidata_id)) matches.unshift({ id: person.wikidata_id, label: person.display_name, description: 'this profile’s own Wikidata record', source: 'wikidata' });
     if (!matches.length) {
-      if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person, which is fine; the paste box below still works.');
+      const kase = await store.getCase(ctx.caseId);
+      const wikisToTry = [WIKIS.wikipedia, ...(kase && kase.world ? [WIKIS.daddicts] : [])];
+      for (const wiki of wikisToTry) {
+        try { matches.push(...(await searchWiki(wiki, name)).map((m) => ({ ...m, source: wiki.id }))); }
+        catch (e) { errors.push(`${wiki.label} — ${e.message}`); }
+      }
+    }
+    btn.disabled = false; btn.textContent = 'Look up';
+    if (!matches.length) {
+      const reached = errors.length ? ` (${errors.join('; ')})` : '';
+      if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, `No match${reached} — likely a private person, which is fine; the paste box below still works.`);
       return;
     }
+    // A wiki fallback row and a Wikidata row never both appear from one
+    // search (the wiki loop above only runs when Wikidata found nothing),
+    // but two wiki rows (Wikipedia + D-Addicts) both describe the SAME
+    // subject she just searched — unlike two same-named Wikidata
+    // candidates, which are usually different people. Tapping "Use this"
+    // on one while another is still reading can draft the same date twice
+    // under two different citations, since each fetch snapshots existing
+    // claims before either has written anything (found in review,
+    // 2026-09-20). Every "Use this" disables ALL of them, not just its own
+    // row, closing that window; nothing needs to re-enable them since
+    // every path below ends in ctx.rerender(), which tears the whole list
+    // down anyway.
+    const allUseBtns = [];
     for (const m of matches) {
+      const wiki = m.source === 'wikidata' ? null : WIKIS[m.source];
       const wrap = document.createElement('div');
       wrap.className = 'stack';
       wrap.innerHTML = `
         <div class="list-row" style="cursor:default;align-items:flex-start">
-          <div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div>
+          <div class="main"><div class="title" style="font-size:13px">${m.label}${wiki ? ` <span class="chip" style="font-size:10px" title="${wiki.id === 'daddicts' ? 'Fan wiki for Asian dramas' : 'Community-edited encyclopedia'}">${wiki.label}</span>` : ''}</div>${wiki ? '' : `<div class="sub">${m.description || 'no description'} · ${m.id}</div>`}</div>
           <div class="row" style="gap:6px;flex:none">
-            <button type="button" class="btn btn-primary btn-sm" data-act="use" title="Facts drafted to Review and family inserted together, from this record">Use this ▸</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-act="more" title="Works or life events from this record">more ▾</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="use" title="${wiki ? `Facts drafted to Review, from this page — ${wiki.label}` : 'Facts drafted to Review and family inserted together, from this record'}">Use this ▸</button>
+            ${wiki ? '' : '<button type="button" class="btn btn-ghost btn-sm" data-act="more" title="Works or life events from this record">more ▾</button>'}
           </div>
         </div>
         <div class="lk-more-slot"></div>
         <div class="lk-result-slot"></div>
       `;
       const useBtn = wrap.querySelector('[data-act="use"]');
+      allUseBtns.push(useBtn);
       const moreBtn = wrap.querySelector('[data-act="more"]');
       const moreSlot = wrap.querySelector('.lk-more-slot');
       const resultSlot = wrap.querySelector('.lk-result-slot');
@@ -745,10 +785,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
       // one is running so a stray tap can't clobber an in-progress fetch
       // or an already-painted, not-yet-added tick-list (found in review:
       // 2026-09-18)
-      const lock = () => { useBtn.disabled = true; moreBtn.disabled = true; };
-      const unlock = () => { useBtn.disabled = false; moreBtn.disabled = false; };
+      const lock = () => { useBtn.disabled = true; if (moreBtn) moreBtn.disabled = true; };
+      const unlock = () => { useBtn.disabled = false; if (moreBtn) moreBtn.disabled = false; };
 
-      moreBtn.addEventListener('click', () => {
+      if (moreBtn) moreBtn.addEventListener('click', () => {
         if (moreSlot.children.length) { moreSlot.innerHTML = ''; moreBtn.textContent = 'more ▾'; return; }
         moreBtn.textContent = 'more ▴';
         moreSlot.innerHTML = '<div class="row wrap" style="gap:6px;margin:6px 0"><button type="button" class="btn btn-ghost btn-sm" data-more="works" title="Albums, EPs, singles and songs with their release dates — from Wikidata, as the record">+ Works</button><button type="button" class="btn btn-ghost btn-sm" data-more="life" title="Marriages with their dates, awards, positions, homes, schools — from Wikidata, as the record; a marriage also dates the relationship">+ Life events</button></div>';
@@ -767,8 +807,27 @@ export async function render(root, ctx, personId, tab = 'profile') {
       });
 
       useBtn.addEventListener('click', async () => {
+        if (useBtn.disabled) return; // already mid-flight from a stray double-tap or another row's "Use this"
+        allUseBtns.forEach((b) => { b.disabled = true; });
         lock();
         useBtn.textContent = 'Working…';
+        if (wiki) {
+          resultSlot.innerHTML = `<div class="inline-note" style="border-left-color:var(--brass)" id="use-progress">Reading the page…</div>`;
+          let msg; let ok = true;
+          try {
+            const article = await fetchWikiArticle(wiki, m.id, m.url);
+            const { drafted } = await draftFromWikiText(store, ctx.caseId, person.id, wiki, article);
+            const n = drafted.length;
+            msg = `${n ? `${n} fact${n === 1 ? '' : 's'} drafted to Review (${drafted.join(', ')})` : 'the page had no plain birth or death date to draft'}, citing ${wiki.label}${article.photoUrl ? ', picture saved' : ''}.`;
+          } catch (e) {
+            msg = `Lookup failed (${e.message}).`;
+            ok = false;
+          }
+          sessionStorage.setItem('c7-pi-result', msg);
+          if (!ok) sessionStorage.setItem('c7-pi-result-ok', '0');
+          ctx.rerender();
+          return;
+        }
         resultSlot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="use-progress">Fetching facts and their sources…</div>';
         const prog = resultSlot.querySelector('#use-progress');
         let factsMsg; let factsOk = true;
@@ -867,7 +926,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
     const offer = document.createElement('div');
     offer.className = 'inline-note';
     offer.style.borderLeftColor = 'var(--brass)';
-    offer.innerHTML = `Public figure? <button class="btn btn-primary btn-sm" id="lk-offer" style="margin:0 6px">Look up ${person.display_name} on Wikipedia</button> <span style="color:var(--text-3)">— facts go to Review first, nothing is saved blind.</span>`;
+    offer.innerHTML = `Public figure? <button class="btn btn-primary btn-sm" id="lk-offer" style="margin:0 6px">Look up ${person.display_name}</button> <span style="color:var(--text-3)">— facts go to Review first, nothing is saved blind.</span>`;
     root.querySelector('#pi-result').appendChild(offer); // on the page; the tap opens the "+ Add" sheet and looks up there
     offer.querySelector('#lk-offer').addEventListener('click', () => { offer.remove(); openAdd(); tools.querySelector('#lk-search').click(); });
   }
