@@ -143,7 +143,29 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
       else if ((m.kind === 'marriage' || m.kind === 'divorce') && String(m.title).toLowerCase().includes(String(other.display_name).split(/\s+/)[0].toLowerCase())) m.spouseId = other.id;
     }
   }
-  if (deathYear && !marks.some((m) => m.kind === 'death')) marks.push({ id: 'death', year: deathYear, kind: 'death', glyph: '✝', title: 'Died', date: deathISO, precision: exactDeath(person) ? 'day' : 'year' });
+  // a spouse statement's "end time" (Wikidata's P582, and this file's own
+  // synthesis above) doesn't say WHY the marriage ended — a spouse's death
+  // dates it exactly the same way a divorce would, so every ended-marriage
+  // mark up to here has been guessed as a 'divorce'. A mark whose end year
+  // matches that spouse's own recorded death year is a widowing, not a
+  // divorce: reclassify it as a death (same glyph/label/outcome as any
+  // other death) so it can never fail the marriage below (found live,
+  // 2026-09-20 — Elizabeth II's 1947 marriage to Prince Philip was reading
+  // as "failed" because his 2021 death, not a divorce, dated its end).
+  for (const m of marks) {
+    if (m.kind !== 'divorce' || !m.spouseId) continue;
+    const spouse = byId.get(m.spouseId);
+    const spouseDeathISO = spouse ? (exactDeath(spouse) || spouse.death_date || null) : null;
+    if (spouse && spouseDeathISO && yearOf(spouseDeathISO) === m.year) {
+      m.kind = 'death';
+      m.glyph = MARK_GLYPH.death;
+      m.title = `${spouse.display_name} died`;
+    }
+  }
+  // a spouse's death mark (just made above) also satisfies kind === 'death'
+  // — scope this dedup to the person's OWN death (no spouseId) so hers
+  // isn't skipped as "already have one" when it's actually his
+  if (deathYear && !marks.some((m) => m.kind === 'death' && !m.spouseId)) marks.push({ id: 'death', year: deathYear, kind: 'death', glyph: '✝', title: 'Died', date: deathISO, precision: exactDeath(person) ? 'day' : 'year' });
   marks.sort((a, b) => a.year - b.year || String(a.date || '').localeCompare(String(b.date || '')));
   for (const m of marks) {
     const tagged = m.event && outcomes ? outcomes.get(m.event.id) || null : null;
@@ -152,8 +174,14 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
     else if (m.kind === 'divorce') inferred = 'failed';
     else if (m.kind === 'death') inferred = 'end';
     else if (m.kind === 'marriage') {
-      const ended = marks.some((x) => x.kind === 'divorce' && x.year >= m.year && (!m.spouseId || !x.spouseId || x.spouseId === m.spouseId));
-      if (ended) inferred = 'failed';
+      const divorced = marks.some((x) => x.kind === 'divorce' && x.year >= m.year && (!m.spouseId || !x.spouseId || x.spouseId === m.spouseId));
+      // a spouse's death mark (reclassified above from a raw "ended" date)
+      // carries their own spouseId — a marriage that only ever meets ITS
+      // end this way lasted until death, not a breakup (her ask, 2026-09-20:
+      // "show widowed instead of failed marriage")
+      const widowed = marks.some((x) => x.kind === 'death' && x.spouseId && x.year >= m.year && (!m.spouseId || x.spouseId === m.spouseId));
+      if (divorced) inferred = 'failed';
+      else if (widowed) inferred = 'widowed';
     }
     m.tagged = tagged;
     m.outcome = tagged || inferred;
@@ -190,6 +218,7 @@ function outcomeChip(m) {
   if (m.outcome === 'worked') return '<span class="lm-v lm-v-best">✓ worked</span>';
   if (m.outcome === 'failed') return '<span class="lm-v lm-v-enemy">✕ failed</span>';
   if (m.outcome === 'end') return '<span class="lm-v lm-v-enemy">✝ end</span>';
+  if (m.outcome === 'widowed') return '<span class="lm-v lm-v-neutral">✝ widowed</span>';
   return '<span class="lm-v lm-v-neutral">not yet judged</span>';
 }
 
@@ -232,7 +261,7 @@ function itemQidFromComposite(wid) {
  */
 async function resolveMarkPicture(m, { people, store }) {
   if (m.cluster) return null; // stands for several — no one picture is honest
-  if ((m.kind === 'marriage' || m.kind === 'divorce') && m.spouseId) {
+  if ((m.kind === 'marriage' || m.kind === 'divorce' || m.kind === 'death') && m.spouseId) {
     const spouse = (people || []).find((p) => p.id === m.spouseId);
     if (!spouse) return null;
     const src = spouse.photo_path ? await resolveAssetUrl(spouse.photo_path, 'image/jpeg') : spouse.photo_url;
@@ -386,7 +415,7 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
       <div class="lm-poster-piczone">
         <div class="lm-poster-picwrap">
           <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" title="${esc(m._pic.label)}" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
-          ${m.outcome ? `<span class="lm-poster-oc lm-o-${m.outcome}">${m.outcome === 'worked' ? '✓' : m.outcome === 'end' ? '✝' : '✕'}</span>` : ''}
+          ${m.outcome ? `<span class="lm-poster-oc lm-o-${m.outcome}">${m.outcome === 'worked' ? '✓' : m.outcome === 'end' || m.outcome === 'widowed' ? '✝' : '✕'}</span>` : ''}
         </div>
       </div>
       <div class="lm-poster-body">

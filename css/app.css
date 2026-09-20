@@ -887,6 +887,10 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 .lm-poster-oc { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; background: var(--ink-1); border: 1.5px solid var(--text-3); }
 .lm-poster-oc.lm-o-worked { border-color: var(--green); color: var(--green); }
 .lm-poster-oc.lm-o-failed, .lm-poster-oc.lm-o-end { border-color: var(--red); color: var(--red); }
+/* a marriage that ended in the spouse's death is neither a failure nor a
+   judged success — neutral, not red like a real "failed"/"end" (her ask,
+   2026-09-20: "show widowed instead of failed marriage"). */
+.lm-poster-oc.lm-o-widowed { border-color: var(--text-3); color: var(--text-3); }
 @media (min-width: 641px) {
   .lm-era { flex-direction: column; padding: 0 var(--sp-2); border-top: none; border-left: 1px dashed var(--line); }
   .lm-era:first-child { border-left: none; }

@@ -387,7 +387,24 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-20, latest — the life line rebuilt: rhythm strip, decade eras, size
+**2026-09-20, latest — a widowed marriage is not a failed one (v115, SPEC
+§33).** On the v114 life-line poster below: "show widowed instead of failed
+marriage," with a screenshot of Elizabeth II's 1947 marriage reading `✕
+failed` in red because Prince Philip's 2021 death, not a divorce, had dated
+its end — `buildLifeLine()` can't tell the two apart from a spousal
+relationship's end date alone. A separately-started session was already
+mid-fix on the exact root cause (reclassifying an ended-marriage mark from
+`kind: 'divorce'` to `kind: 'death'` when the end year matches the spouse's
+own recorded death year) when this ask arrived; read its live, uncommitted
+diff first, built the `widowed` outcome on top of it rather than duplicating
+or clobbering it, and shipped both fixes together. `outcome: 'widowed'` now
+infers correctly, renders a neutral gray ✝ badge (not the red of a real
+`failed`/`end`), and needs no new button — marriage marks have no `m.event`,
+so the "JUDGE" tap-to-overrule row was already inert for them, same as `end`.
+44/44 in `tests/browser-tests.html`, verified live against the real Royal
+Family case, not a mock.
+
+**2026-09-20, later — the life line rebuilt: rhythm strip, decade eras, size
 tiers (v114, SPEC §32).** "improve ui. make 3 widgets" on a screenshot of the
 poster — the exact phrase that had already triggered the §27 redesign two
 days earlier, which shipped the current screenshot's own design. Recognising
