@@ -121,7 +121,7 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
   const deathISO = exactDeath(person) || person.death_date || null;
   const deathYear = deathISO ? yearOf(deathISO) : null;
   const byId = new Map((people || []).map((p) => [p.id, p]));
-  const marks = [];
+  let marks = [];
   for (const ev of events) {
     if (ev.theory_id) continue; // a theory timeline is not the record
     const y = eventYear(ev);
@@ -144,24 +144,32 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
     }
   }
   // a spouse statement's "end time" (Wikidata's P582, and this file's own
-  // synthesis above) doesn't say WHY the marriage ended — a spouse's death
-  // dates it exactly the same way a divorce would, so every ended-marriage
-  // mark up to here has been guessed as a 'divorce'. A mark whose end year
-  // matches that spouse's own recorded death year is a widowing, not a
-  // divorce: reclassify it as a death (same glyph/label/outcome as any
-  // other death) so it can never fail the marriage below (found live,
-  // 2026-09-20 — Elizabeth II's 1947 marriage to Prince Philip was reading
-  // as "failed" because his 2021 death, not a divorce, dated its end).
-  for (const m of marks) {
-    if (m.kind !== 'divorce' || !m.spouseId) continue;
+  // synthesis above) doesn't say WHY the marriage ended — a death dates it
+  // exactly the same way a divorce would, so every ended-marriage mark up
+  // to here has been guessed as a 'divorce'. Either side's death can be the
+  // real cause: a mark whose end year matches the SPOUSE's own recorded
+  // death year is reclassified to a death (same glyph/label/outcome as any
+  // other death), same as before. A mark whose end year matches THIS
+  // PERSON's own death year is dropped outright instead of reclassified —
+  // their own "Died" mark (pushed below) already states the same fact on
+  // the same day, so reclassifying would just show it twice (found live,
+  // 2026-09-20, on Prince Philip's own card: "Ended with Elizabeth II"
+  // sitting right next to "Died," both 9 Apr 2021, because the first fix
+  // for this only ever checked the spouse's death year, never the
+  // subject's own).
+  marks = marks.filter((m) => {
+    if (m.kind !== 'divorce' || !m.spouseId) return true;
     const spouse = byId.get(m.spouseId);
     const spouseDeathISO = spouse ? (exactDeath(spouse) || spouse.death_date || null) : null;
     if (spouse && spouseDeathISO && yearOf(spouseDeathISO) === m.year) {
       m.kind = 'death';
       m.glyph = MARK_GLYPH.death;
       m.title = `${spouse.display_name} died`;
+      return true;
     }
-  }
+    if (deathYear && deathYear === m.year) return false;
+    return true;
+  });
   // a spouse's death mark (just made above) also satisfies kind === 'death'
   // — scope this dedup to the person's OWN death (no spouseId) so hers
   // isn't skipped as "already have one" when it's actually his
@@ -175,11 +183,14 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
     else if (m.kind === 'death') inferred = 'end';
     else if (m.kind === 'marriage') {
       const divorced = marks.some((x) => x.kind === 'divorce' && x.year >= m.year && (!m.spouseId || !x.spouseId || x.spouseId === m.spouseId));
-      // a spouse's death mark (reclassified above from a raw "ended" date)
-      // carries their own spouseId — a marriage that only ever meets ITS
-      // end this way lasted until death, not a breakup (her ask, 2026-09-20:
-      // "show widowed instead of failed marriage")
-      const widowed = marks.some((x) => x.kind === 'death' && x.spouseId && x.year >= m.year && (!m.spouseId || x.spouseId === m.spouseId));
+      // a spouse's death mark (reclassified above) carries their own
+      // spouseId; this person's OWN "Died" mark (pushed below) carries
+      // none. Either one means the marriage lasted until a death, not a
+      // breakup — true from whichever side's life line is being read (her
+      // ask, 2026-09-20: "show widowed instead of failed marriage"; widened
+      // the same day after the spouse-only version left it unfixed on the
+      // other spouse's own card).
+      const widowed = marks.some((x) => x.kind === 'death' && x.year >= m.year && (!m.spouseId || !x.spouseId || x.spouseId === m.spouseId));
       if (divorced) inferred = 'failed';
       else if (widowed) inferred = 'widowed';
     }

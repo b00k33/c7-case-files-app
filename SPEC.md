@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 34. Widowed, from the other spouse's own card too (v116, 2026-09-20)
+
+Found by her, live, on the v115 fix itself: a screenshot of Prince Philip's own life line, showing TWO cards side by side for the same day (9 Apr 2021) — a red "✕" "Ended with Elizabeth II" card sitting right next to the correct "✝ Died" card.
+
+**Root cause: the v115 reclassification only checked one side of the relationship.** `buildLifeLine()`'s divorce→death reclassification (§33) compared a synthesized "ended" mark's year to the SPOUSE's own recorded death year — correct for Elizabeth's card (Philip's death ends her marriage) but silent for Philip's own card, where it's HIS OWN death, not hers, that ends it. His "ended" mark never matched the check (his end year is 2021; Elizabeth's death year is 2022), so it stayed `kind: 'divorce'` and kept its original "✕" styling — the exact bug §33 was meant to fix, just visible from the other person's own profile instead.
+
+**Fixed, in the same reclassification pass:** now checks the PERSON'S OWN death year too, not just the spouse's. But reclassifying to a second "died" mark would have just traded one duplicate for another — the person's own "Died" mark (pushed separately, right below) already states the identical fact, same day. So when it's the subject's own death that ends the marriage, the synthetic "ended" mark is dropped outright instead of reclassified — one card, not two. The marriage's own outcome-inference (`widowed`) was widened to match: it now recognizes either a spouse's death mark (carries a `spouseId`) or the subject's own bare death mark (carries none) as ending the marriage in a death, not a breakup — so Philip's own "Married Elizabeth II" card correctly reads `✝ widowed` from his side too, not just hers.
+
+Verified live against the real Royal Family case: Philip's life line now shows exactly two 1940s/2020s cards (Married, Died — the duplicate "Ended with Elizabeth II" gone), and his marriage's own "why" panel reads `♥ Married Elizabeth II · 1947 · ✝ widowed`. Elizabeth's own card re-checked unaffected. 44/44 in `tests/browser-tests.html`.
+
 ## 33. A widowed marriage is not a failed one (v115, 2026-09-20)
 
 Her ask, on the v114 poster (§32) itself, with a screenshot of Elizabeth II's 1947 marriage card: "show widowed instead of failed marriage." The card's "why" panel read `✕ failed` in red for a 74-year marriage that ended only when Prince Philip died in 2021 — a year before her own death.

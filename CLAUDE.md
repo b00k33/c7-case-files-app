@@ -387,7 +387,23 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-20, latest — a widowed marriage is not a failed one (v115, SPEC
+**2026-09-20, latest — widowed, from the other spouse's own card too (v116,
+SPEC §34).** She caught it herself, live: a screenshot of Prince Philip's
+OWN life line showing a red "✕ Ended with Elizabeth II" card sitting right
+next to his correct "✝ Died" card — both dated 9 Apr 2021. The v115 fix
+below only checked whether the SPOUSE's death year matched an ended-marriage
+mark's year (right for Elizabeth's card, since it's Philip's death ending
+her marriage); it never checked the PERSON'S OWN death year, so his own
+"ended" mark, on his own card, kept its original wrong styling. Fixed by
+checking both directions — and when it's the subject's OWN death causing
+it, dropping the synthetic "ended" mark outright rather than reclassifying
+it to a second "died" card, since their own "Died" mark (built separately)
+already says the identical thing on the identical day. The marriage
+outcome's `widowed` check widened to match either direction. 44/44 in
+`tests/browser-tests.html`, verified live on both Philip's and Elizabeth's
+own cards.
+
+**2026-09-20, later — a widowed marriage is not a failed one (v115, SPEC
 §33).** On the v114 life-line poster below: "show widowed instead of failed
 marriage," with a screenshot of Elizabeth II's 1947 marriage reading `✕
 failed` in red because Prince Philip's 2021 death, not a divorce, had dated
