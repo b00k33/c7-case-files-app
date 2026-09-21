@@ -25,6 +25,20 @@ function claimStyle(claim, value) {
   return { accent: 'var(--brass)', glyph: '◆' };
 }
 
+// A 'relationship'/'relative' claim is filed against the CASE (target_id is
+// the case id, not a person — see import.js/lookup.js) with the actual
+// person link buried in its value (a_id/b_id, or 'of' for a proposed
+// relative), so a plain target_id check misses it entirely. Everything else
+// (facts, events, a new alternate date) targets the person directly.
+function claimBelongsToPerson(c, personId) {
+  if (c.target_id === personId) return true;
+  if (c.field === 'relationship' || c.field === 'relative') {
+    try { const v = JSON.parse(c.value); return v.a_id === personId || v.b_id === personId || v.of === personId; }
+    catch (_) { return false; }
+  }
+  return false;
+}
+
 const ID_FIELDS = ['person_id', 'a_id', 'b_id'];
 
 function stripIds(value) {
@@ -118,7 +132,7 @@ async function describeClaim(store, claim, value) {
   return { title: String(value), meta: [] };
 }
 
-export async function render(root, ctx) {
+export async function render(root, ctx, personId) {
   const { store } = ctx;
   if (keyHandler) { window.removeEventListener('keydown', keyHandler); keyHandler = null; }
 
@@ -128,13 +142,23 @@ export async function render(root, ctx) {
     return () => window.removeEventListener('keydown', keyHandler);
   }
 
-  const claims = await store.listClaims(ctx.caseId, 'drafted');
+  const allClaims = await store.listClaims(ctx.caseId, 'drafted');
   // unconfirmed relationships join the queue (her ask, 2026-09-03: "allow
   // for review") — Confirm / Skip / Remove / Question, one card each
-  const rels = (await store.listRelationships(ctx.caseId)).filter((r) => !r.confirmed && !r.theory_id); // theory links are never up for confirming
+  const allRels = (await store.listRelationships(ctx.caseId)).filter((r) => !r.confirmed && !r.theory_id); // theory links are never up for confirming
+  // #/subject/:id/review already carried personId here — it was silently
+  // dropped (her ask, 2026-09-21: a person's own claims sat interleaved,
+  // chronologically, with everyone else's in the case, findable only by
+  // skipping card by card; see SPEC for the full trace). Filtered to just
+  // this person when it's set; the unfiltered #/review keeps the full case.
+  const person = personId ? await store.getPerson(personId) : null;
+  const claims = personId ? allClaims.filter((c) => claimBelongsToPerson(c, personId)) : allClaims;
+  const rels = personId ? allRels.filter((r) => r.a_id === personId || r.b_id === personId) : allRels;
+  const elsewhere = personId ? (allClaims.length + allRels.length) - (claims.length + rels.length) : 0;
+
   const queue = [...claims.map((claim) => ({ claim })), ...rels.map((rel) => ({ rel }))];
   if (cursor >= queue.length) cursor = 0;
-  const dups = await store.findDuplicates(ctx.caseId);
+  const dups = personId ? { total: 0, claims: [], evidenceCount: 0 } : await store.findDuplicates(ctx.caseId); // a case-wide hygiene tool — misleading to label "in this queue" once the queue is filtered
   const queueLabel = [
     claims.length ? `${claims.length} drafted claim${claims.length === 1 ? '' : 's'}` : null,
     rels.length ? `${rels.length} unconfirmed relationship${rels.length === 1 ? '' : 's'}` : null,
@@ -143,11 +167,12 @@ export async function render(root, ctx) {
   root.innerHTML = `
     <div class="stack">
       <div class="row between">
-        <span class="section-label">${queueLabel} in the queue</span>
-        ${queue.length ? `<div class="row" style="gap:8px">
-          <button class="btn btn-ghost btn-sm" id="bulk-accept">Accept all</button>
-          <button class="btn btn-ghost btn-sm" id="bulk-reject">Reject all</button>
-        </div>` : ''}
+        <span class="section-label">${queueLabel}${person ? ` for ${person.display_name.split(/\s+/)[0]}` : ''} in the queue</span>
+        <div class="row" style="gap:8px">
+          ${queue.length ? `<button class="btn btn-ghost btn-sm" id="bulk-accept">Accept all</button>
+          <button class="btn btn-ghost btn-sm" id="bulk-reject">Reject all</button>` : ''}
+          ${elsewhere ? `<a class="chip" href="#/review" title="Everything pending in this case, not just ${person ? person.display_name.split(/\s+/)[0] : 'this person'}">${elsewhere} more elsewhere in this case →</a>` : ''}
+        </div>
       </div>
       ${dups.total ? `<div class="inline-note row between wrap" style="border-left-color:var(--brass);gap:8px;margin:0">
         <span>${[dups.claims.length ? `${dups.claims.length} claim${dups.claims.length === 1 ? ' is an exact copy' : 's are exact copies'} of others in this queue` : null,
@@ -160,7 +185,7 @@ export async function render(root, ctx) {
   if (dups.total) {
     twoTapConfirm(root.querySelector('#dup-remove'), {
       confirmLabel: `Really remove ${dups.total}?`,
-      onConfirm: async () => { await store.removeDuplicates(ctx.caseId); cursor = 0; render(root, ctx); },
+      onConfirm: async () => { await store.removeDuplicates(ctx.caseId); cursor = 0; render(root, ctx, personId); },
     });
   }
 
@@ -179,6 +204,13 @@ export async function render(root, ctx) {
         note: 'Accepted facts are live on their people now.',
         actionLabel: 'See it on the Board',
         onAction: () => ctx.navigate('#/board'),
+      }));
+    } else if (personId) {
+      slot.appendChild(emptyState({
+        missing: `Nothing waiting on ${person ? person.display_name.split(/\s+/)[0] : 'this person'}.`,
+        why: elsewhere ? `${elsewhere} item${elsewhere === 1 ? '' : 's'} waiting elsewhere in this case.` : 'Nothing drafted is waiting on a decision for them.',
+        action: elsewhere ? 'See the whole case' : 'Go to Import',
+        onAction: () => ctx.navigate(elsewhere ? '#/review' : '#/import'),
       }));
     } else {
       slot.appendChild(emptyState({ missing: 'The review queue is empty.', why: 'Nothing drafted is waiting on a decision.', action: 'Go to Import', onAction: () => ctx.navigate('#/import') }));
@@ -205,7 +237,7 @@ export async function render(root, ctx) {
       decidedThisSession += queue.length;
       sessionCounts.accepted += queue.length;
       cursor = 0;
-      render(root, ctx);
+      render(root, ctx, personId);
     },
   });
   twoTapConfirm(root.querySelector('#bulk-reject'), {
@@ -216,7 +248,7 @@ export async function render(root, ctx) {
       decidedThisSession += queue.length;
       sessionCounts.rejected += queue.length;
       cursor = 0;
-      render(root, ctx);
+      render(root, ctx, personId);
     },
   });
 
@@ -243,17 +275,17 @@ export async function render(root, ctx) {
       </div>
     `;
     slot.appendChild(card);
-    const done = (bucket) => { decidedThisSession++; sessionCounts[bucket]++; render(root, ctx); };
+    const done = (bucket) => { decidedThisSession++; sessionCounts[bucket]++; render(root, ctx, personId); };
     card.querySelector('#act-accept').addEventListener('click', async () => { await store.upsertRelationship({ id: r.id, confirmed: 1 }); done('accepted'); });
     twoTapConfirm(card.querySelector('#act-reject'), { confirmLabel: 'Really remove?', onConfirm: async () => { await store.deleteRelationship(r.id); done('rejected'); } });
-    card.querySelector('#act-skip').addEventListener('click', () => { cursor = (cursor + 1) % queue.length; render(root, ctx); });
+    card.querySelector('#act-skip').addEventListener('click', () => { cursor = (cursor + 1) % queue.length; render(root, ctx, personId); });
     card.querySelector('#act-question').addEventListener('click', () => {
       if (card.querySelector('.inline-form')) return;
       card.querySelector('.review-actions').after(inlineNameForm({
         label: "What's the open question?",
         value: `Unclear: ${a?.display_name || '?'} ${dir} ${b?.display_name || '?'}`,
         submitLabel: 'Raise question',
-        onSubmit: async (q) => { await store.createQuestion({ case_id: ctx.caseId, text: q }); cursor = (cursor + 1) % queue.length; sessionCounts.question++; render(root, ctx); },
+        onSubmit: async (q) => { await store.createQuestion({ case_id: ctx.caseId, text: q }); cursor = (cursor + 1) % queue.length; sessionCounts.question++; render(root, ctx, personId); },
       }));
     });
     keyHandler = (e) => {
@@ -314,7 +346,7 @@ export async function render(root, ctx) {
     await store.decideClaim(claim.id, decision, rationale);
     decidedThisSession++;
     if (decision in sessionCounts) sessionCounts[decision]++;
-    render(root, ctx);
+    render(root, ctx, personId);
   }
 
   card.querySelector('#act-accept').addEventListener('click', () => decide('accepted'));
@@ -331,7 +363,7 @@ export async function render(root, ctx) {
   });
   card.querySelector('#act-skip').addEventListener('click', () => {
     cursor = (cursor + 1) % queue.length;
-    render(root, ctx);
+    render(root, ctx, personId);
   });
   card.querySelector('#act-edit').addEventListener('click', () => {
     const editSlot = card.querySelector('#edit-slot');
@@ -358,7 +390,7 @@ export async function render(root, ctx) {
       await store.decideClaim(newId, 'accepted');
       decidedThisSession++; // one claim resolved, even though it took a reject+re-accept internally
       sessionCounts.accepted++;
-      render(root, ctx);
+      render(root, ctx, personId);
     });
   });
 

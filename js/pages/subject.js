@@ -659,11 +659,40 @@ export async function render(root, ctx, personId, tab = 'profile') {
         slot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="le-prog">Adding life events…</div>';
         const prog = slot.querySelector('#le-prog');
         const r = await addLifeEvents(store, ctx.caseId, person.id, chosen, (msg) => { if (prog.isConnected) prog.textContent = `Adding life events… ${msg}`; });
-        sessionStorage.setItem('c7-pi-result', `${r.added} life event${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} undated)` : ''}${r.dated ? ` · ${r.dated} relationship${r.dated === 1 ? '' : 's'} dated` : ''}${r.skipped ? ` · ${r.skipped} already here` : ''}. They read on the life line and the Board.`);
-        ctx.closeDrawer();
-        ctx.rerender();
+        paintAdded(r);
       });
     };
+    // What actually got written, shown in place instead of a one-shot banner
+    // she has to leave the sheet to go check (her ask, 2026-09-21: "then i
+    // have to find info to review" — she'd applied the "Use this" facts'
+    // Review-queue mental model to life events, which auto-accept and were
+    // never queued anywhere to find; see SPEC for the full trace). The sheet
+    // stays open — ctx.rerender() tears down any open drawer (main.js), so
+    // it's deferred to "Done", a deliberate step after she's seen the list.
+    function paintAdded(r) {
+      const extras = [];
+      if (r.dated) extras.push(`${r.dated} relationship${r.dated === 1 ? '' : 's'} dated`);
+      if (r.skipped) extras.push(`${r.skipped} already here`);
+      if (r.undated) extras.push(`${r.undated} undated`);
+      const rowsHtml = r.created.map((it) => `
+        <div class="list-row" data-id="${it.id}" style="min-height:32px;padding:4px 8px;gap:8px">
+          <span class="mono" style="font-size:11px;color:var(--text-3);width:92px;flex:none">${it.date ? preciseText(it.date) : '—'}</span>
+          <span class="main" style="font-size:12px;flex:1">${esc(it.title)}</span>
+          <button type="button" class="btn btn-ghost btn-sm" data-remove="${it.id}" data-claim="${it.claimId}" title="Remove this event">Remove</button>
+        </div>`).join('');
+      slot.innerHTML = `
+        <div class="inline-note" style="border-left-color:var(--green)">${r.created.length ? 'From Wikidata, now on the life line and the Board — remove any that don’t belong:' : 'Nothing new — every ticked event was already here.'}</div>
+        ${rowsHtml ? `<div class="stack" style="gap:2px;margin-top:8px;max-height:280px;overflow:auto">${rowsHtml}</div>` : ''}
+        ${extras.length ? `<div class="mono" style="font-size:11px;color:var(--text-3);margin-top:8px">${extras.join(' · ')}</div>` : ''}
+        <div class="row wrap" style="gap:8px;margin-top:8px"><button class="btn btn-primary btn-sm" id="le-done">Done</button></div>`;
+      slot.querySelectorAll('[data-remove]').forEach((btn) => btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        await store.deleteEvent(btn.dataset.remove);
+        await store.deleteClaim(btn.dataset.claim);
+        slot.querySelector(`[data-id="${btn.dataset.remove}"]`)?.remove();
+      }));
+      slot.querySelector('#le-done').addEventListener('click', () => { ctx.closeDrawer(); ctx.rerender(); });
+    }
     paint();
     return true;
   }

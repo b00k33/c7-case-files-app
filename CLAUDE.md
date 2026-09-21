@@ -387,7 +387,36 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — "+ Works" beyond music, and a real bug it surfaced in
+**2026-09-21, latest — life events stay in the sheet after adding, and
+Review learns to filter by person (v120, SPEC §38).** Her ask: "when i click
+add event, then lookup, then life events, add x events then i have to find
+info to review - how to make this workflow faster and smoother." Ran a
+background investigation over `subject.js`/`life-events.js`/`review.js`/
+`store.js` before touching anything, since her phrase didn't quite match the
+code. Found: "+ Life events" auto-accepts (`createEvent` + an already-
+`'accepted'` `createAcceptedClaim` — never `'drafted'`, by design, since a
+Wikidata marriage date isn't a judgment call), so there was structurally
+nothing to review — the confirmation was a one-shot `sessionStorage` banner
+on a page the drawer-close-and-rerender yanked her back to. Fixed by having
+`addLifeEvents()` return what it actually created and showing that list, in
+the same sheet, with a one-tap Remove per row — `ctx.rerender()` (which
+tears down any open drawer) now only fires from a deliberate "Done" after
+she's seen the list, not automatically. Separately: `#/subject/:id/review`
+already looked like a per-person filtered route (`personId` was already
+passed as `render()`'s third argument) but `review.js` silently dropped it —
+the whole case's drafted claims and unconfirmed relationships showed
+interleaved in one flat queue. Wired the filter through, with a
+`target_id`-isn't-enough wrinkle: a relationship/relative claim is filed
+against the case, not a person, so `claimBelongsToPerson()` also checks
+`value.a_id`/`b_id`/`of`. Every queue action threads `personId` through so
+the filter survives the sitting, and an "N more elsewhere in this case →"
+chip appears whenever it's hiding something. Verified live end-to-end: added
+and removed real life events on a test profile; a two-person test case
+confirmed each person's filtered queue showed only their own items plus
+anything naming both, with the correct "elsewhere" count on each side.
+44/44 in `tests/browser-tests.html`.
+
+**2026-09-21, earlier — "+ Works" beyond music, and a real bug it surfaced in
 the untouched music path (v119, SPEC §37).** Her ask on a screenshot: "for
 works, include more than just musical works like albums and awards." Added
 P800/P170/P50/P84/P61 (notable work, creator, author, architect, discoverer)

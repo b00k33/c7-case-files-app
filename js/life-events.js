@@ -144,12 +144,15 @@ export function alreadyHere(c, existing, personId) {
 /**
  * Add the picked candidates as events — the record, an accepted claim citing
  * the Wikidata statement each — and date the spouse relationships they name.
- * Returns { added, skipped, undated, dated: number of relationships dated }.
+ * Returns { added, skipped, undated, dated: number of relationships dated,
+ * created: [{id, claimId, title, kind, date}] — what actually got written,
+ * so the caller can show it in place instead of a vanishing banner (her ask,
+ * 2026-09-21: "then i have to find info to review" — see SPEC for the fix). }.
  */
 export async function addLifeEvents(store, caseId, personId, picks, onProgress = () => {}) {
   const existing = await store.listEventsForCase(caseId);
   const todo = picks.filter((c) => !alreadyHere(c, existing, personId));
-  const result = { added: 0, skipped: picks.length - todo.length, undated: 0, dated: 0 };
+  const result = { added: 0, skipped: picks.length - todo.length, undated: 0, dated: 0, created: [] };
   const people = await store.listPeople(caseId);
   const byName = (n) => people.find((p) => p.display_name.trim().toLowerCase() === String(n).trim().toLowerCase());
   const rels = await store.listRelationshipsForPerson(personId);
@@ -167,8 +170,9 @@ export async function addLifeEvents(store, caseId, personId, picks, onProgress =
       date_year_min: d ? d.year : null, date_year_max: d ? d.year : null,
       notes: cite, wikidata_id: c.key,
     });
-    await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'life_event', value: { event_id: id, title: c.title, kind: c.kind, qid: c.item.qid, date: d }, origin: 'lookup', rationale: cite });
+    const claimId = await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'life_event', value: { event_id: id, title: c.title, kind: c.kind, qid: c.item.qid, date: d }, origin: 'lookup', rationale: cite });
     result.added++;
+    result.created.push({ id, claimId, title: c.title, kind: c.kind, date: d });
     // a marriage dates the relationship — filled only where the relationship is still blank
     if (c.spouse && d) {
       const other = store.findPersonByWikidata(caseId, c.spouse.qid) || byName(c.spouse.label);
