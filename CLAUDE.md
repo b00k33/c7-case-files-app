@@ -387,7 +387,25 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — people stop being typed into a case; they're picked
+**2026-09-21, latest — a series case can link to Wikidata after it already
+exists (v125, SPEC §43).** Her question, live, on a real "Suits" case she'd
+already made: "how can i search wiki for these details of this tv series."
+Turned out to be a real gap, not a "where's the button" miss: `"+ Check
+Wikidata for new installments"` only shows once `case_file.wikidata_id` is
+set, and the only place that gets written was the "+ New case" form's own
+"Find on Wikipedia" step — a series case made the plain way (typed name,
+kind picked by hand) had no door back to Wikidata anywhere in the app.
+Fixed with a search step in `series.js` itself, in the same header spot:
+no wikidata_id → a name input (pre-filled from the case) + "Search
+Wikipedia," same `searchPeople()` lookup "+ New case" already uses; a pick
+writes `wikidata_id` onto the EXISTING case and runs the same installments
+pull immediately, one step, no re-navigating. Verified live: searched
+"Suits," picked the right one of six same-named Wikidata candidates, all 9
+seasons and 134 episodes landed with real air dates, era updated to
+"2011 – 2019," header correctly switched to the ordinary recheck button
+afterward.
+
+**2026-09-21, earlier — people stop being typed into a case; they're picked
 from People instead (v124, SPEC §42).** Her ask, verbatim: "i want to
 remove people from the case files and just use the people in people tab."
 A short, solution-shaped line — four rounds of grounded, code-informed

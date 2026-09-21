@@ -20,6 +20,7 @@ import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
 import { fetchInstallments, addInstallments } from '../works.js';
+import { searchPeople } from '../lookup.js';
 
 const TABS = [
   ['overview', 'Overview'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
@@ -82,7 +83,12 @@ export async function render(root, ctx, tab = 'overview') {
           <div class="mono event-era" style="font-size:12px">${era ? `<span style="color:var(--teal)">${era}</span>` : 'No dated installments yet'}</div>
           <span class="event-badge series">Series</span>
         </div>
-        ${kase.wikidata_id ? `<div class="row" style="margin-top:8px"><button class="btn btn-ghost btn-sm" id="recheck-btn">Check Wikidata for new installments</button></div>` : ''}
+        ${kase.wikidata_id ? `<div class="row" style="margin-top:8px"><button class="btn btn-ghost btn-sm" id="recheck-btn">Check Wikidata for new installments</button></div>` : `
+        <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center">
+          <input type="text" id="link-wiki-input" placeholder="Find this series on Wikipedia" value="${esc(kase.name)}" style="flex:1 1 200px;min-width:0">
+          <button class="btn btn-ghost btn-sm" id="link-wiki-btn">Search Wikipedia</button>
+        </div>
+        <div id="link-wiki-results"></div>`}
       </div>
 
       <div class="tab-strip" id="tab-strip">${TABS.map(([k, l]) => `<a href="#/series${k === 'overview' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</div>
@@ -116,6 +122,46 @@ export async function render(root, ctx, tab = 'overview') {
     } catch (err) {
       btn.disabled = false; btn.textContent = 'Check Wikidata for new installments';
       inlineNote(btn, `Couldn't reach Wikidata — ${err.message}. Are you online?`);
+    }
+  });
+
+  // A series case made without "Find on Wikipedia" at creation (typed name,
+  // kind picked by hand) has no wikidata_id, so the auto-pull above has
+  // nothing to run against — her ask, 2026-09-21: "how can i search wiki
+  // for these details of this tv series" for a case already sitting there.
+  // Search + pick links it after the fact, same searchPeople() Wikidata
+  // lookup the "+ New case" form already uses, then runs the same
+  // installments pull immediately.
+  root.querySelector('#link-wiki-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const input = root.querySelector('#link-wiki-input');
+    const results = root.querySelector('#link-wiki-results');
+    const name = input.value.trim();
+    clearInlineNote(btn);
+    results.innerHTML = '';
+    if (!name) { inlineNote(btn, 'Type the series name first.'); input.focus(); return; }
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(name); }
+    catch (err) { inlineNote(btn, `Couldn't reach Wikidata — ${err.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = 'Search Wikipedia';
+    if (!matches.length) { inlineNote(btn, 'No match on Wikidata for that name.'); return; }
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${esc(m.label)}</div><div class="sub">${esc(m.description || 'no description')} · ${m.id}</div></div><span class="chip brass">Link and pull installments ▸</span>`;
+      row.addEventListener('click', async () => {
+        results.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)">Linking and reading the installments from Wikidata…</div>';
+        const prog = results.querySelector('.inline-note');
+        await store.updateCase(kase.id, { wikidata_id: m.id });
+        try {
+          const list = await fetchInstallments(m.id, (msg) => { prog.textContent = `Reading the installments from Wikidata — ${msg}`; });
+          const r = await addInstallments(store, kase.id, list, (msg) => { prog.textContent = `Adding installments… ${msg}`; });
+          sessionStorage.setItem('c7-pi-result', `${r.added} installment${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a date)` : ''}.`);
+        } catch (err) { /* linked either way — the recheck button now shows since wikidata_id is set, she can try again from there */ }
+        render(root, ctx, tab);
+      });
+      results.appendChild(row);
     }
   });
 

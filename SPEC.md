@@ -1495,6 +1495,33 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 43. A series case can link to Wikidata after it already exists (v125, 2026-09-21)
+
+Her question, live, on a real "Suits" series case she'd already made:
+**"how can i search wiki for these details of this tv series."** The gap:
+`"+ Check Wikidata for new installments"` only ever appears when
+`case_file.wikidata_id` is already set, and the only place that column
+gets written is the "+ New case" form's own "Find on Wikipedia" step
+(`js/pages/cases.js`'s `createFromWikidata`) — a series case created the
+plain way (typed name, kind picked by hand) had no way, anywhere in the
+app, to link itself to Wikidata after the fact. Fixed by adding a search
+step to `js/pages/series.js` itself, in the same header spot the recheck
+button occupies once linked: when `!kase.wikidata_id`, a text input
+(pre-filled with the case's own name) plus "Search Wikipedia" runs the
+same `searchPeople()` Wikidata lookup the "+ New case" form already uses;
+picking a result writes `wikidata_id` onto the existing case
+(`store.updateCase`) and immediately runs the same `fetchInstallments`/
+`addInstallments` pull the recheck button runs — no second step, no
+re-navigating anywhere.
+
+Verified live end-to-end: a "Test Series Case" made with no Wikidata link,
+searched "Suits," six real Wikidata candidates returned (the 2011–2019
+American legal drama, plus several unrelated same-named items — a family
+name, an ethnic group, other shows), picked the correct one, and all 9
+seasons and 134 episodes landed with their real air dates, the era
+updating to "2011 – 2019" and the header correctly switching over to the
+ordinary "Check Wikidata for new installments" button afterward.
+
 ## 42. People stop being typed into a case — they're picked from People (v124, 2026-09-21)
 
 Her ask, verbatim: **"i want to remove people from the case files and just
