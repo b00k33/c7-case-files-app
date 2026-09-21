@@ -12,7 +12,7 @@ import { relation } from './relations.js';
 import { exactBirth, exactDeath } from './person-dates.js';
 import { relationGlyph, animalLabel, animalIcon, animalChipHtml, signChipHtml, signGlyph, signElement, emptyState } from './indicators.js';
 import { resolveAssetUrl, preloadImage } from './assets.js';
-import { fetchItemPhoto, saveEventPhotoFromUrl } from './lookup.js';
+import { fetchItemPhoto, saveEventPhotoFromUrl, searchPeople } from './lookup.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -278,18 +278,66 @@ async function resolveMarkPicture(m, { people, store }) {
     const src = spouse.photo_path ? await resolveAssetUrl(spouse.photo_path, 'image/jpeg') : spouse.photo_url;
     return src && await preloadImage(src) ? { src, label: `${spouse.display_name}’s picture` } : null;
   }
-  if (!m.event || !['award', 'move', 'other'].includes(m.kind)) return null;
-  const itemQid = itemQidFromComposite(m.event.wikidata_id);
-  if (!itemQid) return null;
+  // m.kind is the DISPLAY kind, already reshaped by markKind() below for the
+  // ribbon's own glyph/grouping — an award (m.event.kind) is deliberately
+  // folded into 'milestone' there, so checking m.kind here never matched a
+  // real award, and no award ever got as far as trying for a picture (found
+  // live, 2026-09-21, chasing why a freshly-collected picture still didn't
+  // show: this dead code has been here since the poster's picture shipped,
+  // 2026-09-13 — 'move' and 'other' happen to pass through markKind
+  // unchanged, so only award was ever actually silenced). The record's own
+  // raw kind is what the picture is actually keyed to; check that instead.
+  if (!m.event || !['award', 'move', 'other'].includes(m.event.kind)) return null;
   let src = m.event.photo_path ? await resolveAssetUrl(m.event.photo_path, 'image/jpeg') : m.event.photo_url;
   if (!src && store) {
-    try {
-      const { photoUrl } = await fetchItemPhoto(itemQid);
-      if (photoUrl) { await saveEventPhotoFromUrl(store, m.event.id, photoUrl); src = photoUrl; }
-    } catch (_) { /* the picture is a nicety, not the record */ }
+    const itemQid = itemQidFromComposite(m.event.wikidata_id);
+    if (itemQid) {
+      try {
+        const { photoUrl } = await fetchItemPhoto(itemQid);
+        if (photoUrl) { await saveEventPhotoFromUrl(store, m.event.id, photoUrl); src = photoUrl; }
+      } catch (_) { /* the picture is a nicety, not the record */ }
+    }
   }
-  const label = { award: 'the award’s picture', move: 'the place’s picture', other: 'the school’s picture' }[m.kind];
+  const label = { award: 'the award’s picture', move: 'the place’s picture', other: 'the school’s picture' }[m.event.kind];
   return src && await preloadImage(src) ? { src, label } : null;
+}
+
+/**
+ * Bulk-fill missing pictures across a person's own dated events (her ask,
+ * 2026-09-21: "collect images for all these events" — a life line still
+ * showing plain glyphs). resolveMarkPicture above only ever fetches one
+ * picture per render, and only when the event's own wikidata_id already
+ * names the exact Wikidata item — true for an award/residence/education
+ * row added through the "+ Add" life-events Wikidata picker (life-events.js),
+ * but NOT for one typed or pasted through milestones (milestone-parse.js),
+ * which carries no Wikidata link at all and so was never even attempted.
+ * This walks every award/move/other event once and, for one with no usable
+ * item already, searches Wikidata by the event's own title as a fallback,
+ * taking the first real match. A search can mismatch on an ambiguous
+ * title — the picture is never presented as a fact, only a picture, and
+ * stays swappable from the event's own edit form.
+ */
+export async function collectEventPictures(store, events, onProgress = () => {}) {
+  const candidates = (events || []).filter((e) => ['award', 'move', 'other'].includes(e.kind) && !e.photo_path && !e.photo_url);
+  const result = { checked: candidates.length, found: 0 };
+  let i = 0;
+  for (const e of candidates) {
+    i += 1;
+    onProgress(`${i} of ${candidates.length}`);
+    try {
+      let itemQid = itemQidFromComposite(e.wikidata_id);
+      if (!itemQid && e.title) {
+        const matches = await searchPeople(e.title);
+        itemQid = (matches[0] && matches[0].id) || null;
+      }
+      if (!itemQid) continue;
+      const { photoUrl } = await fetchItemPhoto(itemQid);
+      if (!photoUrl) continue;
+      await saveEventPhotoFromUrl(store, e.id, photoUrl); // sets photo_url even on its own internal fallback
+      result.found++;
+    } catch (_) { /* one event's picture failing must not stop the rest */ }
+  }
+  return result;
 }
 
 /**

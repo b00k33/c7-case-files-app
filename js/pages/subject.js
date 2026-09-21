@@ -13,7 +13,7 @@ import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
-import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml } from '../lifemap.js';
+import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree } from './relations.js';
 import { loadWidgetPrefs, renderArrangeDrawer } from '../profile-widgets.js';
@@ -318,6 +318,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div class="row between wrap" style="gap:8px">
             <span class="section-label">Life line · tap a mark</span>
             <span class="row" style="gap:6px">
+              <button type="button" class="btn btn-ghost btn-sm" id="ll-pictures-btn">+ Collect pictures</button>
               <button type="button" class="btn btn-ghost btn-sm" id="ll-add-btn">+ Add event</button>
               <button type="button" class="linklike" id="year-list-btn">year list ▸</button>
             </span>
@@ -493,6 +494,26 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const addFromEmpty = () => { openAdd(); setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80); };
   await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, onAdd: addFromEmpty, store, people: peopleInCase });
   root.querySelector('#ll-add-btn')?.addEventListener('click', addFromEmpty);
+  root.querySelector('#ll-pictures-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    clearInlineNote(btn);
+    btn.disabled = true; btn.textContent = 'Collecting pictures…';
+    try {
+      const r = await collectEventPictures(store, events, (msg) => { btn.textContent = `Collecting pictures — ${msg}`; });
+      btn.disabled = false; btn.textContent = '+ Collect pictures';
+      if (!r.checked) { inlineNote(btn, 'Every award, move or school here already has one, or none is dated yet.'); return; }
+      if (!r.found) { inlineNote(btn, `Checked ${r.checked} — no picture found for any of them.`); return; }
+      // the pictures just landed on the DB rows, not on this closure's own
+      // `events` — re-read so the redraw below actually sees them
+      const freshEvents = await store.listEventsForPerson(person.id);
+      Object.assign(lifeData, buildLifeLine({ person, events: freshEvents, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
+      await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, store, people: peopleInCase });
+      inlineNote(btn, `${r.found} of ${r.checked} found.`);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '+ Collect pictures';
+      inlineNote(btn, `Couldn't reach Wikidata — ${err.message}. Are you online?`);
+    }
+  });
 
   // ---- Family widget: a compact tree, not the old circle-of-cards (her
   // ask, 2026-09-15: "I just want to see the family tree"). A fresh pan/

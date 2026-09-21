@@ -1495,6 +1495,43 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 49. Life-line pictures for awards, moves and schools — plus a bug that had silenced every award's picture since it shipped (v131, 2026-09-21)
+
+Her ask, on the real Dolly Parton life line (Grammy, CMA Award, Hollywood
+Walk of Fame star, all still plain glyphs): "collect images for all these
+events." A "+ Collect pictures" button on the Life Line panel (`subject.js`,
+next to "+ Add event") now walks every award/move/other-kind event still
+missing a picture and fills in what it can find — `collectEventPictures`
+in `lifemap.js`: an event added through the "+ Add" life-events Wikidata
+picker already carries the exact item to fetch a picture for; one typed or
+pasted by hand (no Wikidata link at all) instead gets a Wikidata title
+search, taking the first real match. A search can mismatch on an ambiguous
+title — the picture is never presented as a fact, only a picture, and
+stays swappable from the event's own edit form.
+
+Building this turned up a real, pre-existing bug: **no award has ever
+shown a picture, since the poster's picture first shipped (2026-09-13)**.
+`resolveMarkPicture`'s gate checked `m.kind` — the mark's DISPLAY kind,
+already reshaped by `markKind()` for the ribbon's own glyph/grouping,
+which deliberately folds every award into `'milestone'` there. The gate's
+own allow-list was `['award', 'move', 'other']`, so it was checking for a
+value ('award') that `m.kind` could never actually hold — 'move' and
+'other' happened to pass through `markKind()` unchanged, which is exactly
+why only awards were silently dead. Fixed by checking `m.event.kind` (the
+record's own raw kind) instead of the display kind. A second, related gap
+surfaced testing the fix: the SAME check used to gate both "attempt a
+fresh Wikidata fetch" and "show a picture already saved on the row" — so a
+picture the new search fallback had just found and saved stayed invisible
+forever, since an event it can find one for (no Wikidata item) is exactly
+an event that check would always refuse. The "already have one, just show
+it" read is now unconditional; only a fresh fetch attempt needs a real
+Wikidata item.
+
+Verified live: a hand-typed "Grammy Award for Best Country Song · 1981"
+event (kind award, no Wikidata link) went from a plain star glyph to a
+real photo after one tap, on both a warm re-render and a genuinely cold
+page reload with the service worker and caches cleared first.
+
 ## 48. The subject header's photo forced empty space beside it (v130, 2026-09-21)
 
 Her ask, on a real screenshot of Dolly Parton's profile: "this is too long
