@@ -1495,6 +1495,59 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 41. Cute, redesigned same day: dark, and built from the zodiac code (v123, 2026-09-21)
+
+Shown 3 real candidates on her actual Sandra Bullock profile (a published
+Artifact, since popup previews have failed to load for her before — see
+CLAUDE.md's 2026-09-17 "mock-delivery" lesson): A "Milk tea" (warm
+terracotta, gentle rounding, Comfortaa+Nunito), B "Bubblegum kawaii"
+(lavender/mint, the roundest of the three, Baloo 2+Fredoka), C "Soft
+blush" (barely-changed radius, mostly the app's own Public Sans). Her
+answer, verbatim: **"i like b. use that but have a dark background and
+keep font, use the numerology astrology colours."** Four instructions in
+one line, all followed literally: keep B's shape (the 20px/28px radius,
+Baloo 2 + Fredoka), swap its light lavender ground for dark, and replace
+its invented accent hues with the app's own existing zodiac colour code.
+
+**The palette is no longer invented — it's read off `--zc-*`/`--ws-*`**,
+the trine/element tokens `tokens.css` already carries for the Chinese
+zodiac and Western sun-sign pills (STYLE §5's "colour says how sure, form
+says what it is" system). At their NIGHT values (already tuned to read on
+a dark ground, per the existing day/night convention that pills go
+tinted-on-dark, solid-on-light): `--brass` (the main accent, "+Add"
+buttons, active states) is now literally `--zc-pink` `#ec86b4` (Pig · Goat
+· Rabbit); `--gold` (the life-path number, unchanged convention) is
+`--zc-yellow` `#e8c34f` (Rat · Dragon · Monkey); `--teal` is `--ws-air`
+`#8fd0f5` (Gemini · Libra · Aquarius); `--green` stays `--zc-green`; `--red`
+is `--ws-fire`. Ground: a deep plum-black `#1b1420`, not neutral charcoal —
+the one genuinely new colour, chosen to carry the same "cute" personality
+even in the dark, with a pink-tinted vignette and pink-tinted card shadows
+(same lifted-layers shadow recipe Night already uses, just re-hued).
+
+**A real bug, caught only by comparing parsed rule counts, not by reading
+the CSS:** the redesign's own explanatory comment contained the literal
+text `zc-*/ws-*` — the asterisk immediately followed by a slash forms a
+CSS comment-close token (`*/`) in the middle of a sentence, so the comment
+silently terminated three words early and everything after it, INCLUDING
+the entire `:root[data-theme="cute"]` rule that followed, parsed as
+garbage and was dropped by the browser with no console error. `data-theme`
+still stamped correctly ("cute"), so the bug was invisible from JS state
+alone — every token just silently fell through to Night's own defaults.
+Found by fetching `tokens.css` fresh and comparing `document.styleSheets`'
+parsed rule count (2, when 3 were expected) against the raw file's own
+brace-balance count (correct) — the mismatch between "the file is valid"
+and "the browser only parsed part of it" was the tell. Fixed by rewording
+the comment to avoid the literal `*/` sequence.
+
+Verified live end-to-end on a fresh, cache-isolated origin (a stale-port
+false alarm along the way — see the trap noted in STYLE.md): `--brass`
+computed to `#ec86b4`, `--r-sm` to `20px`, Baloo 2 and Fredoka both
+confirmed genuinely loaded via `document.fonts.check()` at their real
+weights (700/500, not the default 400 — a first check at the wrong weight
+gave a false negative). Cases, a fresh Sandra Bullock profile, and Night
+(re-checked for regression) all rendered correctly. `tests/browser-tests.html`
+doesn't touch theming either way.
+
 ## 40. A third ground: 🌸 Cute — an opt-in toggle, not a redesign (v122, 2026-09-21)
 
 "c7 design is too serious. i want it cute and adorable," then, unprompted,

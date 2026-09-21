@@ -387,7 +387,56 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — a third ground, 🌸 Cute: an opt-in toggle, not a
+**2026-09-21, latest — Cute redesigned same day: dark, and built from the
+zodiac code (v123, SPEC §41).** Shown 3 real candidates on her actual
+Sandra Bullock profile (a published Artifact — popup previews have failed
+to load for her before, per the mock-delivery lesson two entries below;
+this stayed working). Her answer named exactly what to keep and what to
+change: **"i like b. use that but have a dark background and keep font,
+use the numerology astrology colours."** Kept candidate B's shape (the
+roundest radius of the three, Baloo 2 + Fredoka); swapped its light
+lavender ground for a deep plum-black; and — the real idea worth
+remembering — **stopped inventing an accent palette and read one off the
+app's own existing zodiac colour code instead.** `tokens.css` already
+carries `--zc-*`/`--ws-*` for the Chinese-zodiac trine and Western-sign
+pills; the new dark accent (`--brass`) is literally `--zc-pink`, the
+life-path gold is `--zc-yellow`, and so on, at their NIGHT values (already
+tuned for a dark ground by the existing day/night tinted-vs-solid-pill
+convention). A theme built from data the app already has meaning for
+reads as more "this app," not less, than a from-scratch invented palette
+would have.
+
+**A real, genuinely sneaky bug, found only by comparing parsed rule
+counts against the raw file:** the redesign's own explanatory CSS comment
+contained the literal text `zc-*/ws-*` — an asterisk immediately followed
+by a slash IS a comment-close token, so the comment silently ended three
+words early and everything after it, including the entire new theme rule,
+parsed as garbage and got silently dropped. `data-theme` still stamped
+correctly, so nothing in JS state looked wrong — every token just quietly
+fell through to Night's own defaults, and a live screenshot showed gold-
+on-charcoal instead of pink-on-plum with zero console error. The tell was
+comparing `document.styleSheets`'s actual parsed rule count (2, not the
+expected 3) against a fresh `fetch()` of the same file (which was
+correct, brace-balanced) — "the file on disk is right" and "the browser
+only parsed part of it" are different claims, and only checking the
+second one caught this. **Lesson to carry: never let a CSS comment's own
+prose contain the literal sequence `*/` — a hyphenated token name like
+`zc-*` immediately followed by `/` in running text is exactly the kind of
+accidental match that's invisible on a normal read-through.** A second,
+smaller trap hit along the way: verifying against a `localhost` port
+already used earlier in the same sitting served stale CSS despite a fresh
+server process and explicit `Cache-Control: no-store` headers — moving to
+an unused port made the problem disappear immediately, confirming it was
+browser-side caching, not the file or the server.
+
+Verified live end-to-end after the fix: `--brass` computed to the real
+zc-pink hex, `--r-sm` to 20px, both new fonts confirmed loaded via
+`document.fonts.check()` at their actual weights (a first check at the
+default 400 weight — never actually loaded, since only 500/700 were
+requested — gave a false "not loaded" negative). Night re-checked and
+confirmed unaffected.
+
+**2026-09-21, earlier — a third ground, 🌸 Cute: an opt-in toggle, not a
 redesign (v122, SPEC §40).** "c7 design is too serious. i want it cute and
 adorable," then the scope-defining follow-up that turned a potentially huge
 ambiguous ask into a small, safe one: "make a version of it that is cute so

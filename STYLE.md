@@ -57,27 +57,52 @@ palette — cream paper #efeae0, old gold #a8731c, brown shadows — is retired
 on 2026-09-08 ("redesign the day palette. i dont like it"; all four parts
 bothered her; SPEC §13l).
 
-### A third, opt-in ground: cute (v121, 2026-09-21)
+### A third, opt-in ground: cute (v121/v123, 2026-09-21)
 
 "c7 design is too serious. i want it cute and adorable... make a version of
 it that is cute so i can toggle." Not a redesign, not a replacement for
 Day/Night — a third pick in the same Appearance switcher (Follow phone ·
 Day · Night · 🌸 Cute), off by default, her own opt-in only (never picked
-by `prefers-color-scheme`, unlike Day/Night). `--ink-0` warm cream-peach
-`#fff8f3`, `--brass` bubblegum candy pink `#e8437d`, `--gold` warm honey
-`#f0993d`, `--teal` soft mint `#4fc3a1`, shadows candy-pink-tinted instead
-of neutral grey. Two tokens change beyond colour, both already used
-everywhere: `--r-sm`/`--r-lg` go from 4px/8px to 14px/24px for genuinely
-soft, blobby rounding — no component CSS touched, since app.css already
-reads both through `var()` almost everywhere (the exceptions are `50%`/pill
-circles, which stay round regardless, and a small handful of hardcoded
-pixel radii too minor to chase for a first pass). Titles switch
-to **Baloo 2** (bubbly, rounded), body text to **Quicksand** (soft rounded
-sans) — both loaded from the same Google Fonts `<link>` as the other three
-faces; `--font-mono` (JetBrains Mono, all numbers/dates) and `--font-hand`
+by `prefers-color-scheme`, unlike Day/Night).
+
+Shipped once light (v121), then redesigned the same day from her reaction
+to 3 real candidates: "i like b. use that but have a dark background and
+keep font, use the numerology astrology colours." The shipped palette is
+**dark**, not light — `--ink-0` deep plum-black `#1b1420`, not cream. And it
+is not an invented palette: `--brass`, `--gold`, `--teal`, `--green`, `--red`
+are the app's own `--zc-*`/`--ws-*` zodiac trine/element colours (their
+NIGHT values, already tuned to read on a dark ground — see the zodiac code
+above), so the accent pink is literally `--zc-pink` (Pig · Goat · Rabbit),
+the life-path gold is `--zc-yellow` (Rat · Dragon · Monkey), and so on.
+`--violet` is unchanged, already this ground's own lavender. Shadows are
+`--brass`-pink-tinted instead of neutral grey, following the same lifted-
+layers depth recipe as Night (one-pixel top light, shadow beneath, a step
+lighter per surface).
+
+Two tokens change beyond colour, both already used everywhere: `--r-sm`/
+`--r-lg` go from 4px/8px to 20px/28px — the roundest of the three candidates
+she was shown — for genuinely soft, blobby rounding, no component CSS
+touched, since app.css already reads both through `var()` almost everywhere
+(the exceptions are `50%`/pill circles, which stay round regardless, and a
+small handful of hardcoded pixel radii too minor to chase for a first
+pass). Titles are **Baloo 2** (bubbly, rounded), body text **Fredoka**
+(rounded, friendly) — her explicit "keep font" from the B candidate — both
+loaded from the same Google Fonts `<link>` as the other three faces;
+`--font-mono` (JetBrains Mono, all numbers/dates) and `--font-hand`
 (Caveat) are untouched, since precision data shouldn't get cute and Caveat
 was already the cute one. Cork/paper stay their own fixed material, same as
 on both other grounds — a theme is tokens, never a second rule set.
+
+**Trap hit building this, worth remembering:** a CSS comment containing the
+literal substring `zc-*/ws-*` (asterisk immediately followed by slash)
+silently closes the comment early at that `*/` — everything after it,
+including the real `:root[data-theme="cute"]` rule that followed, parsed as
+garbage and the browser dropped it, so the theme picker set `data-theme`
+correctly but every token silently fell through to Night's defaults with
+no console error at all. Caught by comparing `document.styleSheets` rule
+counts against a fresh `fetch()` of the same file, not by reading the CSS
+by eye. Never write `*/` inside a CSS comment, including inside a token
+name like `zc-*` immediately followed by `/`.
 
 ### Depth (2026-09-07 night — "more dimension, not so plain and flat")
 
