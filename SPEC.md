@@ -1495,6 +1495,36 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 45. Found live: five deploys never reached her installed app (v127, 2026-09-21)
+
+Caught in real time: she tapped "+ Add person" on her real Suits case
+right after v126 shipped and got v124's old dead-end message, no quick-add
+field — a screenshot of "synced just now," never "update ready," made the
+gap visible. `git log -- sw.js` confirmed the cause: `sw.js`'s own bytes
+hadn't changed since v121, even though `js/version.js`'s `C7_VERSION` had
+been bumped five times since (v122–v126). The browser's own
+service-worker update-check byte-diffs `sw.js` — the exact file passed to
+`register()` — and only that file; it never re-fetches or diffs
+`js/version.js`, which `sw.js` only ever reads through `importScripts()`.
+A version bump that touches nothing else in `sw.js` (no new page file
+added to `SHELL`) is therefore invisible to the browser: `updatefound`
+never fires, the sync chip never offers "update ready," and the installed
+app keeps running whatever code was live at the last deploy that happened
+to also touch `sw.js`'s own bytes — here, v121. Every deploy in between
+looked shipped (pushed, version bumped, documented) and was, in every
+real sense, never received.
+
+Fixed with a `// build: c7-vNNN` comment inside `sw.js` itself, bumped by
+hand in lockstep with `js/version.js` on every future push (deploy law
+updated in CLAUDE.md) — `sw.js`'s bytes now genuinely change every
+deploy, so the browser's standard byte-diff correctly notices. This one
+push (v127) is itself the first real test: because it changes `sw.js`'s
+bytes for the first time since v121, it's the first of the last six
+versions actually detectable by the normal update mechanism — v122
+through v126's changes ride along inside it rather than needing to be
+re-shipped individually, since the cache rebuild pulls current `SHELL`
+content regardless of which version last successfully installed.
+
 ## 44. The unplaced-people picker gets a quick "type a new name" (v126, 2026-09-21)
 
 Her follow-up, the same day as v124's "pick, don't type" change, on the

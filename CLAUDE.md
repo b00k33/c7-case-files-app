@@ -16,6 +16,20 @@ keep running the old code (the exact failure that ate days of Book33
 reviews). Updates surface as a tap-to-reload chip; never reintroduce
 auto-reload.
 
+**Bump `sw.js`'s own `// build: c7-vNNN` comment too, EVERY deploy, in the
+same breath as `js/version.js`.** Found live, 2026-09-21: the browser's
+service-worker update-check byte-diffs `sw.js` itself and ONLY `sw.js` —
+it never re-fetches or diffs anything pulled in through `importScripts()`,
+which is how `sw.js` reads `C7_VERSION`. Five deploys in a row (v122
+through v126) bumped `js/version.js` and nothing else in `sw.js`, so
+`sw.js`'s own bytes were byte-identical release over release, `updatefound`
+never fired, and her installed app silently kept running v121's code
+the whole time — invisible because a deploy that ALSO happens to add a
+new page file to `SHELL` changes `sw.js`'s bytes anyway and masks how
+dead the mechanism otherwise is. **Checklist, every push: bump
+`js/version.js`'s `C7_VERSION` AND `sw.js`'s `// build:` comment, together,
+even when nothing else in `sw.js` changed.**
+
 **Every new page module goes into `sw.js`'s `SHELL` array, same push.**
 Found missing for `compare.js`/`commercial.js`/`event.js`/`questions.js`/
 `milestone-*.js`/`works.js` (v71, 2026-09-06 — her "make the app function
@@ -387,7 +401,27 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — the unplaced-people picker gets a quick "type a new
+**2026-09-21, latest — found live: five deploys never actually reached her
+installed app (v127, SPEC §45).** She tapped "+ Add person" on the real
+Suits case right after v126 shipped and got v124's old dead-end message —
+a "synced just now, never update ready" screenshot made it visible.
+`git log -- sw.js` showed why: `sw.js`'s own bytes hadn't changed since
+v121, even though `js/version.js` had been bumped five times since. The
+browser's SW update-check byte-diffs `sw.js` itself ONLY — it never
+re-fetches or diffs `js/version.js`, which `sw.js` only reads through
+`importScripts()`. A version bump touching nothing else in `sw.js` (no
+new file added to `SHELL`) is invisible to the browser: `updatefound`
+never fires, "update ready" never shows, the installed app keeps running
+whatever last deploy happened to also touch `sw.js`'s own bytes — v121.
+v122 through v126 were pushed, version-bumped, documented, verified in
+the sandbox — and never once received. Fixed with a `// build: c7-vNNN`
+comment inside `sw.js` itself, now part of the deploy law above: bump it
+by hand, every push, alongside `js/version.js`, even when nothing else in
+`sw.js` changed. This push is the real test — it's the first of the last
+six versions whose `sw.js` bytes actually differ, so it's the first one
+the normal update mechanism can actually see.
+
+**2026-09-21, earlier — the unplaced-people picker gets a quick "type a new
 name" (v126, SPEC §44).** Same day as v124's "pick, don't type" change,
 her follow-up on the real Suits case: "add option to add cast easily
 without needing to add from people." Picking-only was real friction for

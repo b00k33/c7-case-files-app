@@ -5,6 +5,18 @@
 // PUSH LAW (learned the hard way on Book33): bump CACHE_VERSION on EVERY
 // push to the deploy repo, or installed phones keep running the old code
 // silently. The version string is the whole update mechanism.
+//
+// BUILD STAMP — bump this comment's number EVERY deploy too, in lockstep
+// with js/version.js (found live, 2026-09-21): the browser's own
+// update-check byte-diffs THIS FILE ONLY — it never re-fetches or diffs
+// anything pulled in through importScripts() below. A deploy that only
+// changed js/version.js (v122 through v126, five in a row) left sw.js's
+// own bytes identical release over release, so `updatefound` never fired
+// and her installed app silently kept running v121's code the whole
+// time — it looked like the update mechanism worked because it happens
+// to also fire whenever a deploy happens to touch the SHELL array below
+// (a new page file), which masked how dead it otherwise was.
+// build: c7-v127
 importScripts('js/version.js'); // the single version number; bump it there
 const CACHE_VERSION = self.C7_VERSION;
 
