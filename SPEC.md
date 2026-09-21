@@ -1495,6 +1495,32 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 46. The update chip and the open drawer didn't agree with each other (v128, 2026-09-21)
+
+Caught right after v127 shipped: she reported "not fixed" with a screenshot
+of the Cloud Sync drawer showing "App version c7-v125" and no update
+button, while the chip in the corner read "⇅ update ready." Both things
+were true at once, and it wasn't the byte-diff bug from §45 recurring — it
+was a second, separate gap. `renderSyncDrawer`'s body is only ever drawn
+once, right when she opens the drawer; `insertUpdateButton` runs inline as
+part of that single render. When a download finishes *after* she's already
+opened the drawer, `noteUpdate` (in `main.js`) sets `updateWaiting` and
+calls `renderSyncChip` — which is subscribed and redraws the chip live —
+but nothing told the already-open drawer body to redraw too. So a chip
+that updates the instant a download lands sat over a drawer frozen at
+whatever it looked like a moment earlier.
+
+Fixed: `main.js` now keeps a `syncDrawerBody` reference, set when the sync
+chip opens the drawer, and `noteUpdate` re-runs `renderSyncDrawer` on it
+directly whenever that drawer is still the one open. Also added a
+permanent, always-visible "Force update" button in the drawer (under "App
+version") that unregisters the service worker, clears only this app's
+`c7-*` caches, and reloads — bypassing the browser's own update-detection
+entirely, so there's a reliable manual path any time detection itself
+lags or misbehaves again. Verified live: drawer opens cleanly, shows the
+new button and caption, and clicking it reloads the app with no console
+errors and no data loss.
+
 ## 45. Found live: five deploys never reached her installed app (v127, 2026-09-21)
 
 Caught in real time: she tapped "+ Add person" on her real Suits case

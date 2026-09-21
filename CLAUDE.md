@@ -30,6 +30,22 @@ dead the mechanism otherwise is. **Checklist, every push: bump
 `js/version.js`'s `C7_VERSION` AND `sw.js`'s `// build:` comment, together,
 even when nothing else in `sw.js` changed.**
 
+**A download finishing while the sync drawer is already open doesn't redraw
+it on its own — fixed v128, 2026-09-21.** The sync chip is subscribed and
+updates live the moment a new worker lands; the drawer's own body was only
+ever drawn once, at the moment she opened it (`insertUpdateButton` runs
+inline inside `renderSyncDrawer`, never again after). That gap produced
+exactly what she reported after the v127 fix — a chip reading "update
+ready" over a drawer still showing the old, buttonless view — and had
+nothing to do with the byte-diff bug above; both were real, both needed
+fixing. `main.js` now keeps a `syncDrawerBody` reference and re-runs
+`renderSyncDrawer` on it from inside `noteUpdate` whenever the drawer is
+the one currently open. Also added, permanently: a "Force update" button
+in the drawer (right under "App version") that unregisters the service
+worker, clears only `c7-*` caches, and reloads — a manual escape hatch that
+doesn't depend on the browser's own update-detection working correctly,
+for whenever it doesn't.
+
 **Every new page module goes into `sw.js`'s `SHELL` array, same push.**
 Found missing for `compare.js`/`commercial.js`/`event.js`/`questions.js`/
 `milestone-*.js`/`works.js` (v71, 2026-09-06 — her "make the app function

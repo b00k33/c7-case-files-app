@@ -490,7 +490,13 @@ sync.subscribe((s) => {
 });
 setInterval(() => renderSyncChip(sync.getState()), 30000); // keep "Xm ago" honest
 
-syncChip.addEventListener('click', () => ctx.openDrawer((body) => renderSyncDrawer(body)));
+// tracked so a download that finishes WHILE the drawer is already open can
+// still show its button — the chip already updates live (renderSyncChip is
+// subscribed); the drawer's body was only ever drawn once, at open time
+// (found live, 2026-09-21: her chip said "update ready", her drawer under it
+// still showed the old view — the button never got redrawn in)
+let syncDrawerBody = null;
+syncChip.addEventListener('click', () => ctx.openDrawer((body) => { syncDrawerBody = body; renderSyncDrawer(body); }));
 
 // "3 cases · 21 people" — what this device's own database holds right now
 function deviceCounts() {
@@ -596,7 +602,23 @@ function appendBackupButton(body) {
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
     ${(() => { const t = store.getLastTidyResult(); return t ? `<p style="color:var(--text-3);font-size:11px;margin:12px 0 0"><span style="color:var(--brass)">${t.count} name${t.count === 1 ? '' : 's'} tidied</span> — ${t.names.slice(0, 3).join(', ')}${t.names.length > 3 ? '…' : ''}</p>` : ''; })()}
     <p class="mono" style="color:var(--text-3);font-size:11px;margin:16px 0 0">App version ${window.C7_VERSION || 'unknown'}</p>
+    <button class="btn btn-ghost btn-sm" id="sy-force-update" style="margin-top:12px">Stuck on an old version? Force update</button>
+    <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">Wipes only this app's downloaded code and re-fetches it fresh. Your cases and people are safe — they live in the cloud and on this device separately.</p>
   `;
+  // a manual escape hatch for whatever the "update ready" chip/button pair
+  // above doesn't catch — bypasses the browser's own update-detection
+  // entirely instead of trying to out-guess it (found live, 2026-09-21: her
+  // drawer showed an older app version than what had actually been pushed,
+  // with no clean explanation for why the normal path hadn't caught up yet)
+  wrap.querySelector('#sy-force-update').addEventListener('click', async () => {
+    const b = wrap.querySelector('#sy-force-update');
+    b.disabled = true; b.textContent = 'Updating…';
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k.startsWith('c7-')).map((k) => caches.delete(k))); // c7- only — Book33 shares this origin
+    location.reload();
+  });
   // the only place the install offer lives now (no strip over the page)
   if (!isStandalone() && (installPrompt || isIOS())) {
     const inst = document.createElement('div');
@@ -655,6 +677,9 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     if (appShell.style.display === 'none') { worker.postMessage('c7-skip-waiting'); return; }
     updateWaiting = worker;
     renderSyncChip(sync.getState());
+    // the drawer she has open right now doesn't know a download just
+    // landed either — give it the same live refresh as the chip
+    if (syncDrawerBody && drawer.classList.contains('open') && drawer.contains(syncDrawerBody)) renderSyncDrawer(syncDrawerBody);
   };
   navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
   navigator.serviceWorker.register('sw.js').then((reg) => {
