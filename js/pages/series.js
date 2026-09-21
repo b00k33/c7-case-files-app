@@ -20,7 +20,7 @@ import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
 import { fetchInstallments, addInstallments } from '../works.js';
-import { searchPeople } from '../lookup.js';
+import { searchPeople, fetchCast, addPeopleFromWikidata } from '../lookup.js';
 
 const TABS = [
   ['overview', 'Overview'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
@@ -95,7 +95,13 @@ export async function render(root, ctx, tab = 'overview') {
 
       ${tab === 'overview' ? `
       <div class="panel">
-        <div class="row between" style="margin-bottom:4px"><div class="panel-title" style="margin:0">Cast</div><button class="btn btn-ghost btn-sm" id="add-figure-btn">+ Add person</button></div>
+        <div class="row between" style="margin-bottom:4px">
+          <div class="panel-title" style="margin:0">Cast</div>
+          <div class="row" style="gap:8px">
+            ${kase.wikidata_id ? `<button class="btn btn-ghost btn-sm" id="add-cast-wiki-btn">+ Cast from Wikidata</button>` : ''}
+            <button class="btn btn-ghost btn-sm" id="add-figure-btn">+ Add person</button>
+          </div>
+        </div>
         <div class="faces-row" id="figures-row"></div>
         <div id="figure-form-slot"></div>
       </div>
@@ -195,6 +201,33 @@ export async function render(root, ctx, tab = 'overview') {
     // picked, not typed (her ask, 2026-09-21): cast comes from the People
     // tab's own pool of people with nowhere else yet
     renderUnplacedPicker(slot, ctx, { onPicked: () => render(root, ctx, tab) });
+  });
+
+  // the whole billed cast in one go (her ask, 2026-09-21: "how to add cast
+  // from wikipedia" — the same "no manual-first phase" preference as
+  // installments above). Each actor gets a full profile the same way
+  // addPeopleFromWikidata already fills one for the family/case pages —
+  // real dates, photo, Wikipedia citation — not just a bare name.
+  root.querySelector('#add-cast-wiki-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    clearInlineNote(btn);
+    btn.disabled = true; btn.textContent = 'Reading the cast from Wikidata…';
+    try {
+      const cast = await fetchCast(kase.wikidata_id);
+      const existingQids = new Set(people.map((p) => p.wikidata_id).filter(Boolean));
+      const picks = cast.filter((c) => !existingQids.has(c.qid)).map((c) => ({ qid: c.qid, label: c.label }));
+      if (!picks.length) {
+        btn.disabled = false; btn.textContent = '+ Cast from Wikidata';
+        inlineNote(btn, cast.length ? 'Nothing new — everyone billed is already in the cast.' : 'Wikidata lists no cast for this one.');
+        return;
+      }
+      const r = await addPeopleFromWikidata(store, kase.id, picks, (msg) => { btn.textContent = msg; });
+      render(root, ctx, tab);
+      sessionStorage.setItem('c7-pi-result', `${r.created.length} cast member${r.created.length === 1 ? '' : 's'} added from Wikidata${r.failed.length ? ` (${r.failed.length} couldn't be read)` : ''}.`);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '+ Cast from Wikidata';
+      inlineNote(btn, `Couldn't reach Wikidata — ${err.message}. Are you online?`);
+    }
   });
 
   // --- installments --------------------------------------------------------

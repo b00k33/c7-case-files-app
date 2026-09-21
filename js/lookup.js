@@ -420,6 +420,38 @@ export async function addPeopleFromWikidata(store, caseId, picks, onProgress = (
 // js/works.js — fetchWorks / addWorks / WORK_GROUPS.
 
 /**
+ * A show or film's billed cast, straight off its Wikidata item — the actual
+ * actors, not the characters (her ask, 2026-09-21: "how to add cast from
+ * wikipedia" on a series case that already had "+ installments" working,
+ * cast still typed by hand one at a time). P161 "cast member" on the show,
+ * with its P453 "character role" qualifier kept per row so a recast actor
+ * lists every part they played. Flat, no GROUP BY, paired directly with the
+ * label service — safe by the same rule works.js documents (only
+ * GROUP BY + SERVICE wikibase:label together triggers the query service's
+ * StackOverflowError, found live 2026-09-21). Rows: { qid, label, characters (string[]) }.
+ */
+export async function fetchCast(qid) {
+  const query = `SELECT ?actor ?actorLabel ?characterLabel WHERE {
+    wd:${qid} p:P161 ?st . ?st ps:P161 ?actor .
+    OPTIONAL { ?st pq:P453 ?character }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul" }
+  } LIMIT 500`;
+  const ask = async () => { const url = `${SPARQL}?format=json&query=${encodeURIComponent(query)}`; try { return await getJSON(url); } catch (e) { if (!/\((429|500|502|503|504)\)/.test(e.message)) throw e; await new Promise((r) => setTimeout(r, 2000)); return getJSON(url); } };
+  const data = await ask();
+  const bindings = (data.results && data.results.bindings) || [];
+  const byQid = new Map();
+  for (const b of bindings) {
+    const q = /Q\d+$/.exec(b.actor.value)[0];
+    const label = b.actorLabel ? b.actorLabel.value : q;
+    const character = b.characterLabel ? b.characterLabel.value : null;
+    const ex = byQid.get(q);
+    if (!ex) byQid.set(q, { qid: q, label, characters: character ? [character] : [] });
+    else if (character && !ex.characters.includes(character)) ex.characters.push(character);
+  }
+  return [...byQid.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
  * Turn fetched facts into drafted claims on `personId` (through Review), plus
  * one linked Wikipedia evidence item. Returns what was drafted.
  */

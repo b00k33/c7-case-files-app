@@ -1495,6 +1495,32 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 47. A series' cast can be pulled from Wikidata in one go (v129, 2026-09-21)
+
+Her ask: "how to add cast from wikipedia?" on the real Suits case, right
+after the quick-add fix — cast still needed typing one name at a time, no
+auto-pull, unlike installments which already had one. A "+ Cast from
+Wikidata" button now sits beside "+ Add person" on a series' Cast panel,
+shown whenever the case has a `wikidata_id` (the same gate the installments
+recheck button uses). It reads Wikidata's P161 "cast member" off the show's
+own item — the real, billed actors, not the fictional characters, since a
+character has no real birth data for the app's numerology/astrology
+machinery to work with while the actor playing them does — and runs each
+through the same `addPeopleFromWikidata` a family/case page already uses
+for a Wikidata pick: full profile fill (real birth date, birthplace,
+nationality, photo, a linked Wikipedia citation), not a bare name. An actor
+already in the case (matched by their own Wikidata item) is left alone, so
+running it again only adds anyone newly billed.
+
+New: `fetchCast(qid)` in `lookup.js`, alongside `searchPeople` — flat SPARQL
+paired directly with `SERVICE wikibase:label`, no `GROUP BY`, the same
+StackOverflowError-avoidance shape `works.js`'s installment/works queries
+already document. Verified live against the real Suits item (Q370185): all
+22 billed actors landed correctly — Gabriel Macht, Patrick J. Adams, Sarah
+Rafferty, Gina Torres, Rick Hoffman and the rest, each a real actor rather
+than a character name. A second run correctly found nothing new
+("everyone billed is already in the cast").
+
 ## 46. The update chip and the open drawer didn't agree with each other (v128, 2026-09-21)
 
 Caught right after v127 shipped: she reported "not fixed" with a screenshot
