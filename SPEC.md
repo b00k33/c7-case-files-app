@@ -1495,6 +1495,42 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 50. A cast tile shows who they played, not just who plays them (v132, 2026-09-21)
+
+Her ask, on the real Suits Cast grid (22 actors, names only): "include
+cast and character names." `fetchCast` (§47) already read Wikidata's
+"character role" qualifier (P453) on every cast statement — it collects
+`characters: []` per actor — but nothing downstream ever used it; the
+"+ Cast from Wikidata" handler only ever passed `{qid, label}` on to
+`addPeopleFromWikidata`, dropping it on the floor. New `person.role`
+column (a plain string, e.g. "Harvey Specter" — `&`-joined when Wikidata
+lists more than one role for the same actor); the Cast tile shows it as a
+small line under the name (`.face-card .role`) whenever it's set.
+
+**Found only by testing the actual button she'd press, not the code
+path that looked obvious from the ask.** The first version wrote the role
+inside the "nothing new to add" early-return's *sibling* branch — correct
+for the very first pull on a brand-new series, but her real Suits case
+already has its full cast from the §47 feature, so on her device every
+future "+ Cast from Wikidata" tap would hit `picks.length === 0` and
+return before the new role-writing loop ever ran, silently doing nothing.
+Caught live in the sandbox by re-running the button against an
+already-fully-cast test copy of Suits (not a fresh case) — the real shape
+of what "re-check" means for someone who already built out their cast
+weeks ago. Fixed by moving the role backfill outside the "new people"
+gate entirely, so it fills in character names for the existing cast too,
+and only reports "nothing new" once *neither* a person nor a role changed.
+
+Verified live against the real Suits cast data (22 actors, in the
+sandbox, matching her actual case): re-running "+ Cast from Wikidata" on
+an already-complete cast correctly backfilled 6 character names —
+Gabriel Macht → Harvey Specter, Patrick J. Adams → Mike Ross, Sarah
+Rafferty → Donna Paulsen, Gina Torres → Jessica Pearson, Rick Hoffman →
+Louis Litt, Meghan (Markle) → Rachel Zane — and correctly left every
+actor Wikidata has no character qualifier for unlabelled, with no error.
+`role` flows through the existing generic sync (table-level, reads
+columns dynamically — no allow-list to update).
+
 ## 49. Life-line pictures for awards, moves and schools — plus a bug that had silenced every award's picture since it shipped (v131, 2026-09-21)
 
 Her ask, on the real Dolly Parton life line (Grammy, CMA Award, Hollywood

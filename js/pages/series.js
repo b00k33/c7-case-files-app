@@ -183,7 +183,7 @@ export async function render(root, ctx, tab = 'overview') {
   for (const p of people) {
     const f = document.createElement('div');
     f.className = 'face-card';
-    f.innerHTML = `<div class="face" style="width:56px;height:56px"><span class="initials">${initials(p.display_name)}</span></div><div class="name">${esc(p.display_name)}</div>`;
+    f.innerHTML = `<div class="face" style="width:56px;height:56px"><span class="initials">${initials(p.display_name)}</span></div><div class="name">${esc(p.display_name)}</div>${p.role ? `<div class="role">${esc(p.role)}</div>` : ''}`;
     f.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
     figuresRow.appendChild(f);
     const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
@@ -214,16 +214,38 @@ export async function render(root, ctx, tab = 'overview') {
     btn.disabled = true; btn.textContent = 'Reading the cast from Wikidata…';
     try {
       const cast = await fetchCast(kase.wikidata_id);
-      const existingQids = new Set(people.map((p) => p.wikidata_id).filter(Boolean));
-      const picks = cast.filter((c) => !existingQids.has(c.qid)).map((c) => ({ qid: c.qid, label: c.label }));
-      if (!picks.length) {
+      if (!cast.length) {
         btn.disabled = false; btn.textContent = '+ Cast from Wikidata';
-        inlineNote(btn, cast.length ? 'Nothing new — everyone billed is already in the cast.' : 'Wikidata lists no cast for this one.');
+        inlineNote(btn, 'Wikidata lists no cast for this one.');
         return;
       }
-      const r = await addPeopleFromWikidata(store, kase.id, picks, (msg) => { btn.textContent = msg; });
+      const existingQids = new Set(people.map((p) => p.wikidata_id).filter(Boolean));
+      const picks = cast.filter((c) => !existingQids.has(c.qid)).map((c) => ({ qid: c.qid, label: c.label }));
+      const r = picks.length ? await addPeopleFromWikidata(store, kase.id, picks, (msg) => { btn.textContent = msg; }) : { created: [], failed: [] };
+      // fetchCast already reads who each actor played (Wikidata's "character
+      // role" qualifier) — write it onto the person it just added, or
+      // backfill it onto whoever was already in the cast from an earlier
+      // pull, her ask, 2026-09-21: "include cast and character names". Runs
+      // even when nothing new was added — most real re-checks find no new
+      // actor but this is often the first run since the role field existed.
+      let rolesFilled = 0;
+      for (const c of cast) {
+        if (!c.characters.length) continue;
+        const person = store.findPersonByWikidata(kase.id, c.qid);
+        if (!person || person.role) continue;
+        await store.updatePerson(person.id, { role: c.characters.join(' & ') });
+        rolesFilled++;
+      }
+      if (!picks.length && !rolesFilled) {
+        btn.disabled = false; btn.textContent = '+ Cast from Wikidata';
+        inlineNote(btn, 'Nothing new — everyone billed is already in the cast.');
+        return;
+      }
       render(root, ctx, tab);
-      sessionStorage.setItem('c7-pi-result', `${r.created.length} cast member${r.created.length === 1 ? '' : 's'} added from Wikidata${r.failed.length ? ` (${r.failed.length} couldn't be read)` : ''}.`);
+      const parts = [];
+      if (r.created.length) parts.push(`${r.created.length} cast member${r.created.length === 1 ? '' : 's'} added`);
+      if (rolesFilled) parts.push(`${rolesFilled} character name${rolesFilled === 1 ? '' : 's'} filled in`);
+      sessionStorage.setItem('c7-pi-result', `${parts.join(', ') || 'Cast updated'} from Wikidata${r.failed.length ? ` (${r.failed.length} couldn't be read)` : ''}.`);
     } catch (err) {
       btn.disabled = false; btn.textContent = '+ Cast from Wikidata';
       inlineNote(btn, `Couldn't reach Wikidata — ${err.message}. Are you online?`);

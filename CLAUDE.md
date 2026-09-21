@@ -417,7 +417,19 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — found live: five deploys never actually reached her
+**2026-09-21, latest — a cast tile shows the character too (v132, SPEC
+§50).** "include cast and character names," on the real Suits Cast grid.
+`fetchCast` (§47) already read Wikidata's character-role qualifier per
+actor, just never used it — now written to a new `person.role` column
+and shown under the name on the Cast tile. **A real bug caught only by
+testing the button on an already-populated cast, not a fresh one:** the
+first cut wrote the role inside the "picks.length" branch, so a re-check
+on a cast she'd already fully built (exactly her real Suits case) would
+early-return before ever reaching the role-writing code — moved the
+backfill outside that gate so it also catches up an existing cast, not
+just a brand-new one.
+
+**2026-09-21, earlier — found live: five deploys never actually reached her
 installed app (v127, SPEC §45).** She tapped "+ Add person" on the real
 Suits case right after v126 shipped and got v124's old dead-end message —
 a "synced just now, never update ready" screenshot made it visible.

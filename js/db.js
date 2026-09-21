@@ -295,6 +295,7 @@ const ADDED_COLUMNS = [
   ['person', 'photo_path', 'TEXT'],      // profile picture as a stored asset (2026-09-02)
   ['person', 'photo_url', 'TEXT'],       // where it came from (Wikipedia) or a remote fallback
   ['person', 'wikidata_id', 'TEXT'],     // the Wikidata item a lookup matched — so a relative is recognised by identity, not by spelling (2026-09-03)
+  ['person', 'role', 'TEXT'],            // a series cast member's character(s) — "Harvey Specter" (2026-09-21)
   ['case_file', 'world', 'TEXT'],        // the fictional world this case is about, set at creation only; null = real research (2026-09-03)
   ['question', 'parent_id', 'TEXT'],     // questions & theories (2026-09-03): a row with parent_id is a theory answering that question
   ['question', 'person_id', 'TEXT'],     // what the question is about; null = the world / the case
