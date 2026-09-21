@@ -387,7 +387,20 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — a series case can link to Wikidata after it already
+**2026-09-21, latest — the unplaced-people picker gets a quick "type a new
+name" (v126, SPEC §44).** Same day as v124's "pick, don't type" change,
+her follow-up on the real Suits case: "add option to add cast easily
+without needing to add from people." Picking-only was real friction for
+someone who obviously belongs to nothing else. `renderUnplacedPicker`
+(the shared Family/Event/Series component) now carries a name+Add field
+below the pick-list — typed straight into the current case in one write,
+same duplicate guard every "+ Person" door already uses (a placeless
+match gets claimed, a cross-case match redirects there). The pick-list
+itself didn't change; this just adds the fast path beside it. Verified
+live on the Suits case: typed a new cast member in alongside an existing
+unplaced pick, both landed correctly.
+
+**2026-09-21, earlier — a series case can link to Wikidata after it already
 exists (v125, SPEC §43).** Her question, live, on a real "Suits" case she'd
 already made: "how can i search wiki for these details of this tv series."
 Turned out to be a real gap, not a "where's the button" miss: `"+ Check

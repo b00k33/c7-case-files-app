@@ -4,6 +4,7 @@
 //   inlineNameForm — a one-field form that appears in place of a prompt()
 //   inlineNote     — a short explanation under a control, in place of alert()
 //   stampMoment    — the brass "stamp" payoff, for a genuine milestone
+import { looksHurried, autoCaseName } from './names.js';
 
 /**
  * Arm-then-act for destructive buttons. First tap turns the button red and
@@ -108,30 +109,66 @@ export function clearInlineNote(anchorEl) {
  * in" replacement everywhere a case wants to add a person (her ask,
  * 2026-09-21: "remove people from the case files and just use the people
  * in people tab"). Lists everyone whose case_id is NULL; picking one
- * claims them into `ctx.caseId` (store.updatePerson). An empty pool
- * doesn't offer to create anyone here — a new person's one door, from now
- * on, is the People tab's own + Person form — it just points there.
+ * claims them into `ctx.caseId` (store.updatePerson).
+ *
+ * A quick "type a new name" field sits below the list either way (her
+ * follow-up the same day: "add option to add cast easily without needing
+ * to add from people" — picking-only was real friction for someone who
+ * obviously belongs to nothing else). A typed name goes straight into
+ * THIS case, one write, no placeless detour — same duplicate guard every
+ * other "+ Person" door already uses, so someone who already exists
+ * elsewhere is offered rather than doubled.
  */
 export async function renderUnplacedPicker(slot, ctx, { onPicked } = {}) {
-  const people = await ctx.store.listUnplacedPeople();
+  const { store } = ctx;
+  const people = await store.listUnplacedPeople();
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  if (!people.length) {
-    slot.innerHTML = `<div class="inline-note">Nobody's waiting to be placed yet. Add them in <a href="#/people">People</a> first — with no case yet — then come back and pick them here.</div>`;
-    return;
-  }
+  const claim = async (p) => { await store.updatePerson(p.id, { case_id: ctx.caseId }); onPicked?.(p); };
+
   slot.innerHTML = `
+    ${people.length ? `
     <div class="field"><label>Someone with nowhere else yet</label></div>
     <div class="stack" style="gap:4px;max-height:280px;overflow-y:auto" id="up-list">
       ${people.map((p) => `<button type="button" class="btn btn-ghost btn-sm up-pick" data-id="${p.id}" style="justify-content:flex-start;width:100%">${esc(p.display_name)}</button>`).join('')}
     </div>
+    <div style="margin:10px 0;color:var(--text-3);font-size:11px">— or —</div>` : ''}
+    <div class="field"><label>${people.length ? 'Someone new' : "Nobody's waiting to be placed yet — add someone new"}</label>
+      <div class="row wrap" style="gap:8px">
+        <input type="text" class="up-new-name" placeholder="Their name" style="flex:1 1 160px;min-width:0">
+        <button type="button" class="btn btn-primary btn-sm up-new-add">Add</button>
+      </div>
+    </div>
   `;
   slot.querySelectorAll('.up-pick').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const p = people.find((x) => x.id === btn.dataset.id);
-      await ctx.store.updatePerson(p.id, { case_id: ctx.caseId });
-      onPicked?.(p);
-    });
+    btn.addEventListener('click', () => claim(people.find((x) => x.id === btn.dataset.id)));
   });
+
+  const nameInput = slot.querySelector('.up-new-name');
+  const addBtn = slot.querySelector('.up-new-add');
+  const doAdd = async () => {
+    const typedName = nameInput.value.trim();
+    if (!typedName) { nameInput.focus(); return; }
+    const hurried = looksHurried(typedName);
+    const name = hurried ? autoCaseName(typedName) : typedName;
+    // do not allow duplicates (her ask, 2026-09-11) — every case, not just
+    // this one, since the same real person shouldn't exist twice
+    const matches = store.findPeopleByName(null, name, 'person');
+    if (matches.length) {
+      duplicateNameBlock(nameInput, matches, async (p) => {
+        if (p.case_id === ctx.caseId) { onPicked?.(p); return; }
+        if (!p.case_id) { await claim(p); return; }
+        // already homed in a different case — go see them where they
+        // live, the same rule every other "can't be wired in" door uses
+        ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`));
+      });
+      return;
+    }
+    clearInlineNote(addBtn);
+    const p = await store.createPerson({ case_id: ctx.caseId, display_name: name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
+    onPicked?.(p);
+  };
+  addBtn.addEventListener('click', doAdd);
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doAdd(); });
 }
 
 /**

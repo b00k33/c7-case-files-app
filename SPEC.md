@@ -1495,6 +1495,28 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 44. The unplaced-people picker gets a quick "type a new name" (v126, 2026-09-21)
+
+Her follow-up, the same day as v124's "pick, don't type" change, on the
+real Suits case: **"add option to add cast easily without needing to add
+from people."** The friction was real: a brand-new cast member — someone
+who obviously belongs to nothing else — now needed a detour to People tab
+just to exist, before she could come back and pick them. `js/ui.js`'s
+shared `renderUnplacedPicker` (used by Family, Event and Series alike)
+gains a "— or —" divider under the pick-list and a plain name + Add field
+below it. Typing a name there writes the person straight into the CURRENT
+case in one step (`store.createPerson({case_id: ctx.caseId, ...})`) — no
+placeless detour, no second write — through the same duplicate guard
+every other "+ Person" door already uses: a match already placeless is
+claimed instead of doubled, a match already homed in a different case
+redirects there rather than creating a copy. The pick-list itself is
+untouched — this adds a fast path alongside it, it doesn't replace it.
+
+Verified live: on the real "Test Series Case" (standing in for Suits),
+typed "Test Cast Member" straight into Cast with the pool already showing
+"Placeless Ray" — both landed correctly, People tab showing "Test Series
+Case" as home for each afterward.
+
 ## 43. A series case can link to Wikidata after it already exists (v125, 2026-09-21)
 
 Her question, live, on a real "Suits" series case she'd already made:
