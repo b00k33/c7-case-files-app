@@ -1495,6 +1495,37 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 48. The subject header's photo forced empty space beside it (v130, 2026-09-21)
+
+Her ask, on a real screenshot of Dolly Parton's profile: "this is too long
+in height. tesselate it keep picture size to reduce empty space." The
+140px photo and the identity line sat in the same row, so that row's
+height was always 140px even though the identity text only needed about a
+third of it — the rest, beside the photo and below the text, was pure
+blank space before the Demographics/Numerology band even started below.
+
+Restructured `subject.js`'s header so the photo now runs down beside the
+WHOLE content column — identity line and the Demographics/Numerology band
+together, not just the identity line — instead of only being level with
+one short line of text. On a wide window there's room for Demographics and
+Numerology side by side next to the photo, closing the gap entirely
+(verified live at 1220px: the header shrank from the original screenshot's
+roughly 380px tall to about 140px, matching the photo, no blank band left
+over). On a narrow one — this card's own default testing width, and where
+her original screenshot actually came from on a phone — there usually
+isn't room for the photo AND two side-by-side info columns at once, so
+below a `460px` container width (measured on the content column itself,
+via a CSS container query, not the viewport — the card sits in a narrow
+app column even on a wide monitor) Demographics and Numerology stack
+instead, still right under the identity line with no dead gap; below
+`480px` of viewport the photo drops to its own row entirely, with
+everything else following in natural sequence beneath it, which turned
+out to already read as gap-free once nothing was forced to match the
+photo's height. `.sh-zone2`/`.sh-zone3`'s background band, previously
+full-bleed edge to edge on the whole card, is now a rounded sub-panel
+beside the photo instead — full-bleed and "beside the photo" aren't both
+possible without reopening the same dead-space bug.
+
 ## 47. A series' cast can be pulled from Wikidata in one go (v129, 2026-09-21)
 
 Her ask: "how to add cast from wikipedia?" on the real Suits case, right

@@ -1035,36 +1035,58 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .avatar .initials { font-family: var(--font-title); font-size: 44px; color: var(--brass); }
 .avatar .hint { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; text-align: center; color: var(--text-3); background: var(--ink-0); padding: 4px 0; opacity: 0; transition: opacity .12s; }
 .avatar:hover .hint { opacity: 1; }
-/* the subject header, "compact three-zone header" (her pick, 2026-09-17,
-   from 3 real candidates after "improve this ui, make 3 widgets" + "make it
-   visually scannable" on the old one-strip header): one calm card, split by
-   a hairline into identity (full width, unchanged prominence) then
-   demographics + numerology side by side below a second hairline, told
-   apart by a faint background step rather than by breaking into 3 floating
-   panels. The card supplies no padding of its own — each zone owns its own,
-   so the background step can run edge-to-edge. */
-.subject-head { background: var(--ink-1); border-radius: var(--r-lg); box-shadow: var(--lift-1); overflow: hidden; }
-.sh-zone1 { padding: var(--sp-4) var(--sp-5); display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap; }
-.sh-identity { flex: 1 1 200px; min-width: 0; padding-top: var(--sp-2); }
+/* the subject header, "tessellated three-zone header" (her pick,
+   2026-09-17, from 3 real candidates, retiled 2026-09-21: the photo used
+   to sit only beside the identity line, so its own 140px height forced
+   that whole top zone to be that tall too — nothing else in it was, so
+   the gap below the identity text before the demographics band read as
+   dead space. "Reduce empty space, tessellate it, keep picture size" —
+   the photo now runs down beside the WHOLE content column, identity line
+   and the demographics/numerology band together, so nothing has to grow
+   to match it and the band starts right under the identity line instead
+   of a fixed 140px down). The band's own faint background step is now a
+   rounded sub-panel beside the photo rather than full-bleed edge-to-edge
+   (it can't be both without the photo forcing that same dead space back
+   in) — told apart from the card by its own background, not the edge. */
+.subject-head { background: var(--ink-1); border-radius: var(--r-lg); box-shadow: var(--lift-1); overflow: hidden; padding: var(--sp-4) var(--sp-5); }
+.sh-main { display: flex; align-items: flex-start; gap: var(--sp-4); }
+.sh-content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-3); container-type: inline-size; }
+.sh-toprow { display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap; }
+.sh-identity { flex: 1 1 200px; min-width: 0; }
 .sh-meta { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sh-meta .occ { color: var(--text-2); font-family: var(--font-body); }
-.sh-actions { display: flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto; padding-top: var(--sp-2); }
-.sh-divider { height: 1px; background: var(--line); }
-.sh-lowerrow { display: flex; align-items: stretch; }
-.sh-zone2 { flex: 0 0 55%; background: var(--ink-2); padding: var(--sp-4) var(--sp-5); min-width: 0; }
-.sh-zonedivider { width: 1px; background: var(--line); flex: 0 0 1px; }
-.sh-zone3 { flex: 1 1 45%; background: var(--ink-1); padding: var(--sp-4) var(--sp-5); min-width: 0; }
+.sh-actions { display: flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto; }
+/* stacked by default — beside a 140px photo, the content column is often
+   under 300px (this card's own narrow-pane testing found exactly that:
+   445px viewport minus the photo and its gap leaves too little for a
+   110px label column AND a second side-by-side zone), too tight for
+   Demographics and Numerology shoulder to shoulder without both wrapping
+   badly. They go side by side only once the card is wide enough to fit a
+   real desktop window (below), not by viewport width alone — this card
+   sits in a narrow app column even on a wide monitor. */
+.sh-lowerrow { display: flex; flex-direction: column; background: var(--ink-2); border-radius: var(--r-md); overflow: hidden; }
+.sh-zone2 { padding: var(--sp-3) var(--sp-4); min-width: 0; }
+.sh-zonedivider { height: 1px; background: var(--line); }
+.sh-zone3 { padding: var(--sp-3) var(--sp-4); min-width: 0; }
 .zone-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin: 0 0 var(--sp-3); }
 .sh-zone2 .profile-grid { margin-top: 0; }
-.sh-zone3 .lm-tokens { flex-direction: column; align-items: flex-start; gap: var(--sp-2); margin-top: 0; }
-.sh-zone3 .lm-tokens .tk .big { font-size: 30px; }
-.sh-notes { padding: var(--sp-3) var(--sp-5) var(--sp-4); margin: 0; color: var(--text-3); font-size: 12px; border-top: 1px solid var(--line); }
-@media (max-width: 640px) {
-  .sh-zone1 { padding: var(--sp-3) var(--sp-4); }
+.sh-zone3 .lm-tokens { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-4); margin-top: 0; }
+.sh-zone3 .lm-tokens .tk .big { font-size: 24px; }
+.sh-notes { padding: var(--sp-3) 0 0; margin: var(--sp-3) 0 0; color: var(--text-3); font-size: 12px; border-top: 1px solid var(--line); }
+@container (min-width: 460px) {
+  .sh-lowerrow { flex-direction: row; align-items: stretch; }
+  .sh-zone2 { flex: 0 0 55%; }
+  .sh-zonedivider { width: 1px; height: auto; flex: 0 0 1px; }
+  .sh-zone3 { flex: 1 1 45%; }
+  .sh-zone3 .lm-tokens { flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+  .sh-zone3 .lm-tokens .tk .big { font-size: 30px; }
+}
+@media (max-width: 480px) {
+  .subject-head { padding: var(--sp-3) var(--sp-4); }
+  .sh-main { flex-wrap: wrap; }
+  .sh-content { flex: 1 1 100%; }
   .sh-actions { flex: 1 1 100%; }
-  .sh-lowerrow { flex-direction: column; }
-  .sh-zone2, .sh-zone3 { flex: 1 1 auto; padding: var(--sp-3) var(--sp-4); }
-  .sh-zonedivider { width: auto; height: 1px; }
+  .sh-zone2, .sh-zone3 { padding: var(--sp-3) var(--sp-4); }
 }
 
 /* ------------------------------------------------------- Their Story */

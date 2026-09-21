@@ -215,34 +215,37 @@ export async function render(root, ctx, personId, tab = 'profile') {
   root.innerHTML = `
     <div class="stack">
       <div class="subject-head">
-        <div class="sh-zone1">
+        <div class="sh-main">
           <div class="avatar" id="avatar" title="${person.photo_path || person.photo_url ? 'Change picture' : 'Add a picture'}">
             <span class="initials">${person.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
             <span class="hint">${person.photo_path || person.photo_url ? 'change' : '+ picture'}</span>
           </div>
-          <div class="sh-identity">
-            <div class="sh-meta">
-              ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip brass">${person.status}</span>
-              ${person.occupation ? ` · <span class="occ">${person.occupation}</span>` : ''}
+          <div class="sh-content">
+            <div class="sh-toprow">
+              <div class="sh-identity">
+                <div class="sh-meta">
+                  ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip brass">${person.status}</span>
+                  ${person.occupation ? ` · <span class="occ">${person.occupation}</span>` : ''}
+                </div>
+                ${aliases.length ? `<div class="row wrap" style="margin-top:6px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
+              </div>
+              <div class="sh-actions">
+                ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
+                ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
+                <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
+              </div>
             </div>
-            ${aliases.length ? `<div class="row wrap" style="margin-top:6px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
-          </div>
-          <div class="sh-actions">
-            ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
-            ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
-            <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
-          </div>
-        </div>
-        <div class="sh-divider"></div>
-        <div class="sh-lowerrow">
-          <div class="sh-zone2">
-            <p class="zone-label">Demographics</p>
-            <div class="profile-grid" id="basics-strip"></div>
-          </div>
-          <div class="sh-zonedivider"></div>
-          <div class="sh-zone3">
-            <p class="zone-label">Numerology &amp; Zodiac</p>
-            <div class="lm-tokens sh-numerology" id="lm-tokens">${tokensHtml(person)}</div>
+            <div class="sh-lowerrow">
+              <div class="sh-zone2">
+                <p class="zone-label">Demographics</p>
+                <div class="profile-grid" id="basics-strip"></div>
+              </div>
+              <div class="sh-zonedivider"></div>
+              <div class="sh-zone3">
+                <p class="zone-label">Numerology &amp; Zodiac</p>
+                <div class="lm-tokens sh-numerology" id="lm-tokens">${tokensHtml(person)}</div>
+              </div>
+            </div>
           </div>
         </div>
         ${person.notes ? `<p class="sh-notes">${person.notes}</p>` : ''}
