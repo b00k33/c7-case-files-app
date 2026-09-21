@@ -14,18 +14,23 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-// what a case is about (her call, 2026-09-02; event added 2026-09-04): a
-// person, a family, or a major event that is neither ("World War 1")
+// what a case is about (her call, 2026-09-02; event added 2026-09-04; series
+// added 2026-09-21, "i need a category for novel/film series" — neither a
+// person, a household, nor a major event, but a franchise with its own cast
+// and a dated run of installments): a person, a family, a major event, or a
+// novel/film series.
 export const CASE_KINDS = [
   { value: 'person', label: 'A person' },
   { value: 'family', label: 'A family / household' },
   { value: 'event', label: 'A major event' },
+  { value: 'series', label: 'A novel / film series' },
 ];
-export const CASE_KIND_LABEL = { person: 'person', family: 'family', event: 'event', research: 'research', history: 'history', fun: 'fun' };
+export const CASE_KIND_LABEL = { person: 'person', family: 'family', event: 'event', series: 'series', research: 'research', history: 'history', fun: 'fun' };
 
 // creating a person-case also creates the person, so their file (and Look
-// up) exists immediately — no empty case, no extra step. An event-case
-// starts on its own overview instead — no auto-created "subject" person.
+// up) exists immediately — no empty case, no extra step. An event-case and a
+// series-case each start on their own overview instead — no auto-created
+// "subject" person (a series isn't a person any more than a war is).
 export async function createCaseOfKind(store, ctx, typedName, kind, world) {
   // names (2026-09-13): the same typed string becomes both the case name
   // and (for a person-kind case) the subject's name — cased once here so
@@ -39,6 +44,8 @@ export async function createCaseOfKind(store, ctx, typedName, kind, world) {
     ctx.navigate(`#/subject/${p.id}`);
   } else if (kind === 'event') {
     ctx.navigate('#/event');
+  } else if (kind === 'series') {
+    ctx.navigate('#/series');
   } else {
     ctx.navigate('#/family');
   }

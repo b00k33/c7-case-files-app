@@ -387,7 +387,57 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — life events stay in the sheet after adding, and
+**2026-09-21, latest — a fourth case kind, series: cast and dated
+installments auto-pulled from Wikidata (v121, SPEC §39).** From a real
+Wikipedia record for "A Series of Unfortunate Events": "i need a category
+for novel/film series." The case-kind dropdown only ever offered person /
+family / event — none of the three fit a franchise. Asked which shape she
+wanted; she picked the biggest of three offered options, **"Both, genuinely
+new kind: cast AND a timeline of installments together."** A second
+question, on build phasing, offered "manual version first, auto-pull
+later (recommended)" as the safer default — she overrode it: **"i want
+only auto pulling."** Read as: the Wikidata pull IS the build, not a
+follow-on phase; there is no manual-only version of this feature. A third
+answer, "Save immediately," matched how `addWorks` already writes a
+person's own works — no claim/review step for a pulled installment.
+
+Built as a new `js/pages/series.js`, adapted from `event.js` (which faced
+the same "not a person" shape first, 2026-09-04) — same case-level
+storage (installments are `event` rows, `person_id` null), same reused tab
+strip. Two departures from event.js, both disclosed calls rather than
+further questions given she'd already signalled "just build it": no manual
+era-setter (a series' span is read off its installments' own dates instead
+— can't go stale the way a hand-typed range could); "Cast," not "Key
+figures," reusing event.js's simpler flat-list add-person rather than
+`family.js`'s relationship-graph machinery, since a franchise's cast isn't
+a family tree. New Wikidata queries in `works.js`
+(`fetchInstallments`/`addInstallments`) follow P527/P179 (the series↔part
+relationship, both directions, merged) with reading order from P1545
+(series ordinal — a *qualifier*, reached via the `p:`/`ps:`/`pq:` path the
+existing music query already uses for a sourced date), built with no
+`GROUP BY` alongside the label service so as not to repeat the exact
+StackOverflowError shape found live twice already this week (§37, directly
+below). A re-run dedupes by `wikidata_id`, same mechanism `addWorks`
+already uses, so "Check Wikidata for new installments" only ever adds
+what's new.
+
+Verified live against Wikidata's real record for the actual case she was
+mid-creating (Q213841) — a disposable in-browser-storage test case, not
+her real data folder (see the entry below: that folder connection was
+still unresolved in the sandboxed Claude Browser pane at the time). All 15
+installments came back correct — 13 numbered main books in the right
+order with the right dates, plus two unnumbered companion volumes
+correctly placed by date rather than a false ordinal; era read "1999 –
+2007," computed off the installments; a second "Check Wikidata" run
+correctly reported "Nothing new — 15 already on file"; a cast member
+added and opened onto a full profile exactly like an event-case's key
+figure would; Evidence/Contradictions/Questions/Board all rendered clean
+under the new series header. `tests/browser-tests.html`'s 44 cases don't
+exercise any of `cases.js`/`dashboard.js`/`works.js`/`series.js` (no test
+file touches case-kind routing or Wikidata-backed modules) — full detail
+in SPEC §39.
+
+**2026-09-21, earlier — life events stay in the sheet after adding, and
 Review learns to filter by person (v120, SPEC §38).** Her ask: "when i click
 add event, then lookup, then life events, add x events then i have to find
 info to review - how to make this workflow faster and smoother." Ran a

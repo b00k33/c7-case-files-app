@@ -99,9 +99,9 @@ export async function createCase(obj) {
   const id = uuid();
   const now = nowISO();
   db.run(
-    `INSERT INTO case_file (id,name,kind,description,era_start,era_end,owner_id,world,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    [id, obj.name, obj.kind || 'research', obj.description || null, obj.era_start ?? null, obj.era_end ?? null, 'local', obj.world || null, now, now]
+    `INSERT INTO case_file (id,name,kind,description,era_start,era_end,owner_id,world,wikidata_id,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.name, obj.kind || 'research', obj.description || null, obj.era_start ?? null, obj.era_end ?? null, 'local', obj.world || null, obj.wikidata_id || null, now, now]
   );
   logChange('case_file', id, 'insert', obj);
   return getCase(id);

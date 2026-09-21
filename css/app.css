@@ -664,6 +664,8 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .tile .pic.multi .seg .initials { font-size: 22px; }
 .tile .pic.event .seg { background: linear-gradient(155deg, #362f57, #1c1930); }
 .tile .pic.event .seg .initials { color: var(--violet); }
+.tile .pic.series .seg { background: linear-gradient(155deg, #1a3d3a, #142826); }
+.tile .pic.series .seg .initials { color: var(--teal); }
 .tile .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: var(--sp-2) var(--sp-3) var(--sp-3); }
 .tile .line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; flex-wrap: wrap; }
 .tile .title { font-family: var(--font-title); font-size: 15px; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
@@ -714,6 +716,7 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .event-era { color: var(--text-3); }
 .event-era .val { color: var(--violet); }
 .event-era button { color: var(--text-3); }
+.event-badge.series { color: var(--teal); }
 .tl-entry { position: relative; padding-left: 16px; }
 .tl-entry::before { content: ''; position: absolute; left: 3px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--violet); }
 .tl-entry .tl-date { color: var(--violet); }
@@ -1027,10 +1030,10 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .tree-more:hover { color: var(--brass); border-color: var(--brass); }
 
 /* ------------------------------------------------ profile picture */
-.avatar { width: 72px; height: 72px; border-radius: var(--r-lg); background: var(--ink-2); overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+.avatar { width: 140px; height: 140px; border-radius: var(--r-lg); background: var(--ink-2); overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.avatar .initials { font-family: var(--font-title); font-size: 24px; color: var(--brass); }
-.avatar .hint { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; text-align: center; color: var(--text-3); background: var(--ink-0); padding: 2px 0; opacity: 0; transition: opacity .12s; }
+.avatar .initials { font-family: var(--font-title); font-size: 44px; color: var(--brass); }
+.avatar .hint { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; text-align: center; color: var(--text-3); background: var(--ink-0); padding: 4px 0; opacity: 0; transition: opacity .12s; }
 .avatar:hover .hint { opacity: 1; }
 /* the subject header, "compact three-zone header" (her pick, 2026-09-17,
    from 3 real candidates after "improve this ui, make 3 widgets" + "make it
@@ -1041,11 +1044,11 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
    panels. The card supplies no padding of its own — each zone owns its own,
    so the background step can run edge-to-edge. */
 .subject-head { background: var(--ink-1); border-radius: var(--r-lg); box-shadow: var(--lift-1); overflow: hidden; }
-.sh-zone1 { padding: var(--sp-4) var(--sp-5); display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
-.sh-identity { flex: 1 1 200px; min-width: 0; }
+.sh-zone1 { padding: var(--sp-4) var(--sp-5); display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap; }
+.sh-identity { flex: 1 1 200px; min-width: 0; padding-top: var(--sp-2); }
 .sh-meta { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sh-meta .occ { color: var(--text-2); font-family: var(--font-body); }
-.sh-actions { display: flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto; }
+.sh-actions { display: flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto; padding-top: var(--sp-2); }
 .sh-divider { height: 1px; background: var(--line); }
 .sh-lowerrow { display: flex; align-items: stretch; }
 .sh-zone2 { flex: 0 0 55%; background: var(--ink-2); padding: var(--sp-4) var(--sp-5); min-width: 0; }

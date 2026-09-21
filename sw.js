@@ -54,6 +54,7 @@ const SHELL = [
   'js/pages/family.js',
   'js/pages/people.js',
   'js/pages/event.js',
+  'js/pages/series.js',
   'js/pages/questions.js',
   'js/pages/compare.js',
   'js/pages/commercial.js',

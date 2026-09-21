@@ -15,14 +15,14 @@ import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
 import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
-import { fetchWorks, addWorks } from '../works.js';
+import { fetchWorks, addWorks, fetchInstallments, addInstallments } from '../works.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
 // the "⋯" menu's kind-switcher offers the two kinds a case ISN'T, each one
 // click away — a cycle button hid "event" a click deep behind "family" for
 // any case starting as a person (2026-09-04, her screenshot)
-const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case' };
+const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case', series: 'a series case' };
 const otherKinds = (kind) => Object.keys(KIND_LABEL).filter((k) => k !== (KIND_LABEL[kind] ? kind : 'person'));
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -49,6 +49,7 @@ export async function openCase(ctx, kase) {
   markOpened(kase.id);
   await ctx.setCaseId(kase.id);
   if (kase.kind === 'event') { ctx.navigate('#/event'); return; }
+  if (kase.kind === 'series') { ctx.navigate('#/series'); return; }
   const people = await ctx.store.listPeople(kase.id);
   if (kase.kind === 'family' || (kase.kind !== 'person' && people.length > 1)) { ctx.navigate('#/family'); return; }
   let p = subjectOf(kase, people);
@@ -108,7 +109,7 @@ function wireCaseLookup(form, ctx, store) {
   btn.type = 'button';
   btn.className = 'btn btn-ghost btn-sm if-wiki';
   btn.textContent = 'Look up on Wikipedia';
-  btn.title = 'Find this person on Wikipedia and create the case from the record — dates, picture, evidence come with it';
+  btn.title = 'Find this on Wikipedia and create the case from the record — dates, picture, evidence come with it';
   rowEl.insertBefore(btn, rowEl.querySelector('.if-cancel'));
   const results = document.createElement('div');
   results.className = 'if-wiki-results';
@@ -134,11 +135,12 @@ function wireCaseLookup(form, ctx, store) {
     catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
     btn.disabled = false; btn.textContent = 'Look up on Wikipedia';
     if (!matches.length) { if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person; Create makes the case by name.'); return; }
+    const isSeries = kindSelect?.value === 'series';
     results.innerHTML = `
       <div class="row wrap" style="gap:12px;margin-top:8px;align-items:center">
         <span class="section-label">Create the case from a Wikipedia record</span>
-        <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-family"> + family — their relatives too, like Insert family</label>
-        <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-works"> + works — albums, EPs, singles and songs with release dates (for a musician)</label>
+        ${isSeries ? '' : '<label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-family"> + family — their relatives too, like Insert family</label>'}
+        <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-works" checked${isSeries ? ' disabled' : ''}> ${isSeries ? '+ installments — every book or film in the series, pulled straight from Wikidata' : '+ works — albums, EPs, singles and songs with release dates (for a musician)'}</label>
       </div>`;
     for (const m of matches) {
       const row = document.createElement('div');
@@ -167,10 +169,29 @@ function wireCaseLookup(form, ctx, store) {
     }
     const worldCheck = form.querySelector('.if-fictional');
     const world = worldCheck?.checked ? (form.querySelector('.if-world').value.trim() || 'Fictional') : null;
-    const family = !!form.querySelector('.if-family')?.checked;
-    const works = !!form.querySelector('.if-works')?.checked;
     results.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="cw-progress">Creating the case…</div>';
     const prog = results.querySelector('#cw-progress');
+
+    // a series case isn't about a person — no subject to create, no + family;
+    // the franchise's own Wikidata item lives on the case, and every
+    // installment is pulled and saved straight away (her call, 2026-09-21:
+    // "i want only auto pulling" — no manual entry, no review step)
+    if (kind === 'series') {
+      const kase = await store.createCase({ name: m.label, kind, world, wikidata_id: m.id });
+      await ctx.setCaseId(kase.id);
+      markOpened(kase.id);
+      try {
+        prog.textContent = 'Reading the installments from Wikidata…';
+        const list = await fetchInstallments(m.id, (msg) => { prog.textContent = `Reading the installments from Wikidata — ${msg}`; });
+        const r = await addInstallments(store, kase.id, list, (msg) => { prog.textContent = `Adding installments… ${msg}`; });
+        sessionStorage.setItem('c7-pi-result', `${r.added} installment${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a date)` : ''}.`);
+      } catch (e) { prog.textContent = `The case is made; the installments could not be read (${e.message}). + Installments again from the series page.`; }
+      ctx.navigate('#/series');
+      return;
+    }
+
+    const family = !!form.querySelector('.if-family')?.checked;
+    const works = !!form.querySelector('.if-works')?.checked;
     const kase = await store.createCase({ name: m.label, kind, world });
     await ctx.setCaseId(kase.id);
     markOpened(kase.id);
@@ -298,7 +319,7 @@ function wireImportBtn(btn, c, ctx, store) {
     e.stopPropagation();
     markOpened(c.id); await ctx.setCaseId(c.id);
     const people = await store.listPeople(c.id);
-    const subject = c.kind !== 'family' ? subjectOf(c, people) : null;
+    const subject = c.kind !== 'family' && c.kind !== 'series' ? subjectOf(c, people) : null;
     ctx.navigate(subject ? `#/subject/${subject.id}/import` : '#/import');
   });
 }
@@ -356,7 +377,7 @@ function wireDupFlag(el, dupCaseId, dupInfo, store, onChanged) {
 async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
   const row = document.createElement('div');
   row.className = 'tile';
-  const subject = c.kind === 'event' ? null : subjectOf(c, sum.people);
+  const subject = c.kind === 'event' || c.kind === 'series' ? null : subjectOf(c, sum.people);
   const tokens = c.kind === 'person' && subject ? tokensHtml(subject, { compact: true }) : '';
   row.innerHTML = `
     <div class="pic"></div>
@@ -382,6 +403,9 @@ async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
   const pic = row.querySelector('.pic');
   if (c.kind === 'event') {
     pic.classList.add('event');
+    pic.appendChild(markSegEl(c.name));
+  } else if (c.kind === 'series') {
+    pic.classList.add('series');
     pic.appendChild(markSegEl(c.name));
   } else {
     const faces = c.kind === 'family' ? sum.people.slice(0, 3) : (subject ? [subject] : []);
@@ -461,7 +485,7 @@ export async function render(root, ctx) {
   if (!cases.length) {
     body.appendChild(emptyState({
       missing: 'No case files yet.',
-      why: 'A case is about one person, a family, or a major event. Everything you attach — evidence, relations, contradictions — lives inside it.',
+      why: 'A case is about one person, a family, a major event, or a series. Everything you attach — evidence, relations, contradictions — lives inside it.',
       action: '+ New case',
       onAction: () => root.querySelector('#new-case-btn').click(),
     }));

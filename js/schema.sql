@@ -11,6 +11,7 @@ CREATE TABLE case_file (
   era_start INTEGER, era_end INTEGER,      -- years, for the board strip
   owner_id TEXT NOT NULL DEFAULT 'local',  -- always 'local' now; the seam for accounts later
   world TEXT,                              -- set at creation only: the fictional world this case is about ('Harry Potter'); null = real research
+  wikidata_id TEXT,                        -- series cases: the franchise's own Wikidata item, so "+installments" can be re-run without duplicating rows
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
 

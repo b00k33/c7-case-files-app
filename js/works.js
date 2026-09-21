@@ -365,6 +365,123 @@ export function countByFamily(rows) {
   return n;
 }
 
+// A series case's own installments (her ask, 2026-09-21: "i need a category
+// for novel/film series", then "i want only auto pulling" — no manual-first
+// phasing, the Wikidata pull IS the build). Wikidata records the series↔part
+// relationship both ways — P527 "has part(s)" on the series, P179 "part of
+// the series" on the installment (the more reliably populated of the two in
+// practice) — so both are queried and merged; an installment reachable
+// either way is asked for once. The reading order she'll actually recognise
+// ("Book 1", "Book 2"...) comes from P1545 (series ordinal), a QUALIFIER on
+// the P179 statement, not a plain triple on the item — reached via the
+// p:/ps:/pq: property-path trio the way a sourced statement always is here
+// (compare the music query's own p:P577/ps:P577/psv:P577 date path above).
+// No GROUP BY here, so the label service is safe to pair directly (the
+// StackOverflowError rule found live 2026-09-21 is specifically GROUP BY +
+// SERVICE wikibase:label together — see the LIST_QUERY/LABEL_QUERY split
+// above and GENERAL_LIST_QUERY below, both flat for the same reason).
+const INSTALLMENT_LIST_QUERY = (qid) => `SELECT ?item ?itemLabel ?ordinal WHERE {
+  { wd:${qid} wdt:P527 ?item . }
+  UNION { ?item wdt:P179 wd:${qid} . }
+  OPTIONAL { ?item p:P179 ?st . ?st ps:P179 wd:${qid} ; pq:P1545 ?ord . BIND(STR(?ord) AS ?ordinal) }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul" }
+} LIMIT 500`;
+const INSTALLMENT_DETAIL_QUERY = (qids) => `SELECT ?item ?tyLabel ?date ?dateProp WHERE {
+  VALUES ?item { ${qids.map((q) => 'wd:' + q).join(' ')} }
+  OPTIONAL { ?item wdt:P31 ?ty }
+  OPTIONAL { ?item wdt:P577 ?d1 } OPTIONAL { ?item wdt:P571 ?d2 } OPTIONAL { ?item wdt:P580 ?d3 }
+  BIND(COALESCE(?d1,?d2,?d3) AS ?date)
+  BIND(IF(BOUND(?d1),"P577",IF(BOUND(?d2),"P571",IF(BOUND(?d3),"P580",""))) AS ?dateProp)
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }
+}`;
+
+/**
+ * Every installment Wikidata lists for a series (rows: { qid, label,
+ * ordinal (number|null), date, display, typeLabel, dateProp }), ordinal-then-
+ * date sorted (undated, unordinalled installments last — Wikidata simply
+ * hasn't got to them yet; that's honest, not a bug to hide).
+ */
+export async function fetchInstallments(qid, onProgress = () => {}) {
+  const ask = async (query) => { const url = `${SPARQL}?format=json&query=${encodeURIComponent(query)}`; try { return await getJSON(url); } catch (e) { if (!/\((429|500|502|503|504)\)/.test(e.message)) throw e; await new Promise((r) => setTimeout(r, 2000)); return getJSON(url); } };
+  onProgress('listing…');
+  const data = await ask(INSTALLMENT_LIST_QUERY(qid));
+  const bindings = (data.results && data.results.bindings) || [];
+  const byQid = new Map();
+  for (const b of bindings) {
+    const q = /Q\d+$/.exec(b.item.value)[0];
+    const ex = byQid.get(q);
+    const ordinal = b.ordinal ? parseFloat(b.ordinal.value) : null;
+    if (!ex) byQid.set(q, { qid: q, label: b.itemLabel ? b.itemLabel.value : q, ordinal });
+    else if (ordinal != null && ex.ordinal == null) ex.ordinal = ordinal;
+  }
+  const items = [...byQid.values()];
+  const qids = items.map((i) => i.qid);
+  const details = new Map();
+  for (let i = 0; i < qids.length; i += 200) {
+    const chunk = qids.slice(i, i + 200);
+    onProgress(`details ${Math.min(i + 200, qids.length)} of ${qids.length}`);
+    let d = null;
+    try { d = await ask(INSTALLMENT_DETAIL_QUERY(chunk)); } catch (_) { d = null; }
+    for (const b of (d && d.results && d.results.bindings) || []) {
+      const q = /Q\d+$/.exec(b.item.value)[0];
+      const existing = details.get(q) || { typeLabel: null, date: null, dateProp: null };
+      if (!existing.typeLabel && b.tyLabel) existing.typeLabel = b.tyLabel.value;
+      const iso = b.date ? b.date.value.slice(0, 10) : null;
+      if (iso && (!existing.date || iso < existing.date)) { existing.date = iso; existing.dateProp = b.dateProp ? b.dateProp.value : null; }
+      details.set(q, existing);
+    }
+  }
+  const rows = items.map((it) => {
+    const d = details.get(it.qid) || {};
+    const date = d.date ? { iso: d.date, prec: /-01-01$/.test(d.date) ? 9 : 11 } : null;
+    return {
+      qid: it.qid, label: it.label, ordinal: it.ordinal,
+      typeLabel: d.typeLabel || 'Installment', date, display: displayDate(date), dateProp: d.dateProp || null,
+    };
+  });
+  rows.sort((a, b) => {
+    if (a.ordinal != null && b.ordinal != null) return a.ordinal - b.ordinal;
+    if (a.ordinal != null) return -1;
+    if (b.ordinal != null) return 1;
+    const ka = a.date ? dateRange(a.date)[0] : '9999', kb = b.date ? dateRange(b.date)[0] : '9999';
+    return ka < kb ? -1 : ka > kb ? 1 : a.label.localeCompare(b.label);
+  });
+  return rows;
+}
+
+/**
+ * Add the picked installments to the series case as 'installment' events —
+ * case-level (person_id null, same as an event-case's timeline entries), the
+ * title carrying the ordinal for the order she'd actually recognise ("1 ·
+ * The Bad Beginning"). An installment already in the case (its Wikidata
+ * item) is left alone, so a re-run only adds what's new. Returns
+ * { added, skipped, undated }.
+ */
+export async function addInstallments(store, caseId, installments, onProgress = () => {}) {
+  const existing = new Set((await store.listEventsForCase(caseId)).map((e) => e.wikidata_id).filter(Boolean));
+  const todo = installments.filter((w) => !existing.has(w.qid));
+  const result = { added: 0, skipped: installments.length - todo.length, undated: 0 };
+  let i = 0;
+  for (const w of todo) {
+    i += 1;
+    if (i % 20 === 0) onProgress(`${i} of ${todo.length}`);
+    const d = w.date;
+    if (!d) result.undated++;
+    const year = d ? parseInt(d.iso.slice(0, 4), 10) : null;
+    const title = w.ordinal != null ? `${w.ordinal} · ${w.label}` : w.label;
+    const cite = `Source: Wikidata https://www.wikidata.org/wiki/${w.qid}${w.dateProp ? ` (${w.dateProp})` : ''}`;
+    await store.createEvent({
+      case_id: caseId, person_id: null, title, kind: 'installment',
+      date: d && d.prec >= 11 ? d.iso : d && d.prec === 10 ? `${d.iso.slice(0, 7)}-01` : null,
+      date_precision: !d ? 'unknown' : d.prec >= 11 ? 'day' : d.prec === 10 ? 'month' : 'year',
+      date_year_min: year, date_year_max: year,
+      notes: cite, wikidata_id: w.qid,
+    });
+    result.added++;
+  }
+  return result;
+}
+
 /**
  * Add the picked works to the person as 'release' events — the record, an
  * accepted claim citing Wikidata (P577) per work; a work already in the case
