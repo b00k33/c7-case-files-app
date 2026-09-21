@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — a series' installments group by season, and stop
+**2026-09-21, latest — "i meant visually organise better" — the season
+grouping corrected to a quiet flat list, no cards at all (v135, SPEC
+§53).** Her very next message after v134 shipped. v134 had read
+"organise" as information architecture (collapsible season cards); she
+meant the visual treatment. Rather than guess again, 3 real candidates
+went up as inline `AskUserQuestion` previews using her real Season 1 data
+and her app's actual night-theme hex values (not the generic show_widget
+design system, which would've shown the wrong fonts/colours again — see
+the v94/v105 lesson). She picked the quiet flat list: season markers are
+plain uppercase labels, always showing their episodes (nothing collapses
+any more); episodes are bare number/title/date rows with a hairline
+divider, no card background, no per-row citation. The episode number
+shown is the real Wikidata ordinal (season 2 starts at 13, not
+re-numbered to 1) — more honest than a fresh per-season count would have
+been. Lesson to carry forward: **a corrected "I meant X" after a shipped
+build is itself a case for the code6 mock-first process** (per-taste
+calls, ask/show before rebuilding) even when the first build already felt
+like a fast, obviously-right competence call — this one didn't get a mock
+the first time because "organise and display this better" read as
+correctness, and it wasn't.
+
+**2026-09-21, earlier — a series' installments group by season, and stop
 repeating their own citation (v134, SPEC §52).** "organise and display
 this better," on Suits' 134-episode flat list — every episode and every
 season marker got the same full card, each repeating its own full

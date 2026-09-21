@@ -1495,6 +1495,44 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 53. The season grouping above, corrected to a quiet flat list (v135, 2026-09-21)
+
+Her very next message after §52 shipped: "i meant visually organise
+better." §52 had read "organise" as information architecture — collapsed
+season cards with a caret, an episode count, a date range — and that
+wasn't it; she'd corrected a structural read to a visual one, same as the
+2026-08-31 lesson about not pattern-matching a request's label without
+checking what she actually meant. Rather than guess a second time, three
+real candidates went up as inline `AskUserQuestion` previews (her own real
+Season 1 data, her app's actual night-theme hex values hand-inlined so
+the preview didn't lie about fonts or colour) — a quiet flat list with no
+card at all, a life-line-style rail with dots, and a polished card variant
+close to what had just shipped. She picked the quiet list.
+
+Season markers are now a plain uppercase label (brass, no button chrome,
+no caret) — always showing its episodes, nothing to expand. Episodes are
+a bare number/title/date row with a hairline divider, no card background
+at all; the number shown is the real Wikidata ordinal split back out of
+the stored title (`13`, not a fresh per-season `1` — season 2's own
+first episode really is the show's 13th, and renumbering it would have
+been less honest for a one-line cosmetic gain). Edit/delete stayed
+reachable — small `✎`/`✕` beside the date on an episode row, and the
+season label itself opens a tiny "Edit the season entry / Delete" menu on
+tap rather than a permanent extra row of chrome. `openSeasons`
+(module-scope collapse-state Set from §52) is gone — nothing left to
+track once nothing collapses.
+
+Verified live against the full real Suits data again (144 stored events):
+all 9 "SEASON N" labels and 134 episode rows render flat and correct end
+to end (season 2 genuinely starts at "13 · She Knows," not a re-numbered
+"1"), the season label's Edit/Delete menu opens and the twoTapConfirm
+delete still asks before removing a season entry, an episode's own ✎
+still opens the same `entryForm` inline with its full citation intact.
+`document.body.scrollWidth` checked directly (not just eyeballed off a
+screenshot) after a rendering artifact made a phone-width capture look
+like the date column was clipped — it wasn't; the DOM had no overflow,
+only the screenshot tool's own scaling did.
+
 ## 52. Installments group by season, and stop repeating their own citation (v134, 2026-09-21)
 
 Her ask, on a real screenshot of Suits' 134-episode, 9-season Installments

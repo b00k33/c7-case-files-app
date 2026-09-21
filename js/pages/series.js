@@ -82,9 +82,6 @@ function groupInstallments(events) {
   }
   return { ungrouped, groups };
 }
-// which season groups she's opened — module-scope so it survives the full
-// render() this page runs after every add/edit/delete, not per-render state
-const openSeasons = new Set();
 
 export async function render(root, ctx, tab = 'overview') {
   const { store } = ctx;
@@ -151,7 +148,7 @@ export async function render(root, ctx, tab = 'overview') {
           <button class="btn btn-ghost btn-sm" id="add-entry-btn">+ Add installment</button>
         </div>
         <div id="entry-form-slot"></div>
-        <div class="stack" id="timeline-list" style="gap:8px;margin-top:8px"></div>
+        <div id="timeline-list" style="margin-top:8px"></div>
       </div>
       ` : `<div id="tab-body"></div>`}
     </div>
@@ -309,63 +306,34 @@ export async function render(root, ctx, tab = 'overview') {
         ? `${groups.length} season${groups.length === 1 ? '' : 's'} · ${episodes} episode${episodes === 1 ? '' : 's'}`
         : `${events.length} installment${events.length === 1 ? '' : 's'}`;
     }
-    for (const e of ungrouped) listEl.appendChild(installmentCard(e));
-    for (const g of groups) listEl.appendChild(seasonGroupEl(g));
+    for (const e of ungrouped) listEl.appendChild(quietRow(e));
+    for (const g of groups) listEl.appendChild(seasonBlockEl(g));
   }
 
-  /** A full card — used for anything with no season to nest under (an ungrouped installment, or a series with no season concept at all). */
-  function installmentCard(e) {
-    const withPeople = String(e.with_ids || '').split(',').filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
-    const row = document.createElement('div');
-    row.className = 'card tl-entry';
-    row.innerHTML = `
-      <div class="row between" style="align-items:flex-start">
-        <div style="min-width:0">
-          <div class="mono tl-date" style="font-size:11px">${fmtDate(e)}</div>
-          <div style="margin-top:2px">${esc(e.title)}</div>
-          <div class="row wrap" style="gap:6px;margin-top:6px">
-            ${e.place ? `<span class="chip">${esc(e.place)}</span>` : ''}
-            ${withPeople.map((p) => `<span class="chip">${esc(p.display_name)}</span>`).join('')}
-          </div>
-          ${e.notes ? `<p style="margin-top:6px;color:var(--text-3);font-size:12px">${esc(e.notes)}</p>` : ''}
-        </div>
-        <div class="row" style="gap:4px;flex:none">
-          <button class="btn btn-ghost btn-sm entry-edit" title="Edit">✎</button>
-          <button class="btn btn-ghost btn-sm entry-delete" title="Delete">✕</button>
-        </div>
-      </div>
-      <div class="entry-edit-slot"></div>
-    `;
-    row.querySelector('.entry-delete').addEventListener('click', (ev) => {
-      twoTapConfirm(ev.currentTarget, {
-        confirmLabel: 'Really?',
-        onConfirm: async () => { await store.deleteEvent(e.id); render(root, ctx, tab); },
-      });
-    });
-    row.querySelector('.entry-edit').addEventListener('click', () => {
-      const slot = row.querySelector('.entry-edit-slot');
-      if (slot.children.length) { slot.innerHTML = ''; return; }
-      slot.appendChild(entryForm(store, ctx, kase, people, e, () => render(root, ctx, tab)));
-    });
-    return row;
+  /** Whatever ordinal Wikidata gave an episode is already the first "N · " segment of its title — split it back off for display rather than renumber it per season, so the number stays the real, honest episode count instead of a fresh 1-2-3 that would only coincidentally match season 1. */
+  function splitOrdinal(title) {
+    const m = String(title || '').match(/^(\d+)\s*·\s*(.+)$/);
+    return m ? { num: m[1], title: m[2] } : { num: null, title };
   }
 
-  /** One compact episode row, nested inside its season's collapsible body — no per-row citation (still on the record, just not on the screen 134 times). */
-  function episodeRow(e) {
+  /** One quiet row — a number, a title, a date, and (quiet, always-reachable) edit/delete. Used for every installment alike: an episode under its season, or an ungrouped one. No per-row citation — still on the record, just not repeated on screen. */
+  function quietRow(e) {
+    const { num, title } = splitOrdinal(e.title);
     const withPeople = String(e.with_ids || '').split(',').filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
     const row = document.createElement('div');
-    row.className = 'tl-row';
+    row.className = 'ep-row';
     row.innerHTML = `
-      <span class="tl-date">${fmtDate(e)}</span>
-      <div style="min-width:0">
-        <span class="tl-title">${esc(e.title)}</span>
-        ${(e.place || withPeople.length) ? `<div class="row wrap" style="gap:4px;margin-top:2px">${e.place ? `<span class="chip">${esc(e.place)}</span>` : ''}${withPeople.map((p) => `<span class="chip">${esc(p.display_name)}</span>`).join('')}</div>` : ''}
-        <div class="entry-edit-slot"></div>
-      </div>
-      <span class="row" style="gap:2px;flex:none">
+      <span class="ep-main">
+        ${num != null ? `<span class="ep-num">${esc(num)}</span>` : ''}
+        <span class="ep-title">${esc(title)}</span>
+        ${(e.place || withPeople.length) ? `<span class="row wrap" style="gap:4px">${e.place ? `<span class="chip">${esc(e.place)}</span>` : ''}${withPeople.map((p) => `<span class="chip">${esc(p.display_name)}</span>`).join('')}</span>` : ''}
+      </span>
+      <span class="ep-side">
+        <span class="ep-date">${fmtDate(e)}</span>
         <button class="linkish ep-edit" title="Edit">✎</button>
         <button class="linkish ep-delete" title="Delete">✕</button>
       </span>
+      <div class="entry-edit-slot"></div>
     `;
     row.querySelector('.ep-delete').addEventListener('click', (ev) => {
       twoTapConfirm(ev.currentTarget, {
@@ -381,49 +349,35 @@ export async function render(root, ctx, tab = 'overview') {
     return row;
   }
 
-  /** A season's own row — a collapsible header (episode count · date range) plus its episodes when open. */
-  function seasonGroupEl(g) {
+  /** A season's own heading — plain text, quiet by default; tap it to reach the rare edit/delete for the season entry itself — then its episodes as quiet rows. */
+  function seasonBlockEl(g) {
     const { season, items } = g;
-    const open = openSeasons.has(season.id);
-    const dated = items.map(fmtDate).filter((d) => d !== '—');
-    const range = dated.length ? (dated[0] === dated[dated.length - 1] ? dated[0] : `${dated[0]} – ${dated[dated.length - 1]}`) : null;
     const wrap = document.createElement('div');
-    wrap.className = `season-group${open ? ' open' : ''}`;
+    wrap.className = 'season-block';
     wrap.innerHTML = `
-      <div class="season-head">
-        <button type="button" class="season-toggle">
-          <span class="season-caret">${open ? '▾' : '▸'}</span>
-          <span class="season-name">${esc(seasonLabel(season.title))}</span>
-          <span class="season-meta">${items.length} episode${items.length === 1 ? '' : 's'}${range ? ` · ${range}` : ''}</span>
-        </button>
-        <span class="row" style="gap:2px;flex:none">
-          <button class="linkish sg-edit" title="Edit the season entry">✎</button>
-          <button class="linkish sg-delete" title="Delete the season entry">✕</button>
-        </span>
-      </div>
-      <div class="entry-edit-slot"></div>
-      <div class="season-body"></div>
+      <button type="button" class="season-label">${esc(seasonLabel(season.title))}</button>
+      <div class="season-menu-slot"></div>
+      <div class="season-rows"></div>
     `;
-    wrap.querySelector('.season-toggle').addEventListener('click', () => {
-      if (open) openSeasons.delete(season.id); else openSeasons.add(season.id);
-      render(root, ctx, tab);
-    });
-    wrap.querySelector('.sg-delete').addEventListener('click', (ev) => {
-      twoTapConfirm(ev.currentTarget, {
+    wrap.querySelector('.season-label').addEventListener('click', () => {
+      const slot = wrap.querySelector('.season-menu-slot');
+      if (slot.children.length) { slot.innerHTML = ''; return; }
+      slot.innerHTML = '<div class="row" style="gap:10px;margin:2px 0 6px"><button class="linkish sg-edit">Edit the season entry</button><button class="linkish sg-delete">Delete</button></div>';
+      slot.querySelector('.sg-edit').addEventListener('click', () => {
+        slot.innerHTML = '';
+        const holder = document.createElement('div');
+        wrap.insertBefore(holder, wrap.querySelector('.season-rows'));
+        holder.appendChild(entryForm(store, ctx, kase, people, season, () => render(root, ctx, tab)));
+      });
+      twoTapConfirm(slot.querySelector('.sg-delete'), {
         confirmLabel: 'Really? This only removes the season entry, not its episodes.',
         onConfirm: async () => { await store.deleteEvent(season.id); render(root, ctx, tab); },
       });
     });
-    wrap.querySelector('.sg-edit').addEventListener('click', () => {
-      const slot = wrap.querySelector('.entry-edit-slot');
-      if (slot.children.length) { slot.innerHTML = ''; return; }
-      slot.appendChild(entryForm(store, ctx, kase, people, season, () => render(root, ctx, tab)));
-    });
-    const body = wrap.querySelector('.season-body');
-    for (const e of items) body.appendChild(episodeRow(e));
+    const rows = wrap.querySelector('.season-rows');
+    for (const e of items) rows.appendChild(quietRow(e));
     return wrap;
   }
-
   root.querySelector('#add-entry-btn').addEventListener('click', () => {
     const slot = root.querySelector('#entry-form-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }

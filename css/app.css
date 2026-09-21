@@ -503,17 +503,22 @@ table.dense td.num { font-family: var(--font-mono); }
 .tl-foot { display: flex; gap: var(--sp-3); margin-top: 6px; flex-wrap: wrap; align-items: center; }
 .tl-foot .hint { font-size: 11px; color: var(--text-3); margin-left: auto; }
 .tl-entry-form, .tl-pastebox { margin-top: 6px; padding: var(--sp-2) var(--sp-3); background: var(--ink-1); border-radius: var(--r-sm); }
-/* a series' season groups (js/pages/series.js) — same "collapsible card,
-   compact dated rows inside" shape as Questions' q-card/tl-row, reused
-   rather than reinvented, her ask 2026-09-21 on Suits' 134-row flat list */
-.season-group { border-radius: var(--r-sm); background: var(--ink-1); }
-.season-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); }
-.season-toggle { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
-.season-caret { color: var(--text-3); font-size: 11px; flex: none; }
-.season-name { font-size: 13px; white-space: nowrap; }
-.season-meta { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.season-body { display: none; padding: 0 var(--sp-3) var(--sp-2); }
-.season-group.open .season-body { display: block; }
+/* a series' installments (js/pages/series.js) — her ask 2026-09-21 on
+   Suits' 134-row flat list of identical full cards, each repeating its
+   own citation: "organise and display this better", then, once a first
+   pass grouped episodes into collapsible season cards, corrected to
+   "i meant visually organise better" — no card chrome at all, a plain
+   uppercase season label (always showing its rows, never collapsed) and
+   quiet number/title/date rows underneath, picked from 3 real mocks. */
+.season-block { margin-top: 16px; }
+.season-block:first-child { margin-top: 0; }
+.season-label { display: block; background: none; border: 0; padding: 0; margin-bottom: 6px; font: inherit; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--brass); cursor: pointer; }
+.ep-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); font-size: 13px; }
+.season-rows .ep-row:last-child, #timeline-list > .ep-row:last-child { border-bottom: 0; }
+.ep-main { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.ep-num { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); flex: none; }
+.ep-side { display: flex; align-items: baseline; gap: 8px; flex: none; }
+.ep-date { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); white-space: nowrap; }
 .tl-pastebox .tl-fmt { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
 .tl-pastebox textarea { width: 100%; font-family: var(--font-mono); font-size: 12px; min-height: 110px; }
 .tl-pastebox .tl-preview { font-size: 12px; color: var(--text-2); margin-top: 6px; }
