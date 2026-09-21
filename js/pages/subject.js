@@ -791,7 +791,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       if (moreBtn) moreBtn.addEventListener('click', () => {
         if (moreSlot.children.length) { moreSlot.innerHTML = ''; moreBtn.textContent = 'more ▾'; return; }
         moreBtn.textContent = 'more ▴';
-        moreSlot.innerHTML = '<div class="row wrap" style="gap:6px;margin:6px 0"><button type="button" class="btn btn-ghost btn-sm" data-more="works" title="Albums, EPs, singles and songs with their release dates — from Wikidata, as the record">+ Works</button><button type="button" class="btn btn-ghost btn-sm" data-more="life" title="Marriages with their dates, awards, positions, homes, schools — from Wikidata, as the record; a marriage also dates the relationship">+ Life events</button></div>';
+        moreSlot.innerHTML = '<div class="row wrap" style="gap:6px;margin:6px 0"><button type="button" class="btn btn-ghost btn-sm" data-more="works" title="Albums, songs, books, paintings, buildings and other notable works with their dates — from Wikidata, as the record">+ Works</button><button type="button" class="btn btn-ghost btn-sm" data-more="life" title="Marriages with their dates, awards, positions, homes, schools — from Wikidata, as the record; a marriage also dates the relationship">+ Life events</button></div>';
         moreSlot.querySelector('[data-more="works"]').addEventListener('click', async () => {
           moreSlot.innerHTML = ''; moreBtn.textContent = 'more ▾';
           lock();
@@ -868,16 +868,19 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
   // ---- Works, reached from the "more" menu on a matched record (her ask,
   // 2026-09-04; moved off its own flat button 2026-09-18, ask28, SPEC §30):
-  // albums / EPs / singles / songs with release dates, from the person's
-  // Wikidata item, as the record — pick the types, tick the works, Add;
-  // each becomes a 'release' event citing P577.
+  // albums / EPs / singles / songs for a musician, PLUS books / paintings /
+  // buildings / discoveries for anyone else (her ask, 2026-09-21: "include
+  // more than just musical works") — from the person's Wikidata item, as
+  // the record. Pick the types, tick the works, Add; each becomes a
+  // 'release' event citing whichever Wikidata property actually dated it.
   async function showWorksPicker(m, slot) {
     slot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="wk-reading">Reading their works from Wikidata — up to a minute for a long catalogue when the service is busy…</div>';
     const reading = slot.querySelector('#wk-reading');
     let works = [];
     try { works = await fetchWorks(m.id, (msg) => { if (reading.isConnected) reading.textContent = `Reading their works from Wikidata — ${msg}`; }); }
     catch (e) { slot.innerHTML = `<div class="inline-note">Works could not be read — ${e.message}</div>`; return false; }
-    if (!works.length) { slot.innerHTML = '<div class="inline-note">Wikidata lists no albums, EPs, singles or songs on that record.</div>'; return false; }
+    if (!works.length) { slot.innerHTML = '<div class="inline-note">Wikidata lists no notable works — musical or otherwise — on that record.</div>'; return false; }
+    const failNote = works.failedSource ? `<div class="inline-note" style="border-left-color:var(--red)">Couldn't read ${works.failedSource === 'music' ? 'musical' : 'other non-musical'} works right now — showing what did load; try again in a moment for the rest.</div>` : '';
     const existingIds = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
     const isHere = (w) => w.memberQids.some((q) => existingIds.has(q));
     const on = new Set(WORK_GROUPS.map((g) => g.key)); // every family on (her call); compilations & live are a sub-switch, off
@@ -892,6 +895,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       const already = works.filter(isHere).length;
       const n = countNew();
       slot.innerHTML = `
+        ${failNote}
         <div class="row wrap" style="gap:6px;margin:8px 0;align-items:center">
           ${WORK_GROUPS.map((g) => (counts[g.key] ? `<button type="button" class="chip ${on.has(g.key) ? 'brass' : ''}" data-g="${g.key}" style="cursor:pointer;border:0" title="${on.has(g.key) ? 'Hide' : 'Show'} ${g.label.toLowerCase()}">${g.label} · ${counts[g.key]}</button>` : '')).join('')}
           ${counts.compilation ? `<button type="button" class="chip ${compOn ? 'brass' : ''}" data-comp="1" style="cursor:pointer;border:0" title="Compilations, live, box sets and video albums — off by default so the studio albums stand out">Compilations &amp; live · ${counts.compilation}</button>` : ''}

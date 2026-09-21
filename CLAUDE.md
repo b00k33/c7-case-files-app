@@ -387,7 +387,33 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-20, latest — createPerson silently dropped gender, nationality,
+**2026-09-21, latest — "+ Works" beyond music, and a real bug it surfaced in
+the untouched music path (v119, SPEC §37).** Her ask on a screenshot: "for
+works, include more than just musical works like albums and awards." Added
+P800/P170/P50/P84/P61 (notable work, creator, author, architect, discoverer)
+alongside the existing P175 performer path, dated via whichever of
+P577/P571/P585 the item actually carries, merged in as a new "Other works"
+group. While regression-testing the untouched music query against Lily
+Allen (one of the four artists it was tuned against on 2026-09-04), found it
+now reliably 500s Wikidata's query service — pairing a `GROUP BY` aggregation
+with `SERVICE wikibase:label` triggers a Blazegraph `StackOverflowError` once
+there's enough real catalogue to aggregate, the same shape the new general
+query hit first and was built to avoid from the start. Not caused by today's
+change (the music function is byte-identical, just renamed) but a live,
+reproducible defect surfaced by testing fresh — fixed by splitting the label
+lookup into its own flat, batched query, same fix as the new code. Also
+caught, in code written today: the new `Promise.allSettled` merge silently
+dropped an entire failed source rather than erroring — a musician whose
+discography 500'd but whose general-works query succeeded would see "Other
+works · 1" with zero indication her whole catalogue had failed to load. Now
+tagged and surfaced as a visible warning instead. Verified live in the real
+UI end-to-end (a disposable test case, not her real data folder): Anne,
+Princess Royal's 1740 self-portrait; Shakespeare's 299 plays; Lily Allen's
+full discography (Albums·5, EPs·2, Singles·24, Songs·42) plus her 2018
+memoir, merged, sorted, and added as 59 correctly-cited release events.
+44/44 in `tests/browser-tests.html` (doesn't exercise `works.js` either way).
+
+**2026-09-20, earlier — createPerson silently dropped gender, nationality,
 marital status (v118, SPEC §36).** Asked "any backlog?" after the britroyals
 pull; turned up an old note from 2026-09-06 flagging `createPerson()`'s
 INSERT as missing three of the `person` table's own columns, logged as
