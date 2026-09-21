@@ -34,18 +34,23 @@ function titleFromUrl(url) {
 }
 
 // --- theory timeline lines --------------------------------------------------
+/** "2016-06-01", "2016-06", "2016" or "2016–2017", loosely typed, kept honest — shared by the raw paste-line parser and the plain "+ Entry" fields form. */
+function parseLooseDate(raw) {
+  const d = String(raw || '').trim().replace(/\s+/g, '');
+  let m;
+  if ((m = d.match(/^(\d{4})[–-](\d{4})$/))) return { date: null, date_precision: 'range', date_year_min: +m[1], date_year_max: +m[2] };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return { date: d, date_precision: 'day', date_year_min: null, date_year_max: null };
+  if ((m = d.match(/^(\d{4})-(\d{2})$/))) return { date: `${d}-01`, date_precision: 'month', date_year_min: null, date_year_max: null };
+  if ((m = d.match(/^(\d{4})$/))) return { date: null, date_precision: 'year', date_year_min: +m[1], date_year_max: +m[1] };
+  return null;
+}
 /** "2016-06-01 | what happened | with: Name | ♪ song, ♪ song | "quote" · 14:02" → an entry, or null without a date first. */
 export function parseTimelineLine(line) {
   const segs = String(line || '').split('|').map((s) => s.trim()).filter(Boolean);
   if (segs.length < 2) return null;
-  const d = segs[0].replace(/\s+/g, '');
-  let m, date = null, date_precision = 'unknown', date_year_min = null, date_year_max = null;
-  if ((m = d.match(/^(\d{4})[–-](\d{4})$/))) { date_year_min = +m[1]; date_year_max = +m[2]; date_precision = 'range'; }
-  else if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { date = d; date_precision = 'day'; }
-  else if ((m = d.match(/^(\d{4})-(\d{2})$/))) { date = `${d}-01`; date_precision = 'month'; }
-  else if ((m = d.match(/^(\d{4})$/))) { date_year_min = date_year_max = +m[1]; date_precision = 'year'; }
-  else return null;
-  const out = { date, date_precision, date_year_min, date_year_max, title: segs[1], songs: [], partners: [], quote: null, t_ms: null, notes: [] };
+  const dp = parseLooseDate(segs[0]);
+  if (!dp) return null;
+  const out = { ...dp, title: segs[1], songs: [], partners: [], quote: null, t_ms: null, notes: [] };
   for (const s of segs.slice(2)) {
     if (/^with:/i.test(s)) out.partners.push(...s.replace(/^with:/i, '').split(/,|&|\band\b/i).map((x) => x.trim()).filter(Boolean));
     else if (/^♪/.test(s)) out.songs.push(...s.split('♪').map((x) => x.replace(/^[\s,]+|[\s,]+$/g, '')).filter(Boolean));
@@ -293,19 +298,59 @@ export async function render(root, ctx, personId = null) {
       twoTapConfirm(row.querySelector('.tl-del'), { confirmLabel: 'Really?', onConfirm: async () => { await store.deleteEvent(e.id); repaint(); } });
       rows.appendChild(row);
     }
+    // a plain fields form, not the raw pipe-syntax — her ask, 2026-09-21:
+    // "make that process easier to do" (adding one dated theory-timeline
+    // entry). The raw "date | what happened | with: Name | ♪ song |
+    // "quote" · mm:ss" line stays, unchanged, as the bulk "Paste a
+    // timeline…" mode below — that one really is transcript-shaped, pasted
+    // in from an outside source. Typing one entry by hand doesn't need to
+    // learn that syntax; song/quote/timestamp are real but rare, so they
+    // stay behind "+ more" instead of always taking up the row.
     slot.querySelector('.tl-add').addEventListener('click', () => {
       const form = slot.querySelector('.tl-form');
-      if (form.querySelector('.inline-form, .tl-pastebox')) { form.innerHTML = ''; return; }
-      form.appendChild(inlineNameForm({
-        placeholder: '2016-06-01 | what happened | with: Name | ♪ song | "a quote" · 14:02',
-        submitLabel: 'Add entry',
-        onSubmit: async (line) => {
-          const p = parseTimelineLine(line);
-          if (!p) { inlineNote(form.querySelector('input'), 'Start with a date — 2016-06-01, 2016-06, 2016, or 2016–2017 — then | what happened.'); return; }
-          await addEntries(q, t, [p], null);
-          repaint();
-        },
-      }));
+      if (form.querySelector('.tl-entry-form, .tl-pastebox')) { form.innerHTML = ''; return; }
+      form.innerHTML = `
+        <div class="tl-entry-form">
+          <div class="row wrap" style="gap:8px">
+            <input type="text" class="tf-date" placeholder="2016-06-01, 2016-06 or 2016" style="width:160px">
+            <input type="text" class="tf-title" placeholder="What happened" style="flex:1 1 200px;min-width:0">
+          </div>
+          <input type="text" class="tf-with" placeholder="With — names, comma separated (optional)" style="width:100%;margin-top:6px;min-height:32px">
+          <button type="button" class="linkish tf-more">+ song, quote or timestamp</button>
+          <div class="tf-more-slot"></div>
+          <div class="row" style="gap:8px;margin-top:8px">
+            <button type="button" class="btn btn-primary btn-sm tf-save">Add entry</button>
+            <button type="button" class="btn btn-ghost btn-sm tf-cancel">Cancel</button>
+          </div>
+        </div>`;
+      const dateEl = form.querySelector('.tf-date'), titleEl = form.querySelector('.tf-title'), withEl = form.querySelector('.tf-with');
+      form.querySelector('.tf-more').addEventListener('click', () => {
+        const s = form.querySelector('.tf-more-slot');
+        if (s.children.length) { s.innerHTML = ''; return; }
+        s.innerHTML = `<div class="row wrap" style="gap:8px;margin-top:6px">
+          <input type="text" class="tf-song" placeholder="♪ song (optional)" style="flex:1 1 140px;min-width:0">
+          <input type="text" class="tf-quote" placeholder="a quote (optional)" style="flex:1 1 180px;min-width:0">
+          <input type="text" class="tf-time" placeholder="mm:ss" style="width:80px">
+        </div>`;
+      });
+      form.querySelector('.tf-cancel').addEventListener('click', () => { form.innerHTML = ''; });
+      form.querySelector('.tf-save').addEventListener('click', async () => {
+        clearInlineNote(dateEl);
+        const dp = parseLooseDate(dateEl.value);
+        if (!dp) { inlineNote(dateEl, 'Try 2016-06-01, 2016-06, 2016, or 2016–2017.'); dateEl.focus(); return; }
+        const title = titleEl.value.trim();
+        if (!title) { inlineNote(titleEl, 'What happened?'); titleEl.focus(); return; }
+        const song = form.querySelector('.tf-song')?.value.trim();
+        const quote = form.querySelector('.tf-quote')?.value.trim();
+        const timeRaw = form.querySelector('.tf-time')?.value.trim();
+        let t_ms = null;
+        const tm = timeRaw && timeRaw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (tm) { const h = tm[3] ? +tm[1] : 0, mi = tm[3] ? +tm[2] : +tm[1], se = tm[3] ? +tm[3] : +tm[2]; t_ms = ((h * 60 + mi) * 60 + se) * 1000; }
+        const p = { ...dp, title, songs: song ? [song] : [], partners: withEl.value.split(',').map((s) => s.trim()).filter(Boolean), quote: quote || null, t_ms, notes: [] };
+        await addEntries(q, t, [p], null);
+        repaint();
+      });
+      queueMicrotask(() => dateEl.focus());
     });
     slot.querySelector('.tl-paste').addEventListener('click', () => {
       const form = slot.querySelector('.tl-form');

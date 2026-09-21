@@ -1495,6 +1495,38 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 51. Adding a theory timeline entry by hand, without the pipe-syntax (v133, 2026-09-21)
+
+Her ask, right after the Sofía Vergara theory walkthrough: "make that
+process easier to do." The friction wasn't the Question → Theory →
+Entry structure itself (each step is a genuinely distinct idea — a
+question, one of its theories, a dated moment under that theory — and
+stays as three steps); it was the LAST one. "+ Entry" was a single text
+field asking her to type a whole micro-language by hand: `2016-06-01 |
+what happened | with: Name | ♪ song | "quote" · mm:ss`, exactly the
+syntax I had to teach her, live, to add the Sofía Vergara entry earlier
+this session.
+
+"+ Entry" is now a plain fields form — a date box, a "what happened" box,
+a "with — names" box, always visible; song/quote/timestamp (rare, and
+only relevant to a handful of theories) sit behind a "+ song, quote or
+timestamp" reveal instead of always taking up the row. Deliberately left
+alone: "Paste a timeline…", the bulk mode for dropping in several lines
+at once from an outside transcript — that one is genuinely transcript-
+shaped (her own workflow: paste an analysis video's transcript to Claude,
+paste the dated lines back here), so the raw syntax stays there, on the
+one path where typing several structured lines fast is actually the
+point. `parseTimelineLine`'s date parsing was factored out into
+`parseLooseDate`, shared by both the raw-line parser and the new form, so
+the two paths can never quietly disagree on what counts as a valid date.
+
+Verified live: a fresh theory's first entry, added through the new
+form with all three optional fields (song left blank, quote + timestamp
+filled) — saved as a real dated event, both named partners auto-created
+and linked, the quote and mm:ss rendering identically to an entry added
+the old raw-syntax way. An invalid date correctly refuses with the same
+message the raw-line parser already gave, without touching the record.
+
 ## 50. A cast tile shows who they played, not just who plays them (v132, 2026-09-21)
 
 Her ask, on the real Suits Cast grid (22 actors, names only): "include

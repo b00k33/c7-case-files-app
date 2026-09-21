@@ -417,7 +417,19 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — a cast tile shows the character too (v132, SPEC
+**2026-09-21, latest — "+ Entry" on a theory timeline is a form now, not
+a syntax to learn (v133, SPEC §51).** Her ask right after the live Sofía
+Vergara theory walkthrough: "make that process easier to do." The
+Question → Theory → Entry structure stayed — each is a real, distinct
+idea — but the single text field for "+ Entry" (`2016-06-01 | what
+happened | with: Name | ♪ song | "quote" · mm:ss`, the exact syntax just
+taught to her by hand) became a plain fields form: date, what happened,
+with-whom always visible; song/quote/timestamp behind "+ song, quote or
+timestamp" since they're rare. The bulk "Paste a timeline…" mode keeps
+the raw syntax on purpose — that one really is transcript-shaped, the one
+place typing several structured lines fast is the actual point.
+
+**2026-09-21, earlier — a cast tile shows the character too (v132, SPEC
 §50).** "include cast and character names," on the real Suits Cast grid.
 `fetchCast` (§47) already read Wikidata's character-role qualifier per
 actor, just never used it — now written to a new `person.role` column
