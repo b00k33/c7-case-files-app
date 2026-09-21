@@ -1495,6 +1495,48 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 52. Installments group by season, and stop repeating their own citation (v134, 2026-09-21)
+
+Her ask, on a real screenshot of Suits' 134-episode, 9-season Installments
+list: "organise and display this better." Every episode AND every season
+marker (itself just another installment event, titled "1 · Suits, season
+1") got the identical full card, at the identical visual weight, each
+repeating its own "Source: Wikidata https://…(P577)" citation line in
+full — 143 near-identical cards, no hierarchy at all between a season and
+what's inside it.
+
+A season is detected from its own title text — Wikidata's own convention
+for a TV season item's label is always "<series>, season N" (or "series
+N") — not a stored flag, so it groups installments pulled before this
+shipped too; a franchise with no season concept (a film or book series)
+never matches anything, so its installment list stays exactly the flat
+list it always was, unchanged. Season markers become collapsible headers
+("Season 1 · 12 episodes · 23 Jun – 8 Sept 2011"), collapsed by default;
+their episodes become compact one-line rows inside (reusing Questions'
+own `.tl-row` shape rather than inventing a new one) with NO citation
+text on the row — it's still on the record, reachable through ✎ Edit,
+just not blasted 134 times. The panel header now also states the real
+count ("9 seasons · 134 episodes"), never rounded away.
+
+**A real, pre-existing bug surfaced while building this, unrelated to the
+grouping itself:** a series case's own episode count came back off by one
+against Wikidata's real 134 — traced to `store.listEventsForCase()`
+returning a Questions theory-timeline entry (`event.theory_id` set) too,
+since a theory's own dated moments are case-scoped events like everything
+else. Questions.js is explicit that a theory timeline is never the
+record — but `series.js`'s Installments panel (and its era calculation)
+had no filter excluding one, so a theory's speculative entry could leak
+into the show's own confirmed installment list and skew its era range.
+Now filtered out at the one place `events` is read for the whole page.
+
+Verified live against the real Suits case data (144 stored events, 9 of
+them season markers, 1 a theory-timeline entry from unrelated testing):
+correct 9 seasons · 134 episodes count once the theory-entry leak was
+fixed; every season's episode count and date range checked against the
+source list; edit and delete both confirmed working on a nested episode
+row (the inline edit form still shows the full citation in its notes
+field); light, dark and phone width.
+
 ## 51. Adding a theory timeline entry by hand, without the pipe-syntax (v133, 2026-09-21)
 
 Her ask, right after the Sofía Vergara theory walkthrough: "make that

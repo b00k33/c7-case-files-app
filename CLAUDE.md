@@ -417,7 +417,22 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — "+ Entry" on a theory timeline is a form now, not
+**2026-09-21, latest — a series' installments group by season, and stop
+repeating their own citation (v134, SPEC §52).** "organise and display
+this better," on Suits' 134-episode flat list — every episode and every
+season marker got the same full card, each repeating its own full
+"Source: Wikidata…" line. Season detected from the title text itself
+(Wikidata's own "<series>, season N" convention), so it groups
+installments pulled before this shipped, and a franchise with no season
+concept just stays the flat list it always was. Seasons collapse by
+default; episodes inside are compact rows with no per-row citation (still
+reachable via ✎ Edit). **A real bug found along the way:** a Questions
+theory-timeline entry (never meant to reach the record) was leaking into
+the series' own event list and episode count — `series.js` now filters
+out anything with `theory_id` set, at the one place the case's events are
+read.
+
+**2026-09-21, earlier — "+ Entry" on a theory timeline is a form now, not
 a syntax to learn (v133, SPEC §51).** Her ask right after the live Sofía
 Vergara theory walkthrough: "make that process easier to do." The
 Question → Theory → Entry structure stayed — each is a real, distinct

@@ -55,6 +55,37 @@ function fmtDate(e) {
 function sortKey(e) { return e.date || (e.date_year_min ? `${e.date_year_min}-01-01` : '9999-99-99'); }
 function yearOf(e) { return e.date ? +e.date.slice(0, 4) : (e.date_year_min || null); }
 
+// A season is stored as an ordinary installment event — Wikidata's own
+// label for one is always "<series name>, season N" (or "series N" for a
+// UK show) — her ask, 2026-09-21: "organise and display this better" on
+// Suits' 134-row flat list, where every episode AND every season marker
+// got the same full card and repeated the same "Source: Wikidata…" line.
+// Detected from the title text alone, not a stored flag, so it also groups
+// installments pulled before this shipped — no migration needed. A series
+// with no season concept (a film or book series) never matches, so its
+// installments stay exactly the flat list they always were.
+const SEASON_RE = /,\s*(season|series)\s*\d+\s*$/i;
+function isSeasonMarker(e) { return SEASON_RE.test(e.title || ''); }
+function seasonLabel(title) {
+  const m = String(title || '').match(/,\s*(season|series)\s*(\d+)\s*$/i);
+  return m ? `${m[1][0].toUpperCase()}${m[1].slice(1).toLowerCase()} ${m[2]}` : title;
+}
+/** Events already sorted by sortKey → { ungrouped, groups: [{ season, items }] }. Anything before the first season marker (or all of it, if there is none) stays ungrouped. */
+function groupInstallments(events) {
+  const ungrouped = [];
+  const groups = [];
+  let current = null;
+  for (const e of events) {
+    if (isSeasonMarker(e)) { current = { season: e, items: [] }; groups.push(current); }
+    else if (current) current.items.push(e);
+    else ungrouped.push(e);
+  }
+  return { ungrouped, groups };
+}
+// which season groups she's opened — module-scope so it survives the full
+// render() this page runs after every add/edit/delete, not per-render state
+const openSeasons = new Set();
+
 export async function render(root, ctx, tab = 'overview') {
   const { store } = ctx;
   if (!TABS.some(([k]) => k === tab)) tab = 'overview';
@@ -72,7 +103,12 @@ export async function render(root, ctx, tab = 'overview') {
   }
   ctx.setTitle(kase.name);
 
-  const events = (await store.listEventsForCase(kase.id)).sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : 1));
+  // theory-timeline entries (js/pages/questions.js) are case-scoped events
+  // too, but they're deliberately NOT the record — "theory, not the record,"
+  // never a fact — so they must never reach the series' own era or
+  // Installments list. Found live, 2026-09-21, while grouping installments
+  // by season: a theory entry pulled the episode count off by one.
+  const events = (await store.listEventsForCase(kase.id)).filter((e) => !e.theory_id).sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : 1));
   const years = events.map(yearOf).filter(Boolean);
   const era = years.length ? (Math.min(...years) === Math.max(...years) ? String(Math.min(...years)) : `${Math.min(...years)} – ${Math.max(...years)}`) : null;
 
@@ -107,9 +143,15 @@ export async function render(root, ctx, tab = 'overview') {
       </div>
 
       <div class="panel">
-        <div class="row between" style="margin-bottom:4px"><div class="panel-title" style="margin:0">Installments</div><button class="btn btn-ghost btn-sm" id="add-entry-btn">+ Add installment</button></div>
+        <div class="row between" style="margin-bottom:4px">
+          <div>
+            <div class="panel-title" style="margin:0">Installments</div>
+            <div class="section-label" id="inst-count" style="margin-top:2px"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="add-entry-btn">+ Add installment</button>
+        </div>
         <div id="entry-form-slot"></div>
-        <div class="stack" id="timeline-list" style="gap:12px;margin-top:8px"></div>
+        <div class="stack" id="timeline-list" style="gap:8px;margin-top:8px"></div>
       </div>
       ` : `<div id="tab-body"></div>`}
     </div>
@@ -255,16 +297,30 @@ export async function render(root, ctx, tab = 'overview') {
   // --- installments --------------------------------------------------------
   const byId = new Map(people.map((p) => [p.id, p]));
   const listEl = root.querySelector('#timeline-list');
+  const countEl = root.querySelector('#inst-count');
   if (!events.length) {
+    if (countEl) countEl.textContent = '';
     listEl.appendChild(emptyState({ missing: 'No installments yet.', why: kase.wikidata_id ? 'Check Wikidata above, or add one by hand.' : 'Add each book or film, its date, and who was in it.' }));
+  } else {
+    const { ungrouped, groups } = groupInstallments(events);
+    if (countEl) {
+      const episodes = events.length - groups.length;
+      countEl.textContent = groups.length
+        ? `${groups.length} season${groups.length === 1 ? '' : 's'} · ${episodes} episode${episodes === 1 ? '' : 's'}`
+        : `${events.length} installment${events.length === 1 ? '' : 's'}`;
+    }
+    for (const e of ungrouped) listEl.appendChild(installmentCard(e));
+    for (const g of groups) listEl.appendChild(seasonGroupEl(g));
   }
-  for (const e of events) {
+
+  /** A full card — used for anything with no season to nest under (an ungrouped installment, or a series with no season concept at all). */
+  function installmentCard(e) {
     const withPeople = String(e.with_ids || '').split(',').filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
     const row = document.createElement('div');
     row.className = 'card tl-entry';
     row.innerHTML = `
       <div class="row between" style="align-items:flex-start">
-        <div>
+        <div style="min-width:0">
           <div class="mono tl-date" style="font-size:11px">${fmtDate(e)}</div>
           <div style="margin-top:2px">${esc(e.title)}</div>
           <div class="row wrap" style="gap:6px;margin-top:6px">
@@ -291,8 +347,83 @@ export async function render(root, ctx, tab = 'overview') {
       if (slot.children.length) { slot.innerHTML = ''; return; }
       slot.appendChild(entryForm(store, ctx, kase, people, e, () => render(root, ctx, tab)));
     });
-    listEl.appendChild(row);
+    return row;
   }
+
+  /** One compact episode row, nested inside its season's collapsible body — no per-row citation (still on the record, just not on the screen 134 times). */
+  function episodeRow(e) {
+    const withPeople = String(e.with_ids || '').split(',').filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
+    const row = document.createElement('div');
+    row.className = 'tl-row';
+    row.innerHTML = `
+      <span class="tl-date">${fmtDate(e)}</span>
+      <div style="min-width:0">
+        <span class="tl-title">${esc(e.title)}</span>
+        ${(e.place || withPeople.length) ? `<div class="row wrap" style="gap:4px;margin-top:2px">${e.place ? `<span class="chip">${esc(e.place)}</span>` : ''}${withPeople.map((p) => `<span class="chip">${esc(p.display_name)}</span>`).join('')}</div>` : ''}
+        <div class="entry-edit-slot"></div>
+      </div>
+      <span class="row" style="gap:2px;flex:none">
+        <button class="linkish ep-edit" title="Edit">✎</button>
+        <button class="linkish ep-delete" title="Delete">✕</button>
+      </span>
+    `;
+    row.querySelector('.ep-delete').addEventListener('click', (ev) => {
+      twoTapConfirm(ev.currentTarget, {
+        confirmLabel: 'Really?',
+        onConfirm: async () => { await store.deleteEvent(e.id); render(root, ctx, tab); },
+      });
+    });
+    row.querySelector('.ep-edit').addEventListener('click', () => {
+      const slot = row.querySelector('.entry-edit-slot');
+      if (slot.children.length) { slot.innerHTML = ''; return; }
+      slot.appendChild(entryForm(store, ctx, kase, people, e, () => render(root, ctx, tab)));
+    });
+    return row;
+  }
+
+  /** A season's own row — a collapsible header (episode count · date range) plus its episodes when open. */
+  function seasonGroupEl(g) {
+    const { season, items } = g;
+    const open = openSeasons.has(season.id);
+    const dated = items.map(fmtDate).filter((d) => d !== '—');
+    const range = dated.length ? (dated[0] === dated[dated.length - 1] ? dated[0] : `${dated[0]} – ${dated[dated.length - 1]}`) : null;
+    const wrap = document.createElement('div');
+    wrap.className = `season-group${open ? ' open' : ''}`;
+    wrap.innerHTML = `
+      <div class="season-head">
+        <button type="button" class="season-toggle">
+          <span class="season-caret">${open ? '▾' : '▸'}</span>
+          <span class="season-name">${esc(seasonLabel(season.title))}</span>
+          <span class="season-meta">${items.length} episode${items.length === 1 ? '' : 's'}${range ? ` · ${range}` : ''}</span>
+        </button>
+        <span class="row" style="gap:2px;flex:none">
+          <button class="linkish sg-edit" title="Edit the season entry">✎</button>
+          <button class="linkish sg-delete" title="Delete the season entry">✕</button>
+        </span>
+      </div>
+      <div class="entry-edit-slot"></div>
+      <div class="season-body"></div>
+    `;
+    wrap.querySelector('.season-toggle').addEventListener('click', () => {
+      if (open) openSeasons.delete(season.id); else openSeasons.add(season.id);
+      render(root, ctx, tab);
+    });
+    wrap.querySelector('.sg-delete').addEventListener('click', (ev) => {
+      twoTapConfirm(ev.currentTarget, {
+        confirmLabel: 'Really? This only removes the season entry, not its episodes.',
+        onConfirm: async () => { await store.deleteEvent(season.id); render(root, ctx, tab); },
+      });
+    });
+    wrap.querySelector('.sg-edit').addEventListener('click', () => {
+      const slot = wrap.querySelector('.entry-edit-slot');
+      if (slot.children.length) { slot.innerHTML = ''; return; }
+      slot.appendChild(entryForm(store, ctx, kase, people, season, () => render(root, ctx, tab)));
+    });
+    const body = wrap.querySelector('.season-body');
+    for (const e of items) body.appendChild(episodeRow(e));
+    return wrap;
+  }
+
   root.querySelector('#add-entry-btn').addEventListener('click', () => {
     const slot = root.querySelector('#entry-form-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }
