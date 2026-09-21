@@ -104,6 +104,37 @@ export function clearInlineNote(anchorEl) {
 }
 
 /**
+ * Someone with nowhere else yet, picked instead of typed — the "type it
+ * in" replacement everywhere a case wants to add a person (her ask,
+ * 2026-09-21: "remove people from the case files and just use the people
+ * in people tab"). Lists everyone whose case_id is NULL; picking one
+ * claims them into `ctx.caseId` (store.updatePerson). An empty pool
+ * doesn't offer to create anyone here — a new person's one door, from now
+ * on, is the People tab's own + Person form — it just points there.
+ */
+export async function renderUnplacedPicker(slot, ctx, { onPicked } = {}) {
+  const people = await ctx.store.listUnplacedPeople();
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  if (!people.length) {
+    slot.innerHTML = `<div class="inline-note">Nobody's waiting to be placed yet. Add them in <a href="#/people">People</a> first — with no case yet — then come back and pick them here.</div>`;
+    return;
+  }
+  slot.innerHTML = `
+    <div class="field"><label>Someone with nowhere else yet</label></div>
+    <div class="stack" style="gap:4px;max-height:280px;overflow-y:auto" id="up-list">
+      ${people.map((p) => `<button type="button" class="btn btn-ghost btn-sm up-pick" data-id="${p.id}" style="justify-content:flex-start;width:100%">${esc(p.display_name)}</button>`).join('')}
+    </div>
+  `;
+  slot.querySelectorAll('.up-pick').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const p = people.find((x) => x.id === btn.dataset.id);
+      await ctx.store.updatePerson(p.id, { case_id: ctx.caseId });
+      onPicked?.(p);
+    });
+  });
+}
+
+/**
  * The brass "stamp" payoff — first built for Review's "Case Reviewed"
  * (the queue clearing), pulled out here so a genuine milestone anywhere
  * else in the app can reuse the same look (her ask, 2026-09-13: "i like

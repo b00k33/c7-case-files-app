@@ -10,8 +10,7 @@
 // use for "with: Name") naming who was involved — 0, 1 or several.
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
-import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, duplicateNameBlock } from '../ui.js';
-import { autoCaseName, looksHurried } from '../names.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
 
 const TABS = [
   ['overview', 'Overview'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
@@ -137,34 +136,10 @@ export async function render(root, ctx, tab = 'overview') {
   }
   root.querySelector('#add-figure-btn').addEventListener('click', () => {
     const slot = root.querySelector('#figure-form-slot');
-    if (slot.querySelector('.inline-form')) return;
-    const form = inlineNameForm({
-      placeholder: 'Name',
-      submitLabel: 'Add',
-      onSubmit: async (typedName) => {
-        // names (2026-09-13): capitalised the moment it's typed
-        const hurried = looksHurried(typedName);
-        const name = hurried ? autoCaseName(typedName) : typedName;
-        // do not allow duplicates (her ask, 2026-09-11) — this key figure
-        // is already here; nothing new needs adding
-        // null: every case, not just this one — the same real person
-        // shouldn't exist twice even split across two different cases
-        const matches = store.findPeopleByName(null, name, 'person');
-        if (matches.length) {
-          // a match from a DIFFERENT case can't become a key figure here —
-          // person.case_id is a single home, so go see them where they
-          // already live rather than silently doing nothing
-          duplicateNameBlock(form.querySelector('input'), matches, (p) => {
-            if (p.case_id !== ctx.caseId) { ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); return; }
-            render(root, ctx, tab);
-          });
-          return;
-        }
-        await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
-        render(root, ctx, tab);
-      },
-    });
-    slot.appendChild(form);
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    // picked, not typed (her ask, 2026-09-21): a key figure comes from the
+    // People tab's own pool of people with nowhere else yet
+    renderUnplacedPicker(slot, ctx, { onPicked: () => render(root, ctx, tab) });
   });
 
   // --- timeline --------------------------------------------------------------

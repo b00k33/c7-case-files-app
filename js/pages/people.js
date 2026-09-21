@@ -12,6 +12,7 @@ import { tokensHtml } from '../lifemap.js';
 import { twoTapConfirm, inlineNameForm, duplicateNameBlock } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
+import { autoCaseName, looksHurried } from '../names.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -46,15 +47,30 @@ function goToPerson(ctx, p) { markOpened(p.case_id); ctx.setCaseId(p.case_id).th
 // reuses Cases' "+ New" pattern verbatim instead (same duplicate guard,
 // same createCaseOfKind), landing on a fresh one-person case rather than
 // asking her to pick or make one first.
+// "Start their own case" is the original door (a biography case built up
+// around them); "No case yet" is the new one (her ask, 2026-09-21) — a
+// person who exists here so Family/Event/Series can pick them in later,
+// without one being spun up for them now. Same duplicate guard either way.
 function openAddPerson(slot, ctx) {
   const { store } = ctx;
   if (slot.querySelector('.inline-form')) return;
   const form = inlineNameForm({
     placeholder: 'Their name',
-    onSubmit: async (name) => {
+    choices: [
+      { value: 'case', label: 'Start their own case' },
+      { value: 'none', label: 'No case yet' },
+    ],
+    onSubmit: async (name, choice) => {
       const matches = store.findPeopleByName(null, name, 'person');
       if (matches.length) {
         duplicateNameBlock(form.querySelector('input'), matches, (p) => goToPerson(ctx, p));
+        return;
+      }
+      if (choice === 'none') {
+        const hurried = looksHurried(name);
+        await store.createPerson({ case_id: null, display_name: hurried ? autoCaseName(name) : name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
+        form.remove();
+        ctx.rerender();
         return;
       }
       const kase = await createCaseOfKind(store, ctx, name, 'person', null);
@@ -121,8 +137,12 @@ function dupFlagHtml(p, dupInfo) {
   const when = fmtDate(dupInfo.keepPerson.created_at);
   const crossCase = p.case_id !== dupInfo.keepPerson.case_id;
   const where = crossCase && dupInfo.keepPerson.case_name ? ` in “${esc(dupInfo.keepPerson.case_name)}”` : ' in this case';
+  // "not the same person" is recorded against a case (distinct_pair.case_id
+  // is NOT NULL) — with both sides placeless there's no case to hang it on,
+  // so that option drops out; merging (which doesn't need one) still shows
+  const canFlagDistinct = p.case_id || dupInfo.keepPerson.case_id;
   return `<button type="button" class="chip brass dup-flag" style="border:0;cursor:pointer" title="Merges this entry into the other ${esc(dupInfo.keepPerson.display_name)}${when ? ` (added ${when})` : ''}${where} — every relation, event and evidence link moves over, and this one is removed">Possible duplicate →</button>
-    <button type="button" class="btn btn-ghost btn-sm not-dup" style="border-left:1px solid var(--line);margin-left:2px;padding-left:10px" title="Marks these two as different people, for good — this stops asking about this pair and can't be undone">Not the same person</button>`;
+    ${canFlagDistinct ? `<button type="button" class="btn btn-ghost btn-sm not-dup" style="border-left:1px solid var(--line);margin-left:2px;padding-left:10px" title="Marks these two as different people, for good — this stops asking about this pair and can't be undone">Not the same person</button>` : ''}`;
 }
 function wireDupFlag(row, p, dupInfo, store, onChanged) {
   const btn = row.querySelector('.dup-flag');
@@ -142,9 +162,40 @@ function wireDupFlag(row, p, dupInfo, store, onChanged) {
   if (notDupBtn) {
     twoTapConfirm(notDupBtn, {
       confirmLabel: 'Sure — different people, stop asking?',
-      onConfirm: async () => { await store.markPeopleDistinct(p.case_id, p.id, dupInfo.keepPerson.id); onChanged(); },
+      onConfirm: async () => { await store.markPeopleDistinct(p.case_id || dupInfo.keepPerson.case_id, p.id, dupInfo.keepPerson.id); onChanged(); },
     });
   }
+}
+
+// A placeless person (case_id IS NULL — "no case yet") has no profile to
+// open, so a tap opens a small rename/remove editor in place instead of
+// navigating; picking them into a case happens from that case's own +
+// Add person, not from here.
+function wirePlacelessEditor(row, p, ctx, onChanged) {
+  const { store } = ctx;
+  const slot = row.querySelector('.placeless-edit');
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('button, .inline-form')) return;
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    const form = inlineNameForm({
+      label: 'Rename',
+      value: p.display_name,
+      submitLabel: 'Save',
+      onSubmit: async (name) => { await store.updatePerson(p.id, { display_name: name }); onChanged(); },
+      onCancel: () => { slot.innerHTML = ''; },
+    });
+    slot.appendChild(form);
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn btn-ghost btn-sm';
+    delBtn.style.cssText = 'margin-top:6px;color:var(--red)';
+    delBtn.textContent = 'Remove';
+    slot.appendChild(delBtn);
+    twoTapConfirm(delBtn, {
+      confirmLabel: 'Remove them — sure?',
+      onConfirm: async () => { await store.softDeletePerson(p.id); onChanged(); },
+    });
+  });
 }
 
 /** One tile: face band · name (· case, when it says something) · tokens · merge flag. */
@@ -152,17 +203,24 @@ async function buildPicRow(p, ctx, dupInfo, onChanged) {
   const { store } = ctx;
   const row = document.createElement('div');
   row.className = 'tile';
+  const placeless = !p.case_id;
   const sameName = (p.case_name || '').trim().toLowerCase() === (p.display_name || '').trim().toLowerCase();
   row.innerHTML = `
     <div class="pic"></div>
     <div class="main">
       <div class="line"><div class="title">${esc(p.display_name)}</div></div>
-      ${!sameName && p.case_name ? `<div class="line"><span class="where" title="The case this person lives in">${esc(p.case_name)}</span></div>` : ''}
+      ${placeless ? `<div class="line"><span class="where" title="Not part of a case yet — pick them from Family, an Event or a Series' + Add person">No case yet</span></div>`
+        : (!sameName && p.case_name ? `<div class="line"><span class="where" title="The case this person lives in">${esc(p.case_name)}</span></div>` : '')}
       <div class="line"><div class="lm-tokens">${tokensHtml(p, { compact: true })}</div></div>
       ${dupInfo ? `<div class="line foot"><div class="badges">${dupFlagHtml(p, dupInfo)}</div></div>` : ''}
+      ${placeless ? `<div class="placeless-edit"></div>` : ''}
     </div>`;
   row.querySelector('.pic').appendChild(await picSegEl(p));
-  row.addEventListener('click', (e) => { if (e.target.closest('button')) return; goToPerson(ctx, p); });
+  if (placeless) {
+    wirePlacelessEditor(row, p, ctx, onChanged);
+  } else {
+    row.addEventListener('click', (e) => { if (e.target.closest('button')) return; goToPerson(ctx, p); });
+  }
   wireDupFlag(row, p, dupInfo, store, onChanged);
   return row;
 }

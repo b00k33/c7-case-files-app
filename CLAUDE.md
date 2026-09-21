@@ -387,7 +387,53 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — Cute redesigned same day: dark, and built from the
+**2026-09-21, latest — people stop being typed into a case; they're picked
+from People instead (v124, SPEC §42).** Her ask, verbatim: "i want to
+remove people from the case files and just use the people in people tab."
+A short, solution-shaped line — four rounds of grounded, code-informed
+questions (never abstract hypotheticals) narrowed it before anything got
+built. What it actually meant: Family's "type a name in," Event's "+ Add
+figure" and Series' "+ Add person" all stop creating a brand-new person
+directly inside that case — each now **picks** someone instead, from
+people who have "nowhere else yet" (`case_id IS NULL`). Declined on the
+last round, explicitly: reassigning someone who already has a case, and
+letting a person belong to more than one case at once — real features,
+neither this one. One person, one home, unchanged; only how that home
+gets assigned changed.
+
+**A real bug caught before it could bite: `listAllPeople()`'s INNER
+JOIN.** The page meant to show "nowhere else yet" people would have
+silently excluded every one of them — an INNER JOIN against `case_file`
+drops any row with no match. Fixed to a LEFT JOIN before building
+anything that depended on it working. A new `listUnplacedPeople()` answers
+the picker's own question directly. **A second, smaller one, found while
+building the duplicate-flag path:** `distinct_pair.case_id` is `NOT NULL`
+in the schema, so two placeless duplicates flagged "not the same person"
+would throw — the fix falls back to whichever side has a case, and drops
+that one button (not the merge one, which never needed a case_id) on the
+one genuinely unrepresentable pairing, both sides placeless.
+
+One shared component (`renderUnplacedPicker` in `ui.js`) replaced three
+separate typed-name-creates-a-person blocks; People tab's own "+ Person"
+form gained the other half — a "No case yet" choice beside "Start their
+own case," since People had to become the one door a person gets created
+through at all. A placeless tile has no case-scoped profile to open, so a
+tap opens a small rename/remove editor in place instead of navigating.
+
+Verified live end-to-end, browser-storage mode: created a placeless
+person, confirmed her "No case yet" tile and both in-place rename and
+remove; picked her into a fresh Event, Family (via the drawer) and Series
+in turn, each claim showing up immediately in People as that case's name;
+confirmed the picker's empty state once the pool ran dry. Hit the
+already-documented stale-service-worker trap again mid-session
+(`reference_stale_service_worker_sandbox`) — with a wrinkle worth adding
+to it: unregistering the worker and clearing caches from the page wasn't
+enough on its own, because a **hash-only `navigate()` never re-fetches an
+already-loaded ES module** — the old module instances just keep running
+in memory. A genuine `location.reload()` was the thing that actually
+picked up the fix.
+
+**2026-09-21, earlier — Cute redesigned same day: dark, and built from the
 zodiac code (v123, SPEC §41).** Shown 3 real candidates on her actual
 Sandra Bullock profile (a published Artifact — popup previews have failed
 to load for her before, per the mock-delivery lesson two entries below;
@@ -1421,6 +1467,12 @@ time, not at edit time. Confirmed by fetching the served file's own
 source text mid-session and finding the old code still shipping after
 the fix had already landed on disk. Clear SW + caches after every edit
 meant to be tested, not just once at the start of a testing session.
+**2026-09-21 addendum:** clearing the SW/caches is not enough BY ITSELF
+either — a hash-only `navigate()` (e.g. `#/cases` → `#/people`) is a
+same-document navigation and never re-fetches an already-loaded ES
+module, so the OLD module instances just keep running in memory no
+matter what got cleared. A genuine `location.reload()` is the step that
+actually forces a fresh fetch.
 
 **A literal instruction ("each stretch of spine takes the year's tone")
 described a per-calendar-year ribbon; the poster reinterprets it as

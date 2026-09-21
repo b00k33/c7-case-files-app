@@ -2,9 +2,8 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
-import { inlineNote, clearInlineNote, duplicateNameBlock, stampMoment } from '../ui.js';
+import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
-import { autoCaseName, looksHurried } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
@@ -145,11 +144,12 @@ export async function render(root, ctx, focusId = null) {
   root.querySelector('#add-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')));
   root.querySelector('#questions-btn').addEventListener('click', () => ctx.navigate('#/questions'));
   // the fast path is Wikipedia, full stop (her ask, 2026-09-14: "i only add
-  // from wiki") — typing a name in and hand-linking two people still work,
-  // just as small text, not buttons competing for the same attention
+  // from wiki") — picking someone already in People and hand-linking two
+  // people still work, just as small text, not buttons competing for the
+  // same attention
   const addMoreSlot = root.querySelector('#add-more-slot');
-  addMoreSlot.innerHTML = `<button class="linkish" id="add-type-btn">or type a name in</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
-  addMoreSlot.querySelector('#add-type-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'type')));
+  addMoreSlot.innerHTML = `<button class="linkish" id="add-type-btn">or pick from People</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
+  addMoreSlot.querySelector('#add-type-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'pick')));
   addMoreSlot.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
   const setGen = (a, b) => { localStorage.setItem(genKey, `${Math.min(a, b)},${Math.max(a, b)}`); render(root, ctx, focus); };
@@ -799,8 +799,8 @@ function renderGrid(gridSlot, ctlSlot, people) {
 /**
  * The "Add people" drawer: Wikipedia lookup by default (her ask,
  * 2026-09-14: "i only add from wiki" — every entry point into this drawer
- * now opens straight to search), with "Type it in" a click away for the
- * rare private/fictional person Wikidata has never heard of.
+ * now opens straight to search), with "Pick from People" a click away for
+ * someone already added there with nowhere else yet.
  * `prefillName` (the family door, 2026-09-13: the case's own name, e.g.
  * "Kardashian") starts the search immediately — one tap from an empty
  * family page to a pick list.
@@ -808,59 +808,13 @@ function renderGrid(gridSlot, ctlSlot, people) {
 export function renderAddPerson(body, ctx, mode = 'lookup', prefillName = null) {
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:12px">Add people</h3>
-    <span class="seg" style="margin-bottom:16px"><button data-m="lookup" class="${mode === 'lookup' ? 'active' : ''}">Look up on Wikipedia</button><button data-m="type" class="${mode === 'type' ? 'active' : ''}">Type it in</button></span>
+    <span class="seg" style="margin-bottom:16px"><button data-m="lookup" class="${mode === 'lookup' ? 'active' : ''}">Look up on Wikipedia</button><button data-m="pick" class="${mode === 'pick' ? 'active' : ''}">Pick from People</button></span>
     <div id="ap-body"></div>
   `;
   body.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => renderAddPerson(body, ctx, b.dataset.m)));
   const slot = body.querySelector('#ap-body');
   if (mode === 'lookup') renderLookupBatch(slot, ctx, prefillName);
-  else renderTypeIn(slot, ctx);
-}
-
-function renderTypeIn(slot, ctx) {
-  slot.innerHTML = `
-    <div class="field"><label>Display name</label><input type="text" id="p-name"></div>
-    <div class="field"><label>Kind</label><select id="p-kind"><option value="person">person</option><option value="household">household</option><option value="org">org</option></select></div>
-    <div class="field"><label>Birth date (leave blank if unknown)</label><input type="date" id="p-bdate"></div>
-    <button class="btn btn-primary" id="p-save">Add</button>
-  `;
-  slot.querySelector('#p-save').addEventListener('click', async () => {
-    const nameInput = slot.querySelector('#p-name');
-    const typedName = nameInput.value.trim();
-    if (!typedName) { inlineNote(nameInput, 'A name is required.'); nameInput.focus(); return; }
-    // names (2026-09-13): capitalised the moment it's typed, same rule as
-    // every other "+ Person" door — still eligible for a Wikidata relabel
-    // later if it looked hurried right now
-    const hurried = looksHurried(typedName);
-    const name = hurried ? autoCaseName(typedName) : typedName;
-    const kind = slot.querySelector('#p-kind').value;
-    // do not allow duplicates (her ask, 2026-09-11) — someone by this exact
-    // name is already here; use them instead of typing a name over again
-    // null: every case, not just this one — the same real person
-    // shouldn't exist twice even split across two different cases
-    const matches = ctx.store.findPeopleByName(null, name, kind);
-    if (matches.length) {
-      // a match from a DIFFERENT case can't be wired into this case's tree —
-      // person.case_id is a single home, so "use" them means going to see
-      // them where they already live, not a silent no-op here
-      duplicateNameBlock(nameInput, matches, (p) => {
-        ctx.closeDrawer();
-        if (p.case_id !== ctx.caseId) { ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); return; }
-        ctx.rerender();
-      });
-      return;
-    }
-    clearInlineNote(nameInput);
-    const bdate = slot.querySelector('#p-bdate').value;
-    await ctx.store.createPerson({
-      case_id: ctx.caseId, display_name: name, kind,
-      birth_date: bdate || null, birth_precision: bdate ? 'day' : 'unknown',
-      name_needs_formatting: hurried ? 1 : 0,
-    });
-    ctx.closeDrawer();
-    ctx.rerender();
-  });
-  queueMicrotask(() => slot.querySelector('#p-name').focus());
+  else renderUnplacedPicker(slot, ctx, { onPicked: () => { ctx.closeDrawer(); ctx.rerender(); } });
 }
 
 /**

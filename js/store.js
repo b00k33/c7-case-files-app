@@ -74,13 +74,33 @@ export async function caseSummary(caseId) {
   return { people, toReview, questions, inbox };
 }
 
-/** Every person in every research case, for the People view. */
+/**
+ * Every person in every research case, for the People view — LEFT JOIN
+ * because a person can have no case at all (case_id IS NULL: "nowhere else
+ * yet", her ask 2026-09-21) and still needs to show up here; an INNER JOIN
+ * would silently drop them.
+ */
 export async function listAllPeople() {
   return db.exec(
     `SELECT p.*, c.name AS case_name, c.kind AS case_kind FROM person p
-     JOIN case_file c ON c.id = p.case_id
-     WHERE p.deleted_at IS NULL AND c.deleted_at IS NULL AND c.kind != 'fun'
+     LEFT JOIN case_file c ON c.id = p.case_id
+     WHERE p.deleted_at IS NULL AND (c.id IS NULL OR (c.deleted_at IS NULL AND c.kind != 'fun'))
      ORDER BY p.display_name COLLATE NOCASE`
+  );
+}
+
+/**
+ * People with nowhere else yet (case_id IS NULL) — the pool Family/Event/
+ * Series pick from instead of typing a brand-new name into their own case
+ * (her ask, 2026-09-21: "remove people from the case files and just use
+ * the people in people tab"). Deliberately excludes anyone already homed
+ * in a case — claiming them away from where they live is a different,
+ * declined feature (her answer: only offer people who genuinely have
+ * nowhere else yet).
+ */
+export async function listUnplacedPeople() {
+  return db.exec(
+    `SELECT * FROM person WHERE case_id IS NULL AND deleted_at IS NULL ORDER BY display_name COLLATE NOCASE`
   );
 }
 

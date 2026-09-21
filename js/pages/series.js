@@ -18,8 +18,7 @@
 // franchise still in progress, without her doing anything by hand.
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
-import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, duplicateNameBlock } from '../ui.js';
-import { autoCaseName, looksHurried } from '../names.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
 import { fetchInstallments, addInstallments } from '../works.js';
 
 const TABS = [
@@ -146,30 +145,10 @@ export async function render(root, ctx, tab = 'overview') {
   }
   root.querySelector('#add-figure-btn').addEventListener('click', () => {
     const slot = root.querySelector('#figure-form-slot');
-    if (slot.querySelector('.inline-form')) return;
-    const form = inlineNameForm({
-      placeholder: 'Name',
-      submitLabel: 'Add',
-      onSubmit: async (typedName) => {
-        // names (2026-09-13): capitalised the moment it's typed
-        const hurried = looksHurried(typedName);
-        const name = hurried ? autoCaseName(typedName) : typedName;
-        // do not allow duplicates (her ask, 2026-09-11) — null: every case,
-        // not just this one — the same real person (or a character already
-        // added) shouldn't exist twice
-        const matches = store.findPeopleByName(null, name, 'person');
-        if (matches.length) {
-          duplicateNameBlock(form.querySelector('input'), matches, (p) => {
-            if (p.case_id !== ctx.caseId) { ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); return; }
-            render(root, ctx, tab);
-          });
-          return;
-        }
-        await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
-        render(root, ctx, tab);
-      },
-    });
-    slot.appendChild(form);
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    // picked, not typed (her ask, 2026-09-21): cast comes from the People
+    // tab's own pool of people with nowhere else yet
+    renderUnplacedPicker(slot, ctx, { onPicked: () => render(root, ctx, tab) });
   });
 
   // --- installments --------------------------------------------------------

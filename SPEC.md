@@ -1495,6 +1495,87 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 42. People stop being typed into a case — they're picked from People (v124, 2026-09-21)
+
+Her ask, verbatim: **"i want to remove people from the case files and just
+use the people in people tab."** A short, solution-shaped line — four
+rounds of grounded questions (each building on what the code actually
+does, not abstract hypotheticals) narrowed it to a concrete scope. What
+triggered it: opening a case, she wants to see "cases groups worlds
+families etc not people in it" — the case-opening experience, not the
+data model. What changed: Family's "type a name in," Event's "+ Add
+figure" and Series' "+ Add person" all stop creating a brand-new person
+directly inside that case. Each now **picks** someone instead, from a
+pool of people who have "nowhere else yet." Declined, explicitly, on the
+last round: reassigning a person who already has a case, and letting a
+person belong to more than one case at once — both real features, neither
+this one. One person, one home, still holds; this only changes how that
+home gets assigned.
+
+**"Nowhere else yet" is `person.case_id IS NULL`** — no schema change,
+since the column was already nullable and every existing code path just
+happened to always fill it. `store.listAllPeople()` was an INNER JOIN
+against `case_file`, which would have silently *excluded* a placeless
+person from the one page meant to show them — a real bug, caught and
+fixed before it could bite (LEFT JOIN, with the WHERE clause updated to
+tolerate a null `case_file` row). A new `store.listUnplacedPeople()`
+answers the picker's own question directly: everyone with `case_id IS
+NULL`, name-sorted.
+
+**People tab is now the one door a new person is created through.**
+Its "+ Person" form gained a second choice next to the name field —
+"Start their own case" (unchanged default: the existing one-person-case
+door) or "No case yet" (new: `store.createPerson({case_id: null, ...})`,
+no case spun up). A placeless tile shows "No case yet" where the case
+name would sit, and — since there's no case-scoped profile to open — a
+tap opens a small in-place rename/remove editor instead of navigating,
+built from the same `inlineNameForm` + `twoTapConfirm` primitives every
+other prompt-replacement in this app already uses. Picking a placeless
+person out of the pool (from Family, an Event or a Series) is a single
+`store.updatePerson(id, {case_id: targetCaseId})` — claiming them into
+that case is all "picked" ever means; nothing about the person row
+changes shape.
+
+**One shared component, three callers.** `renderUnplacedPicker(slot, ctx,
+{onPicked})` in `js/ui.js` lists the pool and wires the claim; an empty
+pool doesn't offer to create anyone there — it names the one real door
+("Add them in People first — with no case yet — then come back and pick
+them here") rather than growing a second creation path. `js/pages/
+relations.js`'s "Add people" drawer renamed its "Type it in" mode to
+"Pick from People" and swapped `renderTypeIn` for the shared picker
+outright — its separate "Look up on Wikipedia" batch-import mode is
+untouched, a different, valuable feature this ask never named.
+`js/pages/event.js`'s "+ Add figure" and `js/pages/series.js`'s "+ Add
+person" (Cast) both dropped their local `inlineNameForm`-based
+create-in-place block for the same shared picker, toggling the same slot
+open/closed rather than opening a drawer — matching each page's own
+existing "click again to close" pattern for that slot. `looksHurried` /
+`autoCaseName` / `duplicateNameBlock` came out of all three files once
+nothing there typed a name in any more.
+
+**A duplicate pair with nowhere to record "not the same person."**
+`distinct_pair.case_id` is `NOT NULL` in the schema — fine for every
+prior case, where a flagged duplicate always had a home. Two placeless
+people sharing a name now can't: `markPeopleDistinct(null, …)` would
+throw. `js/pages/people.js`'s dup-flag falls back to whichever side
+actually has a case (`p.case_id || dupInfo.keepPerson.case_id`), and
+drops the "Not the same person" button entirely on the one genuinely
+unrepresentable case — both sides placeless — while the merge button
+(which never needed a case_id) keeps working regardless.
+
+Verified live end-to-end (browser-storage mode — the same
+stale-service-worker trap CLAUDE.md already names, `reference_stale_
+service_worker_sandbox.md`, bit again mid-session; unregistering the
+worker and clearing caches wasn't enough on its own, a genuine
+`location.reload()` was needed too, since a hash-only navigate never
+re-fetches an already-loaded module): created a placeless
+person from People, confirmed the "No case yet" tile and its
+rename-in-place and remove-in-place both persist; picked that person into
+a fresh Event (Key figures), a fresh Family (via the drawer's "Pick from
+People" mode), and a fresh Series (Cast) — each claim showed up
+immediately in People as that case's name, and the picker correctly
+emptied out and pointed back at People once nobody was left in the pool.
+
 ## 41. Cute, redesigned same day: dark, and built from the zodiac code (v123, 2026-09-21)
 
 Shown 3 real candidates on her actual Sandra Bullock profile (a published
