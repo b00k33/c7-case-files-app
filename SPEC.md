@@ -1495,6 +1495,73 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 40. A third ground: 🌸 Cute — an opt-in toggle, not a redesign (v122, 2026-09-21)
+
+"c7 design is too serious. i want it cute and adorable," then, unprompted,
+the scope-defining follow-up: "make a version of it that is cute so i can
+toggle." That second line resolved what could otherwise have been a large,
+ambiguous ask (redesign the whole app's tone?) into a small, low-risk,
+fully reversible one: a third pick in the existing Appearance switcher
+(Follow phone · Day · Night · 🌸 Cute) that Day and Night — already proven,
+already tokens-driven — never touch. Given that scope and her directive
+phrasing, built one committed, cohesive direction and showed her the real
+toggle live rather than opening with another round of taste-comparison
+questions (per this project's own "a theme is tokens, never a second rule
+set" lesson from the 2026-09-08 day-palette work, and "the second time she
+names the same want, build it" — she'd now said it twice, each time more
+specific).
+
+**Mechanism**, following the exact Day/Night pattern in `css/tokens.css`
+and `index.html`: a new `:root[data-theme="cute"]` token block defines
+every token the other two grounds already define — nothing in `app.css`
+itself changes. `index.html`'s inline theme-stamping script (which sets
+`document.documentElement.dataset.theme` before first paint, so there's no
+flash of the wrong ground) now accepts `'cute'` as a third valid stored
+pick, alongside `'light'`/`'dark'` — but, deliberately, `cute` is **never**
+chosen by `prefers-color-scheme` the way Day/Night can be; it only ever
+applies from her own explicit pick in the sync drawer, stored the same way
+(`localStorage['c7-theme']`). `js/main.js`'s Appearance switcher (already a
+data-driven `[[v, label], ...].map()`) needed one array entry; the existing
+generic click handler (`localStorage.setItem('c7-theme', v)` +
+`window.c7ApplyTheme()`) needed no change at all.
+
+**Palette** — warm cream-peach ground (`#fff8f3`), bubblegum candy-pink
+accent (`#e8437d`, replacing brass/teal's job), warm honey gold (kept
+reserved for the life-path number, same convention as the other two
+grounds), soft mint/coral/lavender for teal/red/violet, and every shadow
+re-tinted candy-pink instead of neutral grey — same shape (`--lift-1/2`
+etc.), same depth logic, just warmer. **Two non-colour tokens carry most of
+the actual "cute" feeling**: `--r-sm`/`--r-lg` (4px/8px on the other two
+grounds) become 14px/24px here — since `app.css` already reads both almost
+everywhere through `var()` rather than a hardcoded radius (verified by
+grepping: 72 of ~100 `border-radius` declarations in the file go through
+one of these two tokens), this one change alone gives every card, panel,
+button, chip and tile a genuinely soft, blobby rounding with zero
+component-level CSS edits — exactly the "theme is tokens" mechanism this
+app has used since the original day-palette work, now proven to reach
+shape as well as colour. Titles switch to **Baloo 2** (rounded, bubbly, a
+real "cute app" face) and body text to **Quicksand** (a softer rounded sans
+than Public Sans) — both added to the same one Google Fonts `<link>` in
+`index.html` that already carries Public Sans/JetBrains Mono/Caveat, and
+**confirmed actually loaded via `document.fonts.check()`** before calling
+this done (this project's own three-times-repeated bug: a font named in
+`tokens.css` but never linked, silently falling back to a system font —
+STYLE.md §2). `--font-mono` (JetBrains Mono, every number/date) and
+`--font-hand` (Caveat) are untouched: precision data doesn't need to be
+cute, and Caveat already was.
+
+Full palette and rationale: STYLE.md, "A third, opt-in ground: cute."
+
+Verified live: toggled through all three picks on the same disposable test
+case used for §39's verification (Cases grid, People grid, a full person
+profile) — cute applied cleanly everywhere, `document.documentElement
+.dataset.theme` read `'cute'`, computed styles confirmed the new fonts,
+accent colour and radius actually took effect (not just the CSS existing
+unused); Night and Day were then re-checked and render byte-identical to
+before this change, confirming the addition is genuinely additive. No new
+console errors. `tests/browser-tests.html`'s suite doesn't touch theming
+either way (pure CSS/token change, no JS logic beyond one array entry).
+
 ## 39. A fourth case kind: series — cast and dated installments, auto-pulled from Wikidata (v121, 2026-09-21)
 
 Her ask, from a real Wikipedia record for "A Series of Unfortunate Events": "i need a category for novel/film series." The case-kind dropdown only ever offered person / family / event — none fit a franchise, which is neither a person, a household, nor a single major event, but a cast of characters and a run of dated installments. Asked which shape she wanted (a person-case that just happens to hold a list; the event page relabelled; or a genuinely new kind with its own page); she picked the last, the biggest of the three. A second question on build scope — offered "manual version first, auto-pull later" as the safer-seeming default — she overrode: **"i want only auto pulling."** So the Wikidata pull is the build, not a follow-on; there is no manual-entry-only version of this feature to speak of. A third question, on whether a pulled installment should sit in Review first or save immediately, she answered "Save immediately" — same as `addWorks` already does for a person's own works.

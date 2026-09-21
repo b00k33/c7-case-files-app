@@ -10,19 +10,20 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="js/version.js"></script>
 <script>
-// cool white by day, ink by night (her picks, 2026-09-07/08): the ground is
-// stamped on <html> before the first paint — her own pick from the sync
-// drawer (c7-theme: light | dark), else the phone's setting, live. The
-// theme-color is the top bar's colour: --bar-bg white by day, --ink-0 by night.
+// cool white by day, ink by night (her picks, 2026-09-07/08), or — her own
+// opt-in pick only, never the phone's setting — cute (2026-09-21): the
+// ground is stamped on <html> before the first paint from the sync drawer's
+// pick (c7-theme: light | dark | cute), else the phone's own setting. The
+// theme-color is the top bar's colour: --bar-bg white by day and cute, --ink-0 by night.
 (function () {
   var mq = window.matchMedia('(prefers-color-scheme: light)');
   function apply() {
     var pref = null;
     try { pref = localStorage.getItem('c7-theme'); } catch (e) {}
-    var t = pref === 'light' || pref === 'dark' ? pref : (mq.matches ? 'light' : 'dark');
+    var t = pref === 'light' || pref === 'dark' || pref === 'cute' ? pref : (mq.matches ? 'light' : 'dark');
     document.documentElement.dataset.theme = t;
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.content = t === 'light' ? '#ffffff' : '#15181d';
+    if (m) m.content = t === 'dark' ? '#15181d' : t === 'cute' ? '#fff8f3' : '#ffffff';
   }
   apply();
   if (mq.addEventListener) mq.addEventListener('change', apply);
@@ -30,7 +31,7 @@
 })();
 </script>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Baloo+2:wght@600;700&family=Quicksand:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/app.css">
 </head>

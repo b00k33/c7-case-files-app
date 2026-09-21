@@ -618,7 +618,7 @@ function appendBackupButton(body) {
   look.innerHTML = `
     <div class="section-label" style="margin-bottom:8px">Appearance</div>
     <div class="row wrap" style="gap:6px">
-      ${[['auto', 'Follow phone'], ['light', 'Day'], ['dark', 'Night']].map(([v, l]) => `<button type="button" class="chip ${themePick === v ? 'brass' : ''}" data-theme-pick="${v}" style="border:0;cursor:pointer">${l}</button>`).join('')}
+      ${[['auto', 'Follow phone'], ['light', 'Day'], ['dark', 'Night'], ['cute', '🌸 Cute']].map(([v, l]) => `<button type="button" class="chip ${themePick === v ? 'brass' : ''}" data-theme-pick="${v}" style="border:0;cursor:pointer">${l}</button>`).join('')}
     </div>
   `;
   look.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', () => {

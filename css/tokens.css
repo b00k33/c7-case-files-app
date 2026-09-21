@@ -151,6 +151,71 @@
   --ws-water: #2f4fa8;
 }
 
+/* cute (2026-09-21, "c7 design is too serious. i want it cute and adorable" —
+   a third, opt-in ground, toggled beside Day/Night, never replacing them.
+   Same rule as always: a theme is tokens, never a second rule set — every
+   value below plugs into the exact same names app.css already reads, plus
+   two radius tokens (--r-sm/--r-lg) pushed way up for the soft, blobby
+   rounding "cute" actually needs; nothing in app.css itself changes. */
+:root[data-theme="cute"] {
+  color-scheme: light;
+  --ink-0: #fff8f3;      /* the ground — warm cream-peach */
+  --ink-rail: #ffffff;
+  --ink-1: #fffcf9;
+  --ink-2: #ffffff;
+  --ink-3: #ffe8ef;      /* soft pink wash — chips, hover */
+  --line: #ffd6e0;
+  --text: #5b3a4a;       /* warm plum-brown, not stark black */
+  --text-2: #8c6575;
+  --text-3: #b28a9a;
+
+  --brass: #e8437d;      /* the accent — bubblegum candy pink */
+  --on-brass: #ffffff;
+  --gold: #f0993d;       /* the life path number — warm honey */
+  --teal: #4fc3a1;       /* soft mint */
+  --green: #6ec177;
+  --amber: #f0993d;      /* = gold, same convention as the other two grounds */
+  --red: #ff6f61;        /* soft coral, not harsh */
+  --violet: #a68bf0;     /* soft lavender */
+
+  --ground: radial-gradient(120% 90% at 50% 30%, #fffaf5 0%, #fff0f5 100%);
+  --bar-bg: #ffffff;
+  --rail-edge: rgba(232, 67, 125, .10);
+  --rail-shadow: 2px 0 10px rgba(232, 67, 125, .10);
+  --topbar-shadow: 0 2px 10px rgba(232, 67, 125, .08);
+  --tabbar-shadow: 0 -2px 10px rgba(232, 67, 125, .10);
+  --lift-1: 0 1px 2px rgba(232, 67, 125, .07), 0 0 0 1px rgba(232, 67, 125, .05);
+  --lift-2: 0 2px 5px rgba(232, 67, 125, .12), 0 0 0 1px rgba(232, 67, 125, .06);
+  --lift-2-hover: 0 8px 18px rgba(232, 67, 125, .18), 0 0 0 1px rgba(232, 67, 125, .08);
+  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .35), 0 3px 8px rgba(232, 67, 125, .28);
+  --press: inset 0 2px 3px rgba(191, 47, 96, .22);
+  --lift-face: 0 3px 8px rgba(232, 67, 125, .20);
+  --lift-mark: 0 3px 6px rgba(232, 67, 125, .20);
+  --sink: inset 0 2px 3px rgba(232, 67, 125, .14), inset 0 -1px 0 rgba(255, 255, 255, .8);
+  --shadow: 0 14px 34px rgba(232, 67, 125, .22), 0 0 0 1px var(--line);
+
+  --on-code: #ffffff;
+  --zc-blue: #6fb8f0;
+  --zc-green: #5ec98a;
+  --zc-pink: #f06fa8;
+  --zc-yellow: #f0c15a;
+  --ws-air: #7cc3ef;
+  --ws-fire: #ff8577;
+  --ws-earth: #d4a05a;
+  --ws-water: #7f9ce8;
+
+  /* rounder, softer, friendlier — the one structural change a "cute" ground
+     needs beyond colour; every card/button/chip/tile already reads these
+     two tokens, so nothing else in app.css has to change */
+  --r-sm: 14px;
+  --r-lg: 24px;
+
+  /* a bubbly rounded display face for titles, a soft rounded sans for body
+     text — Caveat (already loaded, already cute) keeps its own job */
+  --font-title: 'Baloo 2', 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Quicksand', 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {

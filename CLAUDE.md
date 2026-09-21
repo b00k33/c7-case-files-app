@@ -387,7 +387,51 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — a fourth case kind, series: cast and dated
+**2026-09-21, latest — a third ground, 🌸 Cute: an opt-in toggle, not a
+redesign (v122, SPEC §40).** "c7 design is too serious. i want it cute and
+adorable," then the scope-defining follow-up that turned a potentially huge
+ambiguous ask into a small, safe one: "make a version of it that is cute so
+i can toggle." A *toggle* — additive, reversible, never touching Day/Night
+— not a replacement for the app's existing "quiet editorial" identity
+(code6's own design philosophy above). Given that scope, plus her directive
+phrasing repeating the same want with more specificity each time, built one
+committed direction and showed her the real toggle live in the running app
+rather than opening with another taste-comparison question round.
+
+Followed the exact established mechanism from the Day/Night work
+(2026-09-07/08) to the letter: **a theme is tokens, never a second rule
+set.** A new `:root[data-theme="cute"]` block in `tokens.css` defines every
+token the other two grounds already define; `index.html`'s pre-paint
+stamping script accepts `'cute'` as a third valid stored pick (but,
+deliberately, never auto-picked by `prefers-color-scheme` — opt-in only);
+the Appearance switcher in `main.js` needed exactly one new array entry,
+since it was already a data-driven `.map()` over `[value, label]` pairs.
+Warm cream-peach ground, candy-pink accent, honey gold kept for the life
+path number (same convention as the other two grounds), pink-tinted
+shadows. The one genuinely new move: `--r-sm`/`--r-lg` (4px/8px elsewhere)
+become 14px/24px for this ground — checked first that `app.css` actually
+reads both through `var()` almost everywhere (72 of ~100 `border-radius`
+declarations do) before relying on it, so the soft blobby "cute" rounding
+reaches nearly every card/button/chip/tile with zero component CSS edited,
+the same token-only mechanism now proven to carry shape, not just colour.
+New display/body faces (Baloo 2, Quicksand) went into the same one Google
+Fonts `<link>` the other three faces already share, and — given this
+exact class of bug has bitten this project three separate times before,
+each one a font named in a token but never actually linked, silently
+falling back to a system font — **confirmed both fonts were genuinely
+loaded with `document.fonts.check()` before calling it done**, not just
+assumed from the CSS looking right. `--font-mono`/`--font-hand` untouched;
+numbers don't need to be cute and Caveat already was.
+
+Verified live end-to-end on a real running toggle (not a static mock): all
+three Appearance picks checked on the Cases grid, People grid, and a full
+person profile; cute applied cleanly with the new fonts/colour/radius
+confirmed via computed styles, not just eyeballed; Day and Night re-checked
+afterward and confirmed byte-identical to before, so nothing about the
+existing two grounds moved. Full palette in STYLE.md, "A third, opt-in
+ground: cute."
+
+**2026-09-21, earlier — a fourth case kind, series: cast and dated
 installments auto-pulled from Wikidata (v121, SPEC §39).** From a real
 Wikipedia record for "A Series of Unfortunate Events": "i need a category
 for novel/film series." The case-kind dropdown only ever offered person /

@@ -57,6 +57,28 @@ palette — cream paper #efeae0, old gold #a8731c, brown shadows — is retired
 on 2026-09-08 ("redesign the day palette. i dont like it"; all four parts
 bothered her; SPEC §13l).
 
+### A third, opt-in ground: cute (v121, 2026-09-21)
+
+"c7 design is too serious. i want it cute and adorable... make a version of
+it that is cute so i can toggle." Not a redesign, not a replacement for
+Day/Night — a third pick in the same Appearance switcher (Follow phone ·
+Day · Night · 🌸 Cute), off by default, her own opt-in only (never picked
+by `prefers-color-scheme`, unlike Day/Night). `--ink-0` warm cream-peach
+`#fff8f3`, `--brass` bubblegum candy pink `#e8437d`, `--gold` warm honey
+`#f0993d`, `--teal` soft mint `#4fc3a1`, shadows candy-pink-tinted instead
+of neutral grey. Two tokens change beyond colour, both already used
+everywhere: `--r-sm`/`--r-lg` go from 4px/8px to 14px/24px for genuinely
+soft, blobby rounding — no component CSS touched, since app.css already
+reads both through `var()` almost everywhere (the exceptions are `50%`/pill
+circles, which stay round regardless, and a small handful of hardcoded
+pixel radii too minor to chase for a first pass). Titles switch
+to **Baloo 2** (bubbly, rounded), body text to **Quicksand** (soft rounded
+sans) — both loaded from the same Google Fonts `<link>` as the other three
+faces; `--font-mono` (JetBrains Mono, all numbers/dates) and `--font-hand`
+(Caveat) are untouched, since precision data shouldn't get cute and Caveat
+was already the cute one. Cork/paper stay their own fixed material, same as
+on both other grounds — a theme is tokens, never a second rule set.
+
 ### Depth (2026-09-07 night — "more dimension, not so plain and flat")
 
 Dimension in a dark interface comes from light from above, shadow below,
