@@ -417,7 +417,24 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-22, latest — a tile's ⋯ menu, opened and invisible: the hover
+**2026-09-22, latest — + Person gets its own "Look up on Wikipedia" (v138,
+SPEC §56).** Her question: "how to add someone from wikipedia directly to
+people." The honest answer was it couldn't — that full record-fill (dates,
+picture, Wikipedia evidence) only ever lived on Cases' "+ New," and
+People's own "+ Person" was bare-name-only, no door to it. Asked first
+whether she wanted it added here too (yes) rather than assuming. Built the
+same search + "Create from this ▸" onto + Person, deliberately smaller
+than Cases' version — no kind switch, no +family/+works, since those pull
+INTO a case and "No case yet" has none to pull into. Both of People's
+existing doors now fill from the record: "Start their own case" (full
+case, same as Cases' version) and "No case yet" (2026-09-21 door — creates
+the placeless person directly, `case_id` stays null through the whole
+fill, evidence and accepted-claim writes both already tolerated that
+without being asked). Verified live on real Wikidata records both ways —
+Emma Stone (own case, full profile) and Timothée Chalamet (no case,
+tagged "No case yet" on the grid) — no console errors.
+
+**2026-09-22, earlier — a tile's ⋯ menu, opened and invisible: the hover
 lift was trapping it (v137, SPEC §55).** Her report was one line, no
 explanation: "when i click 3 dots i dont see the dropdown." Reproduced
 live rather than guessing from the screenshot alone — the menu WAS

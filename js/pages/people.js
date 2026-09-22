@@ -9,10 +9,11 @@
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
-import { twoTapConfirm, inlineNameForm, duplicateNameBlock } from '../ui.js';
+import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
 import { autoCaseName, looksHurried } from '../names.js';
+import { searchPeople, fillFromWikidata } from '../lookup.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -77,7 +78,76 @@ function openAddPerson(slot, ctx) {
       markOpened(kase.id);
     },
   });
+  wireAddPersonLookup(form, ctx, store);
   slot.appendChild(form);
+}
+
+/**
+ * "Look up on Wikipedia" inside + Person (her ask, 2026-09-22: "how to add
+ * someone from wikipedia directly to people" — until now that record fill
+ * (dates, picture, Wikipedia evidence) only lived on Cases' own "+ New").
+ * Same search, deliberately smaller than Cases' version: no kind switch
+ * (always a person here) and no +family/+works — those pull relatives or a
+ * discography INTO a case, and "No case yet" has no case to pull them into.
+ */
+function wireAddPersonLookup(form, ctx, store) {
+  const rowEl = form.querySelector('.row');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost btn-sm if-wiki';
+  btn.textContent = 'Look up on Wikipedia';
+  btn.title = 'Find this person on Wikipedia and fill them in from the record — dates, picture, evidence come with it';
+  rowEl.insertBefore(btn, rowEl.querySelector('.if-cancel'));
+  const results = document.createElement('div');
+  results.className = 'if-wiki-results';
+  form.appendChild(results);
+
+  btn.addEventListener('click', async () => {
+    const name = form.querySelector('input[type="text"]').value.trim();
+    clearInlineNote(btn);
+    results.innerHTML = '';
+    if (!name) { inlineNote(btn, 'Type the name first.'); form.querySelector('input[type="text"]').focus(); return; }
+    btn.disabled = true; btn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(name); }
+    catch (e) { inlineNote(btn, `Couldn't reach Wikidata — ${e.message}. Are you online?`); }
+    btn.disabled = false; btn.textContent = 'Look up on Wikipedia';
+    if (!matches.length) { if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person; Create makes them by name.'); return; }
+    results.innerHTML = '<div class="section-label" style="margin-top:8px">Fill them in from a Wikipedia record</div>';
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${m.label}</div><div class="sub">${m.description || 'no description'} · ${m.id}</div></div><span class="chip brass">Create from this ▸</span>`;
+      row.addEventListener('click', () => createFromWikidata(m));
+      results.appendChild(row);
+    }
+  });
+
+  async function createFromWikidata(m) {
+    // do not allow duplicates — picking a Wikidata result is just as
+    // deliberate a "this exact real person" moment as typing their name
+    // by hand (her ask, 2026-09-11, widened cross-case)
+    const dupes = store.findPeopleByName(null, m.label, 'person');
+    if (dupes.length) { duplicateNameBlock(results, dupes, (p) => goToPerson(ctx, p)); return; }
+    results.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="ap-progress">Filling them in from Wikidata…</div>';
+    const prog = results.querySelector('#ap-progress');
+    const choice = form.querySelector('.if-choice')?.value || 'case';
+    if (choice === 'none') {
+      const person = await store.createPerson({ case_id: null, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
+      try { await fillFromWikidata(store, null, person.id, m.id); }
+      catch (e) { prog.textContent = `Added; the record could not be read (${e.message}). Look up again from their profile.`; return; }
+      form.remove();
+      ctx.rerender();
+      return;
+    }
+    const kase = await store.createCase({ name: m.label, kind: 'person' });
+    markOpened(kase.id);
+    await ctx.setCaseId(kase.id);
+    const person = await store.createPerson({ case_id: kase.id, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
+    try { await fillFromWikidata(store, kase.id, person.id, m.id); }
+    catch (e) { prog.textContent = `They're added; the record could not be read (${e.message}). Look up again from their profile.`; }
+    ctx.navigate(`#/subject/${person.id}`);
+  }
 }
 
 // ---- duplicates, anywhere in the app (her ask, 2026-09-11: "lisa is

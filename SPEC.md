@@ -1495,6 +1495,38 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 56. + Person gets its own "Look up on Wikipedia" (v138, 2026-09-22)
+
+Her question: "how to add someone from wikipedia directly to people." The
+answer was that it couldn't, not from here — that record-fill (dates,
+picture, Wikipedia evidence, all pulled and saved in one go) has only ever
+lived on Cases' own "+ New" form (§ "Look up on Wikipedia inside + New").
+People's own "+ Person" (its bare `Their name` box) had no door to it at
+all; reaching it meant detouring through Cases first.
+
+Same search box, same "Create from this ▸" result rows, wired onto +
+Person instead — deliberately smaller than Cases' version: no kind switch
+(a person here is always a person) and no +family/+works checkboxes, since
+those pull relatives or a discography INTO a case, and the "No case yet"
+door people already has doesn't have one to pull them into. Both of
+People's existing doors are honoured: "Start their own case" makes the
+case and fills the person exactly as Cases' version does; "No case yet"
+(2026-09-21) creates the placeless person directly and fills them the same
+way, `case_id` left null throughout — proof this door was already meant to
+carry a full record, not just a name, since `fillFromWikidata`'s evidence
+and accepted-claim writes both already tolerated a null case_id without
+being asked to. Same duplicate guard as the plain-name path (cross-case,
+by name — her 2026-09-11 rule) fires before either door, so a Wikidata
+pick can't double up a person already in the file.
+
+Verified live, both doors, real Wikidata records: "Start their own case"
+on Emma Stone made a full case — photo, 6 Nov 1988, gender, nationality,
+birthplace, occupation, the Wikidata citation, life path/animal/sign all
+computed — landing on her profile. "No case yet" on Timothée Chalamet
+filled the same way with no case at all, appearing on the People grid
+tagged "No case yet" with his own computed tokens. No console errors
+either time.
+
 ## 55. A tile's ⋯ menu, opened and invisible — the hover lift was trapping it (v137, 2026-09-22)
 
 Her report, one screenshot and one line: "when i click 3 dots i dont see the
