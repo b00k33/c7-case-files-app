@@ -30,6 +30,17 @@ function fmtLongDate(iso) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// 'HH:MM' (the <input type=time> shape) -> "4:24pm" — no chart is drawn
+// from this yet (western.js has no rising-sign calc), it's reference only,
+// same footing as birthplace
+function fmtTime12h(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(':').map(Number);
+  const period = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')}${period}`;
+}
+
 // a parsed date read at its honest precision: "14 Nov 1996" · "Nov 1996" · "1996"
 function preciseText(d) {
   if (!d) return '—';
@@ -453,7 +464,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const marital = person.marital_status
     ? person.marital_status + (spouseName ? ` · ${spouseName}` : '')
     : (spouseName ? `Married · ${spouseName}` : null);
-  const born = bornText(person);
+  const bornDate = bornText(person);
+  const born = bornDate && person.birth_time ? `${bornDate} · ${fmtTime12h(person.birth_time)}` : bornDate;
   const age = ageText(person);
   // a grid row per fact (candidate B, her pick 2026-09-17: "compact three-
   // zone header" — same k/v language as the Profile-details widget below,
@@ -1235,7 +1247,10 @@ function renderEditForm(body, ctx, person) {
     <h3 class="title" style="margin-bottom:16px">Edit ${esc(person.display_name)}</h3>
     <div class="field"><label>Display name</label><input type="text" id="f-name" value="${esc(person.display_name)}"></div>
     <div class="field"><label>Name at birth</label><input type="text" id="f-nab" value="${esc(person.name_at_birth)}"></div>
-    <div class="field"><label>Birth date</label><input type="date" id="f-bdate" value="${person.birth_date || ''}"></div>
+    <div class="row" style="gap:8px">
+      <div class="field" style="flex:1"><label>Birth date</label><input type="date" id="f-bdate" value="${person.birth_date || ''}"></div>
+      <div class="field" style="flex:1"><label>Time of birth</label><input type="time" id="f-btime" value="${person.birth_time || ''}"></div>
+    </div>
     <div class="field"><label>Birth precision — only needed when there's no exact day (a month, a year, or a contested range)</label>
       <select id="f-bprec">
         ${['day', 'month', 'year', 'range', 'unknown'].map((p) => `<option value="${p}" ${p === person.birth_precision ? 'selected' : ''}>${p}</option>`).join('')}
@@ -1288,6 +1303,8 @@ function renderEditForm(body, ctx, person) {
       name_needs_formatting: hurried ? 1 : 0,
       birth_date: body.querySelector('#f-bdate').value || null,
       birth_precision: body.querySelector('#f-bprec').value,
+      birth_time: body.querySelector('#f-btime').value || null,
+      birth_time_precision: body.querySelector('#f-btime').value ? 'exact' : 'unknown',
       birth_year_min: body.querySelector('#f-ymin').value ? parseInt(body.querySelector('#f-ymin').value, 10) : null,
       birth_year_max: body.querySelector('#f-ymax').value ? parseInt(body.querySelector('#f-ymax').value, 10) : null,
       birth_place: body.querySelector('#f-bplace').value || null,

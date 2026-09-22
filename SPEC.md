@@ -1495,6 +1495,41 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 57. Time of birth — a column that existed since day one, no door to it (v139, 2026-09-22)
+
+Her ask: add times of birth for seven royals (the three great-grandchildren,
+William, Harry, Charles, the late Queen). `person.birth_time` and
+`birth_time_precision` were already real columns in the base schema —
+`store.updatePerson` already whitelisted them — but no page had ever put a
+field in front of either one. The Edit sheet went straight from birth date
+to birth precision; nothing else on the profile read the column at all.
+
+Added: a "Time of birth" input beside birth date in the Edit sheet
+(`<input type="time">`, saved alongside the date); precision defaults to
+`exact` the moment a time is typed, `unknown` when it's cleared — same
+"don't make her flip a dropdown for the common case" rule already applied
+to birth date's own precision field. Shows, when set, folded into every
+"Born" line on the profile — the compact DEMOGRAPHICS strip under her name
+and the fuller Profile-details grid both read the one `born` string, so
+one change carries to both densities (`"24 Nov 1964 · 4:24pm"`). No chart
+is drawn from it — western.js has no rising-sign calculation — it's
+reference data only, the same footing birthplace already has.
+
+**Caught building it:** the first pass appended the time only inside the
+Profile-details grid's own row-building code, missing that the compact
+DEMOGRAPHICS strip (what she actually sees first, and the one confirmed
+live) reads a *shared* `born` variable computed once, upstream of both.
+Fixed by folding the time into that shared variable itself, so either
+consumer downstream of it just works — caught by testing against the
+visible panel, not the code that looked obviously right.
+
+**What this doesn't do yet:** the sandbox this app is tested in (a local
+dev server, its own separate browser storage) is not the live, synced app
+on her devices — nothing typed here reaches her real file. The feature is
+real and ready; the seven royals' actual times still need typing in by
+hand, once each, on her own device, now that the field exists to type them
+into.
+
 ## 56. + Person gets its own "Look up on Wikipedia" (v138, 2026-09-22)
 
 Her question: "how to add someone from wikipedia directly to people." The

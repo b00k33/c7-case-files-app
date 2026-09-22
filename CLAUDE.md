@@ -417,7 +417,24 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-22, latest — + Person gets its own "Look up on Wikipedia" (v138,
+**2026-09-22, latest — Time of birth: a column that existed since day one,
+no door to it (v139, SPEC §57).** Her ask: add birth times for seven
+royals (George, Charlotte, Louis, William, Harry, Charles, the late
+Queen). `person.birth_time`/`birth_time_precision` were real columns in
+the base schema, already whitelisted in `store.updatePerson` — nothing had
+ever put a field in front of either one; the Edit sheet skipped straight
+from birth date to birth precision. Added a "Time of birth" input beside
+birth date, precision auto-set to exact/unknown same as the birth-date
+pattern already there. **Caught myself mid-build:** first pass only
+appended the time inside the Profile-details grid's row code, and testing
+live showed the compact DEMOGRAPHICS strip — what she actually sees first
+— still blank, because both panels read one shared `born` string computed
+upstream, and I'd only patched one of its two consumers. Fixed at the
+source so both read it. Can't write into her real data from this sandbox
+(separate browser storage, not her synced device) — told her straight:
+feature's ready, the seven times still need typing in by hand on her end.
+
+**2026-09-22, earlier — + Person gets its own "Look up on Wikipedia" (v138,
 SPEC §56).** Her question: "how to add someone from wikipedia directly to
 people." The honest answer was it couldn't — that full record-fill (dates,
 picture, Wikipedia evidence) only ever lived on Cases' "+ New," and
