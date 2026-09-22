@@ -417,7 +417,20 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-22, latest — Time of birth: a column that existed since day one,
+**2026-09-22, latest — "Move all to People" — the bulk door beside the
+single-case one (v140, SPEC §58).** Her ask, one day after v136: "make
+people in cases just people," with a real screenshot of her 22-case grid —
+nine of them a single person's own biography, and her "1↑ update ready"
+pill showing she hadn't even installed v136 yet (Dolly Parton's menu was
+missing "Move to People" because of that, not because it's missing).
+Asked first whether one-at-a-time (now updated) was enough or nine taps
+was worth a button — she picked the button. `Move all N to People` sits
+beside `+ New`, two-tap confirm, same `hidden: 1` mechanism as the single-
+case version, same scope (family/event/series cases never in the list to
+begin with). Verified live: 3 person-kind cases → confirm → gone from
+Cases, all three intact on People straight after.
+
+**2026-09-22, earlier — Time of birth: a column that existed since day one,
 no door to it (v139, SPEC §57).** Her ask: add birth times for seven
 royals (George, Charlotte, Louis, William, Harry, Charles, the late
 Queen). `person.birth_time`/`birth_time_precision` were real columns in

@@ -450,16 +450,35 @@ export async function render(root, ctx) {
   const lastOpened = (c) => opened[c.id] || Date.parse(c.updated_at) || 0;
   withSums.sort((a, b) => lastOpened(b.c) - lastOpened(a.c));
 
+  const personCases = cases.filter((c) => c.kind === 'person');
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
         <span class="mono" style="font-size:12px;color:var(--text-3);flex:1;min-width:120px">${cases.length} case${cases.length === 1 ? '' : 's'}</span>
+        ${personCases.length ? `<button class="btn btn-ghost btn-sm" id="move-all-btn" title="Every person-kind case (not family, event or series) stops being its own tile — nothing on any of them is deleted or reassigned, and each is reachable from People instead">Move all ${personCases.length} to People</button>` : ''}
         <button class="btn btn-primary" id="new-case-btn">+ New</button>
       </div>
       <div id="new-case-slot"></div>
       <div id="cases-body"></div>
     </div>
   `;
+
+  // "make people in cases just people" (her ask, 2026-09-22, the day after
+  // the one-at-a-time "Move to People" shipped) — same mechanism, applied
+  // to every visible person-kind case at once rather than her own case's
+  // menu, one at a time. Family/event/series cases are untouched, same as
+  // the single-case version; each one is still reversible on its own from
+  // the person's own profile ("Move back to Cases"), since a bulk undo
+  // wasn't asked for and nothing here is destructive to begin with.
+  if (personCases.length) {
+    twoTapConfirm(root.querySelector('#move-all-btn'), {
+      confirmLabel: `Really move all ${personCases.length}?`,
+      onConfirm: async () => {
+        for (const c of personCases) await store.updateCase(c.id, { hidden: 1 });
+        render(root, ctx);
+      },
+    });
+  }
 
   root.querySelector('#new-case-btn').addEventListener('click', () => {
     const slot = root.querySelector('#new-case-slot');

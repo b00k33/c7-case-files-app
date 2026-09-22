@@ -1495,6 +1495,34 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 58. "Move all to People" — the bulk door beside the single-case one (v140, 2026-09-22)
+
+Her ask, one day after v136's per-case "Move to People": "make people in
+cases just people" — a real screenshot of her live Cases grid, 22 cases,
+nine of them a single person's own biography (Dolly Parton, Lily Allen,
+Sofía Vergara, Zara Larsson, Harry Potter, Sandra Bullock, Jessica
+Simpson, Erika Kirk, Amber Heard). Asked first whether one-at-a-time (now
+that her app had the v136 update, which her "1↑ update ready" pill showed
+she hadn't installed yet) was enough, or whether nine individual menu taps
+was worth a bulk button — she picked the button.
+
+`Move all N to People` sits beside `+ New` on the Cases page, appearing
+only when there's at least one visible person-kind case to move; a
+two-tap confirm (the same arm-then-act pattern as every destructive-ish
+button in this app) runs `store.updateCase(c.id, { hidden: 1 })` across
+every one of them in one pass, then re-renders. Same scope as the single-
+case version it sits beside: family/event/series cases (Royal Family, the
+Petersons, The Tudors, Suits) are invisible to the filter that builds this
+list, so they're never touched; each moved case stays exactly as
+reversible as it already was, one at a time, from "Move back to Cases" on
+that person's own profile — a bulk button was what she asked for, a bulk
+undo wasn't, and nothing here is destructive enough to need one.
+
+Verified live: 4 cases (Suits, Emma Stone, Sofía Vergara, Dolly Parton) →
+"Move all 3 to People" → confirm → 1 case left (Suits, correctly
+untouched — it's a series, not a person). All three still fully present
+and unchanged on the People grid straight after. No console errors.
+
 ## 57. Time of birth — a column that existed since day one, no door to it (v139, 2026-09-22)
 
 Her ask: add times of birth for seven royals (the three great-grandchildren,
