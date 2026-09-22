@@ -1495,6 +1495,60 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 54. "Move to People" — a thin person-kind case stops being its own tile (v136, 2026-09-22)
+
+Her ask, on the real Cases grid: "move people from cases to people." Four
+rounds of grounded questions (not the original example she used — Suits'
+cast — but where she actually landed) narrowed it to: a person like Erika
+Kirk or Sofía Vergara, whose whole case is just their own biography, can
+stop being a separate tile on the Cases grid and be reached from People
+instead — family- and event-kind cases, and anyone nested inside one
+(a family member, a series' cast), are untouched. Nothing about the
+person or their case is deleted or reassigned — her own explicit answer,
+"keep it, just drop the case wrapper" — so a new `case_file.hidden` flag
+is the whole mechanism: set, the case vanishes from the Cases grid and
+the nav rail's case switcher; unset (still trivially reachable — "Move
+back to Cases," now on the person's own profile header, since a hidden
+case has no tile here to undo it from), it's back exactly as it was.
+`person.case_id` never changes, so nothing that already depended on it —
+Evidence, Questions/Theories, Board, relationships, drafted claims — so
+much as notices.
+
+**A design decision worth naming explicitly, since it differs from her
+first, plainer-language answer** ("if they move out of case they just
+land in people," which read as `case_id` going to `NULL`, joining the
+same placeless pool Family/Event/Series already pick from). Actually
+nulling `case_id` would have orphaned every case-scoped row still keyed
+to the old case — her own "7 to review, 1 open question" on Erika Kirk's
+case would have nowhere to be read from again, directly contradicting her
+very next answer ("keep it… reachable the same way"). Read as: she was
+describing the OUTCOME she wanted (found in People, not Cases), not
+prescribing the mechanism — translating a plain-language want into the
+technical shape that actually delivers it (hide the tile, touch nothing
+else) is the job here, not a literal field-for-field implementation of
+her first phrasing. Flagged here so she can correct it if this reads
+differently to her than intended.
+
+Cases' own duplicate-case detector, the "N cases" count, and the nav
+rail's case-switcher dropdown all read the same filtered (non-hidden)
+list, so a moved case quietly stops appearing in all three at once,
+consistently — except the switcher still shows the CURRENT case even
+if it's hidden, so the chip/dropdown never goes blank while she's
+legitimately standing inside it via her profile. The app's own
+"which case to land on when it boots with nothing selected" pick also
+skips a hidden case now, so moving whichever case happens to be most
+recently touched won't silently make the app open into it every time.
+
+Verified live end-to-end on a real case (Dolly Parton and Sofía Vergara,
+this session's own long-running sandbox, not a fresh fixture): "Move to
+People" removed Sofía Vergara's tile and dropped the case count from 3 to
+2; her People tile, profile, full Demographics/Numerology/Family tree,
+and — the real stress test — the Sofía Vergara/Joe Manganiello theory
+from earlier this session (§the Questions & Theories entries) all stayed
+exactly as they were, reachable the same way; "Move back to Cases" on her
+profile restored the tile and the count to 3. No console errors either
+direction.
+
 ## 53. The season grouping above, corrected to a quiet flat list (v135, 2026-09-21)
 
 Her very next message after §52 shipped: "i meant visually organise

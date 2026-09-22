@@ -56,7 +56,12 @@ async function refreshCaseContext() {
   const railBlock = document.getElementById('case-rail');
   const railSelect = document.getElementById('case-rail-select');
   try {
-    const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
+    const allCases = (await store.listCases()).filter((c) => c.kind !== 'fun');
+    // a case "Moved to People" (cases.js) drops out of the switcher too —
+    // it isn't a case to jump between any more — unless it's the one
+    // she's actually standing in right now, so the chip/select never goes
+    // blank while she's legitimately viewing it via her profile
+    const cases = allCases.filter((c) => !c.hidden || c.id === currentCaseId);
     const kase = cases.find((c) => c.id === currentCaseId) || null;
     if (chip) chip.textContent = kase ? kase.name : '';
     if (railBlock && railSelect) {
@@ -383,7 +388,9 @@ async function boot() {
       routedOnce = true;
       if (!currentCaseId) {
         const cases = await store.listCases();
-        if (cases.length) currentCaseId = cases[0].id;
+        const landable = cases.filter((c) => !c.hidden);
+        if (landable.length) currentCaseId = landable[0].id;
+        else if (cases.length) currentCaseId = cases[0].id;
       }
       refreshCaseContext();
       if (!location.hash) location.hash = localStorage.getItem('c7-last-hash') || `#/${HOME_ROUTE}`;

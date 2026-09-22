@@ -265,6 +265,7 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
         ${otherKinds(c.kind).map((k) => `<button class="btn btn-ghost btn-sm m-kind" data-kind="${k}">Make it ${KIND_LABEL[k]}</button>`).join('')}
         <button class="btn btn-ghost btn-sm m-fiction">${c.world ? 'Edit the world' : 'Mark as fiction'}</button>
         ${c.world ? '<button class="btn btn-ghost btn-sm m-real">Mark as real</button>' : ''}
+        ${c.kind === 'person' ? '<button class="btn btn-ghost btn-sm m-to-people" title="Keeps everything on her — Evidence, Questions, Board — just stops showing her as her own case; find her from People instead">Move to People</button>' : ''}
         ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
         <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
       </div>
@@ -309,6 +310,16 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
     });
     slot.querySelector('.m-real')?.addEventListener('click', async () => {
       await store.updateCase(c.id, { world: null });
+      onChanged();
+    });
+    // "move people from cases to people" (her ask, 2026-09-22, on a thin
+    // person-kind case like Erika Kirk's) — nothing is deleted or
+    // reassigned: the case and everything on it (Evidence, Questions,
+    // Board) stays exactly as it is, it just stops being its own tile
+    // here. Reversible from the person's own profile ("Move back to
+    // Cases"), since a hidden case has no tile here to undo it from.
+    slot.querySelector('.m-to-people')?.addEventListener('click', async () => {
+      await store.updateCase(c.id, { hidden: 1 });
       onChanged();
     });
   });
@@ -432,7 +443,7 @@ async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
 export async function render(root, ctx) {
   const { store } = ctx;
   const opened = openedMap();
-  const cases = (await store.listCases()).filter((c) => c.kind !== 'fun');
+  const cases = (await store.listCases()).filter((c) => c.kind !== 'fun' && !c.hidden);
   const withSums = await Promise.all(cases.map(async (c) => ({ c, sum: await store.caseSummary(c.id) })));
   const dupOf = findDuplicateCases(withSums);
   // most recently opened first — the one she was just in is at the top

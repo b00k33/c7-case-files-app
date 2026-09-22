@@ -16,6 +16,7 @@ import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../u
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree } from './relations.js';
+import { subjectOf } from './cases.js';
 import { loadWidgetPrefs, renderArrangeDrawer } from '../profile-widgets.js';
 
 // the kinds she can give an event by hand (the life line's marks read them)
@@ -191,7 +192,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // a profile opened by link or bookmark makes its own case current — every
   // save on this page (family, evidence, claims) lands where the person lives
   if (person.case_id !== ctx.caseId) await ctx.setCaseId(person.case_id);
-  const [aliases, addresses, rels, events, links, questions, status, summary] = await Promise.all([
+  const [aliases, addresses, rels, events, links, questions, status, summary, kase, casePeople] = await Promise.all([
     store.listAliases(person.id),
     store.listAddresses(person.id),
     store.listRelationshipsForPerson(person.id),
@@ -200,7 +201,14 @@ export async function render(root, ctx, personId, tab = 'profile') {
     store.listQuestions(ctx.caseId),
     evidenceStatusForPerson(store, person.id),
     store.caseSummary(ctx.caseId),
+    store.getCase(person.case_id),
+    store.listPeople(person.case_id),
   ]);
+  // "Move to People" (cases.js) hides a thin person-kind case from the
+  // Cases grid without touching it — the only way back is from here,
+  // since a hidden case has no tile of its own to undo it from. Only the
+  // case's own subject gets the button, not a relative sharing the case.
+  const movedToPeople = !!(kase && kase.hidden && kase.kind === 'person' && subjectOf(kase, casePeople)?.id === person.id);
   // Commercial tab (her ask, 2026-09-15): only for people with a real
   // commercial footprint — tucked into "⋯" rather than gone entirely, so
   // the rare miss is still two taps away, not lost
@@ -231,6 +239,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
               </div>
               <div class="sh-actions">
                 ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
+                ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="btn btn-ghost btn-sm" id="unmove-person-btn">Move back to Cases</button>' : ''}
                 ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
                 <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
               </div>
@@ -428,6 +437,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
   const openEdit = () => ctx.openDrawer((body) => renderEditForm(body, ctx, person));
   root.querySelector('#edit-person-btn').addEventListener('click', openEdit);
+  root.querySelector('#unmove-person-btn')?.addEventListener('click', async () => {
+    await store.updateCase(kase.id, { hidden: 0 });
+    render(root, ctx, personId, tab);
+  });
 
   // ---- basics: strip under the name + the Profile grid (same facts, two densities) ----
   // marital status is read from the map (a spouse relationship) unless she's set an override

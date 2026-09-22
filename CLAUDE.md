@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-21, latest — "i meant visually organise better" — the season
+**2026-09-22, latest — "move people from cases to people" — a thin
+person-kind case stops being its own tile (v136, SPEC §54).** Real
+questions first (this reverses a feature explicitly declined one day
+earlier, 2026-09-21, §42 — "recent overrides old" applies to her own
+past declines too, not just to mine). Landed on: a person whose whole
+case is just their own biography (her example: Erika Kirk, same shape as
+Sofía Vergara or Dolly Parton) can drop off the Cases grid and be found
+from People instead — family/event cases, and anyone nested in one
+(a family member, a series cast), untouched. New `case_file.hidden` flag
+— NOT `case_id` going to null. Her first answer ("they just land in
+People") described the outcome she wanted; her second ("keep it, just
+drop the wrapper") is what the mechanism actually had to honor, and the
+two are only both true if nothing about the person's own `case_id`
+changes — nulling it would have orphaned her real "7 to review" on Erika
+Kirk's case, the case-scoped Evidence/Questions/Board that answer
+explicitly said must stay reachable. Translated the plain-language want
+into the technical shape that delivers it, rather than the literal first
+phrasing — flagged to her as a disclosed judgment call. "Move back to
+Cases" lives on the person's own profile header, since a hidden case has
+no tile left to undo it from.
+
+**2026-09-21, earlier — "i meant visually organise better" — the season
 grouping corrected to a quiet flat list, no cards at all (v135, SPEC
 §53).** Her very next message after v134 shipped. v134 had read
 "organise" as information architecture (collapsible season cards); she
