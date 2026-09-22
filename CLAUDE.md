@@ -417,7 +417,25 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-22, latest — "move people from cases to people" — a thin
+**2026-09-22, latest — a tile's ⋯ menu, opened and invisible: the hover
+lift was trapping it (v137, SPEC §55).** Her report was one line, no
+explanation: "when i click 3 dots i dont see the dropdown." Reproduced
+live rather than guessing from the screenshot alone — the menu WAS
+opening: real content, real position, real size in `getBoundingClientRect()`
+— it painted zero pixels. Cause: `.tile:hover { transform: translateY(-2px) }`
+(the grid's ordinary hover lift, nothing to do with this feature) creates a
+fresh CSS stacking context on the hovered tile as a side effect of using
+`transform` — the floating menu's `z-index: 5` inside it can now only win
+against that one tile's own content, not the grid's other tiles, so the
+next tile down (later in DOM order) paints over whatever part of the menu
+overflows past its own tile's bottom edge. The taller the menu, the more of
+it disappears — same-day's new "Move to People" row (v136 below) was
+apparently enough to push this from mostly-fine to gone, which is likely
+why she hit it today and not earlier. Fix: `.tile:has(.menu-slot:not(:empty))
+{ z-index: 6; }` — the open tile always outranks its siblings now, hover or
+not. Confirmed the failure first, then the fix, both live at phone width.
+
+**2026-09-22, earlier — "move people from cases to people" — a thin
 person-kind case stops being its own tile (v136, SPEC §54).** Real
 questions first (this reverses a feature explicitly declined one day
 earlier, 2026-09-21, §42 — "recent overrides old" applies to her own

@@ -1495,6 +1495,35 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 55. A tile's ⋯ menu, opened and invisible — the hover lift was trapping it (v137, 2026-09-22)
+
+Her report, one screenshot and one line: "when i click 3 dots i dont see the
+dropdown." Reproduced live on the Cases grid (Sofía Vergara's tile, phone
+width, same shape as her screenshot): the click worked — `.menu-slot` had
+real buttons in it, a real position, a real size — it painted zero pixels.
+
+Root cause: `.tile:hover { transform: translateY(-2px) }` (the grid's hover
+lift, unrelated to this feature, long-standing) creates a fresh CSS stacking
+context on whichever tile is under the cursor — a side effect of `transform`
+that has nothing to do with `z-index`. The floating menu's `z-index: 5`
+(§ "the ⋯ menu opens as a floating panel below the tile") is written
+expecting to compete for paint order against every OTHER tile in the grid;
+trapped inside its own hovered tile's new context instead, it can only win
+against its own tile's other content — the next tile down, painted after it
+in plain DOM order, covers whatever part of the menu overflows past its
+own tile's bottom edge. The more items the menu has, the more of it falls
+into that dead zone — the new "Move to People" row (§54, same day) was
+enough to push this from "mostly fine" to "gone."
+
+Fix: `.tile:has(.menu-slot:not(:empty)) { z-index: 6; }` — the tile actually
+showing its menu now always outranks every sibling tile in paint order,
+hover or not, menu length or not. Reproduced her exact failure first
+(confirmed via `getBoundingClientRect()` — content and position both
+correct, still invisible — the same "measure, don't eyeball" lesson as
+§53's screenshot false alarm, this time landing on a real bug instead of a
+non-bug), then confirmed the fix live at phone width: the menu now paints
+over the tile below it, fully readable.
+
 ## 54. "Move to People" — a thin person-kind case stops being its own tile (v136, 2026-09-22)
 
 Her ask, on the real Cases grid: "move people from cases to people." Four

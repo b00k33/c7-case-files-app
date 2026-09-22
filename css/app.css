@@ -699,6 +699,15 @@ table.matrix td.diag { background: transparent; cursor: default; }
    otherwise pull every tile in that row down to match it) */
 .tile .menu-slot:empty { display: none; }
 .tile .menu-slot:not(:empty) { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; z-index: 5; background: var(--ink-2); border-radius: var(--r-lg); padding: var(--sp-2); box-shadow: var(--shadow); }
+/* the open tile has to win the stacking order over every later grid sibling,
+   or the hover lift's own transform (below) quietly traps the floating menu's
+   z-index inside just this tile, and the next tile — painted after it in
+   plain DOM order — covers the part of the menu that overflows past this
+   tile's own bottom edge. Invisible in the DOM (content's there, positioned
+   correctly) but invisible on screen too (her report, 2026-09-22: "when i
+   click 3 dots i dont see the dropdown" — reproduced live, menu-slot had
+   real content and a real rect, painted zero pixels). */
+.tile:has(.menu-slot:not(:empty)) { z-index: 6; }
 .face { border-radius: 50%; background: var(--ink-3); overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .face .initials { font-family: var(--font-title); color: var(--brass); font-size: 14px; }
