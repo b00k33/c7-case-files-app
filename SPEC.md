@@ -1495,6 +1495,83 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 66. Lifeline: every couple's own story, browsable case-wide (v148, 2026-09-24)
+
+Her ask: "relations have tree and zodiac map. what about Lifeline for
+relationships e.g. she met husband in year x and got engaged in year x."
+"Their Story" (relationship.js — met/engaged/married/separated, its own
+poster, milestones with photos and evidence) already existed in full, but
+the only door into it was two taps deep on the Tree: tap the small "m. 2009"
+label → a drawer → "Their Story →". Nothing case-wide surfaced it.
+
+Added "Lifeline" as a third button in the Relations tab's Tree / Zodiac map
+segmented control. `renderRelationshipsLifeline()` lists every spouse-kind
+relationship in the case as a row — both names, and a preview strip of
+whatever marks that couple's own story already has (☆ met → ♥ married →
+✕ separated, each with its year), or "No story yet — tap to start" when
+there's none. One case-wide fetch (`listEventsForCase`, grouped by
+`relationship_id` client-side) instead of one query per couple. Tapping a
+row opens the existing `#/relationship/{id}` page unchanged.
+
+Verified live: a test couple with a Wikidata-sourced "Married 2009" mark
+showed the preview correctly; adding a "Met 2003" milestone through Their
+Story and returning to the list picked it up as "☆ 2003 → ♥ 2009" with no
+extra wiring — the same `buildRelationshipLine()` the story page itself
+draws from.
+
+## 65. Marriage/divorce dates now come from Wikidata, not just by hand (v147, 2026-09-24)
+
+Her ask, after the Lifeline conversation: "i want the retrieval of info
+from wikipedia to be more extensive." Checked what "Insert family" actually
+pulls for a spouse — nothing: `relationship.start_date`/`end_date` (the
+tree's own "m. 2005" field) had never once been read from Wikidata in this
+app's life, only ever hand-typed by tapping the tree's year marker. Every
+married couple pulled in via "+ From Wikipedia" landed with a real
+marriage on the tree and a blank year.
+
+Wikidata actually carries this: P580 (start time) / P582 (end time) as
+QUALIFIERS on the P26 (spouse) statement itself, not a separate claim —
+`values()`'s existing claim-reader only ever looked at a claim's own
+`mainsnak`, never its `qualifiers`, so this was structurally invisible to
+every prior lookup. Added `spouseDatesFromClaims()` to read them (keeping
+the earliest start if a remarriage produces two P26 claims for the same
+person) and `wdTimeToISO()` to fold a year-only precision into the same
+"YYYY-01-01" placeholder convention the tree's own hand-typed editor uses.
+`insertFamily()` now sets `start_date`/`end_date` on a new spouse
+relationship whenever Wikidata has them.
+
+Verified live end to end: Andy Roddick (Q54584) via "Insert family" —
+Wikidata gave day-precision "2009-04-17" for his marriage to Brooklyn
+Decker, landing on the tree as "m. 2009" exactly as it would have if she'd
+typed it by hand.
+
+## 64. The tree shows age at marriage (v146, 2026-09-24)
+
+Her ask, on a real "m. 2009" tree screenshot of Brooklyn Decker & Andy
+Roddick: "show age of marriage." Added `birthYearOf(p)` — loose, like
+`tree.js`'s own `yearsText()`, not `exactBirth()`'s day-precision gate,
+since most Wikidata people only carry a birth YEAR and a year-precision age
+is still an honest one — and a second small text line under the marriage
+year, "30 & 25", only drawn when both spouses' birth years are known.
+
+Tried folding the ages straight onto the "m. 2009" line first ("m. 2009 ·
+30 & 25"); measured live and found it ran to ~102px against a couple's two
+tree nodes sitting only ~74px apart at this zoom, wide enough to visibly
+run under both avatar circles. Moved the ages to their own line instead
+(42px, comfortably clear) — skipped entirely when there's also a divorce
+year, since that slot is already taken; the age is still one tap away in
+the year editor. Verified live at the exact width that broke the first
+version.
+
+## 63. The "+ Add" paste box starts minimised (v145, 2026-09-24)
+
+Her ask, screenshot of a person's "+ Add" drawer: "make this minimised."
+The "Import information — paste anything" textarea sat permanently open,
+pushing "By hand" (the event/alternate-birthday tools, used more often)
+below the fold. Wrapped it in a native `<details>`, closed by default —
+the same collapse idiom the profile's numerology panel already uses for
+"show working ▸" — rather than inventing a new toggle pattern.
+
 ## 62. The family tree shows the day born, not just life path (v144, 2026-09-24)
 
 Her ask, a real screenshot of the Royal Family tree with "Numbers on":

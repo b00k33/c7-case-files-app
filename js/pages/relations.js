@@ -7,12 +7,13 @@ import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
+import { buildRelationshipLine } from '../lifemap.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 
-const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map'
+const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map' | 'lifeline'
 const NUMBERS_KEY = 'c7-tree-numbers'; // '1' shows number · animal · sign under each face
 const FIT_KEY = 'c7-tree-fit';         // '0' turns "Fit" off (on by default: she wants the whole tree)
 const GRID_SORT_KEY = 'c7-grid-sort';  // 'name' (default) | 'animal' | 'trine' | 'sun' | 'element'
@@ -55,7 +56,8 @@ export async function render(root, ctx, focusId = null) {
   }
   const focus = focusId && typeof focusId === 'string' ? focusId : null;
   const [allPeople, allRels] = await Promise.all([store.listPeople(ctx.caseId), store.listRelationships(ctx.caseId)]);
-  const view = localStorage.getItem(VIEW_KEY) === 'map' ? 'map' : 'tree';
+  const savedView = localStorage.getItem(VIEW_KEY);
+  const view = savedView === 'map' || savedView === 'lifeline' ? savedView : 'tree';
 
   // Generation filter (her ask, 2026-09-03: "let me filter through
   // generations"): a range, from row A to row B of the whole case, that the
@@ -104,6 +106,7 @@ export async function render(root, ctx, focusId = null) {
           <div class="seg" id="rel-view">
             <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">Tree</button>
             <button class="${view === 'map' ? 'active' : ''}" data-view="map">Zodiac map</button>
+            <button class="${view === 'lifeline' ? 'active' : ''}" data-view="lifeline" title="Every couple's own story — met, engaged, married, separated">Lifeline</button>
           </div>
           ${roots.length ? `<span class="row" style="gap:6px;align-items:center" id="fam-filter" title="One person's line: them, their spouses, their descendants and the descendants' spouses">
             <span class="section-label">Family</span>
@@ -163,6 +166,8 @@ export async function render(root, ctx, focusId = null) {
     mapSlot.appendChild(emptyState({ missing: 'No people in this case yet.', why: 'Add the first person to start the tree.', action: '+ From Wikipedia', onAction: () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')) }));
   } else if (view === 'map') {
     await renderZodiacMap(mapSlot, ctx, people, rels);
+  } else if (view === 'lifeline') {
+    await renderRelationshipsLifeline(mapSlot, ctx, people, rels);
   } else {
     await renderTree(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
     renderOthers(root.querySelector('#others-slot'), ctx, people, rels, focus);
@@ -186,6 +191,15 @@ function numbersFor(p) {
 function dayBornOf(p) {
   const d = exactBirth(p);
   return d && d.length === 10 ? parseInt(d.slice(8, 10), 10) : null;
+}
+
+// the loose birth year (her ask, 2026-09-24: "show age of marriage") — NOT
+// exactBirth: most Wikidata people only carry a birth YEAR here, and a
+// year-precision age is still an honest age, same looseness yearsText()
+// already reads the tree's own "1987" from
+function birthYearOf(p) {
+  const y = p.birth_date ? p.birth_date.slice(0, 4) : (p.birth_year_min ? String(p.birth_year_min) : null);
+  return y ? parseInt(y, 10) : null;
 }
 
 /**
@@ -265,6 +279,7 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
   tree.appendChild(svg);
   const stroke = (confirmed) => (confirmed ? 'var(--text-3)' : 'var(--ink-3)');
   const relById = new Map(rels.map((r) => [r.id, r]));
+  const peopleById = new Map(people.map((p) => [p.id, p]));
   for (const e of L.edges) {
     let el = null;
     if (e.kind === 'couple' && e.arc) el = svgEl('path', { d: `M${e.x1},${e.top} C${e.x1},${e.top - e.rise} ${e.x2},${e.top - e.rise} ${e.x2},${e.top}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
@@ -323,6 +338,26 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
           t.textContent = `m. ${year}`;
           t.addEventListener('click', openEditor);
           svg.appendChild(t);
+          // age at marriage (her ask, 2026-09-24, on a real "m. 2009" screenshot:
+          // "show age of marriage") — its own line so it never has to share
+          // horizontal room with the year: a couple's two node faces sit only
+          // ~74px apart at this zoom, and "m. 2015 · 30 & 25" run together
+          // measured ~102px, wide enough to visibly run under the avatars
+          // (found live, testing this exact change). Skipped when there's
+          // also a divorce year, since that already owns this same spot below
+          // the line — the age is still one tap away, in the year editor.
+          if (!endYear) {
+            const aBy = birthYearOf(peopleById.get(rel.a_id));
+            const bBy = birthYearOf(peopleById.get(rel.b_id));
+            if (aBy && bBy) {
+              const yearNum = parseInt(year, 10);
+              const at = svgEl('text', { x: mx, y: lineY + 16, class: 'tree-marriage-age', 'text-anchor': 'middle' });
+              at.textContent = `${yearNum - aBy} & ${yearNum - bBy}`;
+              const title = svgEl('title'); title.textContent = `Married at ${yearNum - aBy} and ${yearNum - bBy}`; at.appendChild(title);
+              at.addEventListener('click', openEditor);
+              svg.appendChild(at);
+            }
+          }
         } else {
           const dot2 = svgEl('circle', { cx: mx, cy: my, r: 4, class: 'tree-marriage-empty' });
           const t = svgEl('title'); t.textContent = `Add the year they married — ${e.label.replace(' · spouse', '')}`;
@@ -559,6 +594,50 @@ function renderOthers(slot, ctx, people, rels, focus) {
     row.className = 'list-row';
     row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${other ? other.display_name : `${a.display_name} · ${b.display_name}`}</div><div class="sub">${r.kind}${r.theory_id ? '' : r.confirmed ? '' : ' · unconfirmed'}${r.notes ? ' · ' + r.notes : ''}</div></div>${r.theory_id ? '<span class="chip violet" title="A theory link — from a theory timeline, not the record">theory</span>' : ''}`;
     row.addEventListener('click', () => ctx.navigate(`#/subject/${(other || a).id}`));
+    list.appendChild(row);
+  }
+  slot.appendChild(panel);
+}
+
+// -------------------------------------------------------------- lifeline --
+
+// every couple's own story, browsable case-wide (her ask, 2026-09-24:
+// "relations have tree and zodiac map. what about Lifeline for
+// relationships e.g. she met husband in year x and got engaged in year x")
+// — "Their Story" (relationship.js) already draws met/engaged/married/
+// separated as its own poster, but until now the only door into it was two
+// taps deep on the tree (tap "m. 2009" → a drawer → "Their Story →"). This
+// is the same data, surfaced as a browsable list, one tap to the full page.
+async function renderRelationshipsLifeline(slot, ctx, people, rels) {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const couples = rels.filter((r) => r.kind === 'spouse' && !r.theory_id);
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  if (!couples.length) {
+    panel.appendChild(emptyState({ missing: 'No couples yet.', why: 'A spouse relationship gets its own story here — met, engaged, married, separated.', action: 'link two people', onAction: () => ctx.openDrawer((body) => renderAddRel(body, ctx, people)) }));
+    slot.appendChild(panel);
+    return;
+  }
+  panel.innerHTML = `<div class="panel-title">Their stories</div><div class="stack" style="gap:2px" id="lifeline-list"></div>`;
+  const list = panel.querySelector('#lifeline-list');
+  const allEvents = await ctx.store.listEventsForCase(ctx.caseId);
+  const eventsByRel = new Map();
+  for (const ev of allEvents) {
+    if (!ev.relationship_id) continue;
+    if (!eventsByRel.has(ev.relationship_id)) eventsByRel.set(ev.relationship_id, []);
+    eventsByRel.get(ev.relationship_id).push(ev);
+  }
+  for (const r of couples) {
+    const a = byId.get(r.a_id), b = byId.get(r.b_id);
+    if (!a || !b) continue;
+    const { marks } = buildRelationshipLine({ relationship: r, events: eventsByRel.get(r.id) || [] });
+    const row = document.createElement('div');
+    row.className = 'list-row';
+    const preview = marks.length
+      ? marks.map((m) => `<span class="mono" style="color:var(--text-2)">${m.glyph} ${m.year}</span>`).join(' <span style="color:var(--text-3)">→</span> ')
+      : '<span class="dim">No story yet — tap to start</span>';
+    row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${a.display_name} &amp; ${b.display_name}</div><div class="sub" style="margin-top:2px">${preview}</div></div>${!r.confirmed ? '<span class="chip" title="Unconfirmed on the tree">unconfirmed</span>' : ''}`;
+    row.addEventListener('click', () => ctx.navigate(`#/relationship/${r.id}`));
     list.appendChild(row);
   }
   slot.appendChild(panel);

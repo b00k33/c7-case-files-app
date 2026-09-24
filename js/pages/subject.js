@@ -297,14 +297,16 @@ export async function render(root, ctx, personId, tab = 'profile') {
           </div>
         </div>
         <div id="lk-results" class="stack" style="gap:4px"></div>
-        <div class="field" style="margin-top:16px">
-          <label>Import information — paste anything, it saves what it recognises</label>
-          <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
-        </div>
-        <div class="row" style="gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
-          <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
-        </div>
+        <details style="margin-top:16px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--text-2);list-style:none">Import information ▸ paste anything, it saves what it recognises</summary>
+          <div class="field" style="margin-top:8px">
+            <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
+          </div>
+          <div class="row" style="gap:8px;align-items:center">
+            <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
+            <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
+          </div>
+        </details>
         <div class="section-label" style="margin-top:24px;margin-bottom:8px">By hand</div>
         <div class="field">
           <label>Add an event — what happened, when</label>

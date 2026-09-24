@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-24, latest — the family tree now shows day born, not just life
+**2026-09-24, latest — Lifeline, marriage dates from Wikidata, age at
+marriage, and a collapsed "+ Add" paste box (v145–v148, SPEC §63–66).**
+Four asks in one sitting, mostly triggered by real screenshots. (1) The
+"+ Add" drawer's paste textarea wrapped in a closed-by-default `<details>`
+— same idiom as the numerology panel's own "show working ▸" — so "By hand"
+isn't pushed below the fold (v145). (2) The tree's "m. 2009" marker gets a
+second small line, "30 & 25" (age at marriage), skipped when there's also
+a divorce year — tried it inline first, measured live, found it ran under
+both avatar circles at ~102px against a ~74px gap, moved it to its own
+line instead (v146). (3) The real find: "Insert family" had NEVER read a
+marriage's start/end date from Wikidata — P580/P582 live as QUALIFIERS on
+the P26 spouse claim, invisible to the existing `values()` reader, which
+only ever looked at a claim's own mainsnak. Added `spouseDatesFromClaims()`
++ `wdTimeToISO()`; verified live on Andy Roddick (Q54584) — Wikidata's own
+day-precision marriage date landed on the tree exactly as if she'd typed
+it (v147). (4) "Lifeline" as a third Relations-tab view alongside Tree/
+Zodiac map: every spouse relationship listed with its own story preview
+(☆ met → ♥ married → ✕ separated), one case-wide events fetch instead of
+one query per couple, tapping through to the existing (previously two-taps-
+deep, undiscoverable) Their Story page unchanged (v148).
+
+**2026-09-24, earlier — the family tree now shows day born, not just life
 path (v144, SPEC §62).** Her ask on a real Royal Family tree screenshot,
 "Numbers on": "show life path and day born." Added a `dayBornOf(p)`
 helper and a small "day N" line under the tree's existing numbers row —

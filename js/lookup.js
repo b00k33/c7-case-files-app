@@ -78,6 +78,40 @@ function values(claims, prop) {
   return (preferred.length ? preferred : usable).map((c) => c.mainsnak.datavalue.value);
 }
 
+// a parsed Wikidata time -> the schema's ISO text, year-precision synthesized
+// as "YYYY-01-01" (the same "day is a placeholder" convention the tree's own
+// hand-typed "m. 2005" already uses — see renderEditMarriageYear)
+function wdTimeToISO(parsed) {
+  if (!parsed) return null;
+  if (parsed.date) return parsed.date;
+  if (parsed.year) return `${String(parsed.year).padStart(4, '0')}-01-01`;
+  return null;
+}
+
+// when a marriage started/ended lives as a QUALIFIER on the P26 (spouse)
+// claim itself — P580 start time, P582 end time — not as its own statement,
+// so it needs the claim's own qualifiers block, never just values()'s bare
+// mainsnak (her ask, 2026-09-24: "i want the retrieval of info from
+// wikipedia to be more extensive" — until now a relationship's start/end
+// date was never pulled from Wikidata at all, only ever hand-typed into the
+// tree's "m. 2005" tap target). Keyed by spouse qid; a remarriage to the
+// same person would carry two P26 claims for that qid — keeps the earliest
+// start, since this file draws one relationship per pair, not one per marriage.
+function spouseDatesFromClaims(claims) {
+  const out = {};
+  for (const c of (claims[P.spouse] || [])) {
+    if (c.rank === 'deprecated' || !c.mainsnak || !c.mainsnak.datavalue) continue;
+    const id = c.mainsnak.datavalue.value && c.mainsnak.datavalue.value.id;
+    if (!id) continue;
+    const q = c.qualifiers || {};
+    const start = q.P580 && q.P580[0] && q.P580[0].datavalue ? parseWdTime(q.P580[0].datavalue.value) : null;
+    const end = q.P582 && q.P582[0] && q.P582[0].datavalue ? parseWdTime(q.P582[0].datavalue.value) : null;
+    if (!start && !end) continue;
+    if (!out[id] || (start && (!out[id].start || wdTimeToISO(start) < wdTimeToISO(out[id].start)))) out[id] = { start, end };
+  }
+  return out;
+}
+
 // a growing share of items (J. K. Rowling's own among them) carry their
 // label only under "mul" — the same name in every language, so Wikidata
 // stops duplicating it per-language — never under "en" at all (2026-09-04,
@@ -99,6 +133,7 @@ export async function fetchProfile(qid) {
   const genderId = idOf(values(claims, P.gender)[0]);
   const citizenIds = values(claims, P.citizenship).map(idOf).filter(Boolean);
   const spouseIds = values(claims, P.spouse).map(idOf).filter(Boolean);
+  const spouseDates = spouseDatesFromClaims(claims);
   const occupationIds = values(claims, P.occupation).map(idOf).filter(Boolean).slice(0, 4);
   [birthPlaceId, genderId, ...citizenIds, ...spouseIds, ...occupationIds].filter(Boolean).forEach((id) => ids.add(id));
 
@@ -159,6 +194,8 @@ export async function fetchProfile(qid) {
       qid: r.qid, role: r.role, name: L(r.qid),
       birth: parseWdTime(values(relClaims[r.qid] || {}, P.birth)[0]),
       death: parseWdTime(values(relClaims[r.qid] || {}, P.death)[0]),
+      marriageStart: r.role === 'spouse' && spouseDates[r.qid] ? spouseDates[r.qid].start : null,
+      marriageEnd: r.role === 'spouse' && spouseDates[r.qid] ? spouseDates[r.qid].end : null,
     })),
     occupations: occupationIds.map(L),
   };
@@ -317,7 +354,17 @@ export async function insertFamily(store, caseId, personId, qid, onProgress = ()
     const cite = (prop) => `Source: Wikidata ${facts.wikidataUrl} (${prop})${facts.wikiUrl ? ` · Wikipedia ${facts.wikiUrl}` : ''}`;
     const [kind, a, b] = directedRelationship(rel.role, personId, person.id);
     if (!store.relationshipExists(caseId, a, b, kind)) {
-      await store.upsertRelationship({ case_id: caseId, a_id: a, b_id: b, kind, confidence: 70, confirmed: 0, notes: cite(ROLE_PROP_ALL[rel.role] || '') });
+      const relPatch = { case_id: caseId, a_id: a, b_id: b, kind, confidence: 70, confirmed: 0, notes: cite(ROLE_PROP_ALL[rel.role] || '') };
+      // the marriage's own start/end, read straight off Wikidata's P26
+      // qualifiers above — she no longer has to hand-type "m. 2005" for
+      // every couple a lookup already knows the year of
+      if (kind === 'spouse') {
+        const start = wdTimeToISO(rel.marriageStart);
+        const end = wdTimeToISO(rel.marriageEnd);
+        if (start) relPatch.start_date = start;
+        if (end) relPatch.end_date = end;
+      }
+      await store.upsertRelationship(relPatch);
       result.relationships += 1;
     }
     await store.createAcceptedClaim({ case_id: caseId, target_type: 'case', target_id: caseId, field: 'relative', value: { display_name: rel.name, qid: rel.qid, role: rel.role, of: personId, birth: rel.birth || null, death: rel.death || null }, origin: 'lookup', rationale: cite(ROLE_PROP_ALL[rel.role] || '') });
