@@ -1495,6 +1495,49 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 59. Traits gallery — a physical trait, crossed with life path 9 or born on the 9th (v141, 2026-09-24)
+
+Her ask: "make an option to create a gallery of people who have dimples
+and show that they are either 9 life path or born on 9 day." Asked "make
+some mocks for me... for case studying" before any code — three real
+candidates (face grid, quiet list, grouped by reason), her pick: grouped
+by reason, two panels so it's legible WHICH condition is doing the work.
+
+Two pieces, since neither existed:
+
+**Tagging a real person.** Traits already had a mechanism — the tag/
+tagging tables, built for Fun & Zodiac's "note a trait" box (2026-09-05)
+— but that tool only ever tags people inside its own separate, isolated
+`fun`-kind case; nothing on a REAL person's own profile could add one.
+Added "Traits you've noticed" to the Edit sheet, comma-separated, same
+UX as Fun's own box; save diffs typed traits against what was already
+there (`store.untagTarget` for anything removed, `ensureTag` +
+`store.tagTarget` for anything new) rather than only ever adding, so a
+trait she deletes from the box actually comes off.
+
+**The gallery itself**, new on Patterns, above the existing (case-scoped)
+matrix/counts/findings panels and NOT gated by having a case open — a
+physical trait isn't scoped to one case, the whole point is spotting it
+across everyone she's researched. Chips list every trait actually in use
+anywhere (excluding the unrelated `outcome:*` tags event outcomes ride on
+the same table), remembered across visits (`localStorage`). Picking one
+computes `lifePath(exactBirth(p))` for every holder with a full date and
+splits them into "Life path 9" and "Born on the 9th" (`lp.parts.day`,
+the real calendar day life path's own math already carries — no separate
+calculation needed), a person in both flagged "★ both" in each panel.
+Only matches show — someone tagged with the trait but neither condition
+doesn't appear, since the gallery IS the intersection, per her literal ask.
+
+Verified live: tagged the sandbox's real Sofía Vergara (life path 9,
+already true from her real birth date) plus a synthetic 1959-03-09 test
+person (life path 9 AND day 9, to prove the "★ both" path) with
+"dimples" — gallery showed exactly "Life path 9 · 2" and "Born on the
+9th · 1," correctly leaving out two other dimples-tagged people who
+matched neither. Confirmed the Edit sheet round-trip too: pre-fills with
+current traits, adding one persists it, removing one actually removes the
+tagging row, not just stops re-adding it. No console errors. Test data
+cleaned from the sandbox after.
+
 ## 58. "Move all to People" — the bulk door beside the single-case one (v140, 2026-09-22)
 
 Her ask, one day after v136's per-case "Move to People": "make people in

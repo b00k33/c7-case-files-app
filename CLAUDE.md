@@ -417,7 +417,25 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-22, latest — "Move all to People" — the bulk door beside the
+**2026-09-24, latest — Traits gallery: a physical trait crossed with life
+path 9 or born on the 9th (v141, SPEC §59).** Her ask: a gallery of people
+with dimples who are life path 9 or born on the 9th. Mocked three real
+layouts first ("make some mocks for me... for case studying") — face grid,
+quiet list, grouped-by-reason — she picked grouped by reason. Two gaps to
+close: no real person's profile could be tagged with a trait at all (the
+tag system already existed, but only Fun & Zodiac's own isolated sandbox
+case could write one) — added "Traits you've noticed" to the Edit sheet,
+diffed on save so removing one actually removes the tagging row. And
+Patterns (case-scoped for everything else on it) got a new panel above
+the rest that ISN'T case-gated, since a trait spans every case: chip per
+trait in use, picking one splits holders into "Life path 9" / "Born on the
+9th" panels (day-born reads straight off `lifePath()`'s own `parts.day` —
+no second calculation), overlap flagged "★ both." Verified live on real
+Sofía Vergara (genuinely life path 9) plus a synthetic both-match test
+person — exactly the right 2 and 1 showed, non-matching trait-holders
+correctly excluded. Test data cleaned from the sandbox after.
+
+**2026-09-22, earlier — "Move all to People" — the bulk door beside the
 single-case one (v140, SPEC §58).** Her ask, one day after v136: "make
 people in cases just people," with a real screenshot of her 22-case grid —
 nine of them a single person's own biography, and her "1↑ update ready"

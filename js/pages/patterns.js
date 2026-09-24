@@ -10,11 +10,119 @@ function resolvedSign(p) {
   return s.ok && !s.boundary ? s : null;
 }
 
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+const TRAIT_PICK_KEY = 'c7-trait-gallery-pick';
+
+/**
+ * Traits gallery (her ask, 2026-09-24: "a gallery of people who have
+ * dimples and show that they are either 9 life path or born on 9 day") —
+ * cross-case, unlike everything else on this page, since a physical trait
+ * isn't scoped to one case. Traits ride the tag system already built for
+ * Fun & Zodiac's "note a trait" box, now also settable from any real
+ * person's own Edit sheet. Grouped by reason (her pick over a face-grid
+ * and a flat list, from three real mocks): a "Life path 9" panel and a
+ * "Born on the 9th" panel, someone satisfying both flagged in each.
+ */
+async function traitsGalleryPanel(ctx) {
+  const { store } = ctx;
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.style.marginBottom = 'var(--sp-4)';
+  panel.innerHTML = '<div class="panel-title">Traits gallery — a trait, crossed with life path 9 or a birthday on the 9th</div>';
+
+  const people = await store.listAllPeople();
+  const tagsByPerson = {};
+  for (const p of people) tagsByPerson[p.id] = await store.listTagsForTarget('person', p.id);
+
+  // every trait actually in use, anywhere — excludes the event-outcome
+  // tags ('outcome:worked'/'outcome:failed'), which ride this same tag
+  // table for an unrelated reason (2026-09-07) and aren't traits
+  const traitCount = new Map();
+  for (const p of people) for (const t of tagsByPerson[p.id]) {
+    if (t.name.startsWith('outcome:')) continue;
+    traitCount.set(t.name, (traitCount.get(t.name) || 0) + 1);
+  }
+  const traitNames = [...traitCount.keys()].sort((a, b) => a.localeCompare(b));
+
+  if (!traitNames.length) {
+    panel.appendChild(emptyState({
+      missing: 'No traits noted on anyone yet.',
+      why: 'Add one from a person\'s own Edit sheet — "Traits you\'ve noticed," comma separated (dimples, freckles…). Once someone has one, it shows up here to browse by.',
+    }));
+    return panel;
+  }
+
+  const remembered = localStorage.getItem(TRAIT_PICK_KEY);
+  let current = traitNames.includes(remembered) ? remembered : traitNames[0];
+
+  const chipRow = document.createElement('div');
+  chipRow.className = 'row wrap';
+  chipRow.style.cssText = 'gap:6px;margin:8px 0';
+  const resultsEl = document.createElement('div');
+  panel.appendChild(chipRow);
+  panel.appendChild(resultsEl);
+
+  const paintChips = () => {
+    chipRow.innerHTML = traitNames.map((name) => `<button type="button" class="chip" data-name="${esc(name)}" style="border:0;cursor:pointer${name === current ? ';background:var(--brass);color:var(--on-brass)' : ''}">${esc(name)} · ${traitCount.get(name)}</button>`).join('');
+    chipRow.querySelectorAll('[data-name]').forEach((btn) => btn.addEventListener('click', () => {
+      current = btn.dataset.name;
+      localStorage.setItem(TRAIT_PICK_KEY, current);
+      paintChips();
+      paintResults();
+    }));
+  };
+
+  const paintResults = () => {
+    const holders = people.filter((p) => tagsByPerson[p.id].some((t) => t.name === current));
+    const withLP = holders.map((p) => ({ p, lp: lifePath(exactBirth(p)) })).filter((r) => r.lp.ok); // never p.birth_date — see js/person-dates.js
+    const life9 = withLP.filter((r) => r.lp.value === 9);
+    const day9 = withLP.filter((r) => r.lp.parts.day === 9);
+    const bothIds = new Set(life9.filter((r) => day9.some((d) => d.p.id === r.p.id)).map((r) => r.p.id));
+
+    resultsEl.innerHTML = '';
+    if (!life9.length && !day9.length) {
+      resultsEl.appendChild(emptyState({
+        missing: `Nobody tagged “${current}” is life path 9 or born on the 9th.`,
+        why: `${holders.length} ${holders.length === 1 ? 'person has' : 'people have'} this trait — ${withLP.length} of them have a full birth date to check against.`,
+      }));
+      return;
+    }
+    const group = (title, rows) => {
+      const box = document.createElement('div');
+      box.style.cssText = 'background:var(--ink-2);border-radius:var(--r-lg);padding:var(--sp-3);margin-top:8px';
+      box.innerHTML = `<div class="section-label" style="margin-bottom:8px">${title} · ${rows.length}</div>`;
+      const list = document.createElement('div');
+      list.className = 'stack';
+      list.style.gap = '2px';
+      for (const r of rows) {
+        const row = document.createElement('div');
+        row.className = 'list-row';
+        row.innerHTML = `<div class="main"><div class="title">${esc(r.p.display_name)}</div></div>${bothIds.has(r.p.id) ? '<span class="chip brass" style="border:0">★ both</span>' : ''}`;
+        row.addEventListener('click', () => ctx.navigate(`#/subject/${r.p.id}`));
+        list.appendChild(row);
+      }
+      box.appendChild(list);
+      return box;
+    };
+    if (life9.length) resultsEl.appendChild(group('Life path 9', life9));
+    if (day9.length) resultsEl.appendChild(group('Born on the 9th', day9));
+  };
+
+  paintChips();
+  paintResults();
+  return panel;
+}
+
 export async function render(root, ctx) {
   const { store } = ctx;
+  const traitsEl = await traitsGalleryPanel(ctx);
+
   if (!ctx.caseId) {
-    root.innerHTML = '';
-    root.appendChild(emptyState({ missing: 'No case open.', why: 'Pick a case from the Cases page first.', action: 'Go to Cases', onAction: () => ctx.navigate('#/cases') }));
+    root.innerHTML = '<div class="stack"></div>';
+    const stack = root.querySelector('.stack');
+    stack.appendChild(traitsEl);
+    stack.appendChild(emptyState({ missing: 'No case open.', why: 'Pick a case from the Cases page first — the pair matrix and relation counts below need one case to compare within.', action: 'Go to Cases', onAction: () => ctx.navigate('#/cases') }));
     return;
   }
 
@@ -53,6 +161,7 @@ export async function render(root, ctx) {
       </div>
     </div>
   `;
+  root.querySelector('.stack').prepend(traitsEl);
 
   const resolved = people.map((p) => ({ p, sign: resolvedSign(p) }));
   const withSign = resolved.filter((r) => r.sign);

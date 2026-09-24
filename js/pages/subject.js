@@ -446,7 +446,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
     input.click();
   });
 
-  const openEdit = () => ctx.openDrawer((body) => renderEditForm(body, ctx, person));
+  const openEdit = async () => {
+    const tags = await store.listTagsForTarget('person', person.id);
+    ctx.openDrawer((body) => renderEditForm(body, ctx, person, tags));
+  };
   root.querySelector('#edit-person-btn').addEventListener('click', openEdit);
   root.querySelector('#unmove-person-btn')?.addEventListener('click', async () => {
     await store.updateCase(kase.id, { hidden: 0 });
@@ -1242,7 +1245,7 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function renderEditForm(body, ctx, person) {
+function renderEditForm(body, ctx, person, tags = []) {
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:16px">Edit ${esc(person.display_name)}</h3>
     <div class="field"><label>Display name</label><input type="text" id="f-name" value="${esc(person.display_name)}"></div>
@@ -1251,6 +1254,7 @@ function renderEditForm(body, ctx, person) {
       <div class="field" style="flex:1"><label>Birth date</label><input type="date" id="f-bdate" value="${person.birth_date || ''}"></div>
       <div class="field" style="flex:1"><label>Time of birth</label><input type="time" id="f-btime" value="${person.birth_time || ''}"></div>
     </div>
+    <div class="field"><label>Traits you've noticed — physical or personality, comma separated (e.g. dimples, freckles). Feeds the Traits gallery on Patterns.</label><input type="text" id="f-traits" value="${esc(tags.map((t) => t.name).join(', '))}" placeholder="dimples, freckles"></div>
     <div class="field"><label>Birth precision — only needed when there's no exact day (a month, a year, or a contested range)</label>
       <select id="f-bprec">
         ${['day', 'month', 'year', 'range', 'unknown'].map((p) => `<option value="${p}" ${p === person.birth_precision ? 'selected' : ''}>${p}</option>`).join('')}
@@ -1337,6 +1341,17 @@ function renderEditForm(body, ctx, person) {
     }
     if (!blocked) clearInlineNote(nameInput);
     await ctx.store.updatePerson(person.id, patch);
+    // traits ride the existing cross-case tag system (already built for
+    // exactly this on Fun & Zodiac) — diffed against what she typed, so a
+    // trait she deletes from the box actually comes off, not just stops
+    // being added again (her ask, 2026-09-24: a "dimples" gallery needs
+    // real people taggable from their own profile, not only from Fun's
+    // separate sandbox case)
+    const typedTraits = body.querySelector('#f-traits').value.split(',').map((t) => t.trim()).filter(Boolean);
+    const before = new Set(tags.map((t) => t.name.toLowerCase()));
+    const after = new Set(typedTraits.map((t) => t.toLowerCase()));
+    for (const t of tags) if (!after.has(t.name.toLowerCase())) await ctx.store.untagTarget(t.id, 'person', person.id);
+    for (const t of typedTraits) if (!before.has(t.toLowerCase())) await ctx.store.tagTarget(await ctx.store.ensureTag(t), 'person', person.id);
     if (blocked) return;
     ctx.closeDrawer();
     ctx.rerender();
