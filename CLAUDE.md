@@ -417,7 +417,25 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-24, latest — Traits gallery: a physical trait crossed with life
+**2026-09-24, latest — "+ Tag people": a fast, batch door onto the Traits
+gallery (v142, SPEC §60).** Right after v141 shipped, she pasted three
+real lists (~28 celebrities) and asked for a fast way to mark them all
+with "dimples" — one-at-a-time through Edit wasn't it. Added a button
+beside the gallery's title: one trait, a textarea of names. Already in
+the file (any case) → tagged directly; not found → same Wikidata search-
+and-fill "+ Person" has, auto-picking the top match rather than pausing
+per name, landing in "No case yet." Deliberately the one network-hitting
+add path on this page — the gallery needs a real birth date to place
+anyone, so a bare name could never show up in it otherwise. Summary waits
+for her own "Done" tap before re-rendering, so it doesn't vanish the
+instant it lands. Verified live on real names: Ariana Grande fully
+filled; "Kate Middleton" correctly resolved but saved under Wikidata's
+own label ("Catherine, Princess of Wales") — same as every other
+Wikidata create in this app — and her real birthday, 9 Jan 1982, means
+she'll genuinely land in "Born on the 9th." One 429 from Wikidata's rate
+limiting during the run, no data lost from it.
+
+**2026-09-24, earlier — Traits gallery: a physical trait crossed with life
 path 9 or born on the 9th (v141, SPEC §59).** Her ask: a gallery of people
 with dimples who are life path 9 or born on the 9th. Mocked three real
 layouts first ("make some mocks for me... for case studying") — face grid,

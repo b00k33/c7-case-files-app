@@ -4,6 +4,7 @@ import { relation } from '../relations.js';
 import { expectedCounts, expectedDigitCount } from '../stats.js';
 import { relationGlyph, barRow, emptyState, animalHtml } from '../indicators.js';
 import { exactBirth, exactEventDate } from '../person-dates.js';
+import { searchPeople, fillFromWikidata } from '../lookup.js';
 
 function resolvedSign(p) {
   const s = signFor(exactBirth(p)); // never p.birth_date — see js/person-dates.js
@@ -13,6 +14,72 @@ function resolvedSign(p) {
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 const TRAIT_PICK_KEY = 'c7-trait-gallery-pick';
+
+/**
+ * "+ Tag people" (her ask, 2026-09-24, right after v141 shipped — she
+ * pasted three lists, ~28 named celebrities, and asked for a fast way to
+ * mark them all with "dimples"): paste a name per line, one trait, go.
+ * Someone already anywhere in the file (by name, any case) just gets
+ * tagged; anyone new is looked up on Wikidata — the same record-fill
+ * "+ Person" already has (v138) — and lands in "No case yet" (2026-09-21
+ * door), since a dimple note doesn't need a case spun up around it. The
+ * gallery needs a real birth date to place anyone by life path or day, so
+ * a bare name with nothing else would never be able to show up in it —
+ * this is the one add-path here that's allowed to hit the network, for
+ * exactly that reason.
+ */
+function wireBatchTag(btn, slot, ctx) {
+  const { store } = ctx;
+  btn.addEventListener('click', () => {
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    slot.innerHTML = `
+      <div class="field"><label>Trait</label><input type="text" id="tp-trait" placeholder="dimples"></div>
+      <div class="field"><label>Names — one per line, or comma separated</label><textarea id="tp-names" style="min-height:90px" placeholder="Ariana Grande&#10;Kate Middleton"></textarea></div>
+      <div class="row wrap" style="gap:8px" id="tp-actions"><button class="btn btn-primary btn-sm" id="tp-go">Tag them</button><button class="btn btn-ghost btn-sm" id="tp-cancel">Cancel</button></div>
+      <div id="tp-progress" style="margin-top:6px"></div>
+    `;
+    slot.querySelector('#tp-cancel').addEventListener('click', () => { slot.innerHTML = ''; });
+    slot.querySelector('#tp-go').addEventListener('click', async () => {
+      const trait = slot.querySelector('#tp-trait').value.trim();
+      const names = slot.querySelector('#tp-names').value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+      const goBtn = slot.querySelector('#tp-go');
+      const prog = slot.querySelector('#tp-progress');
+      if (!trait || !names.length) { prog.textContent = 'Type a trait and at least one name first.'; return; }
+      goBtn.disabled = true;
+      const tagId = await store.ensureTag(trait);
+      const existing = await store.listAllPeople(); // checked fresh each run, so a name added earlier in THIS same batch is found too
+      let created = 0, matched = 0;
+      const failed = [];
+      for (let i = 0; i < names.length; i++) {
+        const name = names[i];
+        prog.textContent = `${i + 1} of ${names.length} — ${name}`;
+        const already = existing.find((p) => p.display_name.trim().toLowerCase() === name.toLowerCase());
+        if (already) {
+          await store.tagTarget(tagId, 'person', already.id);
+          matched++;
+          continue;
+        }
+        try {
+          const hits = await searchPeople(name);
+          if (!hits.length) { failed.push(name); continue; }
+          const m = hits[0]; // the best Wikidata match — reasonable for a named public figure, same trust the rest of this app puts in a Wikidata search
+          const person = await store.createPerson({ case_id: null, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
+          await fillFromWikidata(store, null, person.id, m.id);
+          await store.tagTarget(tagId, 'person', person.id);
+          existing.push(person);
+          created++;
+        } catch (e) { failed.push(name); }
+      }
+      // the gallery below needs a full page re-render to pick up new people
+      // and tags — deferred to her own tap on "Done" rather than firing it
+      // immediately, so the summary doesn't vanish the instant it appears
+      // (same reasoning as the life-events sheet's own "Done" step)
+      prog.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">Done — ${created} added, ${matched} already here, all tagged “${esc(trait)}.”${failed.length ? ` Couldn't find: ${failed.map(esc).join(', ')}.` : ''}</div>`;
+      slot.querySelector('#tp-actions').innerHTML = '<button class="btn btn-primary btn-sm" id="tp-done">Done</button>';
+      slot.querySelector('#tp-done').addEventListener('click', () => ctx.rerender());
+    });
+  });
+}
 
 /**
  * Traits gallery (her ask, 2026-09-24: "a gallery of people who have
@@ -29,7 +96,14 @@ async function traitsGalleryPanel(ctx) {
   const panel = document.createElement('div');
   panel.className = 'panel';
   panel.style.marginBottom = 'var(--sp-4)';
-  panel.innerHTML = '<div class="panel-title">Traits gallery — a trait, crossed with life path 9 or a birthday on the 9th</div>';
+  panel.innerHTML = `
+    <div class="row between wrap" style="gap:8px">
+      <div class="panel-title">Traits gallery — a trait, crossed with life path 9 or a birthday on the 9th</div>
+      <button class="btn btn-ghost btn-sm" id="tag-people-btn">+ Tag people</button>
+    </div>
+    <div id="tag-people-slot"></div>
+  `;
+  wireBatchTag(panel.querySelector('#tag-people-btn'), panel.querySelector('#tag-people-slot'), ctx);
 
   const people = await store.listAllPeople();
   const tagsByPerson = {};
@@ -48,7 +122,7 @@ async function traitsGalleryPanel(ctx) {
   if (!traitNames.length) {
     panel.appendChild(emptyState({
       missing: 'No traits noted on anyone yet.',
-      why: 'Add one from a person\'s own Edit sheet — "Traits you\'ve noticed," comma separated (dimples, freckles…). Once someone has one, it shows up here to browse by.',
+      why: 'Add one from a person\'s own Edit sheet — "Traits you\'ve noticed" — or the "+ Tag people" button above, which finds or adds a whole pasted list at once.',
     }));
     return panel;
   }

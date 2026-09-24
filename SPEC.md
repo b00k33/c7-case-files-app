@@ -1495,6 +1495,46 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 60. "+ Tag people" — a fast, batch door onto the Traits gallery (v142, 2026-09-24)
+
+Her ask, right after v141 shipped: pasted three real lists (~28 named
+celebrities) and asked "is there a fast way to mark celebs with dimples."
+One-at-a-time through each profile's Edit sheet wasn't it.
+
+"+ Tag people" sits next to the gallery's title (always there, even
+before any trait exists — the empty state now points to it as the other
+way in). One trait, a textarea of names — one per line or comma
+separated. Per name: already anywhere in the file (by name, any case,
+checked fresh each run so an earlier name in the SAME paste is found
+too) → tagged directly; not found → the same Wikidata search-and-fill "+
+Person" already has (v138), auto-taking the top match (trusted the way
+every other Wikidata search in this app already is) rather than pausing
+for a pick each time, landing in "No case yet" since a dimple note
+doesn't need a case built around it. This is deliberately the one add
+path on this page allowed to hit the network — the gallery can't place
+anyone by life path or day without a real birth date, so a bare name
+alone would never be able to appear in it.
+
+Progress reads live ("3 of 28 — Harry Styles"); the summary
+(added/already-here/not-found counts) waits for her own tap on "Done"
+before the page re-renders, so it doesn't vanish the instant it appears
+— same reasoning as the life-events sheet's own deferred "Done" step
+(2026-09-21).
+
+Verified live: "Ariana Grande, Kate Middleton, Sofía Vergara,
+Zzqxnotarealperson123" → dimples. Ariana Grande created with real dates/
+photo/nationality; "Kate Middleton" resolved correctly to Wikidata but
+saved under its own label, "Catherine, Princess of Wales" (same
+label-not-typed-name behavior every Wikidata create in this app already
+has) — and her real birth date, 9 Jan 1982, means she'll actually surface
+under "Born on the 9th," not a contrived example. Sofía Vergara (already
+in the file) matched and was tagged without a duplicate. The nonsense
+name failed cleanly and was named in the summary. One transient 429 from
+Wikidata's own rate limiting during the run; both real people still came
+out fully filled — a large paste (her real ask was ~28 names) should
+expect to take a couple of minutes, run sequentially, one profile at a
+time.
+
 ## 59. Traits gallery — a physical trait, crossed with life path 9 or born on the 9th (v141, 2026-09-24)
 
 Her ask: "make an option to create a gallery of people who have dimples
