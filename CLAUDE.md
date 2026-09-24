@@ -417,7 +417,20 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-24, latest — the rail's case-switcher dropdown, removed (v143,
+**2026-09-24, latest — the family tree now shows day born, not just life
+path (v144, SPEC §62).** Her ask on a real Royal Family tree screenshot,
+"Numbers on": "show life path and day born." Added a `dayBornOf(p)`
+helper and a small "day N" line under the tree's existing numbers row —
+bare number, matching the profile chart panel's own "day born" bubble.
+Deliberately kept OUT of the shared `numberIcons()` component itself,
+since that also draws the profile's own chart row (which already shows
+day born separately on the same page — stacking it in there too would
+double it) and the compact family widget, neither asked for this. Both
+tree densities (full `.tree-node` cards, sibling `.mini` marks) got it,
+gated the same way life path already is, by "Numbers on." Verified live:
+a parent/child test pair sharing a birthday showed "day 22" under both.
+
+**2026-09-24, earlier — the rail's case-switcher dropdown, removed (v143,
 SPEC §61).** Her report: a screenshot of it open, "i dont use this, it is
 not useful for me." Asked which part before touching anything — not the
 list itself, the control: she always switches cases via Cases/People/

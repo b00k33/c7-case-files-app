@@ -1495,6 +1495,29 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 62. The family tree shows the day born, not just life path (v144, 2026-09-24)
+
+Her ask, a real screenshot of the Royal Family tree with "Numbers on":
+"show life path and day born." The tree's numbers already carried life
+path + animal + sun sign (`numberIcons()`); the calendar day itself —
+already shown as its own "day born" bubble on the profile's own chart
+panel — had no equivalent here.
+
+Added a `dayBornOf(p)` helper beside the tree's existing `numbersFor(p)`
+and a small `day N` line under the numbers row — bare number, no ordinal
+suffix, same convention the profile's chart panel already uses. Deliberately
+NOT added to the shared `numberIcons()` component itself: that function
+also draws the profile's own big chart row and the compact family widget,
+neither of which asked for this, and the profile already shows day born
+elsewhere on the same page — stacking it into `numberIcons()` too would
+have doubled it up there. Both tree densities got it: the full tree's
+`.tree-node` cards (what her screenshot showed) and the sibling-row `.mini`
+marks, both only when "Numbers on" is toggled, same as life path already is.
+
+Verified live: a two-person test family (a parent and child sharing a
+birthday, 22 July) — "day 22" appeared under both, correctly reusing the
+existing `.years` line style for a consistent look. No console errors.
+
 ## 61. The rail's case switcher, removed — she never used it (v143, 2026-09-24)
 
 Her report, a screenshot of the nav rail's "Case file" dropdown open on

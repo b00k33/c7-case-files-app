@@ -180,6 +180,14 @@ function numbersFor(p) {
   return { lifePath: lifePath(d), chinese: signFor(d), sun: sunSign(d) };
 }
 
+// the calendar day itself (her ask, 2026-09-24, on a real tree screenshot:
+// "show life path and day born") — bare number, same convention as the
+// profile's own chart panel ("day born", no ordinal suffix)
+function dayBornOf(p) {
+  const d = exactBirth(p);
+  return d && d.length === 10 ? parseInt(d.slice(8, 10), 10) : null;
+}
+
 /**
  * The tree itself. opts.full = drawn inside the full-screen overlay (✕ to
  * close instead of Expand). Fit shrinks the tree to the box (never below
@@ -391,9 +399,10 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
         const years = yearsText(p);
         // the number is never omitted for a missing date — hollow dash, always (STYLE §5)
         const lp = numbers ? lifePath(exactBirth(p)) : null;
+        const day = numbers ? dayBornOf(p) : null;
         m.innerHTML = `<div class="face" style="width:${L.mini.face}px;height:${L.mini.face}px"><span class="initials">${initials(p.display_name)}</span></div>
           <div class="name">${p.display_name.split(' ')[0]}${lp ? ` <span class="lp${lp.ok ? '' : ' unknown'}" title="${lp.ok ? 'Life path ' + lp.value : 'Life path — needs a full birth date'}">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</span>` : ''}</div>
-          ${years ? `<div class="years">${years.slice(0, 4)}</div>` : ''}`;
+          ${years ? `<div class="years">${years.slice(0, 4)}${day ? ` · day ${day}` : ''}</div>` : (day ? `<div class="years">day ${day}</div>` : '')}`;
         m.title = `${p.display_name}${years ? ' · ' + years : ''} — open profile`;
         m.addEventListener('click', () => openProfile(p.id));
         g.appendChild(m);
@@ -420,6 +429,14 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       icons.style.justifyContent = 'center';
       icons.style.marginTop = '4px';
       el.appendChild(icons);
+      const day = dayBornOf(p);
+      if (day) {
+        const dayEl = document.createElement('div');
+        dayEl.className = 'years';
+        dayEl.title = `Born on the ${day}`;
+        dayEl.textContent = `day ${day}`;
+        el.appendChild(dayEl);
+      }
     }
     el.title = `${p.display_name} — open profile`;
     el.addEventListener('click', () => openProfile(p.id));
