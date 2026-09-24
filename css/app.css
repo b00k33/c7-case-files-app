@@ -24,24 +24,6 @@
 }
 #nav-rail .brand .sub { display: block; font-family: var(--font-body); font-size: 10px; color: var(--text-3); letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
 
-/* you-are-here: the case everything is scoped to, always in view, switchable */
-.case-rail {
-  margin: 0 var(--sp-1) var(--sp-5);
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--ink-2);
-  border-left: 3px solid var(--brass);
-  border-radius: var(--r-sm);
-}
-.case-rail .eyebrow { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3); font-weight: 600; }
-.case-rail select {
-  width: 100%; margin-top: 2px; padding: 0;
-  background: none; border: none; cursor: pointer;
-  font-family: var(--font-title); font-size: 15px; color: var(--brass);
-  appearance: none; -webkit-appearance: none;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.case-rail select:focus-visible { box-shadow: var(--focus); }
-.case-rail select option { background: var(--ink-1); color: var(--text); font-family: var(--font-body); font-size: 13px; }
 .nav-link {
   display: flex;
   align-items: center;
@@ -1230,11 +1212,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .nav-link .ic { width: auto; font-size: 15px; }
   .nav-link .label { display: block; font-size: 9.5px; line-height: 1.15; }
   .nav-badge { position: absolute; top: 2px; right: 10px; margin: 0; }
-  .case-rail { display: none !important; } /* no room at 72px — the topbar chip carries it */
 }
-/* wide screens: the rail block says it; the topbar chip would just repeat it */
-@media (min-width: 1200px) { .case-context { display: none; } }
-
 @media (max-width: 640px) {
   #nav-rail { display: none; }
   #tab-bar { display: flex; }
@@ -1294,7 +1272,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 #topbar { background: transparent; }
 #nav-rail { background: var(--ink-rail); box-shadow: inset -1px 0 0 var(--rail-edge); }
 #tab-bar { background: var(--ink-rail); box-shadow: 0 -1px 0 var(--rail-edge); }
-.nav-link.active, .case-rail { box-shadow: var(--lift-2); }
+.nav-link.active { box-shadow: var(--lift-2); }
 .panel, .empty-state, .stat-tile, .tabs { box-shadow: var(--lift-1); }
 .card, .lm-card, .lm-mark, .tabs button.active { box-shadow: var(--lift-2); }
 .lm-card, .lm-mark, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }

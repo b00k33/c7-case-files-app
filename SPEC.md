@@ -1495,6 +1495,37 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 61. The rail's case switcher, removed — she never used it (v143, 2026-09-24)
+
+Her report, a screenshot of the nav rail's "Case file" dropdown open on
+Petersons: "i dont use this, it is not useful for me." Asked which part —
+not the list's ordering or labeling, the dropdown itself: she never
+switches cases through it, always going Cases/People/search instead.
+
+Removed outright — the whole `.case-rail` block (`index.html`), its wiring
+in `main.js` (`refreshCaseContext`'s rail branch, the `case-rail-select`
+change handler — including the inline "+ New case…" mini-form it hosted,
+her real doors for that already exist on Cases and People), and its CSS
+(`app.css`). One dependency this surfaced: the topbar's own "which case am
+I in" chip (`#case-context`) was hard-hidden above 1200px width —
+`/* wide screens: the rail block says it */` — because the rail dropdown
+was carrying that job there instead. With the rail gone, that media query
+would have left wide screens with NO case indicator at all; removed too,
+so the chip now shows at every width, same as it already did on a phone
+or a collapsed rail.
+
+Everything the dropdown's "+ New case…" did is still reachable exactly as
+before: Cases' own "+ New" button, and People's "+ Person → Start their
+own case." Switching cases by tapping into one from Cases or People — her
+actual workflow — is untouched; `setCaseId`, the chip, and every case-
+scoped page still work exactly as they did, just with one redundant
+control gone.
+
+Verified live at three widths: desktop (1400px, chip now visible where it
+used to hide), the old 72px icon-rail breakpoint, and phone width (already
+unaffected — the dropdown never showed there). Tapping into a case from
+its tile still opens it and updates the chip correctly. No console errors.
+
 ## 60. "+ Tag people" — a fast, batch door onto the Traits gallery (v142, 2026-09-24)
 
 Her ask, right after v141 shipped: pasted three real lists (~28 named

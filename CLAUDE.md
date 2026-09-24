@@ -417,7 +417,21 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-24, latest — "+ Tag people": a fast, batch door onto the Traits
+**2026-09-24, latest — the rail's case-switcher dropdown, removed (v143,
+SPEC §61).** Her report: a screenshot of it open, "i dont use this, it is
+not useful for me." Asked which part before touching anything — not the
+list itself, the control: she always switches cases via Cases/People/
+search, never this. Removed the whole thing (`.case-rail` in index.html,
+its `main.js` wiring including the "+ New case…" mini-form it hosted —
+real doors for that already exist on Cases and People, nothing lost) and
+its CSS. Caught one real dependency before shipping: the topbar's own
+case-name chip was hidden above 1200px because the rail dropdown carried
+that job there instead — removing the rail without removing THAT media
+query would have left wide screens with no case indicator at all. Fixed
+alongside. Verified at three widths plus the normal tap-a-tile switching
+path, still works exactly as before.
+
+**2026-09-24, earlier — "+ Tag people": a fast, batch door onto the Traits
 gallery (v142, SPEC §60).** Right after v141 shipped, she pasted three
 real lists (~28 celebrities) and asked for a fast way to mark them all
 with "dimples" — one-at-a-time through Edit wasn't it. Added a button

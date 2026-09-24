@@ -2,7 +2,7 @@ import * as db from './db.js';
 import * as store from './store.js';
 import * as sync from './sync.js';
 import { seedExampleCase } from './store.js';
-import { inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from './ui.js';
+import { inlineNote, clearInlineNote } from './ui.js';
 
 const ROUTES = {
   evidence: () => import('./pages/evidence.js'),
@@ -26,7 +26,7 @@ const ROUTES = {
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
 // the old Dashboard route is gone (her pick, 2026-09-07) — pages/dashboard.js
-// stays only for createCaseOfKind / CASE_KINDS, which Cases and the rail use
+// stays only for createCaseOfKind / CASE_KINDS, which Cases and People use
 const TITLES = {
   evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
@@ -48,90 +48,24 @@ const drawerBackdrop = document.getElementById('drawer-backdrop');
 
 let currentCaseId = localStorage.getItem('c7-current-case') || null;
 
-// keeps every "which case am I in" marker truthful — the rail's case block
-// (with its switcher) and the topbar chip. Every case switch goes through
-// setCaseId, so this is the one place to refresh them.
+// keeps the topbar "which case am I in" chip truthful. Every case switch
+// goes through setCaseId, so this is the one place to refresh it. (Until
+// 2026-09-24 this also drove a switcher select in the nav rail — she
+// never used it to switch cases, always going through Cases/People/search
+// instead, so it came out; the chip alone is what she actually reads.)
 async function refreshCaseContext() {
   const chip = document.getElementById('case-context');
-  const railBlock = document.getElementById('case-rail');
-  const railSelect = document.getElementById('case-rail-select');
   try {
     const allCases = (await store.listCases()).filter((c) => c.kind !== 'fun');
-    // a case "Moved to People" (cases.js) drops out of the switcher too —
-    // it isn't a case to jump between any more — unless it's the one
-    // she's actually standing in right now, so the chip/select never goes
-    // blank while she's legitimately viewing it via her profile
+    // a case "Moved to People" (cases.js) drops the chip back to blank
+    // too — it isn't a case to point at any more — unless it's the one
+    // she's actually standing in right now, so the chip never goes blank
+    // while she's legitimately viewing it via her profile
     const cases = allCases.filter((c) => !c.hidden || c.id === currentCaseId);
     const kase = cases.find((c) => c.id === currentCaseId) || null;
     if (chip) chip.textContent = kase ? kase.name : '';
-    if (railBlock && railSelect) {
-      if (!cases.length) {
-        railBlock.style.display = 'none';
-      } else {
-        railBlock.style.display = '';
-        railSelect.innerHTML = cases.map((c) => `<option value="${c.id}"${c.id === currentCaseId ? ' selected' : ''}>${c.name}</option>`).join('')
-          + '<option value="__new">+ New case…</option>';
-      }
-    }
   } catch (_) { if (chip) chip.textContent = ''; }
 }
-
-document.getElementById('case-rail-select')?.addEventListener('change', async (e) => {
-  // switching case goes INTO that case (her redesign 2026-09-02): a
-  // person-case opens the person's profile, a family its overview
-  const landOnDashboard = async () => {
-    const { openCase } = await import('./pages/cases.js');
-    const kase = await store.getCase(currentCaseId);
-    if (kase) openCase(ctx, kase); else ctx.navigate(`#/${HOME_ROUTE}`);
-  };
-  try {
-    if (e.target.value === '__fun') return; // the Fun page's label row, not a real case
-    if (e.target.value === '__new') {
-      // no prompt() — an inline mini-form appears in the rail block itself
-      const sel = e.target;
-      sel.style.display = 'none';
-      const form = inlineNameForm({
-        placeholder: 'Who or what is this case about?',
-        submitLabel: 'Create',
-        choices: [{ value: 'person', label: 'A person' }, { value: 'family', label: 'A family / household' }, { value: 'event', label: 'A major event' }],
-        withFictional: true,
-        onSubmit: async (name, kind, world) => {
-          // do not allow duplicates (her ask, 2026-09-11, widened
-          // 2026-09-11: "the app should not allow any duplicates") — a
-          // NEW case about a person is exactly how her real "own case AND
-          // a family case" duplicate happened; a person-kind case
-          // auto-creates its subject, so check before that create, not after
-          if ((kind || 'person') === 'person') {
-            const matches = store.findPeopleByName(null, name, 'person');
-            if (matches.length) {
-              duplicateNameBlock(form.querySelector('input'), matches, (p) => {
-                form.remove();
-                sel.style.display = '';
-                ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`));
-              });
-              return;
-            }
-          }
-          const { createCaseOfKind } = await import('./pages/dashboard.js');
-          form.remove();
-          sel.style.display = '';
-          if (kind === 'person') sessionStorage.setItem('c7-offer-lookup', '1');
-          await createCaseOfKind(store, ctx, name, kind, world); // navigates: person file, the family, or the event overview
-          refreshCaseContext();
-        },
-        onCancel: () => { sel.style.display = ''; refreshCaseContext(); },
-      });
-      sel.after(form);
-      return;
-    }
-    await ctx.setCaseId(e.target.value);
-  } catch (err) {
-    console.error('Case switch failed:', err);
-    refreshCaseContext();
-    return;
-  }
-  landOnDashboard();
-});
 
 const ctx = {
   get caseId() { return currentCaseId; },
@@ -299,17 +233,10 @@ async function renderRoute() {
   document.getElementById('back-btn').style.display = INSIDE_CASE.has(key) ? '' : 'none';
   ctx.setTitle(TITLES[key] || 'C7 Case Files');
   // the Fun page saves into its own case — say so honestly (her call
-  // 2026-09-01: show "Fun & Zodiac" there rather than hiding the block)
+  // 2026-09-01: show "Fun & Zodiac" there rather than hiding the chip)
   refreshInboxBadge();
-  if (key === 'fun') {
-    document.getElementById('case-context').textContent = 'Fun & Zodiac';
-    const railBlock = document.getElementById('case-rail');
-    const railSelect = document.getElementById('case-rail-select');
-    if (railBlock && railSelect) {
-      railBlock.style.display = '';
-      railSelect.innerHTML = '<option value="__fun" selected>Fun & Zodiac</option>';
-    }
-  } else refreshCaseContext();
+  if (key === 'fun') document.getElementById('case-context').textContent = 'Fun & Zodiac';
+  else refreshCaseContext();
   ctx.closeDrawer();
 
   if (typeof currentUnmount === 'function') { try { currentUnmount(); } catch (_) {} }
