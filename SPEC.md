@@ -1495,6 +1495,50 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 74. A profile: trimmed tabs, and a straight-to-paste button (v156, 2026-09-27)
+
+Her ask, from a screenshot of Andrea Finlay's real profile in the Cute
+theme: "too many options. i want to copy paste info more easily. its too
+hard to navigate it right now." Two problems in one complaint, fixed
+together:
+
+**Tab row, 9 down to 3.** The always-visible strip was Profile,
+Relations, Commercial, Board, with Review, Evidence, Contradictions,
+Questions, Import already one tap behind "⋯" (her ask28 pick, 2026-09-07).
+Evidence — one of the most-used tabs — was buried in that "⋯" the whole
+time. Rebalanced `TABS`/`TABS_MORE` in `js/pages/subject.js` so only
+Profile · Relations · Evidence stay on the strip; Board, Commercial,
+Review, Contradictions, Questions and Import moved under "⋯". The
+existing collapse mechanism (`moreOpen`, `tab-more` button, session-
+remembered) needed no changes — it already showed every hidden tab
+whenever she landed on one directly, so nothing about that guarantee
+changed, only which tabs start hidden. Commercial's own show/hide-by-
+relevance rule (§ "Commercial tab", v100) now operates on `TABS_MORE`
+instead of `TABS` for the same reason — it never belonged on the
+always-visible row in the first place, so hiding it (when irrelevant)
+now just drops it from "⋯" rather than promoting/demoting it between
+the two rows.
+
+**A "Paste" button, next to "+ Add" and "Edit."** The "+ Add" sheet does
+four things — Look up, paste-and-parse, add an event by hand, add an
+alternate birthday — and she only wanted the second one, fast, most of
+the time. Rather than build a second paste box, `openAdd()` now takes an
+optional `{ pasteOnly: true }`: same sheet, same `#pi-save` handler
+(`parseProfileText`, unchanged), but the Look-up field and the "By hand"
+forms are hidden, the "Import information" `<details>` opens pre-
+expanded, and the textarea gets focus — so tapping "Paste" is a single
+action straight into typing, with nothing else on screen to route past.
+The plain "+ Add" button is untouched: same four tools, Import still
+collapsed by default, exactly as before.
+
+Verified live in the sandbox: "Paste" opens the drawer showing only the
+textarea and "Save what's recognised" (confirmed via the DOM — Look-up
+and By-hand containers both `hidden`, Import `open`); typing "aka
+T-Swizzle" and saving landed the alias and closed the drawer, same as
+the old path. "+ Add" still opens all four tools with Import collapsed.
+Tapping "⋯" still expands Board · Commercial · Review · Contradictions ·
+Questions · Import, remembered for the session, same as before.
+
 ## 73. A notable relative's redirect page silently stole the anchor's own photo (v155, 2026-09-27)
 
 Found while actually walking her request to add Andrea Swift, Taylor

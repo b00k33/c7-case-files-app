@@ -153,15 +153,16 @@ function chartPanel(person, status) {
 // the profile's tabs (her redesign 2026-09-02): the case's whole workspace
 // lives under the person — Evidence, Board, Relations, Import are the same
 // case-level pages, mounted here so she never leaves the profile
-// the four she actually uses stay on the strip; the rest sit behind ⋯ and
-// come out with one tap (her ask28 answers, 2026-09-07). Landing on a
-// hidden tab (from a link, a search hit) shows them all so the strip never
-// hides the tab she is on.
+// three she actually uses stay on the strip; the rest sit behind ⋯ and
+// come out with one tap (her ask28 answers, 2026-09-07; trimmed further
+// 2026-09-26 — "too many options... too hard to navigate", nine tabs down
+// to three). Landing on a hidden tab (from a link, a search hit) shows them
+// all so the strip never hides the tab she is on.
 const TABS = [
-  ['profile', 'Profile'], ['relations', 'Relations'], ['commercial', 'Commercial'], ['board', 'Board'],
+  ['profile', 'Profile'], ['relations', 'Relations'], ['evidence', 'Evidence'],
 ];
 const TABS_MORE = [
-  ['review', 'Review'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'],
+  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'],
 ];
 const TAB_MODULES = {
   review: () => import('./review.js'),
@@ -221,11 +222,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // case's own subject gets the button, not a relative sharing the case.
   const movedToPeople = !!(kase && kase.hidden && kase.kind === 'person' && subjectOf(kase, casePeople)?.id === person.id);
   // Commercial tab (her ask, 2026-09-15): only for people with a real
-  // commercial footprint — tucked into "⋯" rather than gone entirely, so
-  // the rare miss is still two taps away, not lost
+  // commercial footprint — lives in "⋯" already (2026-09-26 trim), and
+  // drops out of there too when it doesn't apply, so the rare miss is
+  // still two taps away when it does, not lost
   const commercialOn = isCommercialRelevant(person, events);
-  const tabs = commercialOn ? TABS : TABS.filter(([k]) => k !== 'commercial');
-  const tabsMore = commercialOn ? TABS_MORE : [['commercial', 'Commercial'], ...TABS_MORE];
+  const tabs = TABS;
+  const tabsMore = commercialOn ? TABS_MORE : TABS_MORE.filter(([k]) => k !== 'commercial');
   const moreOpen = sessionStorage.getItem('c7-tabs-more') === '1' || tabsMore.some(([k]) => k === tab);
   // what's waiting on her in this case sits in the header as a door, the
   // same chip the Cases card shows — one tap, never a hunt (2026-09-08)
@@ -252,6 +254,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
                 ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
                 ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="btn btn-ghost btn-sm" id="unmove-person-btn">Move back to Cases</button>' : ''}
                 ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
+                ${tab === 'profile' ? '<button class="btn btn-ghost btn-sm" id="paste-btn" title="Straight to the paste box — no lookup, no forms">Paste</button>' : ''}
                 <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
               </div>
             </div>
@@ -289,15 +292,17 @@ export async function render(root, ctx, personId, tab = 'profile') {
            (her pick, 2026-09-07): this block is moved into the drawer when
            she taps it, so the page itself only shows what she reads -->
       <div id="add-tools" hidden>
-        <div class="field">
-          <label>Look up — the name to search</label>
-          <div class="row wrap" style="gap:8px">
-            <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
-            <button class="btn btn-primary btn-sm" id="lk-search" title="Facts drafted to Review, from the record — Wikidata first; Wikipedia (and D-Addicts, for a fictional case) too, when Wikidata has nothing">Look up</button>
+        <div id="add-lookup">
+          <div class="field">
+            <label>Look up — the name to search</label>
+            <div class="row wrap" style="gap:8px">
+              <input type="text" id="lk-name" value="${esc(person.display_name)}" style="flex:1">
+              <button class="btn btn-primary btn-sm" id="lk-search" title="Facts drafted to Review, from the record — Wikidata first; Wikipedia (and D-Addicts, for a fictional case) too, when Wikidata has nothing">Look up</button>
+            </div>
           </div>
+          <div id="lk-results" class="stack" style="gap:4px"></div>
         </div>
-        <div id="lk-results" class="stack" style="gap:4px"></div>
-        <details style="margin-top:16px">
+        <details id="add-import" style="margin-top:16px">
           <summary style="cursor:pointer;font-size:13px;color:var(--text-2);list-style:none">Import information ▸ paste anything, it saves what it recognises</summary>
           <div class="field" style="margin-top:8px">
             <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
@@ -307,22 +312,24 @@ export async function render(root, ctx, personId, tab = 'profile') {
             <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
           </div>
         </details>
-        <div class="section-label" style="margin-top:24px;margin-bottom:8px">By hand</div>
-        <div class="field">
-          <label>Add an event — what happened, when</label>
-          <div class="row wrap" style="gap:8px">
-            <input type="text" id="ev-title" placeholder="Married Debbie Rowe · won a Grammy · moved to Paris" style="flex:2 1 220px">
-            <select id="ev-kind" style="flex:0 0 auto">${EVENT_KINDS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
-            <input type="text" id="ev-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
-            <button class="btn btn-primary btn-sm" id="ev-save">Add</button>
+        <div id="add-byhand">
+          <div class="section-label" style="margin-top:24px;margin-bottom:8px">By hand</div>
+          <div class="field">
+            <label>Add an event — what happened, when</label>
+            <div class="row wrap" style="gap:8px">
+              <input type="text" id="ev-title" placeholder="Married Debbie Rowe · won a Grammy · moved to Paris" style="flex:2 1 220px">
+              <select id="ev-kind" style="flex:0 0 auto">${EVENT_KINDS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+              <input type="text" id="ev-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
+              <button class="btn btn-primary btn-sm" id="ev-save">Add</button>
+            </div>
           </div>
-        </div>
-        <div class="field" style="margin-top:16px">
-          <label>Alternate birthday — a date you're not sure about, with why</label>
-          <div class="row wrap" style="gap:8px">
-            <input type="text" id="alt-bday-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
-            <input type="text" id="alt-bday-source" placeholder="a document, a page, a link" title="Where this comes from — a document, a page, a link" style="flex:2 1 220px">
-            <button class="btn btn-primary btn-sm" id="alt-bday-save">Save as a candidate</button>
+          <div class="field" style="margin-top:16px">
+            <label>Alternate birthday — a date you're not sure about, with why</label>
+            <div class="row wrap" style="gap:8px">
+              <input type="text" id="alt-bday-date" placeholder="14 Nov 1996 · Nov 1996 · 1996" style="flex:1 1 150px">
+              <input type="text" id="alt-bday-source" placeholder="a document, a page, a link" title="Where this comes from — a document, a page, a link" style="flex:2 1 220px">
+              <button class="btn btn-primary btn-sm" id="alt-bday-save">Save as a candidate</button>
+            </div>
           </div>
         </div>
       </div>
@@ -415,7 +422,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
     });
   }
 
-  // ⋯ shows the four quieter tabs; ‹ tucks them away again. Remembered for the session.
+  // ⋯ shows the quieter tabs; ‹ tucks them away again. Remembered for the session.
   root.querySelector('#tab-more').addEventListener('click', () => {
     sessionStorage.setItem('c7-tabs-more', moreOpen ? '0' : '1');
     render(root, ctx, personId, tab);
@@ -577,12 +584,21 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // The block is built with the page (its handlers are wired once, below)
   // and moved into the drawer when she taps; results still land on the page.
   const tools = root.querySelector('#add-tools');
-  const openAdd = () => ctx.openDrawer((body) => {
-    body.innerHTML = `<h3 class="title" style="margin-bottom:12px">Add to ${esc(person.display_name)}</h3>`;
+  const openAdd = (opts = {}) => ctx.openDrawer((body) => {
+    body.innerHTML = `<h3 class="title" style="margin-bottom:12px">${opts.pasteOnly ? 'Paste into' : 'Add to'} ${esc(person.display_name)}</h3>`;
     tools.hidden = false;
+    tools.querySelector('#add-lookup').hidden = !!opts.pasteOnly;
+    tools.querySelector('#add-byhand').hidden = !!opts.pasteOnly;
+    tools.querySelector('#add-import').open = !!opts.pasteOnly;
     body.appendChild(tools);
+    if (opts.pasteOnly) setTimeout(() => tools.querySelector('#pi-text')?.focus(), 80);
   });
   root.querySelector('#add-btn')?.addEventListener('click', openAdd);
+  // her ask, 2026-09-26 ("too many options... too hard to navigate"): a
+  // straight shot to the paste box for when she just has facts to drop in,
+  // skipping Look up and the by-hand forms entirely — same sheet, same
+  // #pi-save handler, just opened pre-expanded with the rest hidden
+  root.querySelector('#paste-btn')?.addEventListener('click', () => openAdd({ pasteOnly: true }));
   // the Family widget's own "+ Add family" (her ask, 2026-09-15: "easily
   // add family") — straight to the Look-up field, already pre-filled with
   // her own name and now the sheet's first field (ask28, 2026-09-19: wiki

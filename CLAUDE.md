@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — a family member's own photo could silently be the
+**2026-09-27, latest — a profile's tab row trimmed 9 tabs to 3, plus a
+straight-to-paste button (v156, SPEC §74).** She sent a screenshot of a
+real profile in the Cute theme with "too many options... too hard to
+navigate it right now." Two fixes from one complaint: the always-visible
+tab strip (Profile, Relations, Commercial, Board, with five more one tap
+behind "⋯") shrank to just Profile · Relations · Evidence — Evidence was
+one of her most-used tabs and had been sitting behind "⋯" the whole time;
+Board, Commercial, Review, Contradictions, Questions and Import moved
+there in its place, reusing the existing collapse mechanism (`moreOpen`,
+session-remembered, already showed every hidden tab when she landed on
+one directly) rather than building a new one. Separately, a "Paste"
+button now sits next to "+ Add" and "Edit" — same sheet, same
+`parseProfileText`-backed save handler as "+ Add"'s existing paste box,
+just opened with Look-up and the by-hand event/birthday forms hidden and
+the paste textarea pre-expanded and focused, for when all she has is
+facts to drop in and nothing else to route past. Verified live: "Paste"
+shows only the textarea (confirmed both containers `hidden` in the DOM,
+not just visually), a real save landed an alias and closed the drawer;
+"+ Add" still opens all four original tools unchanged; "⋯" still expands
+the same six tabs, remembered for the session.
+
+**2026-09-27, earlier — a family member's own photo could silently be the
 more famous relative's face instead (v155, SPEC §73).** She sent a Fandom
 wiki page for Andrea Swift (Taylor Swift's mother) and asked to have her
 added; rather than guess at instructions, actually ran the real "Insert
