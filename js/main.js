@@ -333,6 +333,7 @@ async function boot() {
         if (tidyFallbackDone || s.status !== 'off') return;
         tidyFallbackDone = true;
         store.tidyNames();
+        store.assignCasesToPlacelessPeople();
       });
     } else {
       renderConnectScreen(state);
@@ -535,6 +536,7 @@ function appendBackupButton(body) {
     <button class="btn btn-ghost btn-sm" id="sy-backup">Download backup (.db)</button>
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">The whole database as one SQLite file, saved to this device.</p>
     ${(() => { const t = store.getLastTidyResult(); return t ? `<p style="color:var(--text-3);font-size:11px;margin:12px 0 0"><span style="color:var(--brass)">${t.count} name${t.count === 1 ? '' : 's'} tidied</span> — ${t.names.slice(0, 3).join(', ')}${t.names.length > 3 ? '…' : ''}</p>` : ''; })()}
+    ${(() => { const f = store.getLastPlacelessFixResult(); return f ? `<p style="color:var(--text-3);font-size:11px;margin:12px 0 0"><span style="color:var(--brass)">${f.count} ${f.count === 1 ? 'person' : 'people'} given their own case</span> — ${f.names.slice(0, 3).join(', ')}${f.names.length > 3 ? '…' : ''}</p>` : ''; })()}
     <p class="mono" style="color:var(--text-3);font-size:11px;margin:16px 0 0">App version ${window.C7_VERSION || 'unknown'}</p>
     <button class="btn btn-ghost btn-sm" id="sy-force-update" style="margin-top:12px">Stuck on an old version? Force update</button>
     <p style="color:var(--text-3);font-size:11px;margin:8px 0 0">Wipes only this app's downloaded code and re-fetches it fresh. Your cases and people are safe — they live in the cloud and on this device separately.</p>

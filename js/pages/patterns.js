@@ -21,12 +21,15 @@ const TRAIT_PICK_KEY = 'c7-trait-gallery-pick';
  * mark them all with "dimples"): paste a name per line, one trait, go.
  * Someone already anywhere in the file (by name, any case) just gets
  * tagged; anyone new is looked up on Wikidata — the same record-fill
- * "+ Person" already has (v138) — and lands in "No case yet" (2026-09-21
- * door), since a dimple note doesn't need a case spun up around it. The
- * gallery needs a real birth date to place anyone by life path or day, so
- * a bare name with nothing else would never be able to show up in it —
- * this is the one add-path here that's allowed to hit the network, for
- * exactly that reason.
+ * "+ Person" already has (v138) — and gets their own person-kind case, same
+ * as every other add-path in the app (her call, 2026-09-26: "every person
+ * should get the full treatment from now on" — this used to land them
+ * case-less, in "No case yet," which meant a dimple note was the only thing
+ * ever on file for them, tree and lifeline included, with no door open to
+ * add more later). The gallery needs a real birth date to place anyone by
+ * life path or day, so a bare name with nothing else would never be able to
+ * show up in it — this is the one add-path here that's allowed to hit the
+ * network, for exactly that reason.
  */
 function wireBatchTag(btn, slot, ctx) {
   const { store } = ctx;
@@ -63,8 +66,9 @@ function wireBatchTag(btn, slot, ctx) {
           const hits = await searchPeople(name);
           if (!hits.length) { failed.push(name); continue; }
           const m = hits[0]; // the best Wikidata match — reasonable for a named public figure, same trust the rest of this app puts in a Wikidata search
-          const person = await store.createPerson({ case_id: null, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
-          await fillFromWikidata(store, null, person.id, m.id);
+          const kase = await store.createCase({ name: m.label, kind: 'person' });
+          const person = await store.createPerson({ case_id: kase.id, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
+          await fillFromWikidata(store, kase.id, person.id, m.id);
           await store.tagTarget(tagId, 'person', person.id);
           existing.push(person);
           created++;

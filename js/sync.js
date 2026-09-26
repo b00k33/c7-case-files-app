@@ -13,7 +13,7 @@
 // change_log stays device-local audit and does not sync.
 
 import * as db from './db.js';
-import { markOutboxReady, setOutboxListener, nowISO, tidyNames } from './store.js';
+import { markOutboxReady, setOutboxListener, nowISO, tidyNames, assignCasesToPlacelessPeople } from './store.js';
 import { SUPABASE_URL, SUPABASE_KEY, AUTH_STORAGE_KEY } from './config.js';
 
 const SYNC_TABLES = [
@@ -286,6 +286,10 @@ export async function syncNow() {
     // out-race a genuine edit another device already pushed. No-ops after
     // its first real run (the flag lives in the database file itself).
     await tidyNames();
+    // her ask, 2026-09-26: every person gets a real case, none left "no
+    // case yet" — same timing rule as tidyNames, after this device has
+    // caught up, never before
+    await assignCasesToPlacelessPeople();
     await push();
     setState({ status: 'idle', pending: pendingCount(), lastSync: Date.now(), error: null, pulledAt: pulled ? Date.now() : state.pulledAt });
   } catch (e) {

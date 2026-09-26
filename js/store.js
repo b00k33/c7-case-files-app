@@ -281,6 +281,41 @@ let lastTidyResult = null;
 /** What tidyNames() just fixed, THIS session only — the sync drawer's one quiet line. */
 export function getLastTidyResult() { return lastTidyResult; }
 
+/**
+ * Every person used to be allowed to exist with no case at all — "No case
+ * yet" (her ask, 2026-09-21), a quick way to get someone into the batch-tag
+ * tool without spinning up a case for them. She reversed that 2026-09-26,
+ * on hitting it herself while trying to add a real subject the normal way:
+ * "every person should get the full treatment from now on" — a case, even
+ * a one-person one, is what unlocks the tree/relations/lifeline/commercial
+ * tabs, and a case-less person's own tile on the People page couldn't even
+ * be opened, only renamed or removed (their tap opened a small rename/
+ * remove editor in place — see wirePlacelessEditor). This walks every
+ * case-less person once and gives each their own person-kind case, named
+ * after them — the exact same shape createCaseOfKind makes by hand from
+ * Cases' own "+ New". Same "once per database file" guard as tidyNames,
+ * same two call sites (sync.js after a pull, main.js's fallback when sync
+ * never runs) so a device mid-sync never races a pending pull that would
+ * have placed the same person properly.
+ */
+export async function assignCasesToPlacelessPeople() {
+  if (db.exec("SELECT value FROM meta WHERE key='placeless_cases_v1'")[0]?.value) return null;
+  const fixed = [];
+  for (const p of db.exec('SELECT id, display_name FROM person WHERE case_id IS NULL AND deleted_at IS NULL')) {
+    const kase = await createCase({ name: p.display_name, kind: 'person' });
+    await updatePerson(p.id, { case_id: kase.id });
+    fixed.push(p.display_name);
+  }
+  db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('placeless_cases_v1', ?)", [String(Date.now())]);
+  const result = { count: fixed.length, names: fixed };
+  if (result.count) lastPlacelessFixResult = result; // read once by the sync drawer (this session only)
+  return result;
+}
+
+let lastPlacelessFixResult = null;
+/** What assignCasesToPlacelessPeople() just fixed, THIS session only — the sync drawer's one quiet line. */
+export function getLastPlacelessFixResult() { return lastPlacelessFixResult; }
+
 export async function listAliases(personId) {
   return db.exec('SELECT * FROM person_alias WHERE person_id=? ORDER BY alias', [personId]);
 }

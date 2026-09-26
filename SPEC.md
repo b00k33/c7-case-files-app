@@ -1495,6 +1495,36 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 67. Every person gets a real case — "No case yet" retired (v149, 2026-09-26)
+
+Her ask: after being sent to People's bare "+ Person" for a new subject
+(no Wikipedia page, so no full lookup) and finding she couldn't even open
+the result — a case-less person's own tile there only opens a rename/
+remove editor, never a profile — she said plainly: "every person should
+get the full treatment from now on... a case is when i want to study a
+family, group etc." A case-less person is a second-class one in this app:
+no tree, no relations tab, no lifeline, no commercial tab, nothing beyond
+a name and (for "+ Tag people") a trait.
+
+Three creation paths used to leave a person with `case_id: null`: People's
+"+ Person" → "No case yet" (v138), the same page's "Look up on Wikipedia"
+with that choice, and the Traits gallery's "+ Tag people" batch tool (v142).
+All three now always create a real person-kind case first (`store.
+createCase({ name, kind: 'person' })`, the exact shape Cases' own "+ New"
+makes by hand) and hang the person off it — same as every other add-path
+already did. The "No case yet" option itself is gone from People's "+
+Person" — one door now, not two.
+
+Existing case-less people don't need fixing by hand: `store.
+assignCasesToPlacelessPeople()` walks every one once and gives each their
+own case, named after them — same "runs once, guarded by a `meta` table
+flag" idiom as the existing quiet name tidy (`tidyNames`), and wired at the
+same two call sites (`sync.js`, right after a pull settles; `main.js`'s
+fallback, when sync never runs) so a device catching up mid-sync never
+races ahead of a pending pull that would have placed the same person
+correctly on its own. Shows a quiet note in the sync drawer, same place and
+same style as the name-tidy note, the one time it does real work.
+
 ## 66. Lifeline: every couple's own story, browsable case-wide (v148, 2026-09-24)
 
 Her ask: "relations have tree and zodiac map. what about Lifeline for

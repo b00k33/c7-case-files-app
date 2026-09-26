@@ -12,7 +12,6 @@ import { tokensHtml } from '../lifemap.js';
 import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
-import { autoCaseName, looksHurried } from '../names.js';
 import { searchPeople, fillFromWikidata } from '../lookup.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
@@ -47,31 +46,23 @@ function goToPerson(ctx, p) { markOpened(p.case_id); ctx.setCaseId(p.case_id).th
 // no "current case" to add into the way Relations' own "+ Person" has —
 // reuses Cases' "+ New" pattern verbatim instead (same duplicate guard,
 // same createCaseOfKind), landing on a fresh one-person case rather than
-// asking her to pick or make one first.
-// "Start their own case" is the original door (a biography case built up
-// around them); "No case yet" is the new one (her ask, 2026-09-21) — a
-// person who exists here so Family/Event/Series can pick them in later,
-// without one being spun up for them now. Same duplicate guard either way.
+// asking her to pick or make one first. Always a real case now (her call,
+// 2026-09-26: "every person should get the full treatment from now on") —
+// this used to offer a case-less "No case yet" as a second, lighter door
+// (her ask, 2026-09-21, for quick batch-tagging), but a case-less person's
+// own tile here couldn't even be opened, only renamed or removed, which
+// is what she hit trying to add a real subject the normal way. Existing
+// case-less people are swept into their own case once by
+// store.assignCasesToPlacelessPeople(), not by anything on this page.
 function openAddPerson(slot, ctx) {
   const { store } = ctx;
   if (slot.querySelector('.inline-form')) return;
   const form = inlineNameForm({
     placeholder: 'Their name',
-    choices: [
-      { value: 'case', label: 'Start their own case' },
-      { value: 'none', label: 'No case yet' },
-    ],
-    onSubmit: async (name, choice) => {
+    onSubmit: async (name) => {
       const matches = store.findPeopleByName(null, name, 'person');
       if (matches.length) {
         duplicateNameBlock(form.querySelector('input'), matches, (p) => goToPerson(ctx, p));
-        return;
-      }
-      if (choice === 'none') {
-        const hurried = looksHurried(name);
-        await store.createPerson({ case_id: null, display_name: hurried ? autoCaseName(name) : name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
-        form.remove();
-        ctx.rerender();
         return;
       }
       const kase = await createCaseOfKind(store, ctx, name, 'person', null);
@@ -88,7 +79,7 @@ function openAddPerson(slot, ctx) {
  * (dates, picture, Wikipedia evidence) only lived on Cases' own "+ New").
  * Same search, deliberately smaller than Cases' version: no kind switch
  * (always a person here) and no +family/+works — those pull relatives or a
- * discography INTO a case, and "No case yet" has no case to pull them into.
+ * discography INTO a case, and a fresh case here only ever has the one person.
  */
 function wireAddPersonLookup(form, ctx, store) {
   const rowEl = form.querySelector('.row');
@@ -131,15 +122,6 @@ function wireAddPersonLookup(form, ctx, store) {
     if (dupes.length) { duplicateNameBlock(results, dupes, (p) => goToPerson(ctx, p)); return; }
     results.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="ap-progress">Filling them in from Wikidata…</div>';
     const prog = results.querySelector('#ap-progress');
-    const choice = form.querySelector('.if-choice')?.value || 'case';
-    if (choice === 'none') {
-      const person = await store.createPerson({ case_id: null, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
-      try { await fillFromWikidata(store, null, person.id, m.id); }
-      catch (e) { prog.textContent = `Added; the record could not be read (${e.message}). Look up again from their profile.`; return; }
-      form.remove();
-      ctx.rerender();
-      return;
-    }
     const kase = await store.createCase({ name: m.label, kind: 'person' });
     markOpened(kase.id);
     await ctx.setCaseId(kase.id);

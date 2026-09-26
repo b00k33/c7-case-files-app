@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-24, latest — Lifeline, marriage dates from Wikidata, age at
+**2026-09-26, latest — "No case yet" retired: every person gets a real
+case (v149, SPEC §67).** She hit this one herself: sent to People's bare
+"+ Person" to add a subject with no Wikipedia page, she then couldn't open
+what she'd created — a case-less person's tile only opens a rename/remove
+editor, never a profile. Her words: "every person should get the full
+treatment from now on... a case is when i want to study a family, group
+etc." Three paths used to leave `case_id: null` — People's "+ Person" →
+"No case yet," that same page's Wikipedia lookup with that choice, and
+"+ Tag people"'s batch add — all three now always spin up a real
+person-kind case first, the same shape Cases' "+ New" makes by hand; the
+"No case yet" option is gone, one door not two. Existing case-less people
+get swept up automatically: `store.assignCasesToPlacelessPeople()`, same
+"once per database, guarded by a meta-table flag" idiom as the existing
+quiet name tidy, wired at the same two call sites (`sync.js` after a pull,
+`main.js`'s no-sync fallback) so it can't race a pending pull. Couldn't
+verify live this pass — no dev-server runtime available in this
+environment (node/python both missing) — so this shipped on a careful
+code-level review, mirroring the exact create-case-then-create-person
+shape already proven working in cases.js/dashboard.js/people.js's other
+branch, rather than a fresh pattern.
+
+**2026-09-24, earlier — Lifeline, marriage dates from Wikidata, age at
 marriage, and a collapsed "+ Add" paste box (v145–v148, SPEC §63–66).**
 Four asks in one sitting, mostly triggered by real screenshots. (1) The
 "+ Add" drawer's paste textarea wrapped in a closed-by-default `<details>`
