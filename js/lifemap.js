@@ -130,12 +130,22 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
     if (kind === 'birth') continue; // the ribbon starts there
     marks.push({ id: ev.id, year: y, kind, glyph: MARK_GLYPH[kind], title: ev.title, date: ev.date, precision: ev.date ? (ev.date_precision || 'day') : 'year', event: ev });
   }
-  // spouses: a relationship with a start year but no ♥ that year gets one; an end year gets a ✕
+  // spouses and partners: a relationship with a start year but no mark that
+  // year gets one; an end year gets a ✕ either way. A partner who was never
+  // married (her ask, 2026-09-26, on Princess Anne: "who she dated, when it
+  // ended" — Andrew Parker Bowles, Richard Meade, never a wedding between
+  // them) gets ☆/"With X" instead of ♥/"Married X" — the ending itself
+  // reads the same regardless ("Ended with X" was never marriage-specific
+  // wording to begin with).
   for (const r of rels || []) {
-    if (r.kind !== 'spouse' || r.theory_id) continue;
+    if ((r.kind !== 'spouse' && r.kind !== 'partner') || r.theory_id) continue;
     const other = byId.get(r.a_id === person.id ? r.b_id : r.a_id);
+    const isSpouse = r.kind === 'spouse';
+    const startKind = isSpouse ? 'marriage' : 'together';
+    const startGlyph = isSpouse ? '♥' : '☆';
+    const startTitle = other ? `${isSpouse ? 'Married' : 'With'} ${other.display_name}` : (isSpouse ? 'Married' : 'Together');
     const sy = yearOf(r.start_date), ey = yearOf(r.end_date);
-    if (sy && !marks.some((m) => m.kind === 'marriage' && m.year === sy)) marks.push({ id: `rel:${r.id}`, year: sy, kind: 'marriage', glyph: '♥', title: other ? `Married ${other.display_name}` : 'Married', date: r.start_date, precision: 'year', rel: r, spouseId: other ? other.id : null });
+    if (sy && !marks.some((m) => m.kind === startKind && m.year === sy)) marks.push({ id: `rel:${r.id}`, year: sy, kind: startKind, glyph: startGlyph, title: startTitle, date: r.start_date, precision: 'year', rel: r, spouseId: other ? other.id : null });
     if (ey && !marks.some((m) => m.kind === 'divorce' && m.year === ey)) marks.push({ id: `relend:${r.id}`, year: ey, kind: 'divorce', glyph: '✕', title: other ? `Ended with ${other.display_name}` : 'Ended', date: r.end_date, precision: 'year', rel: r, spouseId: other ? other.id : null });
     for (const m of marks) {
       if (m.spouseId || !other) continue;
@@ -272,7 +282,7 @@ function itemQidFromComposite(wid) {
  */
 async function resolveMarkPicture(m, { people, store }) {
   if (m.cluster) return null; // stands for several — no one picture is honest
-  if ((m.kind === 'marriage' || m.kind === 'divorce' || m.kind === 'death') && m.spouseId) {
+  if ((m.kind === 'marriage' || m.kind === 'together' || m.kind === 'divorce' || m.kind === 'death') && m.spouseId) {
     const spouse = (people || []).find((p) => p.id === m.spouseId);
     if (!spouse) return null;
     const src = spouse.photo_path ? await resolveAssetUrl(spouse.photo_path, 'image/jpeg') : spouse.photo_url;
@@ -523,11 +533,18 @@ const REL_GLYPH = Object.fromEntries(REL_KINDS.map(([k, , g]) => [k, g]));
 /**
  * The relationship's own marks: her typed milestones (met, engaged, a
  * custom "on-and-off" note — each an event with relationship_id set, never
- * person_id) plus "Married" / "Separated" synthesized from the
- * relationship's own start_date/end_date — the same record the tree's "m.
- * 2005" marker and each person's own poster already read — UNLESS a typed
- * milestone already covers that year and kind, so a hand-written "Married"
- * with its own evidence is never shadowed by the bare date underneath it.
+ * person_id) plus a synthesized start/end mark from the relationship's own
+ * start_date/end_date — the same record the tree's "m. 2005" marker and
+ * each person's own poster already read — UNLESS a typed milestone already
+ * covers that year and kind, so a hand-written "Married" with its own
+ * evidence is never shadowed by the bare date underneath it.
+ *
+ * The synthesized pair reads "Married"/"Separated" only for a spouse
+ * relationship; anything else (a partner who was never married — her ask,
+ * 2026-09-26, on Princess Anne: "who she dated, when it ended," Andrew
+ * Parker Bowles and Richard Meade among them) reads "Together"/"Ended"
+ * instead, so a brief relationship's own start date is never presented as
+ * a wedding it never had.
  */
 export function buildRelationshipLine({ relationship, events }) {
   const marks = [];
@@ -538,9 +555,12 @@ export function buildRelationshipLine({ relationship, events }) {
     const kind = REL_KIND_SET.has(ev.kind) ? ev.kind : 'other';
     marks.push({ id: ev.id, year: y, kind, glyph: REL_GLYPH[kind], title: ev.title, date: ev.date, precision: ev.date ? (ev.date_precision || 'day') : 'year', event: ev });
   }
+  const isSpouse = relationship.kind === 'spouse';
+  const startKind = isSpouse ? 'married' : 'met';
+  const startTitle = isSpouse ? 'Married' : 'Together';
   const sy = yearOf(relationship.start_date), ey = yearOf(relationship.end_date);
-  if (sy && !marks.some((m) => m.kind === 'married' && m.year === sy)) marks.push({ id: `rel:${relationship.id}:start`, year: sy, kind: 'married', glyph: REL_GLYPH.married, title: 'Married', date: relationship.start_date, precision: 'year', event: null });
-  if (ey && !marks.some((m) => m.kind === 'separated' && m.year === ey)) marks.push({ id: `rel:${relationship.id}:end`, year: ey, kind: 'separated', glyph: REL_GLYPH.separated, title: 'Separated', date: relationship.end_date, precision: 'year', event: null });
+  if (sy && !marks.some((m) => m.kind === startKind && m.year === sy)) marks.push({ id: `rel:${relationship.id}:start`, year: sy, kind: startKind, glyph: REL_GLYPH[startKind], title: startTitle, date: relationship.start_date, precision: 'year', event: null });
+  if (ey && !marks.some((m) => m.kind === 'separated' && m.year === ey)) marks.push({ id: `rel:${relationship.id}:end`, year: ey, kind: 'separated', glyph: REL_GLYPH.separated, title: isSpouse ? 'Separated' : 'Ended', date: relationship.end_date, precision: 'year', event: null });
   marks.sort((a, b) => a.year - b.year || String(a.date || '').localeCompare(String(b.date || '')));
   return { marks };
 }

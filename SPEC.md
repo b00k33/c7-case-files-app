@@ -1495,6 +1495,47 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 69. "Find photos": a bulk pass over every bare initial on People (v151, 2026-09-26)
+
+Her ask, on a real screenshot of the People page — 304 people, many still
+plain initials: "find photos immediately." A new "Find photos (N)" button
+next to "+ Person" (only shown when at least one person has neither
+`photo_path` nor `photo_url`) walks every one of them: a person who
+already carries a `wikidata_id` (most of them — Insert Family or a lookup
+drafted them, but Wikidata itself had no usable image at the time) is
+fetched again by that exact id via `fetchItemPhoto`; anyone with no
+`wikidata_id` yet is matched by name first, the same trust "+ Tag people"
+already puts in a Wikidata search result — and keeps that match on their
+own record afterward, so a second run never re-searches them. A fictional
+character or someone Wikipedia genuinely has no picture of just stays a
+bare initial, same as before; the summary at the end names who came up
+empty.
+
+## 68. Relationships that were never a marriage get their own timeline too (v150, 2026-09-26)
+
+Her ask, quoting Princess Anne's own Wikipedia paragraph: "who she met,
+who she dated, when it ended" — Andrew Parker Bowles and Richard Meade,
+neither ever her husband, alongside her actual marriage to Mark Phillips
+(met 1968, married 1973, separated 1989, divorced 1992). "Their Story"
+(relationship.js) already drew met/engaged/married/separated as its own
+poster — but only ever for a `spouse`-kind relationship; nothing in the
+schema recorded a relationship that was never a marriage at all.
+
+Reused `kind: 'partner'` rather than inventing a new value — the Questions/
+Theories feature (2026-09-04) already uses it for a theory-derived "with:
+X" link, so it was already the app's own word for "romantic, not married."
+Added it to "link two people"'s kind picker. `buildRelationshipLine()` and
+`buildLifeLine()` (Their Story's own poster and each person's main life
+line) now both read `partner` alongside `spouse`, but never call it a
+marriage: the synthesized start mark reads "With X" / ☆ instead of
+"Married X" / ♥ for anything that isn't a spouse — the ending itself
+("Ended with X") was never marriage-specific wording to begin with, so it
+needed no change. Deliberately NOT added to `FAMILY_KINDS` — a partner
+relationship gets no tree placement and no "m. 2005"-style marker there,
+so a brief fling never restructures the tree the way an actual marriage
+does; the Lifeline tab (§66) is its only browsable door, widened to list
+`partner` relationships alongside `spouse`.
+
 ## 67. Every person gets a real case — "No case yet" retired (v149, 2026-09-26)
 
 Her ask: after being sent to People's bare "+ Person" for a new subject

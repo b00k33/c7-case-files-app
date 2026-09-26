@@ -606,15 +606,20 @@ function renderOthers(slot, ctx, people, rels, focus) {
 // relationships e.g. she met husband in year x and got engaged in year x")
 // — "Their Story" (relationship.js) already draws met/engaged/married/
 // separated as its own poster, but until now the only door into it was two
-// taps deep on the tree (tap "m. 2009" → a drawer → "Their Story →"). This
-// is the same data, surfaced as a browsable list, one tap to the full page.
+// taps deep on the tree (tap "m. 2009" → a drawer → "Their Story →"), and
+// that door only ever opened for a spouse. Widened 2026-09-26 to "partner"
+// too (her ask, on Princess Anne: "who she dated, when it ended" — a
+// relationship that was never a marriage still gets the same timeline,
+// just without a tree marker of its own since it never joins the two
+// people as a couple unit there). This is the same data, surfaced as a
+// browsable list, one tap to the full page.
 async function renderRelationshipsLifeline(slot, ctx, people, rels) {
   const byId = new Map(people.map((p) => [p.id, p]));
-  const couples = rels.filter((r) => r.kind === 'spouse' && !r.theory_id);
+  const couples = rels.filter((r) => (r.kind === 'spouse' || r.kind === 'partner') && !r.theory_id);
   const panel = document.createElement('div');
   panel.className = 'panel';
   if (!couples.length) {
-    panel.appendChild(emptyState({ missing: 'No couples yet.', why: 'A spouse relationship gets its own story here — met, engaged, married, separated.', action: 'link two people', onAction: () => ctx.openDrawer((body) => renderAddRel(body, ctx, people)) }));
+    panel.appendChild(emptyState({ missing: 'No relationships yet.', why: 'A spouse or partner gets their own story here — met, engaged, married, separated.', action: 'link two people', onAction: () => ctx.openDrawer((body) => renderAddRel(body, ctx, people)) }));
     slot.appendChild(panel);
     return;
   }
@@ -1052,7 +1057,7 @@ function renderAddRel(body, ctx, people) {
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:16px">Add a relationship</h3>
     <div class="field"><label>A</label><select id="r-a">${opts}</select></div>
-    <div class="field"><label>Kind</label><select id="r-kind">${['parent', 'spouse', 'sibling', 'godparent', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
+    <div class="field"><label>Kind</label><select id="r-kind">${['parent', 'spouse', 'partner', 'sibling', 'godparent', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
     <div class="field"><label>B ${'(for "parent" or "godparent", A is the parent or godparent of B)'}</label><select id="r-b">${opts}</select></div>
     <button class="btn btn-primary" id="r-save">Add</button>
   `;

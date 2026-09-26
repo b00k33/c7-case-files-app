@@ -12,7 +12,7 @@ import { tokensHtml } from '../lifemap.js';
 import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
-import { searchPeople, fillFromWikidata } from '../lookup.js';
+import { searchPeople, fillFromWikidata, fetchItemPhoto, savePhotoFromUrl } from '../lookup.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -41,6 +41,56 @@ async function picSegEl(p) {
 }
 
 function goToPerson(ctx, p) { markOpened(p.case_id); ctx.setCaseId(p.case_id).then(() => ctx.navigate(`#/subject/${p.id}`)); }
+
+/**
+ * "Find photos" (her ask, 2026-09-26, on a real People page full of bare
+ * initials: "find photos immediately"): every person still without one
+ * gets a pass — someone who already carries a wikidata_id (added via
+ * Insert Family, a lookup, or Wikidata drafted them without ever finding a
+ * usable image) is fetched by that exact id; anyone with no wikidata_id
+ * yet is matched by name first, same trust "+ Tag people" already puts in
+ * a Wikidata search result, and the match is kept on their record too —
+ * a fictional character or an obscure relative with no photo anywhere on
+ * Wikipedia just stays a bare initial, same as today.
+ */
+function wireFindPhotos(btn, slot, ctx, people, onChanged) {
+  const { store } = ctx;
+  btn.addEventListener('click', async () => {
+    if (slot.children.length) { slot.innerHTML = ''; return; }
+    const missing = people.filter((p) => !p.photo_path && !p.photo_url);
+    slot.innerHTML = `
+      <div id="fp-progress" class="inline-note" style="border-left-color:var(--brass)">Starting…</div>
+      <div class="row wrap" style="gap:8px;margin-top:6px" id="fp-actions"><button class="btn btn-ghost btn-sm" id="fp-cancel">Cancel</button></div>
+    `;
+    const prog = slot.querySelector('#fp-progress');
+    let cancelled = false;
+    slot.querySelector('#fp-cancel').addEventListener('click', () => { cancelled = true; slot.innerHTML = ''; });
+    let found = 0, checked = 0;
+    const failed = [];
+    for (const p of missing) {
+      if (cancelled) return;
+      checked++;
+      prog.textContent = `${checked} of ${missing.length} — ${p.display_name}`;
+      try {
+        let qid = p.wikidata_id;
+        if (!qid) {
+          const hits = await searchPeople(p.display_name);
+          if (!hits.length) { failed.push(p.display_name); continue; }
+          qid = hits[0].id;
+        }
+        const { photoUrl } = await fetchItemPhoto(qid);
+        if (!photoUrl) { failed.push(p.display_name); continue; }
+        await savePhotoFromUrl(store, p.id, photoUrl);
+        if (!p.wikidata_id) await store.updatePerson(p.id, { wikidata_id: qid });
+        found++;
+      } catch (e) { failed.push(p.display_name); }
+    }
+    if (cancelled) return;
+    prog.innerHTML = `<div class="inline-note" style="border-left-color:var(--brass)">Done — ${found} of ${missing.length} found${failed.length ? `. No luck for: ${failed.slice(0, 6).map(esc).join(', ')}${failed.length > 6 ? `, +${failed.length - 6} more` : ''}` : ''}.</div>`;
+    slot.querySelector('#fp-actions').innerHTML = '<button class="btn btn-primary btn-sm" id="fp-done">Done</button>';
+    slot.querySelector('#fp-done').addEventListener('click', onChanged);
+  });
+}
 
 // + Person (her ask, 2026-09-17): this page spans every case, so there is
 // no "current case" to add into the way Relations' own "+ Person" has —
@@ -280,6 +330,7 @@ async function buildPicRow(p, ctx, dupInfo, onChanged) {
 export async function render(root, ctx) {
   const { store } = ctx;
   const people = await store.listAllPeople();
+  const missingPhotoCount = people.filter((p) => !p.photo_path && !p.photo_url).length;
 
   root.innerHTML = `
     <div class="stack">
@@ -287,15 +338,19 @@ export async function render(root, ctx) {
         <span class="mono" style="font-size:11px;color:var(--text-3)">${people.length} ${people.length === 1 ? 'person' : 'people'} · every case</span>
         <div class="row" style="gap:8px">
           <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
+          ${missingPhotoCount ? `<button class="btn btn-ghost btn-sm" id="find-photos-btn" title="Look up a picture on Wikipedia for everyone who doesn't have one">Find photos (${missingPhotoCount})</button>` : ''}
           <button class="btn btn-primary btn-sm" id="new-person-btn">+ Person</button>
         </div>
       </div>
+      <div id="find-photos-slot"></div>
       <div id="new-person-slot"></div>
       <div id="people-body"></div>
     </div>
   `;
 
   root.querySelector('#new-person-btn').addEventListener('click', () => openAddPerson(root.querySelector('#new-person-slot'), ctx));
+  const findPhotosBtn = root.querySelector('#find-photos-btn');
+  if (findPhotosBtn) wireFindPhotos(findPhotosBtn, root.querySelector('#find-photos-slot'), ctx, people, () => render(root, ctx));
 
   const body = root.querySelector('#people-body');
   if (!people.length) {

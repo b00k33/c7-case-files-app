@@ -417,7 +417,44 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-26, latest — "No case yet" retired: every person gets a real
+**2026-09-26, latest — a relationship that was never a marriage gets its
+own timeline, and "Find photos" backfills the whole People grid in one
+pass (v150–v151, SPEC §68–69).** Two separate asks landed back to back.
+(1) Her own quote of Princess Anne's Wikipedia paragraph — Andrew Parker
+Bowles and Richard Meade, neither a husband, alongside her actual
+marriage to Mark Phillips — asking for "who she met, who she dated, when
+it ended" to work the way Their Story already does for a marriage. Reused
+`kind: 'partner'` rather than inventing a new value — Questions/Theories
+(2026-09-04) already uses it for a theory-derived romantic link, so it
+was already this app's own word for "romantic, not married." Added it to
+the relationship-kind picker; `buildRelationshipLine()`/`buildLifeLine()`
+(Their Story's poster, and every person's own life line) read `partner`
+alongside `spouse`, but the synthesized marks now say "With X"/☆ rather
+than "Married X"/♥ for anything that isn't a real marriage. Deliberately
+NOT added to `FAMILY_KINDS` — a partner relationship gets no tree
+placement and no "m. 2005" marker, so a brief fling doesn't restructure
+the family tree the way an actual marriage does; the Lifeline tab (§66)
+is its only browsable door, widened to list both kinds. (2) A screenshot
+of her real People page, ~304 people, many still bare initials: "find
+photos immediately." A new "Find photos (N)" button (shown only when at
+least one person is missing a photo) walks every one of them — a
+`wikidata_id` already on file gets re-fetched by that exact id (most of
+them; Wikidata itself just had no usable image the first time), anyone
+without one gets matched by name the same way "+ Tag people" already
+trusts a top search hit, and keeps that match afterward so a second run
+never re-searches them. A summary at the end names who still came up
+empty — a fictional character, or someone Wikipedia genuinely has no
+picture of, stays a bare initial. **Neither of these two could be
+verified live this pass** — no node/npm/python runtime was reachable in
+this environment via Bash or PowerShell (tried a manual PowerShell
+`HttpListener` static server too; it didn't survive across separate tool
+calls) — so both shipped on careful code-level review against already-
+proven patterns (the theory-relationship `kind: 'partner'` convention;
+the existing "+ Tag people" name-search-and-fill flow) rather than a
+click-tested confirmation, and this was disclosed to her plainly rather
+than reported as tested.
+
+**2026-09-26, earlier — "No case yet" retired: every person gets a real
 case (v149, SPEC §67).** She hit this one herself: sent to People's bare
 "+ Person" to add a subject with no Wikipedia page, she then couldn't open
 what she'd created — a case-less person's tile only opens a rename/remove

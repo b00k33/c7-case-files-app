@@ -16,12 +16,22 @@ const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join
 const firstName = (name) => String(name || '').split(/\s+/)[0];
 
 function relLabel(rel) {
-  if (rel.kind !== 'spouse') return rel.kind;
   const sy = rel.start_date ? rel.start_date.slice(0, 4) : null;
   const ey = rel.end_date ? rel.end_date.slice(0, 4) : null;
-  if (ey) return `Married ${sy || ''}${sy ? ' · ' : ''}separated ${ey}`;
-  if (sy) return `Married ${sy}`;
-  return 'Spouse';
+  if (rel.kind === 'spouse') {
+    if (ey) return `Married ${sy || ''}${sy ? ' · ' : ''}separated ${ey}`;
+    if (sy) return `Married ${sy}`;
+    return 'Spouse';
+  }
+  // a non-marital relationship (her ask, 2026-09-26: "who she dated, when
+  // it ended") — capitalised, not the raw kind string, and no "married"
+  // wording it never earned
+  if (rel.kind === 'partner') {
+    if (ey) return `Together ${sy || ''}${sy ? ' · ' : ''}ended ${ey}`;
+    if (sy) return `Together from ${sy}`;
+    return 'Partner';
+  }
+  return rel.kind;
 }
 
 export async function render(root, ctx, relationshipId) {
