@@ -417,7 +417,31 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-26, latest — the Fashion gallery, built and verified live end to
+**2026-09-26, latest — "add & link, in one step" (v153, SPEC §71).** After
+walking her through adding Princess Anne's own relationships by hand
+(Andrew Parker Bowles, Richard Meade — search-and-add, then a separate
+"link two people" drawer, then Their Story, then "+Milestone" — four
+screens for one fact), her feedback: **"that takes too long make it
+faster."** New "+ add & link" text link on Relations
+(`renderQuickRelationship` in `js/pages/relations.js`), placed as small
+text beside the existing "or pick from People" / "link two people" links
+— Wikipedia batch-add stays the one prominent button (§16's hierarchy
+unchanged). One drawer does all three jobs in a single save: names the
+person (an optional, non-blocking Wikidata lookup — real case that
+prompted this, Andrew Parker Bowles and Richard Meade, are on neither),
+picks the relationship kind (`partner` first — the common "someone new,
+not family yet" case) and who they connect to (defaulting to the case's
+own subject, same name-match `dropCaseNamePlaceholder` already uses), and
+optionally logs the date they met as Their Story's first milestone via
+the same `parseDate` that page's own milestone form uses. A date that
+doesn't parse still saves the person and the link — the drawer stays
+open with an inline note (never `alert()`, per this codebase's own
+`ui.js` rule) rather than losing the rest of the entry. Not yet verified
+live (same missing node/python runtime disclosed throughout this week);
+reviewed carefully against the existing `renderAddRel`/`addPeopleFromWikidata`/
+Their Story milestone patterns it reuses.
+
+**2026-09-26, earlier — the Fashion gallery, built and verified live end to
 end (v152, SPEC §70).** Her ask: "collect images of people's fashion for
 personal inspo and also have a timeline of their style, without having to
 copy paste images manually." Four scoping questions first (where it lives,

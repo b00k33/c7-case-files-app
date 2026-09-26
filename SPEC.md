@@ -1495,6 +1495,44 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 71. "Add & link, in one step" — a faster way to record someone new (v153, 2026-09-26)
+
+Her ask, after a walkthrough of adding Princess Anne's own relationships
+(Andrew Parker Bowles, Richard Meade — neither on Wikidata; Mark Phillips,
+who is) the old way — search-and-add on its own screen, then "link two
+people" in a separate drawer, then open Their Story, then "+Milestone" —
+took four screens for one fact like "met Richard Meade in 1970":
+**"that takes too long make it faster."**
+
+A new "+ add & link" text link on Relations (`relations.js`,
+`renderQuickRelationship`), beside the existing "or pick from People" /
+"link two people" links (small text, not competing with "+ From
+Wikipedia" — the same "fast path is Wikipedia, full stop" hierarchy from
+§16 stays in force). One drawer, one save:
+
+- **Who they connect to** — defaults to the case's own subject (the
+  person whose name matches the case's name, same match `dropCaseNamePlaceholder`
+  already uses) rather than making her hunt for them in the list.
+- **Their name**, with an optional "Look up on Wikipedia" — genuinely
+  optional, not a blocking step, because the real case that prompted this
+  (Andrew Parker Bowles, Richard Meade) has no Wikidata record at all;
+  picking a match fills their profile in via `fillFromWikidata` in the
+  background, skipping it just saves the typed name.
+- **Kind** (partner first in the list — the common case for "someone
+  new, not yet family") and **When they met**, parsed by the same
+  `parseDate` Their Story's own milestone form uses ("1970", "Nov 1996",
+  "14 Nov 1996").
+
+One "Add" creates the person (scoped to the current case, so they're
+immediately linkable — the case-scoping rule from §67), the relationship
+(guarded against duplicates the same way "link two people" already is,
+by kind + pair, not just by name), and — only if the date parsed — one
+"Met" milestone event on Their Story, in a single save. A date that
+doesn't parse still saves the person and the link; the drawer stays open
+with an inline note (never `alert()` — this codebase's own rule, ui.js)
+naming what didn't read and offering another try, rather than losing the
+rest of the entry.
+
 ## 70. The Fashion gallery (v152, 2026-09-26)
 
 Her ask: "collect images of people's fashion for personal inspo and also

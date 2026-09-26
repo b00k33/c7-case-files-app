@@ -3,7 +3,8 @@ import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker } from '../ui.js';
-import { searchPeople, addPeopleFromWikidata } from '../lookup.js';
+import { searchPeople, addPeopleFromWikidata, fillFromWikidata } from '../lookup.js';
+import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
@@ -151,7 +152,8 @@ export async function render(root, ctx, focusId = null) {
   // people still work, just as small text, not buttons competing for the
   // same attention
   const addMoreSlot = root.querySelector('#add-more-slot');
-  addMoreSlot.innerHTML = `<button class="linkish" id="add-type-btn">or pick from People</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
+  addMoreSlot.innerHTML = `<button class="linkish" id="add-quick-btn" title="One drawer: name them, how they connect, and when — saved together">+ add & link</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-type-btn">or pick from People</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
+  addMoreSlot.querySelector('#add-quick-btn').addEventListener('click', () => ctx.openDrawer((body) => renderQuickRelationship(body, ctx, allPeople)));
   addMoreSlot.querySelector('#add-type-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'pick')));
   addMoreSlot.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
@@ -1050,6 +1052,124 @@ function paintMatches(results, rows, ctx) {
     });
   };
   paint();
+}
+
+/**
+ * The fast path for "someone new, and how they connect, in one go" (her
+ * ask, 2026-09-26: "that takes too long make it faster" — the old way was
+ * search-and-add, then a separate drawer to link two people, then Their
+ * Story, then +Milestone, four screens for one fact like "met Richard Meade
+ * in 1970"). This collapses all of it: type a name, optionally tick a
+ * Wikidata match (skip it — plenty of people, like Andrew Parker Bowles,
+ * aren't on Wikidata at all), pick how they connect, and note when — one
+ * save creates the person (with a Wikidata profile if picked), the
+ * relationship, and — if a date parsed — the first milestone on Their
+ * Story, all at once.
+ */
+async function renderQuickRelationship(body, ctx, people) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const kase = await ctx.store.getCase(ctx.caseId);
+  const anchor = (kase && people.find((p) => p.display_name.trim().toLowerCase() === kase.name.trim().toLowerCase())) || people[0] || null;
+  const opts = people.map((p) => `<option value="${p.id}" ${anchor && p.id === anchor.id ? 'selected' : ''}>${p.display_name}</option>`).join('');
+  const kinds = ['partner', 'spouse', 'parent', 'sibling', 'godparent', 'business', 'associate', 'household'];
+  let pick = null; // a chosen Wikidata match, or null to just save the typed name
+  body.innerHTML = `
+    <h3 class="title" style="margin-bottom:4px">Add & link, in one step</h3>
+    <p style="font-size:12px;color:var(--text-3);margin:0 0 16px">For someone new — met, dated, worked with. Skip the lookup if they're not on Wikipedia.</p>
+    <div class="field"><label>With</label><select id="qr-a">${opts}</select></div>
+    <div class="field"><label>Their name</label>
+      <div class="row wrap" style="gap:8px">
+        <input type="text" id="qr-name" style="flex:1 1 160px" placeholder="Andrew Parker Bowles">
+        <button type="button" class="btn btn-ghost btn-sm" id="qr-lookup">Look up on Wikipedia</button>
+      </div>
+    </div>
+    <div id="qr-matches"></div>
+    <div class="row wrap" style="gap:8px">
+      <div class="field" style="flex:1 1 140px"><label>Kind</label><select id="qr-kind">${kinds.map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
+      <div class="field" style="flex:1 1 160px"><label>When they met</label><input type="text" id="qr-when" placeholder="1970 · Nov 1996 · 14 Nov 1996"></div>
+    </div>
+    <div class="field"><label>Notes</label><input type="text" id="qr-notes" placeholder="optional — a quote, a source"></div>
+    <button class="btn btn-primary" id="qr-save">Add</button>
+  `;
+  const nameInput = body.querySelector('#qr-name');
+  const matchesSlot = body.querySelector('#qr-matches');
+  queueMicrotask(() => nameInput.focus());
+  const runLookup = async () => {
+    const q = nameInput.value.trim();
+    const lookupBtn = body.querySelector('#qr-lookup');
+    clearInlineNote(lookupBtn);
+    if (!q) { inlineNote(lookupBtn, 'Type their name first.'); return; }
+    lookupBtn.disabled = true; lookupBtn.textContent = 'Searching…';
+    let matches = [];
+    try { matches = await searchPeople(q); }
+    catch (e) { lookupBtn.disabled = false; lookupBtn.textContent = 'Look up on Wikipedia'; inlineNote(lookupBtn, `Couldn't reach Wikidata — ${e.message}.`); return; }
+    lookupBtn.disabled = false; lookupBtn.textContent = 'Look up on Wikipedia';
+    if (!matches.length) { matchesSlot.innerHTML = `<div class="inline-note">No match on Wikidata — that's fine, just the name will be saved.</div>`; pick = null; return; }
+    matchesSlot.innerHTML = matches.map((m, i) => `
+      <div class="list-row" data-pick="${i}">
+        <div class="main"><div class="title" style="font-size:13px">${esc(m.label)}</div><div class="sub">${esc(m.description) || 'no description'} · ${m.id}</div></div>
+        <span class="chip">use this</span>
+      </div>`).join('') + `<div class="list-row" data-pick="none"><div class="main"><div class="title" style="font-size:13px">Just the name — not this person</div></div></div>`;
+    matchesSlot.querySelectorAll('[data-pick]').forEach((row) => row.addEventListener('click', () => {
+      if (row.dataset.pick === 'none') { pick = null; matchesSlot.innerHTML = `<div class="inline-note">Saving just the typed name.</div>`; return; }
+      pick = matches[+row.dataset.pick];
+      nameInput.value = pick.label;
+      matchesSlot.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ ${esc(pick.label)} — their profile will be filled in from Wikidata.</div>`;
+    }));
+  };
+  body.querySelector('#qr-lookup').addEventListener('click', runLookup);
+  body.querySelector('#qr-save').addEventListener('click', async () => {
+    const saveBtn = body.querySelector('#qr-save');
+    const name = nameInput.value.trim();
+    const aId = body.querySelector('#qr-a').value;
+    const kind = body.querySelector('#qr-kind').value;
+    const whenRaw = body.querySelector('#qr-when').value.trim();
+    const notes = body.querySelector('#qr-notes').value.trim();
+    if (!name) { inlineNote(saveBtn, 'Type their name.'); nameInput.focus(); return; }
+    if (!aId) { inlineNote(saveBtn, 'Pick who they connect to.'); return; }
+    clearInlineNote(saveBtn);
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    const fresh = await ctx.store.listPeople(ctx.caseId);
+    const byName = (n) => fresh.find((p) => p.display_name.trim().toLowerCase() === n.trim().toLowerCase());
+    let person = (pick && ctx.store.findPersonByWikidata(ctx.caseId, pick.id)) || byName(name);
+    if (person) {
+      if (pick && !person.wikidata_id) await ctx.store.updatePerson(person.id, { wikidata_id: pick.id });
+    } else {
+      person = await ctx.store.createPerson({ case_id: ctx.caseId, kind: 'person', display_name: pick ? pick.label : name, wikidata_id: pick ? pick.id : null });
+    }
+    if (pick) { try { await fillFromWikidata(ctx.store, ctx.caseId, person.id, pick.id); } catch { /* profile fill is a bonus, not required to save the link */ } }
+    const bId = person.id;
+    if (aId === bId) {
+      inlineNote(saveBtn, 'That\'s the same person as "With" — pick someone else, or a different name.');
+      saveBtn.disabled = false; saveBtn.textContent = 'Add';
+      return;
+    }
+    const rels = await ctx.store.listRelationships(ctx.caseId);
+    let rel = rels.find((r) => r.kind === kind && ((r.a_id === aId && r.b_id === bId) || (r.a_id === bId && r.b_id === aId)));
+    if (!rel) {
+      const relId = await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: aId, b_id: bId, kind, confidence: 50, confirmed: 0 });
+      rel = { id: relId };
+    }
+    const d = whenRaw ? parseDate(whenRaw) : null;
+    if (d) {
+      await ctx.store.createEvent({
+        case_id: ctx.caseId, relationship_id: rel.id, title: 'Met', kind: 'met',
+        date: d.date, date_precision: d.precision, date_year_min: d.year, date_year_max: d.year,
+        notes: notes || null,
+      });
+    } else if (whenRaw) {
+      // person + relationship are already saved above — only the date needs
+      // another try, so keep the drawer open rather than lose the rest.
+      // ctx.rerender() tears down any open drawer (main.js — see subject.js's
+      // life-events sheet for the same trap), so it's deliberately skipped
+      // here; the background catches up once the drawer actually closes.
+      saveBtn.disabled = false; saveBtn.textContent = 'Add';
+      inlineNote(saveBtn, `${person.display_name} and the link are saved. "${whenRaw}" isn't a date I recognise — try "1970" or "14 Nov 1996" and Add again, or add it later from Their Story.`);
+      return;
+    }
+    ctx.closeDrawer();
+    ctx.rerender();
+  });
 }
 
 function renderAddRel(body, ctx, people) {
