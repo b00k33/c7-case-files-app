@@ -170,11 +170,31 @@ export async function fetchProfile(qid) {
   if (wikiTitle) {
     try {
       const s = await getJSON(WP_SUMMARY + encodeURIComponent(wikiTitle));
-      summary = s.extract || null;
-      wikiUrl = (s.content_urls && s.content_urls.desktop && s.content_urls.desktop.page) || `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`;
-      // the article's lead image, at a sensible size (Wikimedia serves it with CORS)
-      const src = (s.originalimage && s.originalimage.source) || (s.thumbnail && s.thumbnail.source) || null;
-      photoUrl = src ? src.replace(/\/(\d+)px-/, '/640px-') : null;
+      // A "notable relative" item often has no standalone article — English
+      // Wikipedia redirects it straight to the more famous person's own page
+      // (Andrea Finlay's own item sitelinks to "Andrea Swift", which
+      // redirects to "Taylor Swift"). The REST summary API silently follows
+      // that redirect and returns the DESTINATION page's own url, photo and
+      // description — found live, 2026-09-27: "Insert family" gave Taylor
+      // Swift's mother, father AND spouse her exact MTV VMAs photo (and a
+      // Wikipedia citation link reading "wiki/Taylor_Swift" on THEIR OWN
+      // profile) because all three of their Wikipedia links redirect to
+      // her article. s.wikibase_item is the QID of whichever page the
+      // redirect actually landed on; when it isn't the item just asked
+      // about, that page is about someone else — its photo and description
+      // are dropped, and the link stays the ORIGINAL requested title (which
+      // still genuinely redirects there in a browser) rather than the
+      // resolved destination, so the citation reads as this person's own
+      // Wikipedia coverage, not as a link to someone else's article.
+      const redirectedElsewhere = s.wikibase_item && s.wikibase_item !== qid;
+      wikiUrl = redirectedElsewhere
+        ? `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`
+        : (s.content_urls && s.content_urls.desktop && s.content_urls.desktop.page) || `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`;
+      if (!redirectedElsewhere) {
+        summary = s.extract || null;
+        const src = (s.originalimage && s.originalimage.source) || (s.thumbnail && s.thumbnail.source) || null;
+        photoUrl = src ? src.replace(/\/(\d+)px-/, '/640px-') : null;
+      }
     } catch (_) { wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`; }
   }
 

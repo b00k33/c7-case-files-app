@@ -417,7 +417,48 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — Fashion gallery gets a "paste a picture's web
+**2026-09-27, latest — a family member's own photo could silently be the
+more famous relative's face instead (v155, SPEC §73).** She sent a Fandom
+wiki page for Andrea Swift (Taylor Swift's mother) and asked to have her
+added; rather than guess at instructions, actually ran the real "Insert
+family" pull live in the sandbox first. It surfaced a genuine, previously
+invisible bug: Andrea Finlay, Scott Swift AND Taylor Swift's own anchor
+record all came back with the identical photo — Taylor's own MTV VMAs
+picture. Traced to source rather than patched around: Andrea Finlay's
+Wikidata item sitelinks to "Andrea Swift" on English Wikipedia, which is
+a plain redirect to "Taylor Swift" (ordinary and common for a "notable
+relative" who never got their own standalone article) — and
+`fetchProfile()`'s Wikipedia-summary call silently followed that redirect,
+returning the DESTINATION page's own photo and description with nothing
+checking whether the landing page was actually about the person asked
+for. Fixed with the REST summary API's own `wikibase_item` field (the QID
+of wherever the redirect actually lands): a mismatch against the
+requested qid means the landing page is about someone else, so its photo
+and summary are dropped, while the citation link falls back to the
+originally-requested title (which still correctly redirects there,
+so it still reads as a genuine, if thin, citation). One fix in the single
+shared `fetchProfile()` — corrects `fillFromWikidata`, `insertFamily`,
+the family batch-add, and "+ Tag people"/"+ Person"'s lookup all at once,
+since none of them are Taylor-Swift-specific call sites and neither is
+this bug: any minor family member whose Wikipedia coverage is folded into
+a more famous relative's article was silently getting misattributed.
+Verified in three separate steps rather than trusting the first result —
+confirmed the redirect and the QID mismatch directly against Wikipedia's
+own API before writing a line of code; confirmed the isolated fix returns
+a null photo for the two wrongly-photographed relatives while leaving
+Taylor's own correct photo alone; then re-ran the real `insertFamily()`
+end to end on a fresh pull and confirmed the same result held, with
+Travis Kelce (a real, standalone article) still correctly keeping his own
+photo throughout. A first attempt at re-verifying through the actual UI
+click path looked like the fix hadn't taken — turned out to be this
+project's own well-documented stale-cache trap, this time a THIRD layer
+of it beyond the already-known service-worker-cache and ES-module-instance
+layers: the plain browser HTTP cache for the unversioned dev-server URL,
+which neither unregistering the service worker nor clearing its Cache
+Storage touches. A cache-busted `?bust=` import (already this session's
+established workaround) proved the fix was correct all along.
+
+**2026-09-27, earlier — Fashion gallery gets a "paste a picture's web
 address" field (v154, SPEC §72).** Same day she sent a Fandom wiki page
 for Taylor Swift's mother, she followed with "use this for taylor swift
 style fashion" and a link to a real, well-organised fashion blog

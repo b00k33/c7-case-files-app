@@ -1495,6 +1495,49 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 73. A notable relative's redirect page silently stole the anchor's own photo (v155, 2026-09-27)
+
+Found while actually walking her request to add Andrea Swift, Taylor
+Swift's mother, live: "Insert family" on a fresh Taylor Swift profile gave
+Andrea Finlay, Scott Swift AND Taylor Swift herself the exact same
+picture — Taylor's own MTV VMAs photo. Root cause, confirmed directly
+against the real APIs before touching any code: a "notable relative" item
+often has no standalone Wikipedia article of its own — Andrea Finlay's
+Wikidata item (Q17319206) sitelinks to "Andrea Swift," which is a plain
+REDIRECT to "Taylor Swift" on English Wikipedia (extremely common for
+parents/spouses/siblings of a much more famous person). `fetchProfile()`'s
+Wikipedia-summary call (`WP_SUMMARY + wikiTitle`) silently follows that
+redirect and returns the DESTINATION page's own photo, description and
+canonical URL — with nothing in the existing code checking whether the
+page it landed on was actually the item it asked about.
+
+Fixed using a field the REST summary API already returns for exactly this
+purpose: `wikibase_item`, the QID of whichever page the redirect actually
+resolved to. When it doesn't match the `qid` `fetchProfile` was called
+with, the landing page is provably about someone else — its `photoUrl`
+and `summary` are dropped, and `wikiUrl` falls back to the ORIGINALLY
+requested title (which still genuinely redirects there in a browser,
+so the citation correctly reads as this person's own — if thin — Wikipedia
+coverage, not as a link that looks like it points at the more famous
+relative). Fixed once, in the one shared function every caller already
+routes through (`fetchProfile`), so `fillFromWikidata`, `insertFamily`,
+the family page's batch add, "+ Tag people" and "+ Person"'s lookup are
+all corrected the same way — this was never a Taylor-Swift-specific bug,
+it silently misattributed a photo (and, less visibly, a summary) for
+ANY family member, past or future, whose own Wikipedia coverage happens
+to be folded into a redirect to someone more famous.
+
+Verified against the real, live case that surfaced it, at each layer:
+confirmed the redirect and its `wikibase_item` mismatch directly against
+Wikipedia's own REST API first (not assumed); then confirmed the isolated
+`fetchProfile()` fix returns `photoUrl: null` for Andrea Finlay and Scott
+Swift while leaving Taylor Swift's own (genuinely correct) photo
+untouched; then re-ran the real `insertFamily()` end to end on a fresh
+Wikidata pull for Q26876 and confirmed all three previously-mis-photographed
+people now come back with no photo at all (correctly — Wikidata has none
+of its own for any of them), while Travis Kelce, whose own article is
+real and standalone, still gets his own correct photo, exactly as before.
+
 ## 72. Fashion gallery: paste a picture's own web address (v154, 2026-09-27)
 
 Her ask, pointing at a real fashion-blog post ("use this for taylor swift
