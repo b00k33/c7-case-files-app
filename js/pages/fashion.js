@@ -151,7 +151,8 @@ function renderAddForm(slot, ctx, allPeople, onDone) {
       </div>
       <div id="fa-pull-slot"></div>
       <div class="field"><label>Picture</label><input type="file" id="fa-file" accept="image/*" multiple></div>
-      <div class="inline-note" style="border-left-color:var(--text-3)">Or paste an image with Ctrl+V while this is open.</div>
+      <div class="inline-note" style="border-left-color:var(--text-3)">Or paste an image with Ctrl+V while this is open, or — instead of either — paste a picture's own web address below (right-click a photo on almost any site → "Copy image address").</div>
+      <div class="field"><label>Picture's web address (optional, instead of a file)</label><input type="text" id="fa-url" placeholder="https://…/photo.jpg"></div>
       <div class="row wrap" style="gap:8px">
         <div class="field"><label>Date (optional)</label><input type="date" id="fa-date"></div>
         <div class="field" style="flex:1"><label>Caption (optional)</label><input type="text" id="fa-caption" placeholder="Met Gala"></div>
@@ -203,12 +204,30 @@ function renderAddForm(slot, ctx, allPeople, onDone) {
 
   slot.querySelector('#fa-save').addEventListener('click', async () => {
     const prog = slot.querySelector('#fa-progress');
-    const files = [...slot.querySelector('#fa-file').files];
-    if (!files.length) { prog.textContent = 'Pick or paste at least one picture first.'; return; }
+    const saveBtn = slot.querySelector('#fa-save');
+    let files = [...slot.querySelector('#fa-file').files];
+    const pictureUrl = slot.querySelector('#fa-url').value.trim();
     const person = matchPerson();
     const date = slot.querySelector('#fa-date').value || null;
     const caption = slot.querySelector('#fa-caption').value.trim() || null;
-    const source = slot.querySelector('#fa-source').value.trim() || null;
+    let source = slot.querySelector('#fa-source').value.trim() || null;
+    if (!files.length && pictureUrl) {
+      saveBtn.disabled = true;
+      prog.textContent = 'Fetching that picture…';
+      try {
+        const res = await fetch(pictureUrl);
+        if (!res.ok) throw new Error(String(res.status));
+        const blob = await res.blob();
+        files = [new File([blob], 'picture.jpg', { type: blob.type || 'image/jpeg' })];
+        if (!source) source = pictureUrl;
+      } catch (_) {
+        prog.textContent = 'Could not fetch that address — some sites block direct downloads. Try saving the picture and picking the file instead.';
+        saveBtn.disabled = false;
+        return;
+      }
+    }
+    if (!files.length) { prog.textContent = 'Pick a file, paste a picture, or paste its web address first.'; return; }
+    saveBtn.disabled = true;
     prog.textContent = `Adding ${files.length === 1 ? 'the picture' : `${files.length} pictures`}…`;
     await saveStyleFiles(ctx, files, { personId: person ? person.id : null, date, caption, source });
     closeForm();

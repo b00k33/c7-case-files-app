@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-26, latest — "add & link, in one step" (v153, SPEC §71).** After
+**2026-09-27, latest — Fashion gallery gets a "paste a picture's web
+address" field (v154, SPEC §72).** Same day she sent a Fandom wiki page
+for Taylor Swift's mother, she followed with "use this for taylor swift
+style fashion" and a link to a real, well-organised fashion blog
+(taylorswiftstyle.com — dated posts, one outfit per post, direct
+Squarespace-hosted photo per post). The Fashion gallery's "+ Add" (v152,
+SPEC §70) could only take an already-saved file or a clipboard paste — a
+photo spotted on a website still meant save-then-upload. Added one field,
+"Picture's web address": paste a direct image URL and it fetches,
+compresses and stores through the exact same asset pipeline as everything
+else in the app. Deliberately kept general rather than building a scraper
+specific to this one fashion blog — a single-site importer would need
+rebuilding for the next site she finds, and the existing Wikidata/Commons
+auto-pull already covers "get everything automatically" for well-
+documented people. Verified live against a REAL photo from the actual
+site she linked (not a synthetic test) — a Squarespace CDN image, genuinely
+cross-origin from the dev server — confirmed it fetches, compresses down
+from a large PNG, stores and renders correctly with its date and caption
+before calling this a safe general capability rather than one only proven
+against Wikimedia's own permissive servers.
+
+**2026-09-26, earlier — "add & link, in one step" (v153, SPEC §71).** After
 walking her through adding Princess Anne's own relationships by hand
 (Andrew Parker Bowles, Richard Meade — search-and-add, then a separate
 "link two people" drawer, then Their Story, then "+Milestone" — four

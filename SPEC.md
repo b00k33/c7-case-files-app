@@ -1495,6 +1495,34 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 72. Fashion gallery: paste a picture's own web address (v154, 2026-09-27)
+
+Her ask, pointing at a real fashion-blog post ("use this for taylor swift
+style fashion"): the Fashion gallery's "+ Add" (§70) could only take a
+file she'd already saved or a screenshot on her clipboard — a photo she
+found on a website (a fan blog, a magazine's own coverage) still meant
+save-then-upload, exactly the manual step the whole feature exists to
+avoid. Added one more optional field, "Picture's web address," beside the
+file picker: paste a direct image URL (right-click a photo almost
+anywhere → "Copy image address") and it fetches, compresses and stores it
+through the exact same pipeline as every other picture in the app —
+`compressImage`/`storeEvidenceFile`/`queueUpload`, no new asset path.
+Deliberately general — this works for any site's own hotlinkable image,
+not a scraper built for one fashion blog — since a one-site-specific
+importer would have needed rebuilding for the next site she finds, and
+Wikidata/Commons already covers the "pull everything automatically"
+case for well-documented people (§70's own auto-pull). When the URL field
+is used and "Source link" is left blank, the pasted address becomes the
+source too, so the citation is never lost by omission.
+
+Verified live against a real photo from taylorswiftstyle.com (a
+Squarespace-hosted image, cross-origin from the app's own dev server) —
+fetched, compressed from a large PNG down to a normal JPEG, stored, and
+rendered correctly in the wall with its date and caption, confirming no
+CORS surprise on a real third-party CDN before shipping this as a general
+capability rather than something only tested against Wikimedia's own
+permissive servers.
+
 ## 71. "Add & link, in one step" — a faster way to record someone new (v153, 2026-09-26)
 
 Her ask, after a walkthrough of adding Princess Anne's own relationships
