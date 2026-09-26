@@ -547,6 +547,63 @@ export async function evidenceAssetUrl(filePath) {
   return db.assetUrl(filePath);
 }
 
+// ---------------------------------------------- fashion gallery ------------------
+// Not case-scoped, like evidence — a person's style spans every case, the
+// same as their profile photo or their traits already do (2026-09-26).
+
+export async function getStyleImage(id) {
+  const rows = db.exec('SELECT * FROM style_image WHERE id=? AND deleted_at IS NULL', [id]);
+  return rows[0] || null;
+}
+
+export async function createStyleImage(obj) {
+  const id = uuid();
+  const now = nowISO();
+  db.run(
+    `INSERT INTO style_image (id,person_id,file_path,sha256,bytes,mime,source_url,dated,date_precision,caption,origin,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.person_id || null, obj.file_path || null, obj.sha256 || null, obj.bytes ?? null, obj.mime || null,
+      obj.source_url || null, obj.dated || null, obj.date_precision || 'unknown', obj.caption || null, obj.origin || 'upload', now, now]
+  );
+  logChange('style_image', id, 'insert', obj);
+  return getStyleImage(id);
+}
+
+export async function updateStyleImage(id, patch) {
+  const now = nowISO();
+  const fields = Object.keys(patch);
+  if (!fields.length) return getStyleImage(id);
+  db.run(`UPDATE style_image SET ${fields.map((f) => `${f}=?`).join(',')}, updated_at=? WHERE id=?`, [...fields.map((f) => patch[f]), now, id]);
+  logChange('style_image', id, 'update', patch);
+  return getStyleImage(id);
+}
+
+export async function softDeleteStyleImage(id) {
+  const now = nowISO();
+  db.run('UPDATE style_image SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('style_image', id, 'delete', {});
+}
+
+/** Every image across every case, newest-dated first — undated inspiration sorts last. */
+export async function listStyleImages() {
+  return db.exec(
+    `SELECT si.*, p.display_name AS person_name FROM style_image si
+     LEFT JOIN person p ON p.id = si.person_id
+     WHERE si.deleted_at IS NULL
+     ORDER BY (si.dated IS NULL), si.dated DESC, si.created_at DESC`
+  );
+}
+
+/** People who already have at least one style image on file — the filter chips. */
+export async function listStylePeople() {
+  return db.exec(
+    `SELECT p.id, p.display_name, COUNT(*) AS n FROM style_image si
+     JOIN person p ON p.id = si.person_id AND p.deleted_at IS NULL
+     WHERE si.deleted_at IS NULL
+     GROUP BY p.id ORDER BY p.display_name COLLATE NOCASE`
+  );
+}
+
 // ---- the pictures on one evidence item ----------------------------------
 // Picture one is the item's own file_path (the card thumbnail). Everything
 // after it is an evidence_shot row: page 2 of a decree, the next post in a

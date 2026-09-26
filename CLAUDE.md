@@ -417,7 +417,53 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-26, latest — a relationship that was never a marriage gets its
+**2026-09-26, latest — the Fashion gallery, built and verified live end to
+end (v152, SPEC §70).** Her ask: "collect images of people's fashion for
+personal inspo and also have a timeline of their style, without having to
+copy paste images manually." Four scoping questions first (where it lives,
+how pictures get in, whether to auto-pull, whether inspiration and named
+people share one gallery) — she picked the recommended option on three and
+"both" on collection method — then two layout mocks with real inline
+previews before building (masonry wall with filter chips; entry via a
+button on People, not a new tab-bar slot — both her picks). New
+`style_image` table, `#/fashion` page, three ways in (pick/paste by hand;
+a bare paste anywhere on the page defaults to untagged inspiration; "Try
+auto-pull from Wikidata" for anyone with a `wikidata_id`, crawling their
+Commons category one level deep, capped at 40).
+
+**This is the first feature this session that could actually be verified
+live, not just reviewed by reading code** — a parent-level `.claude/
+launch.json` already had a working `c7-serve.ps1` PowerShell static-server
+entry from an earlier sitting (no node/python in this environment, same as
+every prior entry this week disclosed) — and it earned its keep
+immediately: a real Commons-category crawl against Elizabeth II's own
+Wikidata item (Q9682) came back with ZERO photos on the first live run,
+despite the exact same category genuinely holding a dozen usable ones,
+confirmed by fetching Commons' raw API response directly and comparing it
+against what the function returned rather than assuming the code read was
+right. Cause: Commons' own `imageinfo.url` carries a tracking query string
+appended after the real filename (`Apr21_Woman_of_the_Day.png?utm_source=
+commons.wikimedia.org&…`), and the file-type filter regex was anchored to
+end-of-string (`\.(jpe?g|png|webp)$`) — which a plain code review would
+very plausibly have missed, since the regex looks correct in isolation and
+the bug only shows up against Commons' actual response shape. Fixed to
+allow an optional `?` after the extension, then re-verified the ENTIRE
+pipeline live a second time, not just the regex in isolation: typed
+"Elizabeth II" into "+ Add," tapped the pull button, watched it progress
+"1 of 40…" through "40 of 40," hit an unrelated but well-documented trap
+along the way (the service worker had already cached the pre-fix lookup.js
+under `c7-v152` from the first page load, so the fix was invisible until
+the SW was unregistered and its cache cleared — `reference_stale_
+service_worker_sandbox`, hit again, same fix as every prior time), and
+confirmed all 40 real dated photos rendered correctly in the masonry wall
+with working filter chips and a working lightbox. Also disclosed to her
+plainly, from what the live pull actually surfaced: Commons files a
+person's category under everything associated with them, not just fashion
+— the real pull included a memorial flower arrangement and souvenir
+magazine covers alongside genuine photos, so an auto-pulled batch needs
+her own eye to thin out, which the already-built one-tap Remove handles.
+
+**2026-09-26, earlier — a relationship that was never a marriage gets its
 own timeline, and "Find photos" backfills the whole People grid in one
 pass (v150–v151, SPEC §68–69).** Two separate asks landed back to back.
 (1) Her own quote of Princess Anne's Wikipedia paragraph — Andrew Parker

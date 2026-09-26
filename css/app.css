@@ -634,6 +634,25 @@ table.matrix td.diag { background: transparent; cursor: default; }
    the row it replaces, so wireImportBtn/wireCaseMenu/wireDupFlag needed no
    changes — only the outer shape and this stylesheet did. */
 .tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); align-items: start; }
+
+/* the Fashion gallery (2026-09-26): a CSS multi-column wall, not a grid — a
+   fashion photo's own aspect ratio should show, not get cropped square, and
+   a masonry wall is the one layout where uneven heights read as intentional
+   rather than broken. */
+.fashion-wall { column-count: 2; column-gap: var(--sp-3); }
+@media (min-width: 700px) { .fashion-wall { column-count: 3; } }
+@media (min-width: 1100px) { .fashion-wall { column-count: 4; } }
+.fashion-card {
+  position: relative; break-inside: avoid; margin-bottom: var(--sp-3);
+  border-radius: var(--r-lg); overflow: hidden; cursor: pointer;
+  box-shadow: var(--lift-2); transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+.fashion-card:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
+.fashion-card img { display: block; width: 100%; height: auto; }
+.fashion-card .tag {
+  position: absolute; left: 6px; bottom: 6px; background: rgba(0, 0, 0, .55);
+  color: var(--brass); font-size: 10px; font-family: var(--font-mono); padding: 2px 6px; border-radius: var(--r-sm);
+}
 .tile {
   position: relative; display: flex; flex-direction: column;
   border-radius: var(--r-lg); background: var(--ink-1); cursor: pointer;

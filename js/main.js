@@ -22,6 +22,7 @@ const ROUTES = {
   event: () => import('./pages/event.js'),
   series: () => import('./pages/series.js'),
   people: () => import('./pages/people.js'),
+  fashion: () => import('./pages/fashion.js'),
   compare: () => import('./pages/compare.js'),
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
@@ -30,7 +31,7 @@ const ROUTES = {
 const TITLES = {
   evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
-  fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', series: 'Series', people: 'People', inbox: 'Inbox',
+  fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', series: 'Series', people: 'People', fashion: 'Fashion', inbox: 'Inbox',
   compare: 'Compare', relationship: 'Their Story',
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav

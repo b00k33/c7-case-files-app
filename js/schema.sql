@@ -210,6 +210,24 @@ CREATE TABLE contradiction (
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
 
+-- Fashion gallery (her ask, 2026-09-26: "collect images of people's fashion
+-- for personal inspo and also have a timeline of their style, without
+-- copy-pasting"). person_id null = pure inspiration, nobody named; set =
+-- one photo in that person's own style timeline. Not case-scoped like
+-- evidence — a person's style spans every case, same as their photo or
+-- their traits already do.
+CREATE TABLE style_image (
+  id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
+  person_id TEXT REFERENCES person(id) ON DELETE CASCADE,
+  file_path TEXT, sha256 TEXT, bytes INTEGER, mime TEXT,
+  source_url TEXT,                         -- where it came from, if known
+  dated TEXT, date_precision TEXT DEFAULT 'unknown',   -- day|month|year|unknown
+  caption TEXT,
+  origin TEXT NOT NULL DEFAULT 'upload',   -- upload|commons — how it got in
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE INDEX idx_style_image_person ON style_image(person_id);
+
 -- append-only history: undo today, sync between devices later
 CREATE TABLE change_log (
   id TEXT PRIMARY KEY,

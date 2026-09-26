@@ -201,6 +201,91 @@ export async function fetchProfile(qid) {
   };
 }
 
+const COMMONS = 'https://commons.wikimedia.org/w/api.php';
+
+// EXIF-style "2019:05:01 12:00:00", a plain ISO date, or just a bare year in
+// some free-text caption — Commons' own extmetadata is inconsistent, so this
+// takes whatever precision it can actually find rather than guessing the rest.
+function parseCommonsDate(raw) {
+  if (!raw) return null;
+  const s = String(raw);
+  let m = s.match(/(\d{4})[-:](\d{2})[-:](\d{2})/);
+  if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, precision: 'day' };
+  m = s.match(/(\d{4})[-:](\d{2})/);
+  if (m) return { date: `${m[1]}-${m[2]}-01`, precision: 'month' };
+  m = s.match(/\b(\d{4})\b/);
+  if (m) return { date: `${m[1]}-01-01`, precision: 'year' };
+  return null;
+}
+
+/** The person's own Commons category, from Wikidata's P373 claim, or their commons sitelink as a fallback. */
+async function commonsCategoryFor(qid) {
+  const data = await getJSON(`${WD}?action=wbgetentities&ids=${qid}&props=claims|sitelinks&sitefilter=commonswiki&format=json&origin=*`);
+  const ent = data.entities && data.entities[qid];
+  if (!ent || ent.missing !== undefined) return null;
+  const claims = ent.claims || {};
+  const p373 = values(claims, 'P373');
+  if (p373.length) return String(p373[0]);
+  const site = ent.sitelinks && ent.sitelinks.commonswiki ? ent.sitelinks.commonswiki.title : null;
+  return site ? site.replace(/^Category:/, '') : null;
+}
+
+async function commonsCategoryMembers(categoryTitle, type, limit) {
+  const cat = categoryTitle.replace(/^Category:/, '');
+  const url = `${COMMONS}?action=query&generator=categorymembers&gcmtitle=${encodeURIComponent(`Category:${cat}`)}&gcmtype=${type}&gcmlimit=${limit}&prop=imageinfo&iiprop=url|extmetadata&format=json&origin=*`;
+  const data = await getJSON(url);
+  return data.query && data.query.pages ? Object.values(data.query.pages) : [];
+}
+
+/**
+ * Best-effort fashion-photo pull for a well-documented public figure (her
+ * ask, 2026-09-26): Wikimedia Commons often organises a famous person's own
+ * photos under their root category, sometimes split into "<Name> in <year>"
+ * sub-categories — royals and A-list celebrities usually have this, most
+ * other people have no Commons category at all, in which case this returns
+ * no photos and the Fashion gallery falls back to adding them by hand. A
+ * one-level crawl (root category's own files, plus each direct sub-
+ * category's files), capped so one pull can never flood the gallery with
+ * hundreds of near-duplicate press photos. Read-only — returns candidates;
+ * the caller downloads and stores whichever ones it wants.
+ */
+export async function fetchStylePhotos(qid, { maxImages = 40, maxSubcats = 15 } = {}) {
+  const category = await commonsCategoryFor(qid);
+  if (!category) return { category: null, photos: [] };
+  const photos = [];
+  const seen = new Set();
+  const addFilePages = (pages) => {
+    for (const pg of pages) {
+      const info = pg && pg.imageinfo && pg.imageinfo[0];
+      // Commons' own imageinfo URLs carry a trailing "?utm_source=…" query
+      // string — an extension test anchored to end-of-string never matches
+      // a real file here, found live testing this against a real category
+      // (Elizabeth II's own, which returned 0 photos before this fix despite
+      // having a dozen usable ones)
+      if (!info || !info.url || seen.has(info.url) || !/\.(jpe?g|png|webp)(\?|$)/i.test(info.url)) continue;
+      seen.add(info.url);
+      const parsed = parseCommonsDate(info.extmetadata && info.extmetadata.DateTimeOriginal && info.extmetadata.DateTimeOriginal.value);
+      photos.push({
+        url: info.url,
+        sourceUrl: pg.title ? `https://commons.wikimedia.org/wiki/${encodeURIComponent(pg.title)}` : info.url,
+        date: parsed ? parsed.date : null,
+        datePrecision: parsed ? parsed.precision : 'unknown',
+      });
+    }
+  };
+  try {
+    addFilePages(await commonsCategoryMembers(category, 'file', 50));
+    if (photos.length < maxImages) {
+      const subcats = await commonsCategoryMembers(category, 'subcat', maxSubcats);
+      for (const sc of subcats) {
+        if (photos.length >= maxImages || !sc.title) continue;
+        addFilePages(await commonsCategoryMembers(sc.title, 'file', 20));
+      }
+    }
+  } catch (_) { /* Commons unreachable, or the category doesn't exist — best effort */ }
+  return { category, photos: photos.slice(0, maxImages) };
+}
+
 /** Download a remote picture into the asset store and set it as the person's photo. */
 export async function savePhotoFromUrl(store, personId, url) {
   if (!url) return false;

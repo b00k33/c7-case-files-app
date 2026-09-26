@@ -284,6 +284,19 @@ const MIGRATIONS = [
     UNIQUE(person_a_id, person_b_id)
   )`,
   'CREATE INDEX IF NOT EXISTS idx_distinct_pair_case ON distinct_pair(case_id)',
+  // the Fashion gallery (2026-09-26): a picture of one person's style, or
+  // (person_id null) plain inspiration with nobody named. See schema.sql.
+  `CREATE TABLE IF NOT EXISTS style_image (
+    id TEXT PRIMARY KEY,
+    person_id TEXT REFERENCES person(id) ON DELETE CASCADE,
+    file_path TEXT, sha256 TEXT, bytes INTEGER, mime TEXT,
+    source_url TEXT,
+    dated TEXT, date_precision TEXT DEFAULT 'unknown',
+    caption TEXT,
+    origin TEXT NOT NULL DEFAULT 'upload',
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_style_image_person ON style_image(person_id)',
 ];
 // columns added to existing tables after first release (SQLite has no
 // ADD COLUMN IF NOT EXISTS, so check PRAGMA first)

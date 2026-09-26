@@ -1495,6 +1495,65 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 70. The Fashion gallery (v152, 2026-09-26)
+
+Her ask: "collect images of people's fashion for personal inspo and also
+have a timeline of their style, without having to copy paste images
+manually." A new `style_image` table (person_id nullable — null is
+untagged inspiration, set is one photo in that person's own style story)
+and a new page at `#/fashion`, reached by a "Fashion →" button on People
+(her pick over a new bottom-tab slot). One mixed wall for both purposes,
+per her own answer that tagged people's photos and untagged inspiration
+belong in the same gallery rather than two — a CSS multi-column masonry
+wall (a photo's own aspect ratio shows, never cropped square), filter
+chips across the top: All · Inspiration · one per person who already has
+at least one image on file.
+
+Three ways a picture gets in, matching her "both" answer on share vs.
+paste: pick or paste a file directly in "+ Add" (works from a phone's own
+gallery or a desktop clipboard — no saving it somewhere else first); a
+bare Ctrl+V anywhere on the page with the form closed drops it in as
+untagged inspiration immediately, the same "nothing open → the default
+place" rule Evidence's own paste already uses (§13o/§13p); or, for a
+well-documented public figure, "Try auto-pull from Wikidata" inside
+"+ Add" once a name matching someone with a `wikidata_id` is typed —
+`fetchStylePhotos()` (lookup.js) finds their Commons category from
+Wikidata's P373 claim (or their Commons sitelink as a fallback) and
+crawls it one level deep (the root category's own files, plus each direct
+year/theme sub-category's files), capped at 40 images so one pull can't
+flood the gallery. Genuinely best-effort: royals and A-list celebrities
+usually have a rich, organised Commons category (Elizabeth II's did,
+verified live — 40 real dated photos pulled in one run); most people have
+none, and the pull says so plainly rather than pretending. It is also
+NOT a curated "fashion only" set — Commons files a person's category
+under everything from red-carpet photos to memorial flower arrangements
+and souvenir magazine covers, so a pulled batch needs her own eye to
+thin out; the one-tap Remove already built into the picture viewer (v85)
+handles that.
+
+Reused rather than rebuilt: `openShotViewer` (ui.js, v85's arrows-through-
+a-set lightbox) is the tap-to-view/caption/remove UI here unchanged;
+`storeEvidenceFile`/`compressImage`/`queueUpload` are the same asset
+pipeline every other picture in the app already goes through, so a style
+image gets the same 1600px/JPEG-0.82 shrink and the same cloud-upload
+queue for free. `style_image` rides the same generic sync mechanism as
+every other table (`c7_records`), added to `SYNC_TABLES`.
+
+A real bug caught only by live-testing the Commons pull against a real
+category, not by reading the code: the first cut's file-type filter
+(`/\.(jpe?g|png|webp)$/i`, anchored to end-of-string) matched zero of
+Elizabeth II's own photos, despite her Commons category holding a dozen
+usable ones — Commons' own `imageinfo` API appends a tracking query
+string to every file URL (`?utm_source=commons.wikimedia.org&…`), so the
+real extension was never actually at the end of the string. Fixed to
+`/\.(jpe?g|png|webp)(\?|$)/i`. Caught by fetching the raw Commons API
+response directly and comparing it against what the function returned —
+the same "verify the measurement, don't trust the code read" habit
+documented repeatedly elsewhere in this file — and re-verified afterward
+with the exact same real category, live, end to end (Commons search →
+download → compress → store → render in the gallery → filter chip →
+lightbox → two-tap remove), not just re-run in isolation.
+
 ## 69. "Find photos": a bulk pass over every bare initial on People (v151, 2026-09-26)
 
 Her ask, on a real screenshot of the People page — 304 people, many still
