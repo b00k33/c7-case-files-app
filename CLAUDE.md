@@ -417,7 +417,32 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — retag an existing Fashion photo, from the picture
+**2026-09-28, latest — an "Approx." precision option next to Time of
+birth (v169, SPEC §87).** She pasted sourced birth details for two real
+people — Justin Bieber's time carries a Rodden Rating B (fairly solid),
+Selena Gomez's is explicitly "Unconfirmed / Speculative." I can't write
+either directly into her live data (code-only, established boundary) —
+but investigating surfaced a real gap: `person.birth_time_precision` has
+always been documented in `schema.sql` as a three-way `exact | approx |
+unknown`, yet the Edit form's save handler (`js/pages/subject.js`) could
+only ever produce `'exact'` (time typed) or `'unknown'` (blank) — there
+was no way to mark a time as merely approximate, even though the column
+existed to hold exactly that. Added a small select next to the time
+input, defaulting to Exact, so a speculative time can be flagged as
+Approx. instead of silently claiming false certainty. The profile
+header now shows a `~` in front of an approx time (`~7:19 AM` style) —
+same "flag uncertainty inline" convention the birth-date precision
+already uses elsewhere on this page. Built as a straight gap-fill, not a
+taste call — the data model already anticipated this, the UI just never
+exposed it. Verified the control renders and defaults correctly against
+a real person's Edit form in the sandbox; stopped short of typing a
+value into that record and saving, since it's live-synced data and not
+mine to edit — left that for her. Still true after this: the free-text
+paste-facts parser (`profile-parse.js`) has no birth-time recognition at
+all, so pasting a block like hers wouldn't auto-fill the time field
+either way — flagged to her, not built, since it's a separate ask.
+
+**2026-09-28, earlier — retag an existing Fashion photo, from the picture
 viewer itself (v168, SPEC §86).** Her direct follow-up to v167: "add a
 way to retag an existing photo." `openShotViewer` (`js/ui.js`, shared by
 Fashion and Evidence) gained an optional second bar — a text field with

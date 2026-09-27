@@ -548,7 +548,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
     ? person.marital_status + (spouseName ? ` · ${spouseName}` : '')
     : (spouseName ? `Married · ${spouseName}` : null);
   const bornDate = bornText(person);
-  const born = bornDate && person.birth_time ? `${bornDate} · ${fmtTime12h(person.birth_time)}` : bornDate;
+  const born = bornDate && person.birth_time ? `${bornDate} · ${person.birth_time_precision === 'approx' ? '~' : ''}${fmtTime12h(person.birth_time)}` : bornDate;
   const age = ageText(person);
   // a grid row per fact (candidate B, her pick 2026-09-17: "compact three-
   // zone header" — same k/v language as the Profile-details widget below,
@@ -1409,7 +1409,15 @@ function renderEditForm(body, ctx, person, tags = []) {
     <div class="field"><label>Name at birth</label><input type="text" id="f-nab" value="${esc(person.name_at_birth)}"></div>
     <div class="row" style="gap:8px">
       <div class="field" style="flex:1"><label>Birth date — a full day, just a month, just a year, or a contested range</label><input type="text" id="f-bdate" value="${esc(bornText(person) || '')}" placeholder="15 Sept 2024 · Sept 2024 · 2024 · 1965-1966"></div>
-      <div class="field" style="flex:1"><label>Time of birth</label><input type="time" id="f-btime" value="${person.birth_time || ''}"></div>
+      <div class="field" style="flex:1"><label>Time of birth</label>
+        <div class="row" style="gap:6px">
+          <input type="time" id="f-btime" value="${person.birth_time || ''}" style="flex:1">
+          <select id="f-btime-prec" style="flex:0 0 112px" title="How sure is this time?">
+            <option value="exact" ${person.birth_time_precision === 'approx' ? '' : 'selected'}>Exact</option>
+            <option value="approx" ${person.birth_time_precision === 'approx' ? 'selected' : ''}>Approx.</option>
+          </select>
+        </div>
+      </div>
     </div>
     <div class="field"><label>Traits you've noticed — physical or personality, comma separated (e.g. dimples, freckles). Feeds the Traits gallery on Patterns.</label><input type="text" id="f-traits" value="${esc(tags.map((t) => t.name).join(', '))}" placeholder="dimples, freckles"></div>
     <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${esc(person.birth_place)}"></div>
@@ -1455,7 +1463,7 @@ function renderEditForm(body, ctx, person, tags = []) {
       birth_date: birth.date,
       birth_precision: birth.precision,
       birth_time: body.querySelector('#f-btime').value || null,
-      birth_time_precision: body.querySelector('#f-btime').value ? 'exact' : 'unknown',
+      birth_time_precision: body.querySelector('#f-btime').value ? body.querySelector('#f-btime-prec').value : 'unknown',
       birth_year_min: birth.yearMin,
       birth_year_max: birth.yearMax,
       birth_place: body.querySelector('#f-bplace').value || null,

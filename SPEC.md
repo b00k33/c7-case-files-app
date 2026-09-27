@@ -1495,6 +1495,18 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 87. "Approx." precision on Time of birth (v169, 2026-09-28)
+
+She pasted sourced birth details for two real people to add: Justin Bieber's time (12:56 AM, AstroDatabank Rodden Rating B — fairly solid sourcing) and Selena Gomez's (explicitly "Unconfirmed / Speculative — ~7:19 AM CDT used unofficially online"). This app is code-only from Claude's side — her actual person records aren't something I write into directly — but working out how to point her at the right control surfaced a real gap underneath it.
+
+`schema.sql`'s `person` table has documented `birth_time_precision` as a three-way `exact | approx | unknown` field from the start. The Edit form (`js/pages/subject.js`, `renderEditForm`) only ever wrote two of the three: `'exact'` whenever the time input held a value, `'unknown'` whenever it was blank. There was no path to `'approx'` at all — so a genuinely speculative time like Selena Gomez's could only be recorded as if it were as solid as a birth certificate, or left out entirely.
+
+Added a small `<select>` next to the Time of birth input — Exact / Approx., defaulting to Exact — that only matters when a time is actually entered (a blank time still saves as `'unknown'` regardless of the select). The profile header (the `bornDate · time` line) now prefixes an approx time with `~` (e.g. `~7:19 AM`), matching how uncertainty is already flagged inline elsewhere on this page.
+
+Not built: `profile-parse.js`'s paste-facts recognizer has no birth-time extraction at all (grepped, confirmed no matches for `birth_time`/`time_precision`), so pasting a block shaped like her Justin Bieber/Selena Gomez details into "+Add" would not auto-fill either the time or its precision — flagged, not built, since it's a separate ask from the gap this fix closes.
+
+Verified live: the new select renders correctly next to the time field on a real person's Edit form (Johnny Depp), pre-selecting Exact when no precision is set. Did not type a test value into that field and save — it's her live-synced record, not sandbox test data, so the actual save path was verified by code review of the one-line save-handler change rather than by writing to a real person.
+
 ## 86. Retag an existing Fashion photo, from the picture viewer itself (v168, 2026-09-28)
 
 Her direct follow-up to §85: "add a way to retag an existing photo." Until now a mistagged or untagged Fashion picture had exactly one fix — delete it and paste it again into the right filter — which is destructive (loses the caption, the upload date) for what should be a one-field correction.
