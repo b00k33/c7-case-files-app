@@ -95,6 +95,20 @@ CREATE TABLE event (
   place TEXT, notes TEXT
 );
 
+-- extra pictures on one milestone (2026-09-27, her ask: "let multiple photos
+-- per milestone"). event.photo_path stays the cover — every card thumbnail
+-- and life-line "why card" keeps reading it untouched; these are the rest,
+-- same split as evidence/evidence_shot below.
+CREATE TABLE event_photo (
+  id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
+  event_id TEXT NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+  file_path TEXT, sha256 TEXT, bytes INTEGER, mime TEXT,
+  caption TEXT,
+  ord INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE INDEX idx_event_photo_event ON event_photo(event_id);
+
 CREATE TABLE source (
   id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
   name TEXT NOT NULL,

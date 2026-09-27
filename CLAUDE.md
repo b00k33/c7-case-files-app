@@ -417,7 +417,36 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — "Their Story →" shortcut on a related person's own
+**2026-09-27, latest — multiple photos per milestone, paste-only; a Fashion
+widget on the Profile page (v166, SPEC §84).** Three of her asks landed
+together: "let multiple photos per milestone," "make it paste only, and
+include paste option for photo" (pointed at the milestone form's old
+click-to-browse photo field), and "include the fashion directly inside
+the people profile." New `event_photo` table (mirrors `evidence_shot`
+exactly — `event.photo_path` stays the cover every card/why-card already
+reads, everything after the first photo is a row here); added to
+`sync.js`'s `SYNC_TABLES` too (missed once already learned the hard way
+with `evidence_shot`, caught this time before shipping). The milestone
+form's old file-input "Add/Change photo" button is gone — Ctrl+V while
+the drawer is open is now the only way in, matching evidence.js's own
+shot-paste convention. Editing an existing milestone writes each paste
+straight to the store as it lands (so it survives closing without
+Save) and now also live-redraws the underlying timeline card, not just
+the open form — found live testing: without this a pasted cover only
+appeared after Save, even though it was already persisted. A brand-new
+milestone holds pasted files in memory until "Add" creates the event.
+Their Story's own detail panel (tap a mark) shows the cover plus every
+extra photo now, not just the cover. Separately, a new "Fashion" widget
+(off by default, via ⚙ Arrange) shows a person's own style images
+inline on their Profile — same paste-only convention, "All →" jumps to
+the full gallery pre-filtered to them (`saveStyleFiles` exported from
+`fashion.js` for reuse, a new `listStyleImagesForPerson` in store.js).
+Verified live end to end: two pasted test photos on a real milestone
+(cover + extra), removing the extra, the live redraw, and the Fashion
+widget round-tripping through a paste and the "All →" filter — sandbox
+data restored after.
+
+**2026-09-27, earlier — "Their Story →" shortcut on a related person's own
 profile (v165, SPEC §83).** She asked while looking at Johnny Depp's own
 page inside Amber Heard's case: "add a shortcut button to Their Story
 from here" — until now the only routes were tapping a life-line card,

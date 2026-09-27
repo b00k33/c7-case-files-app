@@ -412,6 +412,39 @@ export async function updateEvent(id, patch) {
   logChange('event', id, 'update', patch);
 }
 
+// ---- extra pictures on one milestone -------------------------------------
+// Picture one is the event's own photo_path (the card thumbnail, the
+// life-line "why card"). Everything after it is an event_photo row — same
+// split as evidence/evidence_shot above.
+
+export async function listEventPhotos(eventId) {
+  return db.exec(
+    'SELECT * FROM event_photo WHERE event_id=? AND deleted_at IS NULL ORDER BY ord, created_at',
+    [eventId]
+  );
+}
+
+export async function addEventPhoto(obj) {
+  const id = uuid();
+  const now = nowISO();
+  const r = db.exec('SELECT MAX(ord) AS m FROM event_photo WHERE event_id=?', [obj.event_id]);
+  const ord = (r.length && r[0].m != null ? r[0].m : 0) + 1;
+  db.run(
+    `INSERT INTO event_photo (id,event_id,file_path,sha256,bytes,mime,caption,ord,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.event_id, obj.file_path || null, obj.sha256 || null, obj.bytes ?? null,
+     obj.mime || null, obj.caption || null, ord, now, now]
+  );
+  logChange('event_photo', id, 'insert', obj);
+  return id;
+}
+
+export async function deleteEventPhoto(id) {
+  const now = nowISO();
+  db.run('UPDATE event_photo SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('event_photo', id, 'delete', {});
+}
+
 export async function deleteEvent(id) {
   db.run('DELETE FROM event WHERE id=?', [id]);
   logChange('event', id, 'delete', {});
@@ -591,6 +624,15 @@ export async function listStyleImages() {
      LEFT JOIN person p ON p.id = si.person_id
      WHERE si.deleted_at IS NULL
      ORDER BY (si.dated IS NULL), si.dated DESC, si.created_at DESC`
+  );
+}
+
+/** One person's own style images, newest-dated first — the Profile page's Fashion widget (2026-09-27). */
+export async function listStyleImagesForPerson(personId) {
+  return db.exec(
+    `SELECT * FROM style_image WHERE person_id=? AND deleted_at IS NULL
+     ORDER BY (dated IS NULL), dated DESC, created_at DESC`,
+    [personId]
   );
 }
 

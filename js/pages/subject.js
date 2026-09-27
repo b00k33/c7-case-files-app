@@ -12,11 +12,12 @@ import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree } from './relations.js';
 import { subjectOf } from './cases.js';
+import { saveStyleFiles } from './fashion.js';
 import { loadWidgetPrefs, renderArrangeDrawer } from '../profile-widgets.js';
 
 // the kinds she can give an event by hand (the life line's marks read them)
@@ -24,6 +25,19 @@ const EVENT_KINDS = [
   ['other', 'event'], ['marriage', 'married'], ['divorce', 'ended'], ['award', 'award'], ['trial', 'trial'],
   ['crisis', 'crisis'], ['move', 'moved'], ['business', 'business'], ['release', 'release'], ['death', 'died'],
 ];
+
+/** Any images on the clipboard, as Files — a paste usually carries one screenshot. */
+function imagesFromClipboard(dt) {
+  const files = [];
+  for (const item of dt?.items || []) {
+    if (item.kind === 'file' && /^image\//.test(item.type)) {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  return files;
+}
+let fashionPasteHandler = null; // the Profile page's own Fashion widget paste listener — one at a time
 
 function fmtLongDate(iso) {
   if (!iso) return null;
@@ -458,6 +472,15 @@ export async function render(root, ctx, personId, tab = 'profile') {
         <div class="panel">
           <div class="panel-title">Attached evidence</div>
           <div id="evidence-list" class="stack" style="gap:2px"></div>
+        </div>`;
+      if (id === 'fashion') return `
+        <div class="panel">
+          <div class="row between wrap" style="gap:8px">
+            <span class="section-label">Fashion</span>
+            <a class="btn btn-ghost btn-sm" id="fashion-all-btn" href="#/fashion" style="text-decoration:none">All →</a>
+          </div>
+          <div class="row wrap" id="fashion-strip" style="gap:8px"></div>
+          <div class="inline-note" style="border-left-color:var(--text-3);margin-top:6px">Paste a picture with Ctrl+V while this tab is open to add one here.</div>
         </div>`;
       return '';
     };
@@ -1301,6 +1324,67 @@ export async function render(root, ctx, personId, tab = 'profile') {
       row.addEventListener('click', () => ctx.navigate('#/evidence'));
       evEl.appendChild(row);
     }
+  }
+
+  // Fashion widget — this person's own style images inline on their Profile
+  // (her ask, 2026-09-27: "include the fashion directly inside the people
+  // profile"). Paste-only, same convention as the milestone photo strip
+  // (2026-09-27) rather than a second, separate file-picker; "All →" jumps
+  // to the full gallery pre-filtered to just this person. Skipped entirely
+  // when the widget is off — nothing to catch a stray paste for.
+  const fashionStrip = root.querySelector('#fashion-strip');
+  if (fashionStrip && !fashionStrip.closest('[data-widget]')?.hidden) {
+    const paintFashion = async () => {
+      const images = await store.listStyleImagesForPerson(person.id);
+      const resolved = (await Promise.all(images.map(async (img) => ({ ...img, url: await resolveAssetUrl(img.file_path, img.mime) })))).filter((img) => img.url);
+      fashionStrip.innerHTML = '';
+      if (!resolved.length) {
+        const hint = document.createElement('span');
+        hint.className = 'dim';
+        hint.style.fontSize = '12px';
+        hint.textContent = 'No fashion pictures yet.';
+        fashionStrip.appendChild(hint);
+      }
+      resolved.forEach((img, idx) => {
+        const cell = document.createElement('div');
+        cell.style.cssText = 'width:64px;height:64px;border-radius:var(--r-md);overflow:hidden;cursor:pointer';
+        const el = document.createElement('img');
+        el.alt = ''; el.src = img.url;
+        el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+        cell.appendChild(el);
+        cell.addEventListener('click', () => openShotViewer({
+          pictures: resolved,
+          index: idx,
+          onCaption: (pic, text) => { if (pic.id) store.updateStyleImage(pic.id, { caption: text }); },
+          onRemove: async (pic) => { await store.softDeleteStyleImage(pic.id); },
+          onClosed: paintFashion,
+        }));
+        fashionStrip.appendChild(cell);
+      });
+    };
+    await paintFashion();
+
+    root.querySelector('#fashion-all-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.setItem('c7-fashion-filter', person.id);
+      ctx.navigate('#/fashion');
+    });
+
+    if (fashionPasteHandler) document.removeEventListener('paste', fashionPasteHandler);
+    fashionPasteHandler = async (e) => {
+      if (!fashionStrip.isConnected) {
+        document.removeEventListener('paste', fashionPasteHandler);
+        fashionPasteHandler = null;
+        return;
+      }
+      if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+      const files = imagesFromClipboard(e.clipboardData);
+      if (!files.length) return;
+      e.preventDefault();
+      await saveStyleFiles(ctx, files, { personId: person.id, date: null, caption: null, source: null });
+      await paintFashion();
+    };
+    document.addEventListener('paste', fashionPasteHandler);
   }
 }
 

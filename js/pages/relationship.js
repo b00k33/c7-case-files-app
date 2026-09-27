@@ -15,6 +15,19 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 const firstName = (name) => String(name || '').split(/\s+/)[0];
 
+/** Any images on the clipboard, as Files — a paste usually carries one screenshot. */
+function imagesFromClipboard(dt) {
+  const files = [];
+  for (const item of dt?.items || []) {
+    if (item.kind === 'file' && /^image\//.test(item.type)) {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  return files;
+}
+let msPasteHandler = null; // the milestone form's own paste listener — one at a time, see renderMilestoneForm
+
 function relLabel(rel) {
   const sy = rel.start_date ? rel.start_date.slice(0, 4) : null;
   const ey = rel.end_date ? rel.end_date.slice(0, 4) : null;
@@ -112,11 +125,22 @@ export async function render(root, ctx, relationshipId) {
   root.querySelector('#add-milestone-btn').addEventListener('click', openAdd);
   root.querySelector('#add-milestones-batch-btn').addEventListener('click', () => ctx.openDrawer((body) => renderMilestoneBatchForm(body, ctx, rel, () => { ctx.closeDrawer(); redraw(); })));
 
-  const showDetail = (m) => renderMilestoneDetail(whyEl, m, {
-    onEdit: () => ctx.openDrawer((body) => renderMilestoneForm(body, ctx, rel, m.event, () => { ctx.closeDrawer(); redraw(); })),
-    onDelete: async () => { await store.deleteEvent(m.event.id); redraw(); },
-    onEditYear: () => ctx.openDrawer((body) => renderEditYear(body, ctx, rel, m.kind, () => { ctx.closeDrawer(); redraw(); })),
-  });
+  const showDetail = async (m) => {
+    let extraPhotos = [];
+    if (m.event) {
+      const rows = await store.listEventPhotos(m.event.id);
+      extraPhotos = (await Promise.all(rows.map(async (p) => resolveAssetUrl(p.file_path, p.mime || 'image/jpeg')))).filter(Boolean);
+    }
+    renderMilestoneDetail(whyEl, m, extraPhotos, {
+      // a photo pasted in edit mode saves straight to the store as it
+      // lands (renderMilestoneForm's own addPastedFile/removeShot) — redraw
+      // is passed through so the mark's own card picks up a new cover the
+      // moment that happens, not only once she also hits Save
+      onEdit: () => ctx.openDrawer((body) => renderMilestoneForm(body, ctx, rel, m.event, () => { ctx.closeDrawer(); redraw(); }, redraw)),
+      onDelete: async () => { await store.deleteEvent(m.event.id); redraw(); },
+      onEditYear: () => ctx.openDrawer((body) => renderEditYear(body, ctx, rel, m.kind, () => { ctx.closeDrawer(); redraw(); })),
+    });
+  };
   const data = buildRelationshipLine({ relationship: rel, events });
   await renderRelationshipLine(lineEl, data, { onPick: showDetail, onAdd: openAdd });
 }
@@ -127,7 +151,7 @@ function fmtWhenLoose(m) {
   return String(m.year);
 }
 
-function renderMilestoneDetail(el, m, { onEdit, onDelete, onEditYear }) {
+function renderMilestoneDetail(el, m, extraPhotos, { onEdit, onDelete, onEditYear }) {
   el.innerHTML = '';
   const card = document.createElement('div');
   card.className = 'lm-why';
@@ -151,17 +175,23 @@ function renderMilestoneDetail(el, m, { onEdit, onDelete, onEditYear }) {
     <span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhenLoose(m)}</span></span>
     ${m.event.place ? `<span class="k">where</span><span class="line">${esc(m.event.place)}</span>` : ''}
     ${m.event.notes ? `<span class="k">notes</span><span class="line">${esc(m.event.notes)}</span>` : ''}
-    ${m._pic ? '<span class="k"></span><span class="line" id="ms-pic-slot"></span>' : ''}
+    ${m._pic || extraPhotos.length ? '<span class="k"></span><span class="line" id="ms-pic-slot" style="flex-wrap:wrap"></span>' : ''}
     <span class="k"></span>
     <span class="line"><button type="button" class="btn btn-ghost btn-sm" id="ms-edit-btn">Edit</button><button type="button" class="btn btn-ghost btn-sm" id="ms-del-btn">Delete</button></span>
   `;
   el.appendChild(card);
-  if (m._pic) {
+  if (m._pic || extraPhotos.length) {
     const slot = card.querySelector('#ms-pic-slot');
-    const img = document.createElement('img');
-    img.src = m._pic.src; img.alt = '';
-    img.style.cssText = 'max-width:220px;border-radius:var(--r-md);display:block';
-    slot.appendChild(img);
+    // the cover (m._pic) first, then every extra picture (2026-09-27, her
+    // ask: "let multiple photos per milestone") — same order as the edit
+    // form's own strip, so this reads as one gallery either place she sees it
+    const srcs = [m._pic?.src, ...extraPhotos].filter(Boolean);
+    srcs.forEach((src) => {
+      const img = document.createElement('img');
+      img.src = src; img.alt = '';
+      img.style.cssText = 'max-width:220px;border-radius:var(--r-md);display:block';
+      slot.appendChild(img);
+    });
   }
   card.querySelector('#ms-edit-btn').addEventListener('click', onEdit);
   card.querySelector('#ms-del-btn').addEventListener('click', onDelete);
@@ -195,7 +225,7 @@ function renderEditYear(body, ctx, rel, kind, onDone) {
   });
 }
 
-function renderMilestoneForm(body, ctx, rel, existingEvent, onDone) {
+function renderMilestoneForm(body, ctx, rel, existingEvent, onDone, onLiveChange) {
   const isEdit = !!existingEvent;
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:12px">${isEdit ? 'Edit milestone' : 'Add a milestone'}</h3>
@@ -207,12 +237,9 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone) {
     <div class="field"><label>Where</label><input type="text" id="ms-place" value="${esc(existingEvent?.place || '')}" placeholder="optional"></div>
     <div class="field"><label>Notes / evidence — a note, or where this comes from</label><textarea id="ms-notes" placeholder="optional" style="min-height:64px">${esc(existingEvent?.notes || '')}</textarea></div>
     <div class="field">
-      <label>Photo</label>
-      <div class="row" style="gap:8px;align-items:center">
-        <div class="avatar" id="ms-photo-preview" style="width:56px;height:56px;border-radius:var(--r-md)"><span class="initials" style="font-size:18px">+</span></div>
-        <input type="file" id="ms-photo-input" accept="image/*" hidden>
-        <button type="button" class="btn btn-ghost btn-sm" id="ms-photo-btn">${existingEvent?.photo_path || existingEvent?.photo_url ? 'Change photo' : 'Add a photo'}</button>
-      </div>
+      <label>Photos</label>
+      <div class="row wrap" id="ms-shots" style="gap:8px"></div>
+      <div class="inline-note" style="border-left-color:var(--text-3);margin-top:6px">Copy a picture and press Ctrl+V while this is open to add it — as many as you like.</div>
     </div>
     <div class="row" style="gap:8px">
       <button class="btn btn-primary" id="ms-save">${isEdit ? 'Save' : 'Add'}</button>
@@ -220,27 +247,90 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone) {
     </div>
   `;
 
-  let pendingPhotoFile = null;
-  const preview = body.querySelector('#ms-photo-preview');
+  // her ask, 2026-09-27: "let multiple photos per milestone" + "make it
+  // paste only" — the cover stays event.photo_path (every card thumbnail
+  // and life-line "why card" keeps reading just that, untouched); every
+  // photo after the first is an event_photo row, same split as evidence's
+  // own cover/evidence_shot pattern. Editing an existing milestone writes
+  // each paste straight to the store as it lands (matching evidence.js's
+  // own live shot-management); a brand-new one holds pasted files in
+  // memory until "Add" creates the event to attach them to.
+  let shots = []; // { key, url, existing, cover?, id?, file? }
+  const paintShots = () => {
+    const strip = body.querySelector('#ms-shots');
+    strip.innerHTML = '';
+    shots.forEach((s) => {
+      const cell = document.createElement('div');
+      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px';
+      const img = document.createElement('img');
+      img.alt = ''; img.src = s.url;
+      img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:var(--r-md)';
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'btn btn-ghost btn-sm'; x.textContent = '✕';
+      x.style.cssText = 'padding:2px 8px;min-height:auto';
+      x.addEventListener('click', () => removeShot(s.key));
+      cell.append(img, x);
+      strip.appendChild(cell);
+    });
+  };
+  const removeShot = async (key) => {
+    const s = shots.find((x) => x.key === key);
+    if (!s) return;
+    if (s.existing) {
+      if (s.cover) await ctx.store.updateEvent(existingEvent.id, { photo_path: null, photo_url: null });
+      else await ctx.store.deleteEventPhoto(s.id);
+      onLiveChange?.();
+    } else if (s.url.startsWith('blob:')) URL.revokeObjectURL(s.url);
+    shots = shots.filter((x) => x.key !== key);
+    paintShots();
+  };
+  const addPastedFile = async (file) => {
+    if (isEdit) {
+      const hasCover = shots.some((s) => s.cover);
+      const meta = await ctx.store.storeEvidenceFile(await compressImage(file));
+      queueUpload(meta.file_path, meta.mime);
+      flushUploads();
+      if (!hasCover) {
+        await ctx.store.updateEvent(existingEvent.id, { photo_path: meta.file_path, photo_url: null });
+        shots.push({ key: 'cover', url: await resolveAssetUrl(meta.file_path, meta.mime), existing: true, cover: true });
+      } else {
+        const id = await ctx.store.addEventPhoto({ event_id: existingEvent.id, ...meta });
+        shots.push({ key: id, url: await resolveAssetUrl(meta.file_path, meta.mime), existing: true, id });
+      }
+      onLiveChange?.();
+    } else {
+      shots.push({ key: `pending-${shots.length}-${Date.now()}`, url: URL.createObjectURL(file), existing: false, file });
+    }
+    paintShots();
+  };
   (async () => {
     if (!existingEvent) return;
-    const src = existingEvent.photo_path ? await resolveAssetUrl(existingEvent.photo_path, 'image/jpeg') : existingEvent.photo_url;
-    if (!src) return;
-    const img = document.createElement('img');
-    img.alt = ''; img.src = src;
-    img.addEventListener('load', () => preview.querySelector('.initials')?.remove());
-    preview.appendChild(img);
+    if (existingEvent.photo_path || existingEvent.photo_url) {
+      const url = existingEvent.photo_path ? await resolveAssetUrl(existingEvent.photo_path, 'image/jpeg') : existingEvent.photo_url;
+      if (url) shots.push({ key: 'cover', url, existing: true, cover: true });
+    }
+    for (const p of await ctx.store.listEventPhotos(existingEvent.id)) {
+      const url = await resolveAssetUrl(p.file_path, p.mime || 'image/jpeg');
+      if (url) shots.push({ key: p.id, url, existing: true, id: p.id });
+    }
+    paintShots();
   })();
-  body.querySelector('#ms-photo-btn').addEventListener('click', () => body.querySelector('#ms-photo-input').click());
-  body.querySelector('#ms-photo-input').addEventListener('change', () => {
-    const f = body.querySelector('#ms-photo-input').files[0];
-    if (!f) return;
-    pendingPhotoFile = f;
-    preview.innerHTML = '';
-    const img = document.createElement('img');
-    img.alt = ''; img.src = URL.createObjectURL(f);
-    preview.appendChild(img);
-  });
+
+  if (msPasteHandler) document.removeEventListener('paste', msPasteHandler);
+  msPasteHandler = async (e) => {
+    const drawerEl = document.getElementById('drawer');
+    if (!body.isConnected || !drawerEl?.classList.contains('open')) {
+      document.removeEventListener('paste', msPasteHandler);
+      msPasteHandler = null;
+      return;
+    }
+    if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+    const files = imagesFromClipboard(e.clipboardData);
+    if (!files.length) return;
+    e.preventDefault();
+    for (const f of files) await addPastedFile(f);
+  };
+  document.addEventListener('paste', msPasteHandler);
 
   body.querySelector('#ms-title').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); body.querySelector('#ms-date').focus(); } });
   body.querySelector('#ms-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); body.querySelector('#ms-save').click(); } });
@@ -261,14 +351,21 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone) {
       date: d ? d.date : null, date_precision: d ? d.precision : 'unknown',
       date_year_min: d ? d.year : null, date_year_max: d ? d.year : null,
     };
-    let eventId;
-    if (isEdit) { await ctx.store.updateEvent(existingEvent.id, patch); eventId = existingEvent.id; }
-    else { eventId = await ctx.store.createEvent({ case_id: rel.case_id, relationship_id: rel.id, ...patch }); }
-    if (pendingPhotoFile) {
-      const meta = await ctx.store.storeEvidenceFile(await compressImage(pendingPhotoFile));
-      await ctx.store.updateEvent(eventId, { photo_path: meta.file_path, photo_url: null });
-      queueUpload(meta.file_path, meta.mime);
-      flushUploads();
+    if (isEdit) {
+      // photos are already live — every paste while this form was open
+      // wrote straight to the store (addPastedFile above), so there is
+      // nothing left to flush here
+      await ctx.store.updateEvent(existingEvent.id, patch);
+    } else {
+      const eventId = await ctx.store.createEvent({ case_id: rel.case_id, relationship_id: rel.id, ...patch });
+      const pending = shots.filter((s) => !s.existing);
+      for (let i = 0; i < pending.length; i++) {
+        const meta = await ctx.store.storeEvidenceFile(await compressImage(pending[i].file));
+        queueUpload(meta.file_path, meta.mime);
+        if (i === 0) await ctx.store.updateEvent(eventId, { photo_path: meta.file_path, photo_url: null });
+        else await ctx.store.addEventPhoto({ event_id: eventId, ...meta });
+      }
+      if (pending.length) flushUploads();
     }
     onDone();
   });

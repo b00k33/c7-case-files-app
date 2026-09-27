@@ -120,8 +120,8 @@ export async function render(root, ctx) {
   });
 }
 
-/** Compress, store and record one batch of pictures — shared by the manual add form and a bare paste. */
-async function saveStyleFiles(ctx, files, { personId, date, caption, source }) {
+/** Compress, store and record one batch of pictures — shared by the manual add form, a bare paste, and the Profile page's own Fashion widget. */
+export async function saveStyleFiles(ctx, files, { personId, date, caption, source }) {
   const { store } = ctx;
   for (const raw of files) {
     try {

@@ -15,6 +15,7 @@ export const WIDGET_DEFS = [
   { id: 'relations-list', label: 'Relations' },
   { id: 'questions', label: 'Open questions' },
   { id: 'evidence', label: 'Attached evidence' },
+  { id: 'fashion', label: 'Fashion' },
 ];
 // matches what was actually on screen before widgets existed: life line +
 // family visible, everything that used to live behind "Details ▸" starts off

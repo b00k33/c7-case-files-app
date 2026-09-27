@@ -297,6 +297,18 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
   )`,
   'CREATE INDEX IF NOT EXISTS idx_style_image_person ON style_image(person_id)',
+  // extra pictures on one milestone (2026-09-27, her ask: "let multiple
+  // photos per milestone"). event.photo_path stays the cover, same split as
+  // evidence/evidence_shot above.
+  `CREATE TABLE IF NOT EXISTS event_photo (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+    file_path TEXT, sha256 TEXT, bytes INTEGER, mime TEXT,
+    caption TEXT,
+    ord INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_event_photo_event ON event_photo(event_id)',
 ];
 // columns added to existing tables after first release (SQLite has no
 // ADD COLUMN IF NOT EXISTS, so check PRAGMA first)
