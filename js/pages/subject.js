@@ -1334,9 +1334,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // when the widget is off — nothing to catch a stray paste for.
   const fashionStrip = root.querySelector('#fashion-strip');
   if (fashionStrip && !fashionStrip.closest('[data-widget]')?.hidden) {
+    const allFashionPeople = await store.listAllPeople();
     const paintFashion = async () => {
       const images = await store.listStyleImagesForPerson(person.id);
-      const resolved = (await Promise.all(images.map(async (img) => ({ ...img, url: await resolveAssetUrl(img.file_path, img.mime) })))).filter((img) => img.url);
+      const resolved = (await Promise.all(images.map(async (img) => ({ ...img, url: await resolveAssetUrl(img.file_path, img.mime), personName: person.display_name })))).filter((img) => img.url);
       fashionStrip.innerHTML = '';
       if (!resolved.length) {
         const hint = document.createElement('span');
@@ -1357,6 +1358,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
           index: idx,
           onCaption: (pic, text) => { if (pic.id) store.updateStyleImage(pic.id, { caption: text }); },
           onRemove: async (pic) => { await store.softDeleteStyleImage(pic.id); },
+          // her ask, 2026-09-28: "add a way to retag an existing photo" —
+          // retagging one AWAY from this person here just drops it out of
+          // her own strip on the next paint, same as it would from the
+          // main Fashion page
+          onReassignPerson: async (pic, personId) => { await store.updateStyleImage(pic.id, { person_id: personId }); },
+          people: allFashionPeople,
           onClosed: paintFashion,
         }));
         fashionStrip.appendChild(cell);

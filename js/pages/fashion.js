@@ -111,10 +111,16 @@ export async function render(root, ctx) {
     card.innerHTML = `<img src="${img.url}" alt="" loading="lazy">${tag ? `<span class="tag">${tag}</span>` : ''}`;
     card.addEventListener('click', () => {
       openShotViewer({
-        pictures: resolved.map((r) => ({ url: r.url, caption: r.caption, id: r.id })),
+        pictures: resolved.map((r) => ({ url: r.url, caption: r.caption, id: r.id, personName: r.person_name || '' })),
         index: idx,
         onCaption: async (p, text) => { await store.updateStyleImage(p.id, { caption: text }); },
         onRemove: async (p) => { await store.softDeleteStyleImage(p.id); },
+        // her ask, 2026-09-28: "add a way to retag an existing photo" —
+        // found needed the moment auto-tagging on a filtered paste shipped,
+        // since a photo added before that (or from a bare paste on "All")
+        // had no way back except delete-and-re-add
+        onReassignPerson: async (p, personId) => { await store.updateStyleImage(p.id, { person_id: personId }); },
+        people: allPeople,
         onClosed: () => render(root, ctx),
       });
     });

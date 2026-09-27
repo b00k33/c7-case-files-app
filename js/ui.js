@@ -236,7 +236,7 @@ export function duplicateNameBlock(anchorEl, matches, onUse) {
  * Follows the full-tree overlay: appended to <body>, Escape closes, the
  * page underneath is frozen while it is up and restored exactly on close.
  */
-export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClosed }) {
+export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onReassignPerson, people = [], onClosed }) {
   if (!pictures.length || document.querySelector('.shot-view')) return;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   let list = pictures.slice();
@@ -252,15 +252,28 @@ export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClo
     <button class="nav next" type="button" aria-label="Next picture">›</button>
     <div class="bar">
       <span class="count"></span>
-      <input type="text" placeholder="What does this picture show? (optional)" ${onCaption ? '' : 'disabled'}>
+      <input type="text" class="cap-input" placeholder="What does this picture show? (optional)" ${onCaption ? '' : 'disabled'}>
     </div>
+    <div class="bar" ${onReassignPerson ? '' : 'hidden'}>
+      <input type="text" class="person-input" list="shot-view-people" placeholder="Tag a person — type a name already in the app, or clear it for Inspiration">
+    </div>
+    <datalist id="shot-view-people"></datalist>
   `;
   document.body.appendChild(overlay);
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
+  if (onReassignPerson) {
+    const dl = overlay.querySelector('#shot-view-people');
+    people.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.display_name;
+      dl.appendChild(opt);
+    });
+  }
 
   const img = overlay.querySelector('img');
-  const cap = overlay.querySelector('input');
+  const cap = overlay.querySelector('.cap-input');
+  const personInput = overlay.querySelector('.person-input');
   const count = overlay.querySelector('.count');
   const prev = overlay.querySelector('.prev');
   const next = overlay.querySelector('.next');
@@ -287,11 +300,14 @@ export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClo
     count.textContent = `${i + 1} of ${list.length}${p.cover ? ' · cover' : ''}`;
     prev.disabled = i === 0;
     next.disabled = i === list.length - 1;
+    if (onReassignPerson) personInput.value = p.personName || '';
     disarm();
   };
   const go = (d) => {
-    // the caption is saved before moving, or typing then arrowing loses it
+    // the caption (and the person tag, if this viewer offers one) is saved
+    // before moving, or typing then arrowing loses it
     saveCaption();
+    savePersonTag();
     i = Math.max(0, Math.min(i + d, list.length - 1));
     paint();
   };
@@ -303,9 +319,25 @@ export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClo
     p.caption = text;
     onCaption(p, text);
   };
+  // her ask, 2026-09-28 ("add a way to retag an existing photo"): typing a
+  // name already in the app re-tags this one picture; clearing the field
+  // untags it back to Inspiration. An unmatched name falls through to
+  // untagged too — the same rule Fashion's own "+ Add" form already uses
+  // for a name it doesn't recognise, never a new person created from here.
+  const savePersonTag = () => {
+    const p = list[i];
+    if (!onReassignPerson || !p) return;
+    const typed = personInput.value.trim();
+    const current = p.personName || '';
+    if (typed === current) return;
+    const match = typed ? people.find((x) => x.display_name.trim().toLowerCase() === typed.toLowerCase()) : null;
+    p.personName = match ? match.display_name : '';
+    onReassignPerson(p, match ? match.id : null);
+  };
 
   const close = () => {
     saveCaption();
+    savePersonTag();
     clearTimeout(armTimer);
     overlay.remove();
     document.body.style.overflow = prevOverflow;
@@ -314,7 +346,7 @@ export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClo
   };
   const onKey = (e) => {
     if (e.key === 'Escape') { close(); return; }
-    if (e.target === cap) return;                 // typing a caption, not paging
+    if (e.target === cap || e.target === personInput) return;   // typing, not paging
     if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
     if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
   };
@@ -325,6 +357,8 @@ export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onClo
   overlay.querySelector('.close').addEventListener('click', close);
   cap.addEventListener('blur', saveCaption);
   cap.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveCaption(); cap.blur(); } });
+  personInput.addEventListener('blur', savePersonTag);
+  personInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); savePersonTag(); personInput.blur(); } });
   // tapping the dark space around the picture closes, like any lightbox —
   // but not a tap on the picture itself, which is what she is reading
   overlay.querySelector('.frame').addEventListener('click', (e) => { if (e.target !== img) close(); });

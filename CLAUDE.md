@@ -417,7 +417,25 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a bare Fashion paste tags whichever person's chip
+**2026-09-28, latest — retag an existing Fashion photo, from the picture
+viewer itself (v168, SPEC §86).** Her direct follow-up to v167: "add a
+way to retag an existing photo." `openShotViewer` (`js/ui.js`, shared by
+Fashion and Evidence) gained an optional second bar — a text field with
+a datalist of every person in the app, shown only when a new
+`onReassignPerson` callback is passed in (Evidence's own call site
+doesn't pass one, so nothing changes there). Typing a name already in
+the app retags this one picture; clearing the field untags it back to
+Inspiration; an unmatched name falls through to untagged too, the same
+"don't create a new person from a typo" rule Fashion's own "+ Add" form
+already lives by. Wired at both places a Fashion picture opens this
+viewer — the main Fashion page and the new Profile-page widget (v166) —
+each passing `store.listAllPeople()` for the datalist and an
+`onReassignPerson` that's a one-line `updateStyleImage(id, {person_id})`.
+Verified live: seeded an untagged test photo, opened it, typed "Amber
+Heard," confirmed `person_id` updated in the store and the field showed
+her name on reopen. Test data removed after.
+
+**2026-09-28, earlier — a bare Fashion paste tags whichever person's chip
 is active (v167, SPEC §85).** Her question on her own live gallery: "if i
 added a photo to a person fashion gallery, why does it not auto tag
 their name?" — she'd filtered to Amber Heard's own chip and a plain

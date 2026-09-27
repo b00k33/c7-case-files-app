@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 86. Retag an existing Fashion photo, from the picture viewer itself (v168, 2026-09-28)
+
+Her direct follow-up to §85: "add a way to retag an existing photo." Until now a mistagged or untagged Fashion picture had exactly one fix — delete it and paste it again into the right filter — which is destructive (loses the caption, the upload date) for what should be a one-field correction.
+
+`openShotViewer` (`js/ui.js`) is shared by Fashion's own page, the new Profile-page Fashion widget (§84), and Evidence's picture viewer — so the fix lives there once, behind a new optional `onReassignPerson` callback and a `people` list, both undefined for Evidence's own call site (nothing changes there; the new UI only ever renders when a caller opts in). When provided, the viewer gains a second bar under the caption field: a text input with a `<datalist>` built from `people`, pre-filled with the picture's current `personName`. Typing a name already in the app and tabbing/blurring away (or pressing Enter) calls `onReassignPerson(picture, matchedPersonId)`; clearing the field calls it with `null`, dropping the picture back to Inspiration. An unmatched, unrecognised name falls through to the same `null` — deliberately never creates a new person from a typo in this box, the identical rule Fashion's own "+ Add" form already applies to its own person field. Saved at the same three moments a caption already is: paging to another picture, and closing the viewer (by any of its three exits — the Close button, Escape, or tapping outside the picture) — so a typed-but-unblurred correction is never silently lost.
+
+Wired at both of Fashion's own `openShotViewer` call sites: the main Fashion page's wall (`js/pages/fashion.js`) and the Profile page's own Fashion widget (`js/pages/subject.js`, §84) — each fetching `store.listAllPeople()` for the datalist and passing an `onReassignPerson` that's one line, `store.updateStyleImage(id, { person_id })`.
+
+Verified live: seeded an untagged test photo directly in the store (mirroring her real Comic-Con photo's actual state), opened it in the viewer, typed "Amber Heard," tabbed away, and confirmed via a direct store read that `person_id` now pointed at her — then reopened the same picture and confirmed the field pre-filled with her name rather than sitting blank. Test photo removed afterward.
+
 ## 85. A bare Fashion paste tags whichever person's chip is active (v167, 2026-09-28)
 
 Her question on her own live gallery, looking at two photos where only one carried an "Amber Heard" tag: "if i added a photo to a person fashion gallery, why does it not auto tag their name?" Traced to `fashion.js`'s bare-paste handler, which has always hardcoded `personId: null` regardless of which filter chip was active — a deliberate rule from 2026-09-08 ("a bare paste with nothing open lands as untagged inspiration... naming a person is what the '+ Add' form is for"), written before a per-person filter chip existed to paste "into." With that chip now the obvious, already-selected place she's looking at when she pastes, treating it as equivalent to "nothing open" reads as a bug rather than a rule.
