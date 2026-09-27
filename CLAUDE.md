@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — a one-tap "+ family" for anyone already in the
+**2026-09-27, latest — birth date takes a partial date: month, year, or a
+contested range (v161, SPEC §79).** Her literal ask: "allow the app to
+add birthdays missing month or day or year." The data model already fully
+supported it (`birth_precision` day/month/year/range/unknown) — only the
+Edit form's UI didn't: a native `<input type="date">` (physically cannot
+hold anything but a complete day) plus a "Birth precision" dropdown she
+had to remember to flip herself, plus two fields labelled "(if range)"
+that were actually required for plain year-only too despite the label.
+Replaced all four with one free-text field parsed by the exact same
+`parseDate()` the paste box and "when they met" already use elsewhere in
+this app — "Sept 2024" → month, "2024" → year — plus a small new range
+pattern in `js/pages/subject.js` (`parseBirthField`) for "1965-1966" /
+"1965 or 1966" → a contested range. Pre-fills from the existing
+`bornText()` display helper so it round-trips regardless of current
+precision; an unparseable non-empty string blocks the save with an inline
+note naming the accepted formats rather than guessing or discarding it
+silently. Verified live: month, year, and range all saved and re-opened
+correctly; an invalid string was correctly rejected with the drawer
+staying open; a real day ("22 Apr 1986") still saves as `precision:'day'`
+exactly as before.
+
+**2026-09-27, earlier — a one-tap "+ family" for anyone already in the
 tree, right in the Wikipedia drawer (v160, SPEC §78).** Her question on a
 screenshot: "how do i add more people from wiki to the tree? make it
 easier." The capability already existed two ways — retype an existing

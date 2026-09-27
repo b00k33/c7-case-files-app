@@ -72,6 +72,28 @@ function bornText(person) {
   return null;
 }
 
+// she asked for this directly (2026-09-27): the Edit form's birth date was
+// a native <input type="date"> (which cannot express anything but a full
+// day) plus a separate precision dropdown she had to remember to flip, and
+// two fields labelled "(if range)" that were actually required for plain
+// year-only too. Replaced with the same free-text the paste box and "when
+// they met" field already parse everywhere else in the app — "2024" or
+// "Sept 2024" just works, nothing else to touch. Returns null only when
+// the text genuinely isn't a date at all (not for blank, which means
+// "unknown" and is always valid).
+function parseBirthField(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return { date: null, precision: 'unknown', yearMin: null, yearMax: null };
+  const d = parseDate(s);
+  if (d) return { date: d.precision === 'year' ? null : d.date, precision: d.precision, yearMin: d.precision === 'year' ? d.year : null, yearMax: d.precision === 'year' ? d.year : null };
+  const range = s.match(/^(\d{4})\s*(?:-|–|—|to|or)\s*(\d{4})$/i);
+  if (range) {
+    const a = parseInt(range[1], 10), b = parseInt(range[2], 10);
+    return { date: null, precision: 'range', yearMin: Math.min(a, b), yearMax: Math.max(a, b) };
+  }
+  return null;
+}
+
 function ageAt(birthISO, atISO) {
   const b = new Date(birthISO), a = new Date(atISO);
   let years = a.getFullYear() - b.getFullYear();
@@ -1281,19 +1303,10 @@ function renderEditForm(body, ctx, person, tags = []) {
     <div class="field"><label>Display name</label><input type="text" id="f-name" value="${esc(person.display_name)}"></div>
     <div class="field"><label>Name at birth</label><input type="text" id="f-nab" value="${esc(person.name_at_birth)}"></div>
     <div class="row" style="gap:8px">
-      <div class="field" style="flex:1"><label>Birth date</label><input type="date" id="f-bdate" value="${person.birth_date || ''}"></div>
+      <div class="field" style="flex:1"><label>Birth date — a full day, just a month, just a year, or a contested range</label><input type="text" id="f-bdate" value="${esc(bornText(person) || '')}" placeholder="15 Sept 2024 · Sept 2024 · 2024 · 1965-1966"></div>
       <div class="field" style="flex:1"><label>Time of birth</label><input type="time" id="f-btime" value="${person.birth_time || ''}"></div>
     </div>
     <div class="field"><label>Traits you've noticed — physical or personality, comma separated (e.g. dimples, freckles). Feeds the Traits gallery on Patterns.</label><input type="text" id="f-traits" value="${esc(tags.map((t) => t.name).join(', '))}" placeholder="dimples, freckles"></div>
-    <div class="field"><label>Birth precision — only needed when there's no exact day (a month, a year, or a contested range)</label>
-      <select id="f-bprec">
-        ${['day', 'month', 'year', 'range', 'unknown'].map((p) => `<option value="${p}" ${p === person.birth_precision ? 'selected' : ''}>${p}</option>`).join('')}
-      </select>
-    </div>
-    <div class="row" style="gap:8px">
-      <div class="field" style="flex:1"><label>Year min (if range)</label><input type="number" id="f-ymin" value="${person.birth_year_min ?? ''}"></div>
-      <div class="field" style="flex:1"><label>Year max (if range)</label><input type="number" id="f-ymax" value="${person.birth_year_max ?? ''}"></div>
-    </div>
     <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${esc(person.birth_place)}"></div>
     <div class="field"><label>Death date (leave blank if living)</label><input type="date" id="f-ddate" value="${esc(person.death_date)}"></div>
     <div class="row" style="gap:8px">
@@ -1312,16 +1325,15 @@ function renderEditForm(body, ctx, person, tags = []) {
     <div class="field"><label>Notes</label><textarea id="f-notes">${esc(person.notes)}</textarea></div>
     <button class="btn btn-primary" id="save-person-btn">Save</button>
   `;
-  // every other place a birth date gets entered in this app (quick-add,
-  // Wikidata lookup, claims review) sets precision to 'day' the moment a
-  // full date exists — never asks her to also flip a dropdown. This form
-  // was the one holdout, because it's the only place month/year/range
-  // precision can be set at all: match the rest of the app for the common
-  // case (a real day typed in), leave the dropdown for the uncommon one.
-  body.querySelector('#f-bdate').addEventListener('change', (e) => {
-    if (e.target.value) body.querySelector('#f-bprec').value = 'day';
-  });
   body.querySelector('#save-person-btn').addEventListener('click', async () => {
+    const saveBtn = body.querySelector('#save-person-btn');
+    clearInlineNote(saveBtn);
+    const bdateRaw = body.querySelector('#f-bdate').value.trim();
+    const birth = parseBirthField(bdateRaw);
+    if (!birth) {
+      inlineNote(saveBtn, `Didn't recognise "${bdateRaw}" as a date — try "15 Sept 2024", "Sept 2024", "2024", or a range like "1965-1966".`);
+      return;
+    }
     const nameInput = body.querySelector('#f-name');
     const typedName = nameInput.value.trim();
     // names (2026-09-13): capitalised the moment she saves — a name she
@@ -1335,12 +1347,12 @@ function renderEditForm(body, ctx, person, tags = []) {
       display_name: newName,
       name_at_birth: rawNab ? (nabHurried ? autoCaseName(rawNab) : rawNab) : null,
       name_needs_formatting: hurried ? 1 : 0,
-      birth_date: body.querySelector('#f-bdate').value || null,
-      birth_precision: body.querySelector('#f-bprec').value,
+      birth_date: birth.date,
+      birth_precision: birth.precision,
       birth_time: body.querySelector('#f-btime').value || null,
       birth_time_precision: body.querySelector('#f-btime').value ? 'exact' : 'unknown',
-      birth_year_min: body.querySelector('#f-ymin').value ? parseInt(body.querySelector('#f-ymin').value, 10) : null,
-      birth_year_max: body.querySelector('#f-ymax').value ? parseInt(body.querySelector('#f-ymax').value, 10) : null,
+      birth_year_min: birth.yearMin,
+      birth_year_max: birth.yearMax,
       birth_place: body.querySelector('#f-bplace').value || null,
       death_date: ddate,
       death_precision: ddate ? 'day' : 'unknown',

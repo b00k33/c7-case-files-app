@@ -1495,6 +1495,14 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 79. Birth date accepts a partial date — month, year, or a contested range (v161, 2026-09-27)
+
+Her literal ask: "allow the app to add birthdays missing month or day or year." The data model already supported it fully (`birth_precision`: day/month/year/range/unknown, `birth_year_min`/`max` for year and range) — the gap was entirely in the Edit form's UI. Birth date was a native `<input type="date">`, which cannot express anything but a complete day, paired with a separate "Birth precision" dropdown she had to remember to flip by hand, and two fields labelled "Year min/max (if range)" that were actually required to record a plain year-only birthday too, despite the label saying otherwise.
+
+Replaced all four controls with one free-text field, parsed with `parseDate()` (`js/profile-parse.js`) — the exact same parser the paste box and the Quick-add drawer's "when they met" field already use elsewhere in this app. "15 Sept 2024" → day, "Sept 2024" → month, "2024" → year; a new small range pattern in `js/pages/subject.js` (`parseBirthField`) additionally reads "1965-1966" / "1965 to 1966" / "1965 or 1966" → a contested range. The field pre-fills from the existing `bornText()` display helper (already used elsewhere on this page) so editing a person round-trips cleanly regardless of which precision they're currently stored at. An unparseable non-empty string blocks the save with an inline error naming the accepted formats, rather than silently discarding it or guessing.
+
+Verified live: typed "Sept 2024" → saved as `{birth_date:'2024-09-01', precision:'month'}`, reopened the form and it read back "Sept 2024"; "2021" → `{precision:'year', year_min:year_max:2021}`; "1965-1966" → `{precision:'range', year_min:1965, year_max:1966}`; "not a date" → blocked with the inline note, drawer stayed open, nothing written; then restored to a real day ("22 Apr 1986") to confirm the common case still saves as `precision:'day'` exactly as before.
+
 ## 78. A one-tap "+ family" for anyone already in the tree, in the Wikipedia drawer itself (v160, 2026-09-27)
 
 Her question on a Relations/Tree page screenshot: "how do i add more people from wiki to the tree? make it easier for me to do that." Investigated before proposing anything: the capability already existed two ways — retype an existing tree member's name into "+ From Wikipedia"'s search box and tick "+ family", or (only elsewhere, on the case-level Family page's Members strip, and only while that person still had zero relationships) a one-tap "+ family" per face. Neither was where she was looking, and the one-tap version specifically disappears the moment someone gets a first relationship — exactly backwards, since pulling a parent is just as useful once someone's already married in.
