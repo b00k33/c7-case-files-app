@@ -417,7 +417,23 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — "Paste many" updates a matching milestone instead
+**2026-09-27, latest — "Their Story →" shortcut on a related person's own
+profile (v165, SPEC §83).** She asked while looking at Johnny Depp's own
+page inside Amber Heard's case: "add a shortcut button to Their Story
+from here" — until now the only routes were tapping a life-line card,
+the tree's marriage marker, or the "Their stories" list on the Relations
+page. A person's own `case_id` IS the case they're filed under, so the
+couple to link is this person + `subjectOf(kase, casePeople)` (the same
+helper the Cases grid uses to find who a case is "about") — never shown
+on the subject's own page, since there's nothing to jump to from
+themselves, and only for a spouse/partner relationship (the two kinds
+Their Story is written for) — a parent or sibling has no "met, engaged,
+married" story to tell. Sits in the header action row next to "+ Add" /
+"Edit", every tab, not just Profile. Verified live: shows and correctly
+links to `#/relationship/…` on Johnny Depp's page, absent on Amber
+Heard's own (she's the case subject).
+
+**2026-09-27, earlier — "Paste many" updates a matching milestone instead
 of duplicating it (v164, SPEC §82).** Found live: running "Paste many"
 twice on two versions of the same timeline created near-duplicate Their
 Story cards — same real event, different wording and date precision each

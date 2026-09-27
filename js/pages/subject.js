@@ -261,6 +261,19 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // what's waiting on her in this case sits in the header as a door, the
   // same chip the Cases card shows — one tap, never a hunt (2026-09-08)
   const toReview = summary ? summary.toReview : 0;
+  // her ask, 2026-09-27: "add a shortcut button to Their Story from here" —
+  // asked while viewing Johnny Depp inside Amber Heard's case. A related
+  // person's own case_id IS the case they're filed under (subjectOf, same
+  // helper the Cases grid uses to find "the" person a case is about), so
+  // the couple in question is this person + the case's own subject — never
+  // shown on the subject's own page (nothing to jump to from themselves),
+  // and only for spouse/partner, the two kinds Their Story is written for
+  // (relLabel() above); a parent or sibling relationship has no "met,
+  // engaged, married" story to tell.
+  const caseSubject = kase ? subjectOf(kase, casePeople) : null;
+  const theirRel = caseSubject && caseSubject.id !== person.id
+    ? rels.find((r) => (r.kind === 'spouse' || r.kind === 'partner') && (r.a_id === caseSubject.id || r.b_id === caseSubject.id))
+    : null;
 
   root.innerHTML = `
     <div class="subject-layout">
@@ -283,6 +296,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
               <div class="sh-actions">
                 ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
                 ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="btn btn-ghost btn-sm" id="unmove-person-btn">Move back to Cases</button>' : ''}
+                ${theirRel ? `<a class="btn btn-ghost btn-sm" href="#/relationship/${theirRel.id}" style="text-decoration:none" title="Their milestones, timeline and photos together">Their Story →</a>` : ''}
                 ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
                 ${tab === 'profile' ? '<button class="btn btn-ghost btn-sm" id="paste-btn" title="Straight to the paste box — no lookup, no forms">Paste</button>' : ''}
                 <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>

@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 83. "Their Story →" shortcut on a related person's own profile (v165, 2026-09-27)
+
+Her ask, viewing Johnny Depp's own profile inside Amber Heard's case: "add a shortcut button to Their Story from here." Until now, reaching a couple's dedicated timeline from a related person's own page meant tapping a life-line card tied to that relationship (which opens a detail panel with its own "Their story →" link, §-none — always existed via `renderWhyCard`), the tree's marriage-year marker, or the "Their stories" list panel on the Relations page. None of those are a direct, always-visible link from the person's own header.
+
+A related person's own `case_id` is the case they're filed under, and `subjectOf(kase, casePeople)` (`js/pages/cases.js`, already used by the Cases grid to find who a person-case is "about") gives back that case's own subject — so the couple to link from Johnny Depp's page is Johnny + `subjectOf(...)`. Computed once in `render()` (`js/pages/subject.js`): `caseSubject`, then `theirRel` = a relationship in `rels` (already fetched) connecting `person` and `caseSubject`, restricted to `kind === 'spouse' || kind === 'partner'` — the two kinds Their Story's own milestone vocabulary (met/dating/engaged/married/separated/reunited) is written for; a parent or sibling relationship has no such story to tell, so no shortcut renders for one. Never shown on the case subject's own page — `caseSubject.id !== person.id` guards that, since there's nothing to jump to from yourself.
+
+Rendered as a ghost-styled link, `Their Story →`, in the header's action row (`.sh-actions`) beside "+ Add" and "Edit" — unconditional on every tab, not gated to Profile like "+ Add"/"Paste" are, since which tab she's on has nothing to do with whether the shortcut is relevant.
+
+Verified live: on Johnny Depp's page (inside Amber Heard's case) the button appears and links straight to `#/relationship/2737c228-…`, the existing Amber & Johnny relationship; on Amber Heard's own page (the case subject) it's correctly absent.
+
 ## 82. "Paste many" updates a matching milestone instead of duplicating it (v164, 2026-09-27)
 
 Found live: pasting two different versions of the same timeline (§80, then a more detailed re-paste) created near-duplicate Their Story cards for the same real event — e.g. "Met, 2011" (the relationship's own rough auto-guess) alongside a pasted "They meet on the set of the film The Rum Diary., 2009." Her instruction, exact: "when i paste info that is duplicate, update the missing info. dont add it as new."
