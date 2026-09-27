@@ -1495,6 +1495,89 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 76. "Started dating" — relationship milestones now read on a person's own Life Line (v158, 2026-09-27)
+
+Third item from the same synth22 batch as §75: "i want more details of the
+relationships timeline to be recorded e.g. when people met and started
+dating." Read against code6 + code3 — ask28 (4 questions) before building,
+grounded in a real investigation of what already existed rather than
+guessing:
+
+**What was already there, undiscovered.** "Their Story" (a page per
+couple, `js/pages/relationship.js`, built 2026-09-15) already had a full
+milestone system — title, kind, date, place, notes, photo — with kinds
+Met/Engaged/Married/Separated/Reunited/Other (`REL_KINDS`,
+`js/lifemap.js`). "Met" could even already be created automatically via
+the "+ add & link" quick flow. She'd never seen any of it: "no, first I'm
+hearing of it." A real "Met · 2011" card was created live in the sandbox
+and screenshotted as the ask28 visual guide, rather than mocking something
+that already existed.
+
+**Her four answers:** (1) didn't know Their Story existed; (2) "met" and
+"started dating" are genuinely separate moments, not the same thing
+twice; (3) relationship milestones should ALSO show on each person's own
+Life Line — reversing a 2026-09-15 design decision that deliberately kept
+them off it ("the couple's story lives once, not scattered across two
+posters") now that the Life Line sits front-and-center in §75's new
+layout; (4) the quick "+ add & link" flow should keep always creating
+"Met" regardless of relationship kind picked — simplicity over precision
+there.
+
+**Built:**
+- `REL_KINDS` gains `['dating', 'Started dating', '♡']`, between Met and
+  Engaged. `REL_KIND_SET`/`REL_GLYPH` (Their Story's own line) pick it up
+  for free — no separate list to update there.
+- `js/lifemap.js`'s `markKind()` now recognises Their Story's own
+  vocabulary explicitly (met/dating/engaged/reunited get their own kinds;
+  married/separated fold into the EXISTING marriage/divorce kinds, so
+  they inherit widowed/failed inference and tier-scoring for free) —
+  checked before the existing fuzzy title regexes, so a milestone titled
+  e.g. "Met again after they separated" can't get misread as a divorce.
+- `buildLifeLine()`'s main event loop now also takes relationship-scoped
+  milestone events (previously only ever read on Their Story, never
+  passed to a person's own line at all) — each mark gets `spouseId` set
+  directly from its `relationship_id` (reliable) rather than only via the
+  existing fuzzy name-in-title backfill (which stays, for Wikidata-sourced
+  marriage/divorce events that carry no relationship_id at all).
+- **Dedup, both directions.** A marriage/divorce can now arrive from up to
+  three sources — a Wikidata pull (person-scoped), Their Story's own
+  married/separated milestone (relationship-scoped), and the relationship's
+  bare start_date/end_date synthesis that already existed — so the main
+  loop skips a second marriage/divorce mark for a kind+year it's already
+  seen, the same principle the synthesis loop already used against itself.
+  The synthesis loop's own partner-fallback kind was renamed `'together'`
+  → `'dating'` (same glyph, ♡) specifically so it dedupes correctly
+  against a real "Started dating" milestone instead of silently doubling
+  a mark that means the same thing.
+- **The discoverability problem solved as a side effect, not a separate
+  feature.** `renderWhyCard`'s "what" line grows a "Their story →" link
+  whenever a mark carries a relationship (`m.rel`) — tapping any
+  relationship-sourced mark on the Life Line she already lives on now
+  hands her straight to the page she never knew existed, rather than
+  building a second, redundant way to find it.
+- `markTier()`: 'engaged' scored alongside marriage/divorce/death
+  (relationship-defining, +3) — a disclosed judgment call, not asked,
+  since 'met'/'dating'/'reunited' read as lead-up context rather than the
+  headline itself; open to revisiting if it doesn't hold up in practice.
+- Left deliberately alone: `buildRelationshipLine()` (Their Story's OWN
+  bare-date fallback, when no typed milestone exists at all) still labels
+  an un-milestoned partner relationship's synthesized start mark "met,"
+  not "started dating" — a separate, narrower ambiguity (the app can't
+  know which one an untyped date means) that was never part of what she
+  asked this round; noted rather than silently changed.
+
+**Verified live, real data, three real writes:** created Amber Heard +
+Johnny Depp as spouses via "+ add & link" with a 2011 date → a real "Met"
+milestone appeared on both Their Story and her own Life Line, tapping it
+opened Their Story via the new link. Added "Started dating · 2012" from
+Their Story's own +Milestone form → appeared correctly on both surfaces
+with its own ♡ glyph and personal-year number, distinct from Met. Added
+"Married · 2015" the same way → exactly one ♥ mark appeared on her Life
+Line, not two, confirming the dedup against the relationship's own
+already-existing synthesized marriage mark. Final sequence read Met 2011
+→ Started dating 2012 → Married 2015, in order, each with its own tier
+and personal-year number.
+
 ## 75. Profile + tabs move into a standing left rail (v157, 2026-09-27)
 
 synth22 batch (three requests, collected then synthesized as one): (1)

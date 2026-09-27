@@ -81,11 +81,24 @@ export function elementPair(signA, signB) {
 
 // ---- marks: what a dated event is, as one glyph ----
 const MILESTONE = new Set(['chart', 'certification', 'award', 'deal']);
-export const MARK_GLYPH = { release: '♪', marriage: '♥', divorce: '✕', death: '✝', milestone: '★', trial: '⚖', crisis: '⚠', move: '⌂', business: '▣', birth: '●', other: '◆' };
-export const MARK_LABEL = { release: 'release', marriage: 'married', divorce: 'ended', death: 'died', milestone: 'milestone', trial: 'trial', crisis: 'crisis', move: 'moved', business: 'business', other: 'event' };
+export const MARK_GLYPH = { release: '♪', marriage: '♥', divorce: '✕', death: '✝', milestone: '★', trial: '⚖', crisis: '⚠', move: '⌂', business: '▣', birth: '●', other: '◆', met: '☆', dating: '♡', engaged: '◈', reunited: '↻' };
+export const MARK_LABEL = { release: 'release', marriage: 'married', divorce: 'ended', death: 'died', milestone: 'milestone', trial: 'trial', crisis: 'crisis', move: 'moved', business: 'business', other: 'event', met: 'met', dating: 'started dating', engaged: 'engaged', reunited: 'reunited' };
 export function markKind(ev) {
   const t = String(ev.title || '').toLowerCase();
   const k = ev.kind || 'other';
+  // Their Story's own milestone vocabulary (met/dating/engaged/married/
+  // separated/reunited/other, REL_KINDS below) — checked before the
+  // fuzzy title regexes further down so a milestone titled e.g. "Met again
+  // after they separated" can't get mis-read as a divorce by k==='met'
+  // falling through to the /separat/ text match (her ask, 2026-09-27: more
+  // relationship-timeline detail — met, started dating — now read on the
+  // person's own Life Line too, not just Their Story)
+  if (k === 'met') return 'met';
+  if (k === 'dating') return 'dating';
+  if (k === 'engaged') return 'engaged';
+  if (k === 'reunited') return 'reunited';
+  if (k === 'married') return 'marriage';
+  if (k === 'separated') return 'divorce';
   if (k === 'divorce' || /\bdivorc|\bseparat|\bannul/.test(t)) return 'divorce';
   if (k === 'death') return 'death';
   if (k === 'marriage') return 'marriage';
@@ -121,6 +134,7 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
   const deathISO = exactDeath(person) || person.death_date || null;
   const deathYear = deathISO ? yearOf(deathISO) : null;
   const byId = new Map((people || []).map((p) => [p.id, p]));
+  const relById = new Map((rels || []).map((r) => [r.id, r]));
   let marks = [];
   for (const ev of events) {
     if (ev.theory_id) continue; // a theory timeline is not the record
@@ -128,21 +142,32 @@ export function buildLifeLine({ person, events, rels, people, outcomes }) {
     if (y == null) continue;
     const kind = markKind(ev);
     if (kind === 'birth') continue; // the ribbon starts there
-    marks.push({ id: ev.id, year: y, kind, glyph: MARK_GLYPH[kind], title: ev.title, date: ev.date, precision: ev.date ? (ev.date_precision || 'day') : 'year', event: ev });
+    // a marriage/divorce can arrive from two sources now — a Wikidata pull
+    // (person-scoped) and Their Story's own married/separated milestone
+    // (relationship-scoped, her ask 2026-09-27) — skip a second mark for
+    // the same kind+year rather than show the same real event twice
+    if ((kind === 'marriage' || kind === 'divorce') && marks.some((m) => m.kind === kind && m.year === y)) continue;
+    const rel = ev.relationship_id ? relById.get(ev.relationship_id) : null;
+    const relOtherId = rel ? (rel.a_id === person.id ? rel.b_id : rel.a_id) : null;
+    marks.push({ id: ev.id, year: y, kind, glyph: MARK_GLYPH[kind], title: ev.title, date: ev.date, precision: ev.date ? (ev.date_precision || 'day') : 'year', event: ev, rel: rel || undefined, spouseId: relOtherId });
   }
   // spouses and partners: a relationship with a start year but no mark that
   // year gets one; an end year gets a ✕ either way. A partner who was never
   // married (her ask, 2026-09-26, on Princess Anne: "who she dated, when it
   // ended" — Andrew Parker Bowles, Richard Meade, never a wedding between
-  // them) gets ☆/"With X" instead of ♥/"Married X" — the ending itself
+  // them) gets ♡/"With X" instead of ♥/"Married X" — the ending itself
   // reads the same regardless ("Ended with X" was never marriage-specific
-  // wording to begin with).
+  // wording to begin with). Kind is 'dating', the same kind a real "Started
+  // dating" milestone from Their Story uses (her ask, 2026-09-27) — was
+  // 'together' before, folded into 'dating' so this fallback and a real
+  // milestone dedup against each other correctly instead of silently
+  // doubling up (matched by kind+year, same principle as marriage/divorce).
   for (const r of rels || []) {
     if ((r.kind !== 'spouse' && r.kind !== 'partner') || r.theory_id) continue;
     const other = byId.get(r.a_id === person.id ? r.b_id : r.a_id);
     const isSpouse = r.kind === 'spouse';
-    const startKind = isSpouse ? 'marriage' : 'together';
-    const startGlyph = isSpouse ? '♥' : '☆';
+    const startKind = isSpouse ? 'marriage' : 'dating';
+    const startGlyph = isSpouse ? '♥' : '♡';
     const startTitle = other ? `${isSpouse ? 'Married' : 'With'} ${other.display_name}` : (isSpouse ? 'Married' : 'Together');
     const sy = yearOf(r.start_date), ey = yearOf(r.end_date);
     if (sy && !marks.some((m) => m.kind === startKind && m.year === sy)) marks.push({ id: `rel:${r.id}`, year: sy, kind: startKind, glyph: startGlyph, title: startTitle, date: r.start_date, precision: 'year', rel: r, spouseId: other ? other.id : null });
@@ -251,7 +276,7 @@ function outcomeChip(m) {
 // looks too plain and boring" — SPEC §32)
 function markTier(m, { isSpecial, hasPhoto }) {
   let score = 0;
-  if (m.kind === 'death' || m.kind === 'marriage' || m.kind === 'divorce') score += 3;
+  if (m.kind === 'death' || m.kind === 'marriage' || m.kind === 'divorce' || m.kind === 'engaged') score += 3;
   if (m.kind === 'trial' || m.kind === 'crisis') score += 2;
   if (m.kind === 'milestone') score += 1;
   if (isSpecial) score += 2;
@@ -282,7 +307,7 @@ function itemQidFromComposite(wid) {
  */
 async function resolveMarkPicture(m, { people, store }) {
   if (m.cluster) return null; // stands for several — no one picture is honest
-  if ((m.kind === 'marriage' || m.kind === 'together' || m.kind === 'divorce' || m.kind === 'death') && m.spouseId) {
+  if ((m.kind === 'marriage' || m.kind === 'dating' || m.kind === 'divorce' || m.kind === 'death' || m.kind === 'met' || m.kind === 'engaged' || m.kind === 'reunited') && m.spouseId) {
     const spouse = (people || []).find((p) => p.id === m.spouseId);
     if (!spouse) return null;
     const src = spouse.photo_path ? await resolveAssetUrl(spouse.photo_path, 'image/jpeg') : spouse.photo_url;
@@ -521,6 +546,7 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
 // spouse's face or a Wikidata fetch.
 export const REL_KINDS = [
   ['met', 'Met', '☆'],
+  ['dating', 'Started dating', '♡'],
   ['engaged', 'Engaged', '◈'],
   ['married', 'Married', '♥'],
   ['separated', 'Separated', '✕'],
@@ -676,7 +702,7 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome }) {
       <span class="k">what</span>
       ${m.cluster
         ? `<span class="line" style="flex-direction:column;align-items:flex-start;gap:2px"><b>${m.glyph} ${esc(m.title)} · ${m.year}</b>${m.cluster.map((x) => `<span style="display:flex;gap:8px;align-items:baseline"><span class="mono dim" style="width:88px;flex:none">${fmtWhen(x)}</span><span>${esc(x.title)}</span>${x.outcome ? outcomeChip(x) : ''}</span>`).join('')}</span>`
-        : `<span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}</span>`}
+        : `<span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}${m.rel ? `<a href="#/relationship/${m.rel.id}" class="linklike">Their story →</a>` : ''}</span>`}
       <span class="k">their year</span>
       <span class="line">${py != null ? `<span class="lm-py dot lm-t-${pyTone(py)}">${py}</span><span>personal year ${y.total}/${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}${animalChipHtml(yearAnimal)}<span class="mono dim">${yearLine}</span></span>
       ${spouse ? '<span class="k">the two</span><span class="line" id="lm-pair"></span>' : ''}

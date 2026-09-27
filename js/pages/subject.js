@@ -216,6 +216,13 @@ export async function render(root, ctx, personId, tab = 'profile') {
     store.getCase(person.case_id),
     store.listPeople(person.case_id),
   ]);
+  // Their Story's own milestones (met, started dating, engaged, married,
+  // separated, reunited — relationship_id-scoped, never person_id) now
+  // also read on this person's own Life Line (her ask, 2026-09-27, after
+  // ask28: "also on each person's Life Line" — Their Story stays the one
+  // place to ADD them; this only shows them here too, tapping through
+  // back to Their Story rather than duplicating its edit form).
+  const relEvents = (await Promise.all(rels.map((r) => store.listEventsForRelationship(r.id)))).flat();
   // "Move to People" (cases.js) hides a thin person-kind case from the
   // Cases grid without touching it — the only way back is from here,
   // since a hidden case has no tile of its own to undo it from. Only the
@@ -513,7 +520,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
   // ---- the life map: the ribbon, the why of a mark, the family tree, compare ----
   const peopleInCase = await store.listPeople(ctx.caseId);
-  const lifeData = buildLifeLine({ person, events, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() });
+  const lifeData = buildLifeLine({ person, events: [...events, ...relEvents], rels, people: peopleInCase, outcomes: await store.listEventOutcomes() });
   const lifeEl = root.querySelector('#life-line');
   const whySlot = root.querySelector('#why-slot');
   const openPerson = (id) => ctx.navigate(`#/subject/${id}`);
@@ -522,7 +529,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
     onOutcome: async (mark, oc) => {
       // her tag wins over the record's inference; the ribbon and the card redraw in place
       await store.setEventOutcome(mark.event.id, oc);
-      Object.assign(lifeData, buildLifeLine({ person, events, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
+      Object.assign(lifeData, buildLifeLine({ person, events: [...events, ...relEvents], rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
       await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, store, people: peopleInCase });
       const again = lifeData.marks.find((x) => x.id === mark.id);
       if (again) {
@@ -548,7 +555,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       // the pictures just landed on the DB rows, not on this closure's own
       // `events` — re-read so the redraw below actually sees them
       const freshEvents = await store.listEventsForPerson(person.id);
-      Object.assign(lifeData, buildLifeLine({ person, events: freshEvents, rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
+      Object.assign(lifeData, buildLifeLine({ person, events: [...freshEvents, ...relEvents], rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
       await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, store, people: peopleInCase });
       inlineNote(btn, `${r.found} of ${r.checked} found.`);
     } catch (err) {

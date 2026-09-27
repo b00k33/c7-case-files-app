@@ -417,7 +417,47 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — the profile header and tabs became a standing left
+**2026-09-27, latest — "started dating" milestones, and a feature she
+never knew existed surfaced as a side effect (v158, SPEC §76).** Third
+item from the same synth22 batch as v157: more relationship-timeline
+detail, met/started dating. Told to ask28 it before building. Investigated
+first rather than guessing: "Their Story" (a full milestone page per
+couple — met/engaged/married/separated/reunited, title/date/place/notes/
+photo) already existed, built 2026-09-15, and "Met" could already be
+auto-created via "+ add & link." Built a real "Met · 2011" card live in
+the sandbox and screenshotted THAT as the ask28 visual guide, rather than
+mocking a feature that already existed. Her answers: never knew Their
+Story existed; met and started dating are genuinely separate moments, not
+the same thing said twice; relationship milestones should also show on
+each person's own Life Line — reversing a 2026-09-15 decision that
+deliberately kept them off it, now that v157 put the Life Line front-and-
+center; quick-add should keep always creating "Met" regardless of kind
+picked, for simplicity. Added `dating` to `REL_KINDS` (♡, between Met and
+Engaged) — `REL_KIND_SET`/`REL_GLYPH` picked it up automatically, no
+second list to maintain. `markKind()` now reads Their Story's own
+vocabulary before falling through to its existing fuzzy title regexes
+(married/separated deliberately fold into the pre-existing marriage/
+divorce kinds, inheriting widowed/failed inference and tier-scoring for
+free instead of duplicating it). The real find: a marriage/divorce mark
+can now come from three independent sources (a Wikidata pull, a Their
+Story milestone, the relationship's own bare start/end date) — added a
+same-kind-same-year dedup in the main event loop, and renamed the
+existing bare-date fallback's `'together'` kind to `'dating'` specifically
+so it dedupes against a real "Started dating" milestone rather than
+silently doubling it. Solved the discoverability problem she'd just
+revealed as a side effect rather than a separate feature: any Life-Line
+mark that carries a relationship now shows a "Their story →" link in its
+why-card, so tapping the timeline she already lives on is how she finds
+the page she never knew was there — not a second, redundant entry point
+built on top. One disclosed, unasked judgment call: 'engaged' scored as
+relationship-defining (same tier weight as marriage/divorce/death), 'met'/
+'dating'/'reunited' left at baseline as lead-up context. Verified with
+three real writes in the sandbox (Met 2011 → Started dating 2012 →
+Married 2015): each appeared correctly on both Their Story and her own
+Life Line with its own glyph, and the married mark confirmed to appear
+exactly once, not twice.
+
+**2026-09-27, earlier — the profile header and tabs became a standing left
 rail (v157, SPEC §75); two mocked directions rejected first, both real
 findings.** synth22 batch of three requests, synthesized together: design
 the page to her workflow, reach Life Line/Family without scrolling or
