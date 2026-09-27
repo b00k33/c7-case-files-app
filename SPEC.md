@@ -1495,6 +1495,87 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 75. Profile + tabs move into a standing left rail (v157, 2026-09-27)
+
+synth22 batch (three requests, collected then synthesized as one): (1)
+"design this page accordingly to my workflow" on a screenshot of the
+profile page; (2) "i want to look through the visual timelines and family
+tree easily without scrolling or searching"; (3) "i want more details of
+the relationships timeline to be recorded e.g. when people met and started
+dating" (#3 not yet built — a separate data-model addition, scoped out of
+this round since it never got its own confirmed mock).
+
+Read against code6 (code7 still doesn't exist for this project, confirmed
+again in CLAUDE.md) + code3. ask28 on the screenshot (4 questions)
+established the real shape: she jumps straight to the Life Line, +Add is
+her main tool, "too much before the useful part" is the header sitting
+above it, and she'd never found ⚙ Arrange (already able to fix exactly
+this) because it isn't discoverable.
+
+**Two mocked directions were shown and rejected before this one landed —
+worth recording since the failures are as informative as the fix:**
+1. *Shrink the header to a compact strip, collapse demographics/numerology
+   behind a "Details" toggle.* Rejected: "the structure itself" was wrong,
+   and it "doesn't feel like MY app" — the numerology/zodiac panel isn't
+   overhead to hide, it's part of what makes this a numerology-driven
+   research tool rather than a generic profile page.
+2. *Reorder only — full header unchanged, just moved below Life Line/
+   Family.* Rejected outright ("looks horrible"). Her follow-up ruled out
+   the theory that this was about losing identity-context ("the
+   arrangement itself" was the problem, not not-knowing-whose-page-this-
+   is) and named the real direction instead: "a separate place to view
+   them."
+
+**Her own instruction landed it: "put the profile on the left side with
+the tabs."** Not a new page, not a modal — the existing header and tab
+strip turn into a standing left column; Life Line, Family and every other
+widget sit in a main column beside it, visible immediately, nothing to
+scroll past to reach them. Confirmed via a mock built in the app's own
+"Cute" theme tokens before any code changed.
+
+**Built as `.subject-layout` / `.subject-rail` / `.subject-main` in
+`js/pages/subject.js` + `css/app.css`, desktop only (≥900px) — phone
+keeps today's stacked layout unchanged, verified explicitly, since a
+standing sidebar has nowhere to live on a narrow screen and this was never
+a phone complaint.** The tab strip is the same links, same click handler,
+same `moreOpen`/⋯ mechanism — only its CSS changes (`flex-direction:
+column`, a left accent border instead of an underline) when it's inside
+the rail.
+
+**Two real bugs found live, not from re-reading the code — from actually
+opening the result:** (1) the existing `.profile-grid` (Demographics) has
+a fixed `110px 1fr` column pair; squeezed into a 300px rail alongside the
+existing 140px-square avatar, the value column collapsed to 0 width and
+every fact's text vanished — non-obvious from source, obvious the moment
+a real profile rendered in the rail. (2) `.sh-main` flipped to
+`flex-direction: column` correctly stacked the avatar above the content,
+but `.sh-content`'s existing `flex: 1 1 auto` only governs the MAIN axis —
+in a column parent that's height, not width — so with `align-items:
+flex-start` (not `stretch`) on `.sh-main`, `.sh-content` shrank to a
+content-based width instead of filling the rail, collapsing the whole
+subtree beneath it into single-word line wraps. Fixed with `.subject-rail
+.sh-content { width: 100% }`. Both are exactly the kind of bug that only
+surfaces once real content is squeezed into a genuinely new container
+width — caught by opening the sandbox and looking, not by reasoning about
+the CSS in the abstract.
+
+**Also hit, again:** the c7-swfix dev server served a stale `app.css` for
+several checks in a row even with `fetch(..., {cache:'no-store'})` against
+the live URL — not the browser's HTTP cache this time (a fresh fetch
+should bypass that), but the file's own on-disk propagation lagging behind
+the edit by a couple of seconds (this project lives inside OneDrive).
+Confirmed by re-fetching after a short wait before concluding a fix hadn't
+taken.
+
+Verified live end to end: a fresh Wikidata-filled test person, at
+1280×900 — rail shows photo/demographics/numerology/Wikidata/tabs, main
+column shows Life Line + Family immediately, no scroll; clicking Relations
+in the rail navigates correctly and the rail persists across tabs;
+expanding ⋯ lists all nine tabs vertically and scrolls independently of
+the main column once the rail's content exceeds the viewport (`max-height:
+calc(100vh - 2×sp-4); overflow-y: auto`); at 375×812 (phone) the page is
+byte-for-byte the pre-v157 stacked layout.
+
 ## 74. A profile: trimmed tabs, and a straight-to-paste button (v156, 2026-09-27)
 
 Her ask, from a screenshot of Andrea Finlay's real profile in the Cute

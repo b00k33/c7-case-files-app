@@ -417,7 +417,43 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — a profile's tab row trimmed 9 tabs to 3, plus a
+**2026-09-27, latest — the profile header and tabs became a standing left
+rail (v157, SPEC §75); two mocked directions rejected first, both real
+findings.** synth22 batch of three requests, synthesized together: design
+the page to her workflow, reach Life Line/Family without scrolling or
+searching, record more relationship-timeline detail (met/started dating —
+not yet built, no confirmed mock for it this round). ask28 on a screenshot
+(4 questions) established she jumps straight to the Life Line and had
+never found ⚙ Arrange, which already does most of what she wanted, because
+it isn't discoverable. First mock — compact header, demographics/numerology
+behind a "Details" toggle — was rejected as wrong in structure AND
+character: those panels aren't overhead, they're what makes this a
+numerology-driven research tool rather than a generic profile. Second
+mock — reorder only, full header moved below Life Line — was rejected
+outright ("looks horrible"); her follow-up ruled out losing page-identity
+as the cause and named the real fix herself: "put the profile on the left
+side with the tabs." Built as `.subject-layout`/`.subject-rail`/
+`.subject-main`, desktop-only (≥900px) — phone verified byte-for-byte
+unchanged. Two real CSS bugs surfaced only once a real profile actually
+rendered in the new 300px column, neither obvious from reading the source:
+the existing Demographics grid's fixed `110px 1fr` columns collapsed the
+value column to 0 width next to the existing 140px avatar; separately,
+flipping the header to `flex-direction: column` correctly stacked photo
+above content but left `.sh-content`'s width unconstrained (its `flex: 1 1
+auto` governs the column's main axis, which is now height, not width),
+collapsing the whole subtree into single-word line wraps until given an
+explicit `width: 100%`. Also re-hit this project's dev-server staleness
+trap in a new shape: `fetch(url, {cache:'no-store'})` against the live
+server still returned pre-edit CSS a couple of seconds after saving — not
+the browser HTTP cache this time, the file's own on-disk write lagging
+behind (OneDrive-synced folder); a short wait and re-fetch confirmed the
+fix had in fact landed. Lesson worth keeping: two wrong mocks in a row is
+a signal to stop mocking variations and ask what specifically is wrong
+before trying a third — the discovery questions after each rejection (not
+another blind mock) are what actually found "a separate place to view
+them," which she then made concrete herself.
+
+**2026-09-27, earlier — a profile's tab row trimmed 9 tabs to 3, plus a
 straight-to-paste button (v156, SPEC §74).** She sent a screenshot of a
 real profile in the Cute theme with "too many options... too hard to
 navigate it right now." Two fixes from one complaint: the always-visible

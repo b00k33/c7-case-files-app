@@ -1118,6 +1118,39 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .sh-zone2, .sh-zone3 { padding: var(--sp-3) var(--sp-4); }
 }
 
+/* Profile + tabs as a standing left rail (her ask, 2026-09-27: "put the
+   profile on the left side with the tabs" — after two rejected attempts at
+   shrinking or reordering the header, the actual fix was neither: the
+   header stays exactly as it always has, full size, just turned sideways
+   so Life Line/Family sit beside it instead of under it — nothing to
+   scroll past to reach them). Phone stays exactly as before (a plain
+   stacked column) — a standing sidebar has nowhere to live on a narrow
+   screen, and mobile was never part of this complaint. */
+.subject-layout { display: flex; flex-direction: column; gap: var(--sp-4); align-items: flex-start; }
+.subject-rail { width: 100%; min-width: 0; }
+.subject-main { flex: 1 1 auto; min-width: 0; width: 100%; }
+
+@media (min-width: 900px) {
+  .subject-layout { flex-direction: row; }
+  .subject-rail { flex: 0 0 300px; position: sticky; top: var(--sp-4); max-height: calc(100vh - var(--sp-4) * 2); overflow-y: auto; }
+  .subject-main { flex: 1 1 auto; }
+
+  /* the 140px avatar sits beside the demographics/numerology on a full-
+     width card, but a 300px rail has no room for both side by side (found
+     live: it squeezed the value column to 0 and the text vanished) — photo
+     on top, same as the phone breakpoint already does, just at this width
+     instead of 480px */
+  .subject-rail .sh-main { flex-direction: column; }
+  .subject-rail .sh-content { width: 100%; }
+
+  /* the tab strip turns sideways with the rail it now lives in — same
+     links, same click handling, only the CSS changes */
+  .subject-rail .tab-strip { flex-direction: column; overflow-x: visible; border-bottom: 0; gap: 2px; margin-top: var(--sp-3); }
+  .subject-rail .tab-strip a { border-bottom: 0; border-left: 2px solid transparent; border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: var(--sp-2) var(--sp-3); }
+  .subject-rail .tab-strip a.active { border-left-color: var(--brass); background: var(--ink-2); }
+  .subject-rail .tab-strip .tab-more { text-align: left; }
+}
+
 /* ------------------------------------------------------- Their Story */
 .rel-pair-head { display: flex; flex-direction: column; align-items: center; margin-top: var(--sp-3); }
 .rel-pair-pics { display: flex; }

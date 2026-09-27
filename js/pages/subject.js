@@ -234,7 +234,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const toReview = summary ? summary.toReview : 0;
 
   root.innerHTML = `
-    <div class="stack">
+    <div class="subject-layout">
+      <div class="subject-rail">
       <div class="subject-head">
         <div class="sh-main">
           <div class="avatar" id="avatar" title="${person.photo_path || person.photo_url ? 'Change picture' : 'Add a picture'}">
@@ -275,6 +276,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
       </div>
 
       <div class="tab-strip" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹' : '⋯'}</button></div>
+      </div>
+
+      <div class="subject-main stack">
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
       <div id="pi-result"></div>
 
@@ -334,6 +338,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>
       </div>
       `}
+      </div>
     </div>
   `;
 
