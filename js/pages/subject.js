@@ -198,7 +198,7 @@ const TABS = [
   ['profile', 'Profile'], ['relations', 'Relations'], ['evidence', 'Evidence'],
 ];
 const TABS_MORE = [
-  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'],
+  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'], ['fashion', 'Fashion'],
 ];
 const TAB_MODULES = {
   review: () => import('./review.js'),
@@ -332,7 +332,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
         ${person.notes ? `<p class="sh-notes">${person.notes}</p>` : ''}
       </div>
 
-      <div class="tab-strip" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="#/subject/${person.id}${k === 'profile' ? '' : '/' + k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹' : '⋯'}</button></div>
+      <div class="tab-strip" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="${k === 'fashion' ? '#/fashion' : '#/subject/' + person.id + (k === 'profile' ? '' : '/' + k)}" ${k === 'fashion' ? 'id="tab-fashion"' : ''} class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹' : '⋯'}</button></div>
       </div>
 
       <div class="subject-main stack">
@@ -497,6 +497,15 @@ export async function render(root, ctx, personId, tab = 'profile') {
   root.querySelector('#tab-more').addEventListener('click', () => {
     sessionStorage.setItem('c7-tabs-more', moreOpen ? '0' : '1');
     render(root, ctx, personId, tab);
+  });
+
+  // Fashion isn't a case-level tab like the others here — it's the same
+  // global gallery page the Profile widget's "All →" link opens, filtered
+  // to this person (her ask, 2026-09-28: "show fashion here" on the ⋯ menu)
+  root.querySelector('#tab-fashion')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.setItem('c7-fashion-filter', person.id);
+    ctx.navigate('#/fashion');
   });
 
   // profile picture: stored asset first, remote Wikipedia URL as fallback; tap to replace

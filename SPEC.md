@@ -1495,6 +1495,14 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 88. Fashion on the profile's "⋯" tab menu (v170, 2026-09-28)
+
+Her ask, pointed at the same "⋯" more-tabs panel this session already worked on: "show fashion here." That panel lists the profile's quieter tabs — Board, Commercial, Review, Contradictions, Questions, Import (§the trim, 2026-09-26) — all case-level pages mounted inline under the person's header via `TAB_MODULES`.
+
+Fashion doesn't fit that pattern — it's the one global gallery page in the app, not scoped to a case, and it already has a filtered-navigation entry point: the Profile page's own Fashion widget (§84) sets `localStorage['c7-fashion-filter']` to the person's id and navigates to `#/fashion` from its "All →" link. Adding Fashion to the tab strip reuses that exact mechanism rather than forking a person-scoped render just to satisfy `TAB_MODULES`'s shape: `TABS_MORE` gained `['fashion', 'Fashion']`, and the tab strip's link-building special-cases that one entry to point at `#/fashion` instead of `#/subject/:id/fashion`, with a click handler that sets the filter key and calls `ctx.navigate('#/fashion')` — identical to the widget's own wiring. Since `'fashion'` was never a key in `TAB_MODULES`, the page's existing `tab` routing (which resets any unrecognized tab back to `'profile'`) never sees it as a real tab, so no other part of the subject page's logic needed to change.
+
+Verified live at mobile width (the width the "⋯" panel is actually built for): opened the menu on Johnny Depp, confirmed Fashion listed alongside Board/Commercial/Review/Contradictions/Questions/Import, clicked it, landed on `#/fashion`, and confirmed `localStorage['c7-fashion-filter']` held his id. Repeated on Amber Heard and confirmed it updated to her id instead. Both currently have zero fashion images in this sandbox, so no filter chip renders for either yet — expected, matching the widget's own established "a chip only exists for someone with at least one image" rule (§84), not a gap in this change.
+
 ## 87. "Approx." precision on Time of birth (v169, 2026-09-28)
 
 She pasted sourced birth details for two real people to add: Justin Bieber's time (12:56 AM, AstroDatabank Rodden Rating B — fairly solid sourcing) and Selena Gomez's (explicitly "Unconfirmed / Speculative — ~7:19 AM CDT used unofficially online"). This app is code-only from Claude's side — her actual person records aren't something I write into directly — but working out how to point her at the right control surfaced a real gap underneath it.

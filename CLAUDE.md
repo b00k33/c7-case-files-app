@@ -417,7 +417,28 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — an "Approx." precision option next to Time of
+**2026-09-28, latest — Fashion joins the profile's "⋯" tab menu (v170,
+SPEC §88).** She pointed at the same "⋯" more-tabs panel this session
+already touched (Profile · Relations · Evidence · Board · Commercial ·
+Review · Contradictions · Questions · Import) and said "show fashion
+here." Fashion isn't a case-level page mounted the way the others are
+(`TAB_MODULES`, rendered inline under the person's header) — it's the
+same global gallery page the Profile widget's own "All →" link already
+opens (v166), filtered to one person via `localStorage['c7-fashion-
+filter']`. Rather than fork a person-scoped Fashion render just to fit
+the tab-body pattern, added `['fashion', 'Fashion']` to `TABS_MORE` and
+special-cased its link to `#/fashion` instead of `#/subject/:id/fashion`
+— clicking it sets the same filter key the widget's link already sets,
+then navigates, one line, identical to that existing wiring. `tab` in
+this page's own router never equals `'fashion'` (it isn't a key in
+`TAB_MODULES`), so nothing about the existing tab-active/tab-body logic
+needed touching. Verified live at mobile width: opened the ⋯ panel on
+Johnny Depp and on Amber Heard, confirmed the Fashion link renders
+alongside the others, clicked it both times, and confirmed via
+`localStorage.getItem('c7-fashion-filter')` it held the correct
+person's id each time after navigating to `#/fashion`.
+
+**2026-09-28, earlier — an "Approx." precision option next to Time of
 birth (v169, SPEC §87).** She pasted sourced birth details for two real
 people — Justin Bieber's time carries a Rodden Rating B (fairly solid),
 Selena Gomez's is explicitly "Unconfirmed / Speculative." I can't write
