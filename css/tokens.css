@@ -105,7 +105,7 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --ink-0: #f4f5f7;      /* the ground — cool white */
-  --ink-rail: #ffffff;   /* rail, top bar, tab bar — white, floating on --rail-shadow */
+  --ink-rail: #ffffff;   /* nav bar, top bar, tab bar — white, floating on --rail-shadow */
   --ink-1: #fafbfc;      /* panels */
   --ink-2: #ffffff;      /* cards, rows, inputs */
   --ink-3: #e9ecf0;      /* chips, hover, pressed */
@@ -126,7 +126,7 @@
   --ground: radial-gradient(120% 90% at 50% 30%, #f7f8fa 0%, #eceef1 100%);
   --bar-bg: #ffffff;
   --rail-edge: rgba(20, 24, 32, .06);
-  --rail-shadow: 2px 0 8px rgba(20, 24, 32, .08);
+  --rail-shadow: 0 2px 8px rgba(20, 24, 32, .08);
   --topbar-shadow: 0 2px 8px rgba(20, 24, 32, .06);
   --tabbar-shadow: 0 -2px 8px rgba(20, 24, 32, .08);
   --lift-1: 0 1px 2px rgba(20, 24, 32, .05), 0 0 0 1px rgba(20, 24, 32, .04);

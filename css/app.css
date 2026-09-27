@@ -4,25 +4,30 @@
 
 #app-shell {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
-#nav-rail {
+#top-nav {
   flex: 0 0 auto;
-  width: 200px;
   background: var(--ink-1);
-  padding: var(--sp-4) var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
 }
-#nav-rail .brand {
+#top-nav .brand {
   font-family: var(--font-title);
-  font-size: 18px;
-  padding: var(--sp-2) var(--sp-3) var(--sp-5);
+  font-size: 16px;
+  padding: var(--sp-2) var(--sp-3);
+  margin-right: var(--sp-2);
   color: var(--text);
 }
-#nav-rail .brand .sub { display: block; font-family: var(--font-body); font-size: 10px; color: var(--text-3); letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+/* the "Case Files" subtitle needed the rail's own line to stack under the
+   wordmark — no room for that in a single-row bar, and it was never one of
+   the labels she reads the nav by */
+#top-nav .brand .sub { display: none; }
 
 .nav-link {
   display: flex;
@@ -65,19 +70,27 @@
 .case-context:empty { display: none; }
 /* one search box, top of every page (Stage 1 of her redesign, 2026-09-07):
    the install / update / old-copy strips that used to sit here are gone —
-   they live inside the sync dot's drawer now, so the page top is the page */
-#global-search { position: relative; padding: var(--sp-3) var(--sp-5) 0; flex: 0 0 auto; z-index: 60; }
-#global-search input { min-height: 40px; border-radius: var(--r-lg); font-size: 14px; }
+   they live inside the sync dot's drawer now, so the page top is the page.
+   Now rides in #top-nav itself rather than its own full-width row above
+   #main-col (2026-09-27, nav-rail merge) — flexes to fill whatever room
+   the nav links didn't use, wrapping to its own line first if the row is
+   tight, rather than squeezing the links. */
+#global-search { position: relative; padding: 0; flex: 1 1 220px; max-width: 380px; margin-left: auto; z-index: 60; }
+#global-search input { min-height: 36px; border-radius: var(--r-lg); font-size: 14px; }
 #global-search-results {
-  position: absolute; left: var(--sp-5); right: var(--sp-5); top: 100%; margin-top: var(--sp-1);
+  position: absolute; left: 0; right: 0; top: 100%; margin-top: var(--sp-1);
   background: var(--ink-1); border-radius: var(--r-lg); padding: var(--sp-1);
   max-height: 60vh; overflow: auto; box-shadow: var(--shadow);
 }
 #global-search-results[hidden] { display: none; }
 #global-search-results .list-row { min-height: 44px; }
 @media (max-width: 640px) {
-  #global-search { padding: var(--sp-3) var(--sp-3) 0; }
-  #global-search-results { left: var(--sp-3); right: var(--sp-3); }
+  /* phone keeps exactly its old look — a full-width search bar above the
+     page, nav down in #tab-bar — so only the nav links/brand hide here,
+     never #top-nav itself (that would take the search box with it) */
+  #top-nav { padding: var(--sp-3) var(--sp-3) 0; gap: 0; }
+  #top-nav .brand, #top-nav .nav-link { display: none; }
+  #global-search { flex: 1 1 100%; max-width: none; margin-left: 0; }
 }
 
 /* cloud sync chip — always visible, tap opens the account drawer; a waiting
@@ -1253,22 +1266,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 
 /* ------------------------------------------------------------ responsive */
 
-@media (max-width: 1199px) {
-  /* icon-only nav is a standing dislike of hers elsewhere in these apps
-     ("I don't always remember the page names, I hate the icon" — Book33's
-     own nav rail, 2026-08-30) — at this width there still isn't room for
-     the wide rail's icon-beside-label row, but there IS room for the same
-     icon-over-label stack the phone's #tab-bar already uses below. Keep
-     the page identifiable without a hover, not just narrower. */
-  #nav-rail { width: 72px; padding: var(--sp-4) var(--sp-1); }
-  #nav-rail .brand .sub { display: none; }
-  .nav-link { flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: var(--sp-2) 2px; text-align: center; position: relative; min-height: 48px; }
-  .nav-link .ic { width: auto; font-size: 15px; }
-  .nav-link .label { display: block; font-size: 9.5px; line-height: 1.15; }
-  .nav-badge { position: absolute; top: 2px; right: 10px; margin: 0; }
-}
 @media (max-width: 640px) {
-  #nav-rail { display: none; }
   #tab-bar { display: flex; }
   #page-root { padding: var(--sp-3); padding-bottom: calc(64px + var(--sp-3)); }
   /* phone header (audit 2026-09-01, her pick): case name as a brass eyebrow
@@ -1324,7 +1322,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
    — this block never writes an rgba of its own. Later in the file than
    the responsive rules on purpose: it adds depth, it never changes layout. */
 #topbar { background: transparent; }
-#nav-rail { background: var(--ink-rail); box-shadow: inset -1px 0 0 var(--rail-edge); }
+#top-nav { background: var(--ink-rail); box-shadow: inset 0 -1px 0 var(--rail-edge); }
 #tab-bar { background: var(--ink-rail); box-shadow: 0 -1px 0 var(--rail-edge); }
 .nav-link.active { box-shadow: var(--lift-2); }
 .panel, .empty-state, .stat-tile, .tabs { box-shadow: var(--lift-1); }
@@ -1373,7 +1371,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
    text. Night is untouched — these rules read tokens that night sets to
    its old values (transparent shadows, a gold that equals its brass). */
 #topbar { background: var(--bar-bg); box-shadow: var(--topbar-shadow); position: relative; z-index: 1; }
-#nav-rail { box-shadow: inset -1px 0 0 var(--rail-edge), var(--rail-shadow); }
+#top-nav { box-shadow: inset 0 -1px 0 var(--rail-edge), var(--rail-shadow); }
 #tab-bar { box-shadow: 0 -1px 0 var(--rail-edge), var(--tabbar-shadow); }
 /* gold has one job: the life path number — and the "gold" tier of her code (1·8 years, the
    "same" verdict), which is a colour code like the zodiac, not the accent. The unknown dash

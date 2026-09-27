@@ -417,7 +417,40 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — "started dating" milestones, and a feature she
+**2026-09-27, latest — the nav rail merged into a top bar; two wrong
+guesses at "merge this together" before the right one (v159, SPEC §77).**
+She screenshotted her own live app and said "merge this together. show
+mocks" — twice. First guess (the crowded action-button row on the subject
+page) was wrong: "Something else." Second guess (v157's own rail folded
+back into the subject page's one column) was also wrong: "no i made a
+mistake." Third screenshot pinned it: `#nav-rail` (Cases/People/Review/
+Inbox/Patterns/Fun & Zodiac) sitting as a permanent 200px column beside
+`#main-col` on every page — not a subject-page thing at all. Lesson: two
+wrong mocks in a row means stop guessing variations of the SAME referent
+and ask what's actually being pointed at (SPEC §75 already knew this for
+mock directions; this extends it to the referent itself). Mocked two ways
+to fold a permanent sidebar into one column — a horizontal top bar, and a
+hamburger drawer — and deliberately did not mock icon-only nav, a standing
+dislike of hers elsewhere ("I don't always remember the page names, I hate
+the icon" — Book33, 2026-08-30). She picked the top bar. `#nav-rail` is
+gone; its links and brand now live in `#top-nav`, a horizontal row across
+the top of `#app-shell` (now `flex-direction: column`, not a row);
+`#global-search` moved into the same row (`margin-left: auto`, flexing
+down before wrapping to its own line). Labels never shrink to icons — a
+narrow window wraps the row to two lines instead, and the old
+icon-only-at-1199px media block is deleted, not just dead. Phone is
+untouched: below 640px `#top-nav`'s brand/links hide but the container
+itself stays (it still holds the search box), which goes back to
+full-width above `#page-root`; `#tab-bar` still owns mobile nav exactly as
+before. Two theme shadows pointed the wrong way once the rail turned
+sideways — `inset -1px 0 0` (right-edge, for a vertical rail) became
+`inset 0 -1px 0` (bottom edge) on both night and day, and day's
+`--rail-shadow` flipped from a rightward `2px 0 8px` to a downward
+`0 2px 8px`, matching `--topbar-shadow`. Verified live in Cute at 1400/980
+(one row), 660 (wraps, labels intact), and 390 (phone unchanged), plus the
+search dropdown's position and the Cases page's active-route highlight.
+
+**2026-09-27, earlier — "started dating" milestones, and a feature she
 never knew existed surfaced as a side effect (v158, SPEC §76).** Third
 item from the same synth22 batch as v157: more relationship-timeline
 detail, met/started dating. Told to ask28 it before building. Investigated

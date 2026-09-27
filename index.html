@@ -40,7 +40,16 @@
 <div id="connect-root"></div>
 
 <div id="app-shell" style="display:none">
-  <nav id="nav-rail">
+  <!-- nav rail + content used to be two permanent side-by-side columns on
+       every page (her ask, 2026-09-27: "merge these 2 columns together" —
+       screenshotted the real app pointing at #nav-rail vs #main-col, not a
+       subject-page thing). Nav now runs across the top instead, content is
+       one full-width column below it. Labels stay on every link — an
+       icon-only rail was ruled out, a standing dislike of hers elsewhere
+       ("I don't always remember the page names, I hate the icon" — Book33,
+       2026-08-30) — so a narrow window wraps the row to two lines instead
+       of shrinking to icons. -->
+  <div id="top-nav">
     <div class="brand">C7<span class="sub">Case Files</span></div>
     <a class="nav-link" data-route="cases" href="#/cases"><span class="ic">▤</span><span class="label">Cases</span></a>
     <a class="nav-link" data-route="people" href="#/people"><span class="ic">◉</span><span class="label">People</span></a>
@@ -48,9 +57,6 @@
     <a class="nav-link" data-route="inbox" href="#/inbox"><span class="ic">▣</span><span class="label">Inbox</span><span class="nav-badge" id="inbox-badge-rail" title="Images waiting for a title and person"></span></a>
     <a class="nav-link" data-route="patterns" href="#/patterns"><span class="ic">▩</span><span class="label">Patterns</span></a>
     <a class="nav-link" data-route="fun" href="#/fun"><span class="ic">✦</span><span class="label">Fun &amp; Zodiac</span></a>
-  </nav>
-
-  <div id="main-col">
     <!-- one search box, top of every page (Stage 1 of her redesign, 2026-09-07) -->
     <div id="global-search">
       <div class="search-box">
@@ -59,6 +65,9 @@
       </div>
       <div id="global-search-results" hidden></div>
     </div>
+  </div>
+
+  <div id="main-col">
     <header id="topbar">
       <button id="back-btn" class="btn btn-ghost btn-sm" style="display:none" title="Back">←</button>
       <h1 class="page-title" id="page-title">Cases</h1>

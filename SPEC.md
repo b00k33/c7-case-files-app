@@ -1495,6 +1495,20 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 77. Merged the nav rail into a top bar — one column, not two (v159, 2026-09-27)
+
+She screenshotted her own live app pointing at the header: "merge this together. show mocks." First guess (consolidating the crowded action-button row) was wrong — "Something else." Second guess (folding the subject page's own left rail from §75 back into one column) was also wrong — "no i made a mistake." Third try: a fresh screenshot with "merge these 2 columns together" pointing squarely at the app shell itself — `#nav-rail` (Cases/People/Review/Inbox/Patterns/Fun & Zodiac) sitting permanently beside `#main-col` on every page, not a subject-page thing at all.
+
+Mocked two ways to fold a permanent sidebar into one column: a horizontal top nav bar, and a hamburger drawer. Icon-only nav wasn't offered as a third option — a standing dislike of hers elsewhere ("I don't always remember the page names, I hate the icon" — Book33's own nav rail, 2026-08-30). She picked the top bar.
+
+**What changed.** `#nav-rail` (a 200px vertical column, every page) is gone; its six links and the brand mark now open `#top-nav`, a horizontal bar across the top of `#app-shell` (`index.html`). `#global-search` moved into the same row, `margin-left: auto`, flexing down to 220px before wrapping to its own line (`css/app.css`). `#app-shell` is now `flex-direction: column` instead of a row; `#main-col` is a single full-width column below the bar. Labels never disappear — a narrow desktop window wraps the nav row to two lines instead of shrinking to icons; the old `@media (max-width: 1199px)` icon-only rule is deleted outright, not just unused.
+
+Phone is untouched, same as §75's rule for its own change: below 640px, `#top-nav`'s brand and links hide (`display:none` on the children, not the container — `#global-search` lives in there too and still needs to render) and the search box goes back to full width above `#page-root`; `#tab-bar` still owns navigation down there exactly as before.
+
+Two theme-shadow rules pointed the wrong way once the rail turned sideways — `inset -1px 0 0` (a right-edge shadow, correct for a vertical rail) became `inset 0 -1px 0` (bottom edge) on both the night and day `#nav-rail`→`#top-nav` rules, and the day theme's `--rail-shadow` (a rightward drop-shadow, `2px 0 8px`) flipped to downward (`0 2px 8px`), matching `--topbar-shadow`'s own direction.
+
+Verified live in the "Cute" theme: 1400px and 980px stay one row; 660px wraps to two lines with every label intact; 390px (phone) shows the search bar full-width with the old bottom tab-bar, unchanged; the search dropdown still positions under the (now narrower, right-aligned) box; the Cases list page confirmed the active-route highlight and case-context chip still work from the new bar. The subject page's own §75 rail/tabs are unrelated and untouched.
+
 ## 76. "Started dating" — relationship milestones now read on a person's own Life Line (v158, 2026-09-27)
 
 Third item from the same synth22 batch as §75: "i want more details of the
