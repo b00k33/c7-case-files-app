@@ -337,10 +337,23 @@ function renderMilestoneBatchForm(body, ctx, rel, onDone) {
     return { title, kind: guessMilestoneKind(title), when: whenText, unparsedWhen: !!whenText && !d };
   };
 
+  // pasting a bulleted list copied from somewhere rendered (a chat bubble,
+  // a doc, a note app) can drop the real newlines between items entirely
+  // while every "*"/"•" marker survives (found live, 2026-09-27: her own
+  // 7-line paste arrived as one meshed-together block) — split on real
+  // newlines first, then split any surviving line that still has more than
+  // one bullet marker in it on those markers too, so both a clean paste
+  // and a meshed one produce the same rows
+  const splitLines = (raw) => raw
+    .split(/\n+/)
+    .flatMap((l) => (/[*•]/.test(l) ? l.split(/[*•]+/) : [l]))
+    .map((l) => l.trim())
+    .filter(Boolean);
+
   body.querySelector('#mb-parse').addEventListener('click', () => {
     const parseBtn = body.querySelector('#mb-parse');
     clearInlineNote(parseBtn);
-    const lines = textarea.value.split('\n').map((l) => l.trim()).filter(Boolean);
+    const lines = splitLines(textarea.value);
     if (!lines.length) { inlineNote(parseBtn, 'Paste at least one line first.'); return; }
     paintRows(lines.map(parseLine).filter(Boolean));
   });

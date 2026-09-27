@@ -417,8 +417,24 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — "Paste many": a whole relationship timeline at once
-on Their Story (v162, SPEC §80).** She pasted a real 7-line dated
+**2026-09-27, latest — "Paste many" survives a meshed-together paste too
+(v163, SPEC §81).** Found live minutes after v162 shipped: she pasted a
+more detailed 7-line timeline and every bullet ran together into one
+block, no line breaks at all, even though her source plainly had one per
+line. Cause: copying a rendered bulleted list (a chat bubble, a doc)
+doesn't always carry a newline between items in its plain-text clipboard
+form, even when it looks like separate lines wherever she copied from —
+the textarea was fine, the pasted text genuinely had no `\n` between
+entries. `splitLines()` now splits on real newlines first, then further
+splits any surviving chunk that still has more than one `*`/`•` marker in
+it — a clean paste and a meshed one now produce the same rows either way.
+Reproduced her exact failure (all 7 lines as one newline-free block) and
+confirmed the fix recovers all 7 correctly, including her new precise
+dates ("23 May 2016," "13 January 2017") and "Early 2012" correctly
+falling through to the unparsed-date warning rather than being guessed.
+
+**2026-09-27, earlier — "Paste many": a whole relationship timeline at
+once on Their Story (v162, SPEC §80).** She pasted a real 7-line dated
 timeline (Amber Heard & Johnny Depp — met/dating/engaged/married/divorce
 filed/divorce finalised/trial) and asked how to add it; one milestone at
 a time was a full drawer round trip per line. Added a second entry point

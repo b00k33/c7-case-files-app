@@ -1495,6 +1495,12 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 81. "Paste many" survives a meshed-together paste too (v163, 2026-09-27)
+
+Found live, same day as §80: her real second attempt at pasting a (more detailed) timeline arrived in the textarea with every bullet run together into one block — no line breaks between entries at all, even though her source text plainly had one bullet per line. The likely cause: copying a rendered bulleted list (a chat bubble, a doc) doesn't always carry a newline character between `<li>`-style items in its plain-text clipboard representation, even though it visually looks like separate lines wherever she copied it from — the textarea itself was working correctly, the pasted *text* genuinely had no `\n` between entries.
+
+`splitLines()` now splits on real newlines first, then additionally splits any surviving chunk that still contains more than one `*`/`•` bullet marker on those markers too — so a clean paste and a meshed one both produce the same rows. Reproduced her exact failure by pasting all 7 lines as one bullet-marked but newline-free block and confirmed the fix recovers all 7 rows with correct titles, kind guesses, and dates (including her new "23 May 2016" / "13 January 2017" precise dates parsing correctly, and "Early 2012" correctly falling through to the unparsed-date warning rather than being guessed at).
+
 ## 80. "Paste many" — a whole relationship timeline at once, on Their Story (v162, 2026-09-27)
 
 She pasted a real 7-line dated timeline (Amber Heard & Johnny Depp, met/dating/engaged/married/divorce-filed/divorce-finalised/trial) and asked how to add it. The single "+ Milestone" form (`renderMilestoneForm`) is one drawer round trip per entry — seven for this list alone. Added a second entry point, "Paste many" (`renderMilestoneBatchForm`, `js/pages/relationship.js`), matching the same parse-then-review shape as the Wikipedia lookup batch (`js/pages/relations.js`): paste any number of lines shaped `"2009: they meet on set"` or `"* 2015: they marry"` (a leading bullet or dash is optional either way, the first colon/dash after it splits "when" from "what happened"), get back one editable row per line — title, a `Kind` dropdown pre-set by a keyword guess, and a date parsed by the same `parseDate()` used everywhere else in the app — and nothing saves until "Add N milestones."
