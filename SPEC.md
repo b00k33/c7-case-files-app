@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 78. A one-tap "+ family" for anyone already in the tree, in the Wikipedia drawer itself (v160, 2026-09-27)
+
+Her question on a Relations/Tree page screenshot: "how do i add more people from wiki to the tree? make it easier for me to do that." Investigated before proposing anything: the capability already existed two ways — retype an existing tree member's name into "+ From Wikipedia"'s search box and tick "+ family", or (only elsewhere, on the case-level Family page's Members strip, and only while that person still had zero relationships) a one-tap "+ family" per face. Neither was where she was looking, and the one-tap version specifically disappears the moment someone gets a first relationship — exactly backwards, since pulling a parent is just as useful once someone's already married in.
+
+Didn't touch the Tree's own nodes — they're absolutely positioned by `layoutTree`'s sizing math (`js/tree.js`), and a button on every face risks colliding with neighbours once a tree has more than a couple of people. Instead added a new section to the top of the "+ From Wikipedia" drawer itself (`renderExistingFamilyPicks`, `js/pages/relations.js`): every person already in the case with a `wikidata_id` gets a small chip — photo, first name, "+ family" — right there above the free-text search box. One tap calls the exact same `insertFamily()` the rest of the app already uses (case-level Family page, the Profile page's own "+Add" match-and-apply flow), no new mechanism, no gate on existing relationships.
+
+Mocked before building (a new drawer section, not just a bug fix) — she confirmed the mock as-is.
+
+Verified live: Amber Heard's own chip first (her Wikidata item's data was already fully in, so it just backfilled Johnny Depp's `wikidata_id` from her spouse record and drew no new people); Johnny Depp's chip second — pulled 7 new people (both parents, an ex-wife, a sister, both children) with 6 relationships drawn, correctly laid out across 3 generations in the Tree, "8 people · 7 relationships" replacing "2 people · 1 relationships." A stale dev-server process (unrelated to this change — the same OneDrive file-lag trap documented in §75/§76, this time not resolving even after a few seconds) was masking the new code entirely with silence, no error; diagnosed by fetching the served file's own bytes with `cache: 'no-store'` and finding them byte-identical to the pre-edit version, then confirmed fixed by starting a fresh server process rather than waiting longer.
+
 ## 77. Merged the nav rail into a top bar — one column, not two (v159, 2026-09-27)
 
 She screenshotted her own live app pointing at the header: "merge this together. show mocks." First guess (consolidating the crowded action-button row) was wrong — "Something else." Second guess (folding the subject page's own left rail from §75 back into one column) was also wrong — "no i made a mistake." Third try: a fresh screenshot with "merge these 2 columns together" pointing squarely at the app shell itself — `#nav-rail` (Cases/People/Review/Inbox/Patterns/Fun & Zodiac) sitting permanently beside `#main-col` on every page, not a subject-page thing at all.

@@ -417,7 +417,34 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — the nav rail merged into a top bar; two wrong
+**2026-09-27, latest — a one-tap "+ family" for anyone already in the
+tree, right in the Wikipedia drawer (v160, SPEC §78).** Her question on a
+screenshot: "how do i add more people from wiki to the tree? make it
+easier." The capability already existed two ways — retype an existing
+tree member's name back into the search box and tick "+ family", or (only
+on the separate case-level Family page, and only while that person still
+had zero relationships) a one-tap per-face button — neither where she was
+looking, and the one-tap version specifically vanishes the moment someone
+gets a first relationship, backwards for a feature about pulling parents
+of someone already married in. Didn't touch the Tree's own nodes for this
+— they're absolutely positioned by `layoutTree`'s sizing math, and a
+button on every face risks colliding with neighbours in a bigger tree.
+Instead added a section to the top of the existing "+ From Wikipedia"
+drawer (`renderExistingFamilyPicks`, `js/pages/relations.js`): everyone
+already in the case with a `wikidata_id` gets a chip with a "+ family"
+button, calling the same `insertFamily()` the rest of the app already
+uses — no new mechanism, no relationship-count gate. Mocked before
+building since it's a new drawer section, not a bug fix; she confirmed
+as-is. Verified live: Johnny Depp's chip pulled 7 new people (both
+parents, an ex-wife, a sister, both kids) with 6 relationships drawn,
+correctly laid out across 3 generations — "2 people · 1 relationships"
+became "8 people · 7 relationships." Hit the project's own file-lag trap
+mid-build: a dev-server process kept serving the pre-edit file byte-for-
+byte (confirmed via a `cache: 'no-store'` fetch of its own served bytes)
+well past the few seconds it usually takes to catch up; fixed by starting
+a fresh server process rather than waiting longer.
+
+**2026-09-27, earlier — the nav rail merged into a top bar; two wrong
 guesses at "merge this together" before the right one (v159, SPEC §77).**
 She screenshotted her own live app and said "merge this together. show
 mocks" — twice. First guess (the crowded action-button row on the subject

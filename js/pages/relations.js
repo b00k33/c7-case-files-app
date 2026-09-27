@@ -3,7 +3,7 @@ import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker } from '../ui.js';
-import { searchPeople, addPeopleFromWikidata, fillFromWikidata } from '../lookup.js';
+import { searchPeople, addPeopleFromWikidata, fillFromWikidata, insertFamily } from '../lookup.js';
 import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
@@ -921,6 +921,53 @@ export function renderAddPerson(body, ctx, mode = 'lookup', prefillName = null) 
 }
 
 /**
+ * A one-tap "+ family" per person already in this case with a Wikidata
+ * record (her ask, 2026-09-27: "how do i add more people from wiki to the
+ * tree? make it easier" — the only way before this was retyping a name
+ * already sitting in the tree into the search box below, which isn't
+ * obvious at all). Reuses insertFamily exactly as the case-level Family
+ * page's own "+ family" button does, just without that button's "only
+ * while they have zero relationships" gate — pulling a parent is just as
+ * useful once someone's already married in.
+ */
+async function renderExistingFamilyPicks(box, ctx) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const people = (await ctx.store.listPeople(ctx.caseId)).filter((p) => p.wikidata_id);
+  if (!people.length || !box.isConnected) return;
+  box.innerHTML = `
+    <div class="field"><label>Already in this case — pull their family too</label></div>
+    <div class="row wrap" style="gap:8px;margin-bottom:16px">
+      ${people.map((p) => `
+        <span class="chip" style="padding:3px 4px;gap:6px;align-items:center">
+          <span class="face" id="wk-face-${p.id}" style="width:22px;height:22px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:var(--ink-3);font-size:8px"><span class="initials">${esc(initials(p.display_name))}</span></span>
+          ${esc(p.display_name.split(' ')[0])}
+          <button type="button" class="btn btn-primary btn-sm" data-pull="${p.id}" style="padding:2px 8px;min-height:auto;font-size:10px;border-radius:999px">+ family</button>
+        </span>`).join('')}
+    </div>
+  `;
+  people.forEach(async (p) => {
+    if (!(p.photo_path || p.photo_url)) return;
+    const src = p.photo_path ? await resolveAssetUrl(p.photo_path, 'image/jpeg') : p.photo_url;
+    const face = box.querySelector(`#wk-face-${p.id}`);
+    if (src && face && await preloadImage(src)) face.innerHTML = `<img src="${esc(src)}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+  });
+  box.querySelectorAll('[data-pull]').forEach((btn) => btn.addEventListener('click', async () => {
+    const p = people.find((x) => x.id === btn.dataset.pull);
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      const r = await insertFamily(ctx.store, ctx.caseId, p.id, p.wikidata_id, (msg) => { btn.textContent = msg; });
+      btn.textContent = r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn` : 'no relatives on Wikidata';
+      btn.style.background = 'var(--ink-3)'; btn.style.color = 'var(--text-2)';
+      ctx.rerender();
+    } catch (e) {
+      btn.textContent = `failed — ${e.message}`;
+      btn.disabled = false;
+    }
+  }));
+}
+
+/**
  * Look-up mode: many names at once (a line or a comma each). Each name gets
  * its best Wikidata match pre-picked with the description and item number
  * to check it by, "change" for the other candidates, and a "+ family" tick
@@ -929,10 +976,12 @@ export function renderAddPerson(body, ctx, mode = 'lookup', prefillName = null) 
  */
 function renderLookupBatch(slot, ctx, prefillName = null) {
   slot.innerHTML = `
+    <div id="wk-existing"></div>
     <div class="field"><label>Names — one per line, or separated by commas</label><textarea id="wk-names" placeholder="Daniel Radcliffe, Emma Watson…"></textarea></div>
     <div class="row wrap" style="gap:12px"><button class="btn btn-primary" id="wk-search">Search Wikipedia</button><span style="font-size:11px;color:var(--text-3)">Nothing is saved yet — you check each match first.</span></div>
     <div id="wk-results" style="margin-top:16px"></div>
   `;
+  renderExistingFamilyPicks(slot.querySelector('#wk-existing'), ctx);
   const textarea = slot.querySelector('#wk-names');
   if (prefillName) textarea.value = prefillName;
   const names = () => [...new Set(textarea.value.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean))];
