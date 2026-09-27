@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 85. A bare Fashion paste tags whichever person's chip is active (v167, 2026-09-28)
+
+Her question on her own live gallery, looking at two photos where only one carried an "Amber Heard" tag: "if i added a photo to a person fashion gallery, why does it not auto tag their name?" Traced to `fashion.js`'s bare-paste handler, which has always hardcoded `personId: null` regardless of which filter chip was active — a deliberate rule from 2026-09-08 ("a bare paste with nothing open lands as untagged inspiration... naming a person is what the '+ Add' form is for"), written before a per-person filter chip existed to paste "into." With that chip now the obvious, already-selected place she's looking at when she pastes, treating it as equivalent to "nothing open" reads as a bug rather than a rule.
+
+Fix: the bare-paste handler now reads the page's own `filter` variable — if it's a real person id (not `'all'` or `'inspo'`), the paste is tagged to them via `saveStyleFiles`'s existing `personId` option; `'all'`/`'inspo'` still land untagged exactly as before, since neither one names anybody. No schema change — this is purely which id gets passed into a save path that already existed.
+
+Does not touch a picture that already landed in Inspiration before this fix under the old rule — there is currently no "reassign this photo's person" control anywhere in Fashion (`openShotViewer`'s only per-photo edit is the caption), only delete-and-re-add. Named to her as a separate, real gap rather than silently left for her to rediscover.
+
+Verified live: seeded one already-tagged Amber Heard image (creating her filter chip), selected her chip, pasted a second picture — it landed tagged to her, chip count went from ·1 to ·2; switched to "Inspiration" and pasted a third — it landed untagged, confirming the two chips that don't name anybody are unaffected. Test images removed afterward.
+
 ## 84. Multiple photos per milestone, paste-only; a Fashion widget on the Profile page (v166, 2026-09-27)
 
 Three of her asks in one sitting: "let multiple photos per milestone," then — pointed at the milestone form's old click-to-browse "Add a photo" button — "make it paste only, and include paste option for photo," and separately "include the fashion directly inside the people profile."

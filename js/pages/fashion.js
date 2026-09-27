@@ -76,11 +76,13 @@ export async function render(root, ctx) {
     const files = imagesFromClipboard(e.clipboardData);
     if (!files.length) return;
     e.preventDefault();
-    // a bare paste with nothing open lands as untagged inspiration — the
-    // same "nothing open → the default place" rule Evidence's own paste
-    // already uses (2026-09-08); naming a person is what the "+ Add" form
-    // (with the Wikidata pull) is for.
-    await saveStyleFiles(ctx, files, { personId: null, date: null, caption: null, source: null });
+    // her ask, 2026-09-28 ("why does it not auto tag their name") — found
+    // filtered to one person's own chip and pasting still landed the
+    // picture in blank Inspiration. A real person chip now tags a bare
+    // paste to them; "All" and "Inspiration" still land untagged, same as
+    // always, since neither one names anybody to tag it to.
+    const filteredPersonId = filter !== 'all' && filter !== 'inspo' ? filter : null;
+    await saveStyleFiles(ctx, files, { personId: filteredPersonId, date: null, caption: null, source: null });
     render(root, ctx);
   };
   document.addEventListener('paste', pasteHandler);

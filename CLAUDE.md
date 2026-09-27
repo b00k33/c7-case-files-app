@@ -417,7 +417,23 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — multiple photos per milestone, paste-only; a Fashion
+**2026-09-28, latest — a bare Fashion paste tags whichever person's chip
+is active (v167, SPEC §85).** Her question on her own live gallery: "if i
+added a photo to a person fashion gallery, why does it not auto tag
+their name?" — she'd filtered to Amber Heard's own chip and a plain
+Ctrl+V still landed the picture in blank Inspiration. The bare-paste
+handler (`js/pages/fashion.js`) always hardcoded `personId: null`, a
+deliberate 2026-09-08 rule ("nothing open → the default place," naming
+someone was what "+ Add" was for) — but a real person CHIP being active
+is exactly as much "naming someone" as the add form is, and reads as a
+bug once a per-person view exists to filter into. Now a bare paste tags
+to the filter's own person id when one is active; "All" and
+"Inspiration" still land untagged, since neither names anybody. Does
+not retouch a photo already sitting in Inspiration from before this fix
+— there's no "reassign this one" control yet, only delete-and-re-add;
+flagged to her, not built, since it's a real but separate ask.
+
+**2026-09-27, earlier — multiple photos per milestone, paste-only; a Fashion
 widget on the Profile page (v166, SPEC §84).** Three of her asks landed
 together: "let multiple photos per milestone," "make it paste only, and
 include paste option for photo" (pointed at the milestone form's old
