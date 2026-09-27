@@ -417,7 +417,30 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — birth date takes a partial date: month, year, or a
+**2026-09-27, latest — "Paste many": a whole relationship timeline at once
+on Their Story (v162, SPEC §80).** She pasted a real 7-line dated
+timeline (Amber Heard & Johnny Depp — met/dating/engaged/married/divorce
+filed/divorce finalised/trial) and asked how to add it; one milestone at
+a time was a full drawer round trip per line. Added a second entry point
+next to "+ Milestone" — paste any number of `"2009: they meet on set"` /
+`"* 2015: they marry"` lines, get one editable row per line back (title,
+a Kind dropdown pre-guessed by keyword, a date parsed by the same
+`parseDate()` used everywhere else), nothing saves until "Add N
+milestones" — the identical parse-then-review shape as the Wikipedia
+lookup batch, because a keyword guess at "kind" is exactly the kind of
+guess this app never commits silently. The guess order (reunited →
+married → engaged → dating → separated → met → other) was tuned against
+her real text: "dating" checks before "separated" specifically because
+her own second line — "the couple begins dating after Depp separates
+from Vanessa Paradis" — mentions someone else's breakup; checking
+"separat" first would have mislabelled the relationship's OWN start as
+its ending. Verified live against her exact 7 lines: all four early
+milestones guessed correctly (including that separates trap resolving to
+"dating," not "separated"), both divorce lines guessed "Separated," the
+2022 trial correctly fell through to "Other" (no keyword matches, by
+design) — "Add 7 milestones" created all seven in one save.
+
+**2026-09-27, earlier — birth date takes a partial date: month, year, or a
 contested range (v161, SPEC §79).** Her literal ask: "allow the app to
 add birthdays missing month or day or year." The data model already fully
 supported it (`birth_precision` day/month/year/range/unknown) — only the

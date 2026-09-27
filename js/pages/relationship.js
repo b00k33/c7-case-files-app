@@ -78,7 +78,10 @@ export async function render(root, ctx, relationshipId) {
       <div class="panel">
         <div class="row between wrap" style="gap:8px">
           <span class="section-label">Their story · tap a mark</span>
-          <button type="button" class="btn btn-primary btn-sm" id="add-milestone-btn">+ Milestone</button>
+          <div class="row" style="gap:8px">
+            <button type="button" class="btn btn-ghost btn-sm" id="add-milestones-batch-btn" title="Paste a whole timeline at once — one milestone per line">Paste many</button>
+            <button type="button" class="btn btn-primary btn-sm" id="add-milestone-btn">+ Milestone</button>
+          </div>
         </div>
         <div id="rel-line"></div>
         <div id="rel-why"></div>
@@ -107,6 +110,7 @@ export async function render(root, ctx, relationshipId) {
 
   const openAdd = () => ctx.openDrawer((body) => renderMilestoneForm(body, ctx, rel, null, () => { ctx.closeDrawer(); redraw(); }));
   root.querySelector('#add-milestone-btn').addEventListener('click', openAdd);
+  root.querySelector('#add-milestones-batch-btn').addEventListener('click', () => ctx.openDrawer((body) => renderMilestoneBatchForm(body, ctx, rel, () => { ctx.closeDrawer(); redraw(); })));
 
   const showDetail = (m) => renderMilestoneDetail(whyEl, m, {
     onEdit: () => ctx.openDrawer((body) => renderMilestoneForm(body, ctx, rel, m.event, () => { ctx.closeDrawer(); redraw(); })),
@@ -272,4 +276,110 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone) {
     await ctx.store.deleteEvent(existingEvent.id);
     onDone();
   });
+}
+
+// a pre-fill for the row's own Kind dropdown below — never saved without
+// her seeing and being able to change it, same safety net as the
+// Wikipedia batch-add's per-row review (js/pages/relations.js). Checked in
+// order, most specific/least ambiguous first: "dating" is checked before
+// "separated" specifically because a real sentence like "the couple begins
+// dating after Depp separates from Vanessa Paradis" mentions someone
+// ELSE'S separation — matching "separat" first would mislabel the very
+// milestone that starts the relationship as its ending.
+const KIND_GUESS = [
+  [/reunite/i, 'reunited'],
+  [/marr(?:y|ies|ied|iage)/i, 'married'],
+  [/engag/i, 'engaged'],
+  [/\b(?:begins?|starts?|started)?\s*dating\b/i, 'dating'],
+  [/divorce|separat|restraining|split up|broke up/i, 'separated'],
+  [/\bmeets?\b|\bmet\b/i, 'met'],
+];
+function guessMilestoneKind(text) {
+  for (const [re, kind] of KIND_GUESS) if (re.test(text)) return kind;
+  return 'other';
+}
+
+/**
+ * "Paste many" (her ask, 2026-09-27: a 7-line dated timeline copied from a
+ * Wikipedia-style summary of the whole relationship). One milestone at a
+ * time through the form above is a full drawer round trip per line for
+ * exactly the sort of clean, dated, one-per-line list she already has in
+ * hand. Parses each line into an editable row — title, kind, when — and
+ * nothing saves until "Add N milestones": the same parse-then-review shape
+ * as the Wikipedia lookup batch, because a keyword guess at "kind" is
+ * exactly the kind of guess this app never commits without her seeing it
+ * first.
+ */
+function renderMilestoneBatchForm(body, ctx, rel, onDone) {
+  body.innerHTML = `
+    <h3 class="title" style="margin-bottom:4px">Paste a timeline</h3>
+    <p style="font-size:12px;color:var(--text-3);margin:0 0 12px">One milestone per line — a leading bullet is fine either way. "2009: they meet on set", "* 2015: they marry in a private ceremony".</p>
+    <div class="field"><textarea id="mb-text" style="min-height:140px" placeholder="2009: They meet on the set of a film.
+2015: They marry in a private ceremony.
+2016: She files for divorce."></textarea></div>
+    <div class="row wrap" style="gap:12px"><button class="btn btn-primary" id="mb-parse">Parse</button><span style="font-size:11px;color:var(--text-3)">Nothing is saved yet — you check each row first.</span></div>
+    <div id="mb-rows" style="margin-top:16px"></div>
+  `;
+  const textarea = body.querySelector('#mb-text');
+  queueMicrotask(() => textarea.focus());
+
+  // "* 2016: Heard files for divorce…" / "2009: They meet…" — the FIRST
+  // colon or dash splits "when" from "what happened"; text with no
+  // separator at all (rare) is treated as pure title, no date
+  const LINE_RE = /^[\s*•-]*(.+?)\s*[:—–-]\s*(.+)$/;
+  const parseLine = (raw) => {
+    const line = raw.trim();
+    if (!line) return null;
+    const m = line.match(LINE_RE);
+    const whenText = (m ? m[1] : '').trim();
+    const title = (m ? m[2] : line).trim();
+    const d = whenText ? parseDate(whenText) : null;
+    return { title, kind: guessMilestoneKind(title), when: whenText, unparsedWhen: !!whenText && !d };
+  };
+
+  body.querySelector('#mb-parse').addEventListener('click', () => {
+    const parseBtn = body.querySelector('#mb-parse');
+    clearInlineNote(parseBtn);
+    const lines = textarea.value.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (!lines.length) { inlineNote(parseBtn, 'Paste at least one line first.'); return; }
+    paintRows(lines.map(parseLine).filter(Boolean));
+  });
+
+  const paintRows = (rows) => {
+    const rowsSlot = body.querySelector('#mb-rows');
+    rowsSlot.innerHTML = `
+      <div class="field"><label>${rows.length} milestone${rows.length === 1 ? '' : 's'} found — check each one</label></div>
+      ${rows.map((r, i) => `
+        <div class="wk-match" style="margin-bottom:10px">
+          <input type="text" data-title="${i}" value="${esc(r.title)}" style="width:100%;margin-bottom:6px" placeholder="What happened">
+          <div class="row wrap" style="gap:8px">
+            <select data-kind="${i}" style="flex:1 1 130px">${REL_KINDS.map(([k, l]) => `<option value="${k}" ${r.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            <input type="text" data-when="${i}" value="${esc(r.when)}" style="flex:1 1 140px" placeholder="1996 · Nov 1996 · 14 Nov 1996">
+          </div>
+          ${r.unparsedWhen ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">"${esc(r.when)}" didn't read as a date — fix it or it saves with no date.</div>` : ''}
+        </div>`).join('')}
+      <div class="row wrap" style="gap:12px;margin-top:8px"><button class="btn btn-primary" id="mb-add">Add ${rows.length} milestone${rows.length === 1 ? '' : 's'}</button></div>
+      <div id="mb-progress"></div>
+    `;
+    rowsSlot.querySelectorAll('[data-title]').forEach((el) => el.addEventListener('input', () => { rows[+el.dataset.title].title = el.value; }));
+    rowsSlot.querySelectorAll('[data-kind]').forEach((el) => el.addEventListener('change', () => { rows[+el.dataset.kind].kind = el.value; }));
+    rowsSlot.querySelectorAll('[data-when]').forEach((el) => el.addEventListener('input', () => { rows[+el.dataset.when].when = el.value; }));
+    rowsSlot.querySelector('#mb-add').addEventListener('click', async () => {
+      const addBtn = rowsSlot.querySelector('#mb-add');
+      addBtn.disabled = true; addBtn.textContent = 'Adding…';
+      let n = 0;
+      for (const r of rows) {
+        if (!r.title.trim()) continue;
+        const d = r.when.trim() ? parseDate(r.when.trim()) : null;
+        await ctx.store.createEvent({
+          case_id: rel.case_id, relationship_id: rel.id, title: r.title.trim(), kind: r.kind,
+          date: d ? d.date : null, date_precision: d ? d.precision : 'unknown',
+          date_year_min: d ? d.year : null, date_year_max: d ? d.year : null,
+        });
+        n += 1;
+      }
+      rowsSlot.querySelector('#mb-progress').innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n} milestone${n === 1 ? '' : 's'} added.</div>`;
+      onDone();
+    });
+  };
 }
