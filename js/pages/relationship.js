@@ -299,6 +299,68 @@ function guessMilestoneKind(text) {
   return 'other';
 }
 
+const REL_LABEL = Object.fromEntries(REL_KINDS.map(([k, l]) => [k, l]));
+const PRECISION_RANK = { unknown: 0, year: 1, month: 2, day: 3 };
+// met/dating/engaged/married ordinarily happen once in a couple's story, so
+// a second paste describing one is almost always a date correction on the
+// SAME event, not a genuine second occurrence — matched on kind alone.
+// separated/reunited/other can legitimately repeat (a couple can break up
+// and get back together more than once), so those only match a specific
+// year, never a bare kind.
+const SINGLE_KINDS = new Set(['met', 'dating', 'engaged', 'married']);
+
+/** Her ask, 2026-09-27: "when i paste info that is duplicate, update the
+ * missing info. dont add it as new" — found live from running "Paste many"
+ * twice on two versions of the same timeline, which created near-duplicate
+ * cards (same real event, different wording/date precision). Never merges
+ * silently: this only proposes a target, which she sees and can uncheck
+ * per row before anything saves (paintRows below). */
+function findMergeTarget(existing, row) {
+  const sameKind = existing.filter((e) => e.kind === row.kind);
+  if (!sameKind.length) return null;
+  if (SINGLE_KINDS.has(row.kind)) return sameKind[0];
+  const d = row.when.trim() ? parseDate(row.when.trim()) : null;
+  const year = d ? d.year : null;
+  if (!year) return null;
+  return sameKind.find((e) => e.date_year_min === year || e.date_year_max === year) || null;
+}
+
+function mergeTargetLabel(e) {
+  return `${e.title || REL_LABEL[e.kind]}${e.date_year_min ? ` (${e.date_year_min})` : ''}`;
+}
+
+/** Only ever fills a gap or upgrades a vague date to a precise one — never
+ * overwrites a title she's already written herself, never downgrades a
+ * date that's already precise. An empty patch means the paste added
+ * nothing this milestone didn't already have.
+ *
+ * One exception: when the existing title is still the bare, never-edited
+ * kind label ("Met", "Married"…), its year is just as much a placeholder
+ * as its title — found live, 2026-09-27, on her own "Met, 2011" vs. a
+ * pasted "They meet on the set of…, 2009" for the same real event. There
+ * a same-precision year is allowed to replace the guess, but a date she
+ * (or an earlier paste) actually wrote a real title for is never touched
+ * at equal precision — only a genuine upgrade in precision moves it. */
+function buildMergePatch(existing, row) {
+  const patch = {};
+  const newTitle = row.title.trim();
+  const bareTitle = REL_LABEL[existing.kind];
+  const existingTitle = (existing.title || '').trim();
+  const isPlaceholder = !existingTitle || existingTitle === bareTitle;
+  if (newTitle && newTitle !== existingTitle && isPlaceholder) patch.title = newTitle;
+  const d = row.when.trim() ? parseDate(row.when.trim()) : null;
+  const existingRank = PRECISION_RANK[existing.date_precision] || 0;
+  const newRank = d ? PRECISION_RANK[d.precision] : 0;
+  const samePrecisionCorrection = isPlaceholder && newRank === existingRank && newRank > 0 && d.year !== existing.date_year_min;
+  if (d && (newRank > existingRank || samePrecisionCorrection)) {
+    patch.date = d.date;
+    patch.date_precision = d.precision;
+    patch.date_year_min = d.year;
+    patch.date_year_max = d.year;
+  }
+  return patch;
+}
+
 /**
  * "Paste many" (her ask, 2026-09-27: a 7-line dated timeline copied from a
  * Wikipedia-style summary of the whole relationship). One milestone at a
@@ -350,16 +412,22 @@ function renderMilestoneBatchForm(body, ctx, rel, onDone) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  body.querySelector('#mb-parse').addEventListener('click', () => {
+  let existingEvents = [];
+  body.querySelector('#mb-parse').addEventListener('click', async () => {
     const parseBtn = body.querySelector('#mb-parse');
     clearInlineNote(parseBtn);
     const lines = splitLines(textarea.value);
     if (!lines.length) { inlineNote(parseBtn, 'Paste at least one line first.'); return; }
-    paintRows(lines.map(parseLine).filter(Boolean));
+    existingEvents = await ctx.store.listEventsForRelationship(rel.id);
+    const rows = lines.map(parseLine).filter(Boolean);
+    rows.forEach((r) => { r.mergeTarget = findMergeTarget(existingEvents, r); r.mergeMode = r.mergeTarget ? 'update' : 'new'; });
+    paintRows(rows);
   });
 
   const paintRows = (rows) => {
     const rowsSlot = body.querySelector('#mb-rows');
+    const addedCount = rows.filter((r) => r.mergeMode !== 'update' || !r.mergeTarget).length;
+    const updatedCount = rows.length - addedCount;
     rowsSlot.innerHTML = `
       <div class="field"><label>${rows.length} milestone${rows.length === 1 ? '' : 's'} found — check each one</label></div>
       ${rows.map((r, i) => `
@@ -370,28 +438,43 @@ function renderMilestoneBatchForm(body, ctx, rel, onDone) {
             <input type="text" data-when="${i}" value="${esc(r.when)}" style="flex:1 1 140px" placeholder="1996 · Nov 1996 · 14 Nov 1996">
           </div>
           ${r.unparsedWhen ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">"${esc(r.when)}" didn't read as a date — fix it or it saves with no date.</div>` : ''}
+          ${r.mergeTarget ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:11px;color:var(--text-3);margin-top:6px"><input type="checkbox" data-merge="${i}" ${r.mergeMode === 'update' ? 'checked' : ''} style="margin-top:2px">Same as "<strong>${esc(mergeTargetLabel(r.mergeTarget))}</strong>", already on the timeline — update it instead of adding new</label>` : ''}
         </div>`).join('')}
-      <div class="row wrap" style="gap:12px;margin-top:8px"><button class="btn btn-primary" id="mb-add">Add ${rows.length} milestone${rows.length === 1 ? '' : 's'}</button></div>
+      <div class="row wrap" style="gap:12px;margin-top:8px"><button class="btn btn-primary" id="mb-add">${updatedCount ? `Add ${addedCount}, update ${updatedCount}` : `Add ${addedCount} milestone${addedCount === 1 ? '' : 's'}`}</button></div>
       <div id="mb-progress"></div>
     `;
     rowsSlot.querySelectorAll('[data-title]').forEach((el) => el.addEventListener('input', () => { rows[+el.dataset.title].title = el.value; }));
-    rowsSlot.querySelectorAll('[data-kind]').forEach((el) => el.addEventListener('change', () => { rows[+el.dataset.kind].kind = el.value; }));
+    rowsSlot.querySelectorAll('[data-kind]').forEach((el) => el.addEventListener('change', () => {
+      const r = rows[+el.dataset.kind];
+      r.kind = el.value;
+      r.mergeTarget = findMergeTarget(existingEvents, r);
+      r.mergeMode = r.mergeTarget ? 'update' : 'new';
+      paintRows(rows);
+    }));
     rowsSlot.querySelectorAll('[data-when]').forEach((el) => el.addEventListener('input', () => { rows[+el.dataset.when].when = el.value; }));
+    rowsSlot.querySelectorAll('[data-merge]').forEach((el) => el.addEventListener('change', () => { rows[+el.dataset.merge].mergeMode = el.checked ? 'update' : 'new'; }));
     rowsSlot.querySelector('#mb-add').addEventListener('click', async () => {
       const addBtn = rowsSlot.querySelector('#mb-add');
-      addBtn.disabled = true; addBtn.textContent = 'Adding…';
-      let n = 0;
+      addBtn.disabled = true; addBtn.textContent = 'Saving…';
+      let added = 0, updated = 0;
       for (const r of rows) {
         if (!r.title.trim()) continue;
+        if (r.mergeMode === 'update' && r.mergeTarget) {
+          const patch = buildMergePatch(r.mergeTarget, r);
+          if (Object.keys(patch).length) await ctx.store.updateEvent(r.mergeTarget.id, patch);
+          updated += 1;
+          continue;
+        }
         const d = r.when.trim() ? parseDate(r.when.trim()) : null;
         await ctx.store.createEvent({
           case_id: rel.case_id, relationship_id: rel.id, title: r.title.trim(), kind: r.kind,
           date: d ? d.date : null, date_precision: d ? d.precision : 'unknown',
           date_year_min: d ? d.year : null, date_year_max: d ? d.year : null,
         });
-        n += 1;
+        added += 1;
       }
-      rowsSlot.querySelector('#mb-progress').innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${n} milestone${n === 1 ? '' : 's'} added.</div>`;
+      const msg = updated ? `${added} added, ${updated} updated.` : `${added} milestone${added === 1 ? '' : 's'} added.`;
+      rowsSlot.querySelector('#mb-progress').innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">${msg}</div>`;
       onDone();
     });
   };

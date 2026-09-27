@@ -417,7 +417,35 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-27, latest — "Paste many" survives a meshed-together paste too
+**2026-09-27, latest — "Paste many" updates a matching milestone instead
+of duplicating it (v164, SPEC §82).** Found live: running "Paste many"
+twice on two versions of the same timeline created near-duplicate Their
+Story cards — same real event, different wording and date precision each
+time. Her instruction: "when i paste info that is duplicate, update the
+missing info. dont add it as new." At Parse time each row is now checked
+against the relationship's existing milestones: met/dating/engaged/married
+match on kind alone (a couple has exactly one of each in the ordinary
+case, so a second paste describing one is a correction, not a second
+occurrence); separated/reunited/other — which CAN legitimately repeat —
+only match a specific year. A matched row shows "Same as '<existing
+title>', already on the timeline — update it instead of adding new" with
+a checkbox, checked by default, that she can uncheck to force "add as
+new" instead. The merge itself only ever fills a gap or upgrades a vague
+date to a precise one — a title she's already written herself is never
+overwritten, a date that's already exact is never downgraded. One
+exception, found on her own real data: when the existing title is STILL
+the bare, never-edited kind label ("Met", "Married"…), its year is just
+as much a placeholder as its title, so a same-precision year is allowed
+to replace it there — this is what turns her real "Met, 2011" (a rough
+app-generated guess) plus a pasted "They meet on the set of…, 2009" (the
+real date) into one correct "They meet on the set of…, 2009" record
+instead of two. Verified live against her actual Amber Heard/Johnny Depp
+data: re-pasting her timeline updated 3 existing milestones (filling
+richer titles and, on the placeholder pair, the correct year) and added
+only the one genuinely new line, with "Add 1, update 3" on the button
+before she confirms anything.
+
+**2026-09-27, earlier — "Paste many" survives a meshed-together paste too
 (v163, SPEC §81).** Found live minutes after v162 shipped: she pasted a
 more detailed 7-line timeline and every bullet ran together into one
 block, no line breaks at all, even though her source plainly had one per
