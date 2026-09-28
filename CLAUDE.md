@@ -417,7 +417,36 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — "Their Story" gets a "Pictures together, in order"
+**2026-09-28, latest — a parent/sibling no longer gets a "Met" milestone
+(v183).** Her real Manuel case, from a why-card screenshot: "his brother
+was born in 2005, they didnt 'meet'." Both `renderAddFamilyMember`'s
+"When" step and `renderQuickRelationship`'s "When they met" field (the
+latter still reachable through `new-person-flow.js`'s own cold-start
+family step) unconditionally created a `title:'Met', kind:'met'`
+relationship milestone from whatever date she typed, for EVERY
+relationship kind — spouse and partner genuinely have a "met" moment;
+parent and sibling don't, you're born into those. `BIRTH_DATE_KINDS = new
+Set(['parent','sibling'])` now branches the save: for those two kinds the
+typed date writes to the NEW person's own `birth_date`/`birth_year_min`/
+`birth_year_max` (via the same `day`/`month`→`birth_date`,
+`year`→`birth_year_min`+`max` split the Review claim-acceptance path
+already uses), and only if they don't already have one — a birth date
+`fillFromWikidata` just set from a real pick must never be clobbered by a
+guess, so the check re-reads the person fresh rather than trusting the
+pre-fetch local variable. `renderAddFamilyMember`'s own "When did this
+happen?" prompt now reads "When was ‹name› born?" for these two kinds, so
+the question asked matches what it actually records; `renderQuickRelationship`'s
+single static field wasn't worth a live per-kind relabel for a path
+this rarely reached, so only its save logic changed, silently doing the
+right thing either way. Verified live, scripting the real drawer:
+sibling and parent-word (value `parent`, same as a typed child) both
+wrote a birth year and created zero events; partner still created its
+"Met" milestone exactly as before — a real regression check, not just
+the new path. Her existing "Met · 2005" on Manuel's brother is untouched
+by this fix (it only changes what NEW saves do) — self-service removal
+is "Their story →" on that why-card, then Delete on the milestone there.
+
+**2026-09-28, earlier — "Their Story" gets a "Pictures together, in order"
 gallery (v182).** Asked right from that page: "how to add chronological
 order of their fashion/pictures together." No such view existed: the
 Fashion gallery filters to ONE person at a time and sorts newest-first,

@@ -1390,10 +1390,20 @@ export async function renderAddFamilyMember(body, ctx, people, opts = {}) {
     });
   }
 
+  // parent/sibling have no "met" moment — you don't meet family you're
+  // born into. Her real case (2026-09-28, "his brother was born in 2005,
+  // they didnt 'meet'"): a sibling added with a date typed here got a
+  // "Met · 2005" milestone on the relationship, which reads as a factual
+  // error on family. For these two kinds the date instead fills the NEW
+  // person's own birth date (they're the one whose birth date she's
+  // giving, whichever side of "parent" they're on) — real information,
+  // saved where it actually belongs, instead of a wrong milestone.
+  const BIRTH_DATE_KINDS = new Set(['parent', 'sibling']);
   function renderWhen() {
+    const asBirth = BIRTH_DATE_KINDS.has(kindChoice.value);
     setPanel((panel) => {
       panel.innerHTML = `
-        <p class="npf-step-desc"><b>${esc(typedName)}</b> is <b>${esc(withName())}</b>&rsquo;s <b style="color:var(--brass)">${kindChoice.word}</b>. When did this happen? <span style="color:var(--text-3);font-weight:400">(optional)</span></p>
+        <p class="npf-step-desc"><b>${esc(typedName)}</b> is <b>${esc(withName())}</b>&rsquo;s <b style="color:var(--brass)">${kindChoice.word}</b>. ${asBirth ? `When was <b>${esc(typedName)}</b> born?` : 'When did this happen?'} <span style="color:var(--text-3);font-weight:400">(optional)</span></p>
         <div class="field"><input type="text" id="fm-when" placeholder="1970 · Nov 1996 · 14 Nov 1996"></div>
       `;
       queueMicrotask(() => panel.querySelector('#fm-when')?.focus());
@@ -1433,7 +1443,19 @@ export async function renderAddFamilyMember(body, ctx, people, opts = {}) {
     }
     const whenRaw = (stepBody.querySelector('#fm-when')?.value || '').trim();
     const d = whenRaw ? parseDate(whenRaw) : null;
-    if (d) await ctx.store.createEvent({ case_id: ctx.caseId, relationship_id: rel.id, title: 'Met', kind: 'met', date: d.date, date_precision: d.precision, date_year_min: d.year, date_year_max: d.year });
+    if (d && BIRTH_DATE_KINDS.has(kindChoice.value)) {
+      // never overwrite a birth date fillFromWikidata may have just set —
+      // re-read fresh rather than trust the pre-fetch `person` in scope
+      const freshPerson = await ctx.store.getPerson(person.id);
+      if (freshPerson && !freshPerson.birth_date && !freshPerson.birth_year_min) {
+        const patch = { birth_precision: d.precision };
+        if (d.precision === 'day' || d.precision === 'month') patch.birth_date = d.date;
+        else if (d.precision === 'year') { patch.birth_year_min = d.year; patch.birth_year_max = d.year; }
+        await ctx.store.updatePerson(person.id, patch);
+      }
+    } else if (d) {
+      await ctx.store.createEvent({ case_id: ctx.caseId, relationship_id: rel.id, title: 'Met', kind: 'met', date: d.date, date_precision: d.precision, date_year_min: d.year, date_year_max: d.year });
+    }
     return person;
   }
 
@@ -1587,7 +1609,19 @@ export async function renderQuickRelationship(body, ctx, people, opts = {}) {
       rel = { id: relId };
     }
     const d = whenRaw ? parseDate(whenRaw) : null;
-    if (d) {
+    // parent/sibling have no "met" moment (her real case, 2026-09-28: "his
+    // brother was born in 2005, they didnt 'meet'" — same fix as
+    // renderAddFamilyMember above). The date is the new person's own birth
+    // date instead, written only if they don't already have one.
+    if (d && (kind === 'parent' || kind === 'sibling')) {
+      const freshPerson = await ctx.store.getPerson(person.id);
+      if (freshPerson && !freshPerson.birth_date && !freshPerson.birth_year_min) {
+        const patch = { birth_precision: d.precision };
+        if (d.precision === 'day' || d.precision === 'month') patch.birth_date = d.date;
+        else if (d.precision === 'year') { patch.birth_year_min = d.year; patch.birth_year_max = d.year; }
+        await ctx.store.updatePerson(person.id, patch);
+      }
+    } else if (d) {
       await ctx.store.createEvent({
         case_id: ctx.caseId, relationship_id: rel.id, title: 'Met', kind: 'met',
         date: d.date, date_precision: d.precision, date_year_min: d.year, date_year_max: d.year,
