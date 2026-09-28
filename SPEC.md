@@ -1495,6 +1495,18 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 90. Stepper leads with a Wikidata mass-pull, manual add tucked behind a disclosure (v172, 2026-09-28)
+
+A synth22 batch of two: "give option to search wiki mass add instead of manually adding one by one," then "make the app prioritise mass adding and hide manual adds — that is expandable." Both point at the same place — §89's stepper, steps 1 and 2 — so they became one change.
+
+No new pull logic was needed. `insertFamily` (lookup.js) already reads a Wikidata person's whole family — spouse, parents, siblings, children — and creates or links each one, draws every relationship, and backfills their own profile facts in a single call; it already had a UI home (`renderExistingFamilyPicks`'s per-person "+ family" chip on the Relations page, 2026-09-27). The stepper now leads with that same call. If the person already has a `wikidata_id` — true for anyone created through either page's Wikipedia-lookup path — it's one button: "🔗 Pull everyone Wikidata knows — spouse, parents, siblings, children." If they don't, a small inline search (name pre-filled, "Look up on Wikipedia") finds the record first, using the same match-list shape — title, description, QID, "use this ▸" — every other lookup in the app already shows; picking a match links the `wikidata_id` and the pull runs immediately after.
+
+`insertFamily` doesn't separate "spouse" from "parents/siblings," so one pull satisfies both step 1 (Relationships) and step 2 (Family tree) at once. A `massState` flag shared across both steps means whichever one she reaches first offers the button; the other just reads "✓ Already pulled from Wikidata — anyone it didn't have can go in below."
+
+The original one-name-at-a-time form — `renderQuickRelationship`, untouched — still sits underneath, now inside a collapsed `<details>▸ Add one at a time, by hand`, expandable for anyone the Wikidata pull didn't cover.
+
+Verified live against a real record, deliberately not a throwaway test name — Winston Churchill, who has enough Wikidata family data to actually exercise the batch path. Searched, picked the match, watched the progress line ("3 of 11," "6 of 11" … "11 of 11 — Harriet Colville"), landed on "✓ 11 pulled, 11 links drawn," moved to the family step and confirmed it showed "Already pulled" rather than the button again, opened the manual disclosure to confirm it still renders correctly, then finished and confirmed the real profile — parents, spouse, five siblings, birth/death dates, life-line marks — all present on the page behind the drawer without a reload. Test case and its 12 pulled people removed afterward.
+
 ## 89. Guided animated "add a person" stepper (v171, 2026-09-28)
 
 Her ask: "when i add a person, make an animated workflow - i usually add their relationships, family tree and life events." Three animated concepts were mocked and shown to her before any code was written — a guided stepper drawer, an inline checklist card, corner nudge toasts, each a real working prototype with its own transitions, not stills — and she picked "A, guided stepper."

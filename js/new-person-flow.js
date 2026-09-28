@@ -10,6 +10,7 @@
 import { renderQuickRelationship } from './pages/relations.js';
 import { inlineNote, clearInlineNote } from './ui.js';
 import { parseDate } from './profile-parse.js';
+import { searchPeople, insertFamily } from './lookup.js';
 
 const FLAG_KEY = 'c7-new-person-flow';
 
@@ -49,6 +50,13 @@ function renderStepper(body, ctx, person, redraw) {
   const first = person.display_name.split(/\s+/)[0] || person.display_name;
   let step = 0;
   let changed = false; // whether anything was actually saved — decides whether the profile behind the drawer needs a redraw on close
+  // shared across steps 0/1: her ask, 2026-09-28 ("give option to search wiki
+  // mass add instead of manually adding one by one" + "prioritise mass
+  // adding, hide manual adds — expandable") — one Wikidata pull covers both
+  // steps at once (insertFamily brings spouse, parents, siblings AND
+  // children back together), so once it's run on whichever step she reaches
+  // first, the other just shows it's done instead of offering it again
+  const massState = { pulled: false };
 
   body.innerHTML = `
     <div class="npf">
@@ -129,6 +137,76 @@ function renderStepper(body, ctx, person, redraw) {
     else { showNextBtn(false); renderRelStep(n); }
   };
 
+  /** The primary action: pull everyone Wikidata knows about this person in
+   * one go (spouse, parents, siblings, children — insertFamily doesn't
+   * separate them). Falls back to a quick search when the person isn't
+   * linked to a Wikidata record yet; the manual one-by-one form always
+   * stays reachable underneath, collapsed, for anyone Wikidata doesn't have. */
+  function renderMassAdd(container) {
+    if (massState.pulled) {
+      container.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ Already pulled from Wikidata — anyone it didn't have can go in below.</div>`;
+      return;
+    }
+    if (person.wikidata_id) {
+      container.innerHTML = `<button type="button" class="btn btn-primary" id="npf-pull" style="width:100%">🔗 Pull everyone Wikidata knows — spouse, parents, siblings, children</button>`;
+      container.querySelector('#npf-pull').addEventListener('click', async () => {
+        const btn = container.querySelector('#npf-pull');
+        btn.disabled = true;
+        try {
+          const r = await insertFamily(store, ctx.caseId, person.id, person.wikidata_id, (msg) => { btn.textContent = msg; });
+          massState.pulled = true;
+          changed = true;
+          container.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ ${r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn.` : 'Wikidata had no relatives on file for them.'}</div>`;
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = `Failed — ${e.message}. Tap to retry.`;
+        }
+      });
+      return;
+    }
+    // not linked to a Wikidata record yet — find it first, same match-and-pick
+    // pattern as every other lookup in the app, then the pull runs straight away
+    container.innerHTML = `
+      <div class="row wrap" style="gap:8px">
+        <input type="text" id="npf-wk-name" value="${esc(person.display_name)}" style="flex:1 1 160px">
+        <button type="button" class="btn btn-primary btn-sm" id="npf-wk-search">Look up on Wikipedia</button>
+      </div>
+      <div id="npf-wk-results" style="margin-top:8px"></div>
+    `;
+    const nameInput = container.querySelector('#npf-wk-name');
+    const resultsSlot = container.querySelector('#npf-wk-results');
+    container.querySelector('#npf-wk-search').addEventListener('click', async () => {
+      const btn = container.querySelector('#npf-wk-search');
+      const q = nameInput.value.trim();
+      if (!q) return;
+      btn.disabled = true; btn.textContent = 'Searching…';
+      let matches = [];
+      try { matches = await searchPeople(q); }
+      catch (e) { resultsSlot.innerHTML = `<div class="inline-note">Couldn't reach Wikidata — ${esc(e.message)}.</div>`; btn.disabled = false; btn.textContent = 'Look up on Wikipedia'; return; }
+      btn.disabled = false; btn.textContent = 'Look up on Wikipedia';
+      if (!matches.length) { resultsSlot.innerHTML = `<div class="inline-note">No match on Wikidata — add family by hand below.</div>`; return; }
+      resultsSlot.innerHTML = matches.map((m, i) => `
+        <div class="list-row" data-pick="${i}">
+          <div class="main"><div class="title" style="font-size:13px">${esc(m.label)}</div><div class="sub">${esc(m.description) || 'no description'} · ${m.id}</div></div>
+          <span class="chip">use this</span>
+        </div>`).join('');
+      resultsSlot.querySelectorAll('[data-pick]').forEach((row) => row.addEventListener('click', async () => {
+        const m = matches[+row.dataset.pick];
+        resultsSlot.innerHTML = `<div class="inline-note" style="border-left-color:var(--brass)" id="npf-wk-progress">Pulling family for ${esc(m.label)}…</div>`;
+        await store.updatePerson(person.id, { wikidata_id: m.id });
+        person.wikidata_id = m.id;
+        try {
+          const r = await insertFamily(store, ctx.caseId, person.id, m.id, (msg) => { const p = resultsSlot.querySelector('#npf-wk-progress'); if (p) p.textContent = msg; });
+          massState.pulled = true;
+          changed = true;
+          container.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ ${r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn.` : 'Wikidata had no relatives on file for them.'}</div>`;
+        } catch (e) {
+          container.innerHTML = `<div class="inline-note">Linked to Wikidata; the family pull failed (${esc(e.message)}) — try again from the next step, or add by hand below.</div>`;
+        }
+      }));
+    });
+  }
+
   function renderRelStep(n) {
     const isFamily = n === 1;
     const kinds = isFamily
@@ -139,13 +217,20 @@ function renderStepper(body, ctx, person, redraw) {
         ]
       : ['spouse', 'partner', 'godparent', 'business', 'associate', 'household'];
     setPanel((panel) => {
-      renderQuickRelationship(panel, ctx, [], {
+      panel.innerHTML = `
+        <p class="npf-step-desc">${isFamily ? `Parents, children and siblings for ${esc(first)}.` : `Who's already connected to ${esc(first)}?`}</p>
+        <div class="npf-mass" id="npf-mass"></div>
+        <details class="npf-manual" id="npf-manual">
+          <summary style="cursor:pointer;font-size:12px;color:var(--text-3);list-style:none;margin-top:14px">▸ Add one at a time, by hand</summary>
+          <div id="npf-manual-body" style="margin-top:10px"></div>
+        </details>
+      `;
+      renderMassAdd(panel.querySelector('#npf-mass'));
+      renderQuickRelationship(panel.querySelector('#npf-manual-body'), ctx, [], {
         lockedPersonId: person.id,
         kinds,
-        heading: isFamily ? 'Add to the family tree' : 'Add a relationship',
-        subheading: isFamily
-          ? `A parent, child or sibling for ${esc(first)} — new or already in this case.`
-          : `Who's already connected to ${esc(first)}? Type a name — new or already in this case.`,
+        heading: isFamily ? 'A specific parent, child or sibling' : 'A specific person',
+        subheading: 'Type a name — new or already in this case.',
         onSaved: () => { changed = true; goToStep(step + 1); },
       });
     });

@@ -417,7 +417,43 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a guided, animated 3-step drawer opens right after
+**2026-09-28, latest — the stepper's Relationships/Family steps lead with
+a Wikidata mass-pull; manual one-by-one add moved behind a collapsed
+disclosure (v172, SPEC §90).** Her synth22 batch, two requests taken
+together: "give option to search wiki mass add instead of manually
+adding one by one" and "make the app prioritise mass adding and hide
+manual adds — that is expandable." Both land on the same surface (the
+v171 stepper's steps 1/2), so one build covers both rather than two
+separate edits. Didn't invent new backend logic — `insertFamily`
+(lookup.js) already pulls a Wikidata person's whole family (spouse,
+parents, siblings, children) in one call and already had a UI precedent
+(`renderExistingFamilyPicks`'s per-person "+ family" chip, relations.js,
+2026-09-27); the stepper now surfaces that same call as its lead action.
+When the person already carries a `wikidata_id` (true for anyone created
+through a Wikipedia-lookup path), it's a single "🔗 Pull everyone
+Wikidata knows" button; when they don't, a small search-and-pick step
+finds the record, links it, and the pull runs immediately after — same
+match-list pattern (`title`/`description`/`qid`, "use this ▸") every
+other lookup in the app already uses. One pull covers both step 1 and
+step 2 at once (family and relationships aren't separable calls), so a
+shared `massState.pulled` flag means whichever step she reaches first
+shows the button and the other just shows "✓ Already pulled." The
+original one-at-a-time form (`renderQuickRelationship`, unchanged) now
+sits inside a collapsed `<details>▸ Add one at a time, by hand` under the
+mass-add block, for anyone Wikidata doesn't have.
+
+Verified live against a real Wikidata record (Winston Churchill, chosen
+so the pull would return real, sizeable family data, not a throwaway
+test name with nothing to pull): searched, picked the correct match,
+watched the progress line count through "11 of 11," got "✓ 11 pulled, 11
+links drawn," advanced to the family step and confirmed it read
+"Already pulled" instead of repeating the button, expanded the manual
+disclosure to confirm it still renders and works, then finished the flow
+and confirmed the profile behind the drawer showed the real family tree
+(parents, spouse, 5 siblings) and life-line marks with no manual
+reload. Test case and all 12 pulled people removed after.
+
+**2026-09-28, earlier — a guided, animated 3-step drawer opens right after
 a brand-new person is created from a cold start (v171, SPEC §89).** Her
 ask: "when i add a person, make an animated workflow - i usually add
 their relationships, family tree and life events." Rather than build
