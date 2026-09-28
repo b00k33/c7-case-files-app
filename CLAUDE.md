@@ -417,7 +417,40 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a "Family table" view: fix a backwards link in
+**2026-09-28, latest — the life line stops merging two events into one
+card, and any event can finally carry its own picture (v181).** Two small
+asks in a row, from a screenshot of her own "Crashed Tesla" and "code13
+launch," both 2026, flattened into a single "2 events ×2" card that hid
+both titles behind a tap: "show both events separately instead of 2
+event view," then "how do i add images to the events." **(1)** The life
+line's own grouping (`renderLifeLine`, `lifemap.js`) folded same-year-
+same-kind events into one `clusterMark` starting at exactly TWO — a rule
+written for "nine Grammys in 1984 shouldn't be nine cards" (v1, the first
+Wikidata pull), never revisited for the much more common case of a person
+logging two unrelated things themselves in the same year. Raised the
+threshold to three, matching `markTier`'s own already-existing "big
+cluster" bonus (`m.cluster.length >= 3`) instead of inventing a second
+number for the same idea — two events now get two full cards, each with
+its own Edit/Delete and outcome-judging controls the old combined card
+never exposed either. **(2)** `resolveMarkPicture` had a second,
+unrelated restriction: a picture could only ever reach an award/move/
+other-kind event, and only by an automatic Wikidata search — a hand-
+typed "Crashed Tesla" (kind `crisis`) had no path to a picture at all.
+The event edit form (`renderEventEditForm`, `subject.js`) gets a Picture
+field — the same click-a-box-pick-a-file pattern the profile's own photo
+already uses (`compressImage` → `storeEvidenceFile` → `updateEvent`) —
+and `resolveMarkPicture`'s kind check now only gates the Wikidata SEARCH
+fallback; a picture already on the row shows regardless of kind. Verified
+live: two same-year `crisis` test events rendered as two separate cards
+(not one), confirmed the stale-service-worker trap fired again exactly as
+documented below (v96) — the fix was invisible until the version bump,
+unregister, and hard reload ran, in that order — then, once genuinely
+live, opened the edit form and saw the new Picture field, set a test
+picture directly on the row and confirmed both the ribbon card and the
+edit form's own thumbnail picked it up, and confirmed Remove clears both
+`photo_path` and `photo_url` cleanly. Test events deleted after.
+
+**2026-09-28, earlier — a "Family table" view: fix a backwards link in
 place, no wizard needed (v180).** Follow-up to v179, from a screenshot of
 Manuel's own tree still showing "Manuel Dad" under him: "allow me to edit
 Manuel's family tree through a family table." New view in the Relations

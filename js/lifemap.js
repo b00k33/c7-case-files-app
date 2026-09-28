@@ -323,9 +323,17 @@ async function resolveMarkPicture(m, { people, store }) {
   // 2026-09-13 — 'move' and 'other' happen to pass through markKind
   // unchanged, so only award was ever actually silenced). The record's own
   // raw kind is what the picture is actually keyed to; check that instead.
-  if (!m.event || !['award', 'move', 'other'].includes(m.event.kind)) return null;
+  if (!m.event) return null;
+  // her own picture, once she's pasted one onto ANY event from its edit
+  // form (her ask, 2026-09-28: "how do i add images to the events" —
+  // before this a picture could only ever reach an award/move/other event,
+  // and only via the Wikidata fetch below, never a hand-typed "Crashed
+  // Tesla"). A picture already on the row always wins, whatever the kind —
+  // only the Wikidata SEARCH fallback below stays scoped to the three kinds
+  // it was ever safe to guess an item for.
   let src = m.event.photo_path ? await resolveAssetUrl(m.event.photo_path, 'image/jpeg') : m.event.photo_url;
-  if (!src && store) {
+  const KIND_LABEL = { award: 'the award’s picture', move: 'the place’s picture', other: 'the school’s picture' };
+  if (!src && store && ['award', 'move', 'other'].includes(m.event.kind)) {
     const itemQid = itemQidFromComposite(m.event.wikidata_id);
     if (itemQid) {
       try {
@@ -334,7 +342,7 @@ async function resolveMarkPicture(m, { people, store }) {
       } catch (_) { /* the picture is a nicety, not the record */ }
     }
   }
-  const label = { award: 'the award’s picture', move: 'the place’s picture', other: 'the school’s picture' }[m.event.kind];
+  const label = KIND_LABEL[m.event.kind] || `${m.title}’s picture`;
   return src && await preloadImage(src) ? { src, label } : null;
 }
 
@@ -407,16 +415,21 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
     el.appendChild(emptyState({ missing: 'No years to draw yet.', why: 'A birth date (even just the year) or one dated event starts the life line.', action: onAdd ? '+ Add an event' : null, onAction: onAdd }));
     return;
   }
-  // same kind, same year → one mark with a count: nine Grammys in 1984 are
-  // "★ ×9", not nine cards crowding one spot (seen on the first real
-  // Wikidata pull, 2026-09-07)
+  // same kind, same year, THREE OR MORE → one mark with a count: nine
+  // Grammys in 1984 are "★ ×9", not nine cards crowding one spot (seen on
+  // the first real Wikidata pull, 2026-09-07). Two is not a crowd, though —
+  // her real "Crashed Tesla" + "code13 launch" case, both 2026, folded into
+  // one flat "2 events" card that hid both titles behind a click; she asked
+  // to see them separately. The threshold matches markTier's own existing
+  // "big cluster" bonus below (`m.cluster.length >= 3`) rather than
+  // inventing a second number for the same idea.
   const groups = new Map();
   for (const m of data.marks) {
     const k = `${m.year}|${m.kind}`;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(m);
   }
-  const shown = [...groups.values()].map((g) => (g.length === 1 ? g[0] : clusterMark(g)));
+  const shown = [...groups.values()].flatMap((g) => (g.length >= 3 ? [clusterMark(g)] : g));
   if (!shown.length) {
     el.appendChild(emptyState({ missing: 'Nothing dated yet.', why: 'A birth date starts the years; an event or a relationship starts the story.', action: onAdd ? '+ Add an event' : null, onAction: onAdd }));
     return;

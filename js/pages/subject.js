@@ -1624,6 +1624,7 @@ function renderEventEditForm(body, ctx, event, onDone) {
   const currentDateText = event.date_precision && event.date_precision !== 'unknown'
     ? preciseText({ precision: event.date_precision, date: event.date, year: event.date_year_min })
     : '';
+  const hasPhoto = !!(event.photo_path || event.photo_url);
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:16px">Edit event</h3>
     <div class="field"><label>What happened</label><input type="text" id="ee-title" value="${esc(event.title)}"></div>
@@ -1631,8 +1632,51 @@ function renderEventEditForm(body, ctx, event, onDone) {
       <div class="field" style="flex:1"><label>Kind</label><select id="ee-kind">${EVENT_KINDS.map(([v, l]) => `<option value="${v}" ${event.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="field" style="flex:1"><label>Date</label><input type="text" id="ee-date" value="${esc(currentDateText)}" placeholder="14 Nov 1996 · Nov 1996 · 1996"></div>
     </div>
+    <div class="field">
+      <label>Picture</label>
+      <div class="row" style="gap:10px;align-items:center">
+        <div class="avatar" id="ee-photo" style="width:44px;height:44px;border-radius:var(--r-md,8px);cursor:pointer" title="${hasPhoto ? 'Change picture' : 'Add a picture'}"></div>
+        <button type="button" class="linkish" id="ee-photo-btn">${hasPhoto ? 'Change' : 'Add a picture'}</button>
+        ${hasPhoto ? '<button type="button" class="linkish" id="ee-photo-remove">Remove</button>' : ''}
+      </div>
+    </div>
     <button class="btn btn-primary" id="ee-save">Save</button>
   `;
+  // a hand-typed event ("Crashed Tesla," "code13 launch") had no way to
+  // carry a picture at all before this — only a Wikidata-sourced award/
+  // place/school event ever got one, and only auto-fetched (her ask,
+  // 2026-09-28: "how do i add images to the events"). Same click-a-box,
+  // pick-a-file pattern as the profile's own picture above.
+  const photoBox = body.querySelector('#ee-photo');
+  const showPhoto = (src) => {
+    if (!src) return;
+    const img = document.createElement('img');
+    img.alt = ''; img.src = src;
+    img.addEventListener('error', () => img.remove());
+    photoBox.appendChild(img);
+  };
+  if (event.photo_path) resolveAssetUrl(event.photo_path, 'image/jpeg').then((u) => showPhoto(u || event.photo_url));
+  else if (event.photo_url) showPhoto(event.photo_url);
+  const pickPhoto = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.addEventListener('change', async () => {
+      const f = input.files[0];
+      if (!f) return;
+      const meta = await ctx.store.storeEvidenceFile(await compressImage(f));
+      await ctx.store.updateEvent(event.id, { photo_path: meta.file_path, photo_url: null });
+      queueUpload(meta.file_path, meta.mime);
+      flushUploads();
+      await onDone();
+    });
+    input.click();
+  };
+  photoBox.addEventListener('click', pickPhoto);
+  body.querySelector('#ee-photo-btn').addEventListener('click', pickPhoto);
+  body.querySelector('#ee-photo-remove')?.addEventListener('click', async () => {
+    await ctx.store.updateEvent(event.id, { photo_path: null, photo_url: null });
+    await onDone();
+  });
   body.querySelector('#ee-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); body.querySelector('#ee-save').click(); } });
   body.querySelector('#ee-save').addEventListener('click', async () => {
     const btn = body.querySelector('#ee-save');
