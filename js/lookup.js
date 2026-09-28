@@ -9,7 +9,11 @@ import { looksHurried } from './names.js';
 const WD = 'https://www.wikidata.org/w/api.php';
 const WP_SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 
-const P = { birth: 'P569', death: 'P570', birthPlace: 'P19', citizenship: 'P27', gender: 'P21', spouse: 'P26', occupation: 'P106' };
+const P = {
+  birth: 'P569', death: 'P570', birthPlace: 'P19', citizenship: 'P27', gender: 'P21', spouse: 'P26', occupation: 'P106',
+  // "maximum info… all categories of life and work" (her synth22, 2026-09-28)
+  birthName: 'P1477', nobleTitle: 'P97', deathPlace: 'P20', deathManner: 'P1196',
+};
 // relatives (her ask, 2026-09-03): each arrives as one claim — accept it and
 // the person AND the relationship exist. Godchildren are recorded on the
 // child's side in Wikidata, so they need the reverse query below.
@@ -135,7 +139,14 @@ export async function fetchProfile(qid) {
   const spouseIds = values(claims, P.spouse).map(idOf).filter(Boolean);
   const spouseDates = spouseDatesFromClaims(claims);
   const occupationIds = values(claims, P.occupation).map(idOf).filter(Boolean).slice(0, 4);
-  [birthPlaceId, genderId, ...citizenIds, ...spouseIds, ...occupationIds].filter(Boolean).forEach((id) => ids.add(id));
+  const nobleTitleId = idOf(values(claims, P.nobleTitle)[0]);
+  const deathPlaceId = idOf(values(claims, P.deathPlace)[0]);
+  const deathMannerId = idOf(values(claims, P.deathManner)[0]);
+  // P1477 (birth name) is a plain string (monolingual text), not an item —
+  // no label lookup needed, unlike everything else here
+  const birthNameVal = values(claims, P.birthName)[0];
+  const birthName = birthNameVal && birthNameVal.text ? birthNameVal.text : null;
+  [birthPlaceId, genderId, ...citizenIds, ...spouseIds, ...occupationIds, nobleTitleId, deathPlaceId, deathMannerId].filter(Boolean).forEach((id) => ids.add(id));
 
   // relatives by role, straight off the item
   const relRefs = [];
@@ -218,6 +229,7 @@ export async function fetchProfile(qid) {
       marriageEnd: r.role === 'spouse' && spouseDates[r.qid] ? spouseDates[r.qid].end : null,
     })),
     occupations: occupationIds.map(L),
+    birthName, nobleTitle: L(nobleTitleId), deathPlace: L(deathPlaceId), deathManner: L(deathMannerId),
   };
 }
 
@@ -519,10 +531,22 @@ export async function fillFromWikidata(store, caseId, personId, qid) {
   if (f.nationality.length && !fresh.nationality) { patch.nationality = f.nationality.join(', '); applied.push(['nationality', patch.nationality, P.citizenship]); }
   if (f.gender && !fresh.gender) { patch.gender = f.gender.charAt(0).toUpperCase() + f.gender.slice(1); applied.push(['gender', patch.gender, P.gender]); }
   if (f.occupations.length && !fresh.occupation) { patch.occupation = f.occupations.join(', '); applied.push(['occupation', patch.occupation, P.occupation]); }
+  if (f.birthName && !fresh.name_at_birth) { patch.name_at_birth = f.birthName; applied.push(['name_at_birth', f.birthName, P.birthName]); }
+  if (f.deathPlace && !fresh.death_place) { patch.death_place = f.deathPlace; applied.push(['death_place', f.deathPlace, P.deathPlace]); }
+  if (f.deathManner && !fresh.death_manner) { patch.death_manner = f.deathManner; applied.push(['death_manner', f.deathManner, P.deathManner]); }
   if (!fresh.wikidata_id) patch.wikidata_id = qid;
   if (Object.keys(patch).length) await store.updatePerson(personId, patch);
   for (const [field, value, prop] of applied) {
     await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field, value, origin: 'lookup', rationale: own(prop) });
+  }
+  // a noble/royal title is a name variant, not a single-value fact — it goes
+  // on person_alias (kind:'title', already shown as a chip under the name),
+  // same as a maiden name or handle, never overwriting anything
+  if (f.nobleTitle) {
+    const existingAliases = await store.listAliases(personId);
+    if (!existingAliases.some((a) => a.alias === f.nobleTitle && a.kind === 'title')) {
+      await store.createAlias({ person_id: personId, alias: f.nobleTitle, kind: 'title' });
+    }
   }
   await ensureWikipediaEvidence(store, caseId, personId, f);
   let picture = false;
@@ -634,6 +658,15 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   // and the item itself: identity, not a fact, so it is kept directly — a
   // relative's lookup then recognises this person however the name is spelt
   if (current && !current.wikidata_id && facts.qid) await store.updatePerson(personId, { wikidata_id: facts.qid });
+  // a noble/royal title, same treatment as fillFromWikidata: a name variant
+  // (person_alias, kind:'title'), not a single-value fact — kept directly,
+  // never drafted, deduped against whatever's already there
+  if (facts.nobleTitle) {
+    const existingAliases = await store.listAliases(personId);
+    if (!existingAliases.some((a) => a.alias === facts.nobleTitle && a.kind === 'title')) {
+      await store.createAlias({ person_id: personId, alias: facts.nobleTitle, kind: 'title' });
+    }
+  }
   // a name typed in a hurry ("andrew bustamante") takes Wikidata's own
   // spelling here too — the rule fillFromWikidata already applies (v61),
   // which this path had missed (her report, 2026-09-07). Identity, not a
@@ -665,6 +698,9 @@ export async function draftFromLookup(store, caseId, personId, facts) {
   if (facts.nationality.length) await claim('nationality', facts.nationality.join(', '), P.citizenship);
   if (facts.gender) await claim('gender', facts.gender.charAt(0).toUpperCase() + facts.gender.slice(1), P.gender);
   if (facts.occupations.length) await claim('occupation', facts.occupations.join(', '), P.occupation);
+  if (facts.birthName) await claim('name_at_birth', facts.birthName, P.birthName);
+  if (facts.deathPlace) await claim('death_place', facts.deathPlace, P.deathPlace);
+  if (facts.deathManner) await claim('death_manner', facts.deathManner, P.deathManner);
   // every relative is one claim: accept it and the person (or the existing
   // person with that name) gets the relationship, dates included
   const ROLE_PROP = { ...REL, godchild: 'P1290, reverse' };

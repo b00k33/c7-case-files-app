@@ -855,10 +855,16 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
   const grid = root.querySelector('#profile-grid');
   const row = (k, v) => `<span class="k">${k}</span><span class="v${v ? '' : ' empty'}">${v || '—'}</span>`;
+  // only worth a row when it says something display_name doesn't already —
+  // a stage name's real birth name, not a restatement of the same name
+  const nabDiffers = person.name_at_birth && person.name_at_birth.trim().toLowerCase() !== person.display_name.trim().toLowerCase();
   grid.innerHTML = [
     row('Born', born ? `${born}${person.birth_place ? ' · ' + person.birth_place : ''}` : null),
+    ...(nabDiffers ? [row('Name at birth', person.name_at_birth)] : []),
     row('Age', age === 'unknown' ? null : age),
     row('Died', person.death_date ? fmtLongDate(person.death_date) : null),
+    row('Died in', person.death_place),
+    row('Cause of death', person.death_manner),
     row('Gender', person.gender),
     row('Nationality', person.nationality),
     row('Marital', marital ? `${marital}${!person.marital_status && spouseName ? ' <span style="color:var(--text-3);font-size:10px">(from relationships)</span>' : ''}` : null),
@@ -1046,14 +1052,38 @@ export async function render(root, ctx, personId, tab = 'profile') {
             r.failed.length ? `couldn't read ${r.failed.join(', ')}` : null,
           ].filter(Boolean).join(' · ');
           familyMsg = r.total ? `Family — ${bits}.` : 'Family — Wikidata lists no relatives on that record.';
-          feed?.finish(r.total ? bits : 'Wikidata lists no relatives on that record.');
         } catch (e) {
           familyMsg = `Family — insert failed (${e.message}).`;
           familyOk = false;
-          if (feedWrap?.isConnected) feedWrap.textContent = familyMsg;
         }
-        sessionStorage.setItem('c7-pi-result', `${factsMsg} ${familyMsg} Everything cites Wikidata; relationships arrive unconfirmed.`);
-        if (!factsOk || !familyOk) sessionStorage.setItem('c7-pi-result-ok', '0');
+        // "maximum amount of info… all categories of life and work" (her
+        // synth22, 2026-09-28) — works and life events used to need a
+        // separate "more ▾" toggle and a second click each (below); "Use
+        // this ▸" now pulls both straight in too, same directness as family
+        // above (everything Wikidata has, cited, no picking-through first —
+        // she can still remove any one item afterward from where it lands)
+        let worksMsg = ''; let worksOk = true;
+        try {
+          feed?.addLine('Reading their works…');
+          // same exclusion the case-creation "+ works" checkbox already
+          // applies (works.js) — duets/covers and compilations stay a
+          // manual pick from the profile's own picker, where they can be
+          // judged one at a time, rather than silently landing as if solely hers
+          const works = (await fetchWorks(m.id, (msg) => feed?.addLine(msg))).filter((w) => !w.shared && !w.suspect && !w.compilation);
+          const wr = await addWorks(store, ctx.caseId, person.id, works, (msg) => feed?.addLine(msg));
+          worksMsg = wr.added ? ` Works — ${wr.added} added${wr.undated ? ` (${wr.undated} without a release date)` : ''}.` : '';
+        } catch (e) { worksMsg = ` Works could not be read (${e.message}).`; worksOk = false; }
+        let eventsMsg = ''; let eventsOk = true;
+        try {
+          feed?.addLine('Reading their life events…');
+          const lifeEvents = await fetchLifeEvents(m.id);
+          const lr = await addLifeEvents(store, ctx.caseId, person.id, lifeEvents, (msg) => feed?.addLine(msg));
+          eventsMsg = lr.added ? ` Life events — ${lr.added} added${lr.dated ? `, ${lr.dated} relationship${lr.dated === 1 ? '' : 's'} dated` : ''}.` : '';
+        } catch (e) { eventsMsg = ` Life events could not be read (${e.message}).`; eventsOk = false; }
+        const allOk = factsOk && familyOk && worksOk && eventsOk;
+        feed?.finish(allOk ? 'Done — everything Wikidata has on record.' : 'Done — some of this could not be read, see below.');
+        sessionStorage.setItem('c7-pi-result', `${factsMsg} ${familyMsg}${worksMsg}${eventsMsg} Everything cites Wikidata; relationships arrive unconfirmed.`);
+        if (!allOk) sessionStorage.setItem('c7-pi-result-ok', '0');
         ctx.rerender();
       });
 
@@ -1448,6 +1478,10 @@ function renderEditForm(body, ctx, person, tags = []) {
     <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${esc(person.birth_place)}"></div>
     <div class="field"><label>Death date (leave blank if living)</label><input type="date" id="f-ddate" value="${esc(person.death_date)}"></div>
     <div class="row" style="gap:8px">
+      <div class="field" style="flex:1"><label>Died in</label><input type="text" id="f-dplace" value="${esc(person.death_place)}"></div>
+      <div class="field" style="flex:1"><label>Cause of death</label><input type="text" id="f-dmanner" value="${esc(person.death_manner)}"></div>
+    </div>
+    <div class="row" style="gap:8px">
       <div class="field" style="flex:1"><label>Gender</label><input type="text" id="f-gender" value="${esc(person.gender)}"></div>
       <div class="field" style="flex:1"><label>Nationality</label><input type="text" id="f-nat" value="${esc(person.nationality)}"></div>
     </div>
@@ -1494,6 +1528,8 @@ function renderEditForm(body, ctx, person, tags = []) {
       birth_place: body.querySelector('#f-bplace').value || null,
       death_date: ddate,
       death_precision: ddate ? 'day' : 'unknown',
+      death_place: body.querySelector('#f-dplace').value || null,
+      death_manner: body.querySelector('#f-dmanner').value || null,
       gender: body.querySelector('#f-gender').value || null,
       nationality: body.querySelector('#f-nat').value || null,
       marital_status: body.querySelector('#f-marital').value || null,

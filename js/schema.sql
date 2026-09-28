@@ -33,6 +33,7 @@ CREATE TABLE person (
   birth_place TEXT, birth_lat REAL, birth_lng REAL, birth_tz TEXT,
 
   death_date TEXT, death_precision TEXT DEFAULT 'unknown',
+  death_place TEXT, death_manner TEXT,     -- "maximum info" (2026-09-28): P20/P1196, only for the deceased
   gender TEXT, nationality TEXT,           -- profile basics (2026-09-02), free text
   marital_status TEXT,                     -- override only; normally derived from spouse relationships
   photo_path TEXT, photo_url TEXT,         -- profile picture: stored asset + where it came from

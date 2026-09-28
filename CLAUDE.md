@@ -417,7 +417,73 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — old, single-person cases (a legacy `kind` value
+**2026-09-28, latest — a Wikidata lookup now pulls the maximum it honestly
+can: 4 new fields, and Works + Life events land automatically instead of
+needing a separate click each (v175, SPEC §93).** Her synth22, item 1:
+"i want the maximum amount of info extracted from wiki for all people and
+family and cases to include date times events for all categories of life
+and work." Ran two research agents in parallel first (this and the v174
+legacy-kind fix were the same synth22 batch) to map exactly what's
+captured today before touching anything. One hard limit disclosed to her
+up front, not silently worked around: Wikidata's own time datatype has no
+clock-time field at all — "times" specifically can never come from a
+lookup, only from the existing hand-typed `birth_time` column. She then
+picked, from 3 real trade-offs: (1) fold Works/Life events into the main
+"Use this ▸" pull rather than keep them behind their own separate
+"more ▾" toggle and click, (2) add new fields Wikidata offers but the app
+didn't capture (birth name, noble/royal title, manner & place of death),
+(3) keep the existing accuracy guardrails (occupation capped at top 4,
+an awards-list article still never auto-parsed, only the earliest
+marriage date per spouse kept) rather than relax them for "maximum."
+**Two of the four "new" fields already had a home before this, found by
+reading the schema rather than assuming**: `person.name_at_birth` already
+existed (drives numerology) and was already fully wired to the edit form,
+just never filled from Wikidata; `person_alias`'s `kind:'title'` already
+existed and already renders as a chip under the name — a noble/royal
+title is a name variant, not a single-value fact, so it's written there
+directly (deduped against existing aliases), never through Review, same
+"identity, not a fact" treatment the photo and the Wikidata id already
+get in this exact function. Only place of death and manner of death
+needed real new schema (`db.js` migration + `PERSON_FIELDS` allowlist,
+since a drafted claim silently no-ops on accept if its field isn't in
+that Set — easy to miss, checked it deliberately). Wired into BOTH of
+lookup.js's write paths so every entry point benefits: `fillFromWikidata`
+(direct-write, blanks-only — used by Insert Family and by Cases'/People's
+own "Create from Wikidata"), and `draftFromLookup` (drafts to Review —
+`subject.js`'s own "Use this ▸", the exact flow her screenshot came
+from). Works/Life-events auto-pull landed only in the "Use this ▸" flow
+specifically (extending the v173 live feed with two more phases) — left
+Cases' own creation-time "+ works" checkbox exactly as it was, since it
+already has its own deliberate design (excludes shared/suspect/
+compilation works, deferred to the profile's own picker) that predates
+this ask and wasn't part of what she asked to change. Applied that SAME
+exclusion to the new auto-pull too, since it's an accuracy guardrail
+(her item 3), not a curation-convenience gate. Verified live and
+thoroughly: pulled the real Winston Churchill record onto a throwaway
+test person — watched the feed stream through facts, family, then 227+
+works (his own paintings, books, articles — he was a genuinely prolific
+painter, which is exactly why "up to a minute for a long catalogue" was
+already in the code) and life events (medals, Cabinet positions, his
+marriage), landed 20 drafted claims including the 3 new fields (`name_at
+_birth: "Winston Leonard Spencer Churchill"`, `death_place: "Hyde Park
+Gate"`, `death_manner: "natural causes"` — all correct, and correctly
+absent a noble-title alias, since "Sir" is an honorific award, not
+Wikidata's P97). Separately confirmed the noble-title path itself
+against Elizabeth II (`nobleTitle: "British princess"`, alias created,
+shown as a chip) since Churchill has none to test with. Confirmed the
+new "Died in"/"Cause of death" profile-grid rows and edit-form inputs
+render and save correctly. Hit one red herring during cleanup: the
+Cases page rendered its header but an empty tile list, with zero console
+error — spent time suspecting a real regression in the very isPersonKind
+code the v174 fix above had just touched, before proving it was a stuck
+resource specific to that one long-lived test tab (a brand-new tab
+loaded the same data instantly and correctly) — a plain data check
+(`store.caseSummary`, `subjectOf`, `tokensHtml`, all called directly in
+console) is a faster way to tell "real regression" from "stuck tab" than
+re-reading code that already tested clean. Test case and everything it
+pulled removed after.
+
+**2026-09-28, earlier — old, single-person cases (a legacy `kind` value
 predating the person/family/event/series system) can now use "Move to
 People" (v174, SPEC §92).** Her synth22, item 2: "why cant dolly james
 sexton garry grinberg etc be considered as people and moved to people

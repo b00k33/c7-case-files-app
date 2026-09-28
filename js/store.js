@@ -891,7 +891,7 @@ export async function createClaim(obj) {
 const PERSON_FIELDS = new Set([
   'display_name', 'name_at_birth', 'birth_date', 'birth_precision', 'birth_year_min', 'birth_year_max',
   'birth_time', 'birth_time_precision', 'birth_place', 'death_date', 'death_precision', 'occupation', 'notes',
-  'gender', 'nationality', 'marital_status',
+  'gender', 'nationality', 'marital_status', 'death_place', 'death_manner',
 ]);
 
 export function relationshipExists(caseId, aId, bId, kind) {
