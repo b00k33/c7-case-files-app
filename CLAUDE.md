@@ -417,7 +417,44 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — the life line stops merging two events into one
+**2026-09-28, latest — "Their Story" gets a "Pictures together, in order"
+gallery (v182).** Asked right from that page: "how to add chronological
+order of their fashion/pictures together." No such view existed: the
+Fashion gallery filters to ONE person at a time and sorts newest-first,
+and a milestone's own photo only ever lived on that one milestone's own
+card — no way to see both partners' pictures as a single timeline.
+`renderCoupleGallery` (`relationship.js`, new panel below the milestone
+ribbon) merges three sources into one oldest-to-newest wall, reusing the
+Fashion gallery's own `.fashion-wall`/`.fashion-card` look for visual
+consistency: every milestone's cover photo plus any extra photos on it
+(`listEventPhotos`), dated to that milestone, and both partners' own
+Fashion pictures that carry a real date (`listStyleImagesForPerson`,
+filtered to `dated` — an undated style photo has no place on a timeline,
+so it stays Fashion-only). Deliberately read-only: tapping a picture
+opens the same `openShotViewer` everything else uses, but without
+`onCaption`/`onRemove`/`onReassignPerson` — each photo still edits from
+its real home (the milestone's own form, or Fashion), so this view never
+has to reconcile two different edit paths into one. **Found and fixed
+while verifying:** `openShotViewer`'s "Tag a person" bar is only meant to
+show when `onReassignPerson` is passed, but `.shot-view .bar { display:
+flex }` (two classes) already outranked the browser's own `[hidden] {
+display: none }` (one attribute) on specificity alone — the bar showed
+and looked live with no wiring behind it. This was already true for
+evidence.js's own viewer, which also skips `onReassignPerson`; nobody had
+opened one gallery without it next to a freshly-focused eye before.
+Fixed with one specific rule, `.shot-view .bar[hidden] { display: none;
+}`. Verified live: merged milestone-photo and Fashion-photo test data
+sorted correctly (1915 → 1920 → 1930) across both sources, and the shot
+viewer opened clean — Close, arrows, a read-only caption, no dead "Tag a
+person" input. Also hit, retesting, the router's own pre-existing
+race — firing two hash-navigations back to back before the first
+finished threw `null.appendChild` inside this new function AND inside
+unrelated, untouched code (`subject.js`'s own render, same error shape)
+— confirming it's a latent `main.js` routing race, not specific to this
+change, and not reachable by a real click-through since a person can't
+navigate faster than one async render. Test data removed after.
+
+**2026-09-28, earlier — the life line stops merging two events into one
 card, and any event can finally carry its own picture (v181).** Two small
 asks in a row, from a screenshot of her own "Crashed Tesla" and "code13
 launch," both 2026, flattened into a single "2 events ×2" card that hid

@@ -8,7 +8,7 @@
 import { verdictChips, buildRelationshipLine, renderRelationshipLine, REL_KINDS } from '../lifemap.js';
 import { resolveAssetUrl, preloadImage, compressImage, queueUpload, flushUploads } from '../assets.js';
 import { parseDate } from '../profile-parse.js';
-import { inlineNote, clearInlineNote } from '../ui.js';
+import { inlineNote, clearInlineNote, openShotViewer } from '../ui.js';
 import { emptyState } from '../indicators.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -99,6 +99,11 @@ export async function render(root, ctx, relationshipId) {
         <div id="rel-line"></div>
         <div id="rel-why"></div>
       </div>
+
+      <div class="panel">
+        <span class="section-label">Pictures together, in order</span>
+        <div id="rel-gallery"></div>
+      </div>
     </div>
   `;
 
@@ -143,6 +148,67 @@ export async function render(root, ctx, relationshipId) {
   };
   const data = buildRelationshipLine({ relationship: rel, events });
   await renderRelationshipLine(lineEl, data, { onPick: showDetail, onAdd: openAdd });
+
+  await renderCoupleGallery(root.querySelector('#rel-gallery'), ctx, a, b, events);
+}
+
+/**
+ * "Pictures together, in order" (her ask, 2026-09-28, from this exact page:
+ * "how to add chronological order of their fashion/pictures together") —
+ * before this there was no way to see both partners' pictures as one
+ * timeline: the Fashion gallery filters to ONE person at a time and sorts
+ * newest-first, and a milestone's own photo only ever showed on that one
+ * milestone's own card. Merges three sources into one oldest-to-newest
+ * wall, reusing the Fashion gallery's own card look (`.fashion-wall`/
+ * `.fashion-card`) for visual consistency: every milestone's cover photo
+ * and any extra photos on it (dated to that milestone), plus both A's and
+ * B's own tagged Fashion pictures that carry a real date (an undated style
+ * photo has no place on a timeline, so it stays Fashion-only). Read-only
+ * here — each photo still edits from its real home, the milestone's own
+ * form or the Fashion gallery, so this view never has to reconcile two
+ * different edit paths into one.
+ */
+async function renderCoupleGallery(slot, ctx, a, b, events) {
+  const { store } = ctx;
+  const shots = [];
+  for (const ev of events) {
+    const label = ev.title;
+    if (ev.date) {
+      const src = ev.photo_path ? await resolveAssetUrl(ev.photo_path, 'image/jpeg') : ev.photo_url;
+      if (src) shots.push({ url: src, date: ev.date, label });
+      for (const p of await store.listEventPhotos(ev.id)) {
+        const psrc = await resolveAssetUrl(p.file_path, p.mime || 'image/jpeg');
+        if (psrc) shots.push({ url: psrc, date: ev.date, label });
+      }
+    }
+  }
+  for (const person of [a, b]) {
+    const images = (await store.listStyleImagesForPerson(person.id)).filter((i) => i.dated);
+    for (const img of images) {
+      const src = await resolveAssetUrl(img.file_path, img.mime);
+      if (src) shots.push({ url: src, date: img.dated, label: person.display_name });
+    }
+  }
+  shots.sort((x, y) => x.date.localeCompare(y.date));
+
+  if (!shots.length) {
+    slot.appendChild(emptyState({ missing: 'No dated pictures yet.', why: 'A milestone’s own photo, or a Fashion picture with a date on it, will line up here in order.' }));
+    return;
+  }
+  const wall = document.createElement('div');
+  wall.className = 'fashion-wall';
+  shots.forEach((s, idx) => {
+    const card = document.createElement('div');
+    card.className = 'fashion-card';
+    const tag = `${esc(s.label)} · ${s.date.slice(0, 4)}`;
+    card.innerHTML = `<img src="${s.url}" alt="" loading="lazy"><span class="tag">${tag}</span>`;
+    card.addEventListener('click', () => openShotViewer({
+      pictures: shots.map((x) => ({ url: x.url, caption: `${x.label} · ${x.date.slice(0, 4)}` })),
+      index: idx,
+    }));
+    wall.appendChild(card);
+  });
+  slot.appendChild(wall);
 }
 
 function fmtWhenLoose(m) {
