@@ -15,28 +15,28 @@ const ROUTES = {
   questions: () => import('./pages/questions.js'),
   subject: () => import('./pages/subject.js'),
   relationship: () => import('./pages/relationship.js'),
-  video: () => import('./pages/video.js'),
   fun: () => import('./pages/fun.js'),
-  contradictions: () => import('./pages/contradictions.js'),
   cases: () => import('./pages/cases.js'),
   family: () => import('./pages/family.js'),
   event: () => import('./pages/event.js'),
   series: () => import('./pages/series.js'),
   people: () => import('./pages/people.js'),
   fashion: () => import('./pages/fashion.js'),
-  compare: () => import('./pages/compare.js'),
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
 // the old Dashboard route is gone (her pick, 2026-09-07) — pages/dashboard.js
-// stays only for createCaseOfKind / CASE_KINDS, which Cases and People use
+// stays only for createCaseOfKind / CASE_KINDS, which Cases and People use.
+// Contradictions, Video and Compare were cut the same way, 2026-09-28
+// (ask28 declutter round) — no usage signal, and Contradictions/Video had
+// no other door once their tab/button was removed.
 const TITLES = {
   evidence: 'Evidence', board: 'Board', relations: 'Relations',
-  patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File', video: 'Video',
-  fun: 'Fun & Zodiac', contradictions: 'Contradictions', cases: 'Cases', family: 'Family', event: 'Event', series: 'Series', people: 'People', fashion: 'Fashion', inbox: 'Inbox',
-  compare: 'Compare', relationship: 'Their Story',
+  patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File',
+  fun: 'Fun & Zodiac', cases: 'Cases', family: 'Family', event: 'Event', series: 'Series', people: 'People', fashion: 'Fashion', inbox: 'Inbox',
+  relationship: 'Their Story',
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav
-const INSIDE_CASE = new Set(['subject', 'relationship', 'family', 'event', 'series', 'video', 'contradictions', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
+const INSIDE_CASE = new Set(['subject', 'relationship', 'family', 'event', 'series', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
 const HOME_ROUTE = 'cases';
 
 const connectRoot = document.getElementById('connect-root');
@@ -205,8 +205,7 @@ async function openHit(h) {
   markOpened(h.case_id);
   await ctx.setCaseId(h.case_id);
   if (h.type === 'person') ctx.navigate(h.case_kind === 'fun' ? `#/subject/${h.id}` : `#/subject/${h.id}/relations`);
-  else if (h.type === 'moment') ctx.navigate(`#/video/${h.evidence_id}`);
-  else if (h.type === 'evidence') ctx.navigate('#/evidence');
+  else if (h.type === 'moment' || h.type === 'evidence') ctx.navigate('#/evidence');
   else { const kase = await store.getCase(h.case_id); if (kase) openCase(ctx, kase); else ctx.navigate(`#/${HOME_ROUTE}`); }
 }
 gsInput.addEventListener('input', () => { clearTimeout(gsTimer); gsTimer = setTimeout(runSearch, 120); });

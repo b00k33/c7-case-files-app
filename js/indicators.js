@@ -21,10 +21,6 @@ export function statusColor(status) {
     default: return 'transparent';
   }
 }
-function strokeColor(status) {
-  return status === 'unknown' ? 'var(--text-3)' : statusColor(status);
-}
-
 // --- confidence, from evidence.verification -----------------------------
 // Drafted facts never raise a confidence figure — 'drafted' always maps to 0.
 
@@ -223,93 +219,8 @@ export function numberIcons({ lifePath, chinese, sun }, { size = 'sm' } = {}) {
   return row;
 }
 
-// kind: 'lifePath' | 'personalYear' | 'animalYear' | 'sunSign'
-// opts: { status, master, boundary, cusp, value, animal, animalIndex, element, sign }
-
-function halfClip(id) {
-  const clip = svg('clipPath', { id });
-  clip.appendChild(svg('rect', { x: 0, y: 0, width: 10, height: 20 }));
-  return clip;
-}
-
 function ring(cx, cy, r, color, extra = {}) {
   return svg('circle', { cx, cy, r, fill: 'none', stroke: color, 'stroke-width': 1.6, ...extra });
-}
-
-function disc(cx, cy, r, color) {
-  return svg('circle', { cx, cy, r, fill: color, stroke: color, 'stroke-width': 1 });
-}
-
-export function makeToken(kind, opts = {}) {
-  const { status = 'unknown', master = false, boundary = false, cusp = false } = opts;
-  const size = 20;
-  const root = svg('svg', { viewBox: `0 0 ${size} ${size}`, width: size, height: size, class: 'c7-token', 'data-kind': kind });
-  const color = strokeColor(status);
-  const half = kind === 'animalYear' ? boundary : kind === 'sunSign' ? cusp : boundary || cusp;
-
-  const group = svg('g');
-  if (half) {
-    const clipId = `clip-${Math.random().toString(36).slice(2)}`;
-    root.appendChild(halfClip(clipId));
-    group.setAttribute('clip-path', `url(#${clipId})`);
-  }
-  root.appendChild(group);
-
-  if (master) {
-    group.appendChild(ring(10, 10, 8, color));
-    group.appendChild(ring(10, 10, 5, color));
-  } else if (kind === 'lifePath') {
-    if (status === 'unknown') group.appendChild(ring(10, 10, 7.5, color));
-    else group.appendChild(disc(10, 10, 7.5, color));
-  } else if (kind === 'personalYear') {
-    group.appendChild(ring(10, 10, 7.5, color));
-  } else if (kind === 'animalYear') {
-    // twelve-spoke wheel, one sector filled at animalIndex
-    group.appendChild(ring(10, 10, 8, color));
-    const idx = opts.animalIndex ?? -1;
-    // the ring keeps the status colour; the animal's own sector and letter take the trine colour
-    const zc = (status !== 'unknown' && zodiacColor(opts.animal)) || color;
-    for (let i = 0; i < 12; i++) {
-      const a0 = (i / 12) * Math.PI * 2 - Math.PI / 2;
-      const x1 = 10 + Math.cos(a0) * 3, y1 = 10 + Math.sin(a0) * 3;
-      const x2 = 10 + Math.cos(a0) * 8, y2 = 10 + Math.sin(a0) * 8;
-      group.appendChild(svg('line', { x1, y1, x2, y2, stroke: idx === i ? zc : color, 'stroke-width': idx === i ? 2.2 : 0.7, opacity: idx === i ? 1 : 0.45 }));
-    }
-    if (opts.element) {
-      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 7, fill: zc, 'font-family': 'var(--font-mono)' });
-      label.textContent = opts.element[0];
-      group.appendChild(label);
-    }
-  } else if (kind === 'sunSign') {
-    group.appendChild(svg('rect', { x: 2.5, y: 2.5, width: 15, height: 15, rx: 3, fill: 'none', stroke: color, 'stroke-width': 1.6 }));
-    if (opts.sign) {
-      const wc = (status !== 'unknown' && signColor(opts.sign)) || color;
-      const label = svg('text', { x: 10, y: 12.5, 'text-anchor': 'middle', 'font-size': 6.2, fill: wc, 'font-family': 'var(--font-mono)' });
-      label.textContent = opts.sign.slice(0, 3).toUpperCase();
-      group.appendChild(label);
-    }
-  }
-
-  if (status === 'contradicted') {
-    root.appendChild(ring(10, 10, 9.2, 'var(--red)', { 'stroke-dasharray': '2,1.4' }));
-  }
-
-  root.setAttribute('title', tokenTitle(kind, opts));
-  const titleEl = svg('title');
-  titleEl.textContent = tokenTitle(kind, opts);
-  root.insertBefore(titleEl, root.firstChild);
-  return root;
-}
-
-function tokenTitle(kind, opts) {
-  const parts = [];
-  if (kind === 'lifePath') parts.push(`Life path${opts.value != null ? ' ' + opts.value : ''}`);
-  if (kind === 'personalYear') parts.push(`Personal year${opts.value != null ? ' ' + opts.value : ''}`);
-  if (kind === 'animalYear') parts.push(opts.boundary ? 'Animal year — near lunar new year, unresolved' : `${opts.animal || '?'} · ${opts.element || '?'}`);
-  if (kind === 'sunSign') parts.push(opts.sign ? `${opts.sign}${opts.cusp ? ' (cusp)' : ''}` : 'Sun sign — unknown');
-  if (opts.master) parts.push('master number');
-  parts.push(`— ${opts.status || 'unknown'}`);
-  return parts.join(' ');
 }
 
 /** Cap a list of tokens at a ceiling, per STYLE.md (3 on a card, 4 on a node, 2 bands on a timeline). */

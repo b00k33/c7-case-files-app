@@ -801,53 +801,6 @@ export async function renderCircle(el, { person, rels, people, data, onOpen, onA
   for (const c of cards) el.appendChild(c);
 }
 
-/** "Compare with…": pick anyone from any case (Fun included) and see the same chips, without adding a relationship. */
-export function renderCompare(slot, { person, store, onOpen }) {
-  slot.innerHTML = `
-    <div class="search-box" style="max-width:380px"><span class="ic">⌕</span><input type="search" id="lm-cmp" placeholder="Compare with — any name, any case" autocomplete="off"></div>
-    <div id="lm-cmp-res" class="stack" style="gap:2px;margin-top:6px"></div>
-    <div id="lm-cmp-card"></div>`;
-  const input = slot.querySelector('#lm-cmp');
-  const res = slot.querySelector('#lm-cmp-res');
-  const cardSlot = slot.querySelector('#lm-cmp-card');
-  let timer = null;
-  input.focus();
-  input.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(async () => {
-      const q = input.value.trim();
-      res.innerHTML = '';
-      if (!q) return;
-      const hits = (await store.searchAll(q)).filter((h) => h.type === 'person' && h.id !== person.id).slice(0, 8);
-      for (const h of hits) {
-        const row = document.createElement('div');
-        row.className = 'list-row';
-        row.style.minHeight = '36px';
-        row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${esc(h.label)}</div><div class="sub">${h.case_kind === 'fun' ? '✦ Fun' : esc(h.case_name)}</div></div>`;
-        row.addEventListener('click', async () => {
-          const other = await store.getPerson(h.id);
-          res.innerHTML = '';
-          input.value = '';
-          if (!other) return;
-          const card = document.createElement('div');
-          card.className = 'lm-card lm-card-cmp';
-          const face = document.createElement('div');
-          face.className = 'face';
-          face.style.width = face.style.height = '44px';
-          face.innerHTML = `<span class="initials">${initials(other.display_name)}</span>`;
-          card.innerHTML = `<div class="lm-card-body"><div class="who">${esc(other.display_name)}</div><div class="rel">compared, not related</div><div class="lm-verdicts"></div></div><button type="button" class="btn btn-ghost btn-sm" title="Clear">✕</button>`;
-          card.prepend(face);
-          card.querySelector('.lm-verdicts').append(...verdictChips(person, other));
-          card.querySelector('.who').addEventListener('click', (e) => { e.stopPropagation(); onOpen(other.id); });
-          card.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); card.remove(); });
-          cardSlot.prepend(card);
-        });
-        res.appendChild(row);
-      }
-    }, 150);
-  });
-}
-
 /** The header's three facts with a word each: life path (big number), animal (picture chip), sun (glyph chip). */
 export function tokensHtml(person, { compact = false } = {}) {
   const b = exactBirth(person);

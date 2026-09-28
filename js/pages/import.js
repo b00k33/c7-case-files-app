@@ -8,17 +8,6 @@ import { autoCaseName, looksHurried } from '../names.js';
 // form). Lookup is the tab she actually reaches for.
 let activeTab = 'lookup';
 
-const CLAIM_TYPES = [
-  { field: 'birth_date', label: 'Birth date (existing person)', needsPerson: true, valueType: 'date' },
-  { field: 'death_date', label: 'Death date (existing person)', needsPerson: true, valueType: 'date' },
-  { field: 'occupation', label: 'Occupation (existing person)', needsPerson: true, valueType: 'text' },
-  { field: 'notes', label: 'Note (existing person)', needsPerson: true, valueType: 'textarea' },
-  { field: 'person', label: 'A new person', needsPerson: false, valueType: 'person' },
-  { field: 'relationship', label: 'A relationship between two people', needsPerson: false, valueType: 'relationship' },
-  { field: 'event', label: 'An event', needsPerson: false, valueType: 'event' },
-  { field: 'alias', label: 'An alias (existing person)', needsPerson: true, valueType: 'alias' },
-];
-
 // ---- bulk timeline paste: a small, deterministic, pattern-based parser ----
 // No network calls happen here or anywhere in this app — this is regex and
 // heuristics, not language understanding. It's built to do well on
@@ -210,7 +199,6 @@ export async function render(root, ctx) {
       <div class="tabs" id="tabs">
         <button data-t="lookup" class="${activeTab === 'lookup' ? 'active' : ''}">Look up a record</button>
         <button data-t="paste" class="${activeTab === 'paste' ? 'active' : ''}">Paste text</button>
-        <button data-t="describe" class="${activeTab === 'describe' ? 'active' : ''}">Describe a topic</button>
       </div>
 
       <div id="tab-body" class="panel"></div>
@@ -230,12 +218,10 @@ export async function render(root, ctx) {
   });
 
   const body = root.querySelector('#tab-body');
-  if (activeTab === 'lookup') {
-    renderLookupTab(body, ctx, people);
-  } else if (activeTab === 'paste') {
+  if (activeTab === 'paste') {
     renderPasteTab(body, ctx, people);
   } else {
-    renderClaimForm(body, ctx, people, activeTab);
+    renderLookupTab(body, ctx, people);
   }
 
   const draftedEl = root.querySelector('#drafted-list');
@@ -257,73 +243,6 @@ export async function render(root, ctx) {
     goBtn.addEventListener('click', () => ctx.navigate('#/review'));
     draftedEl.appendChild(goBtn);
   }
-}
-
-function renderClaimForm(body, ctx, people, origin) {
-  const personOpts = people.map((p) => `<option value="${p.id}">${p.display_name}</option>`).join('');
-  body.innerHTML = `
-    <div class="field">
-      <label>What did you find?</label>
-      <select id="c-type">${CLAIM_TYPES.map((t) => `<option value="${t.field}">${t.label}</option>`).join('')}</select>
-    </div>
-    <div id="c-fields"></div>
-    <div class="field"><label>Where from (rationale / source note)</label><textarea id="c-rationale" placeholder="e.g. pasted from a forum thread, unconfirmed"></textarea></div>
-    <button class="btn btn-primary" id="c-save">Add to review queue, drafted</button>
-  `;
-  const fieldsEl = body.querySelector('#c-fields');
-  const typeSel = body.querySelector('#c-type');
-
-  function drawFields() {
-    const type = CLAIM_TYPES.find((t) => t.field === typeSel.value);
-    fieldsEl.innerHTML = '';
-    if (type.needsPerson) {
-      fieldsEl.innerHTML += `<div class="field"><label>About</label><select id="c-person">${personOpts}</select></div>`;
-    }
-    if (type.valueType === 'date') fieldsEl.innerHTML += `<div class="field"><label>Date</label><input type="date" id="c-value"></div>`;
-    else if (type.valueType === 'text') fieldsEl.innerHTML += `<div class="field"><label>Value</label><input type="text" id="c-value"></div>`;
-    else if (type.valueType === 'textarea') fieldsEl.innerHTML += `<div class="field"><label>Value</label><textarea id="c-value"></textarea></div>`;
-    else if (type.valueType === 'alias') fieldsEl.innerHTML += `<div class="field"><label>Alias</label><input type="text" id="c-alias"></div><div class="field"><label>Kind</label><select id="c-alias-kind">${['handle', 'maiden', 'title', 'nickname', 'other'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>`;
-    else if (type.valueType === 'person') fieldsEl.innerHTML += `<div class="field"><label>Display name</label><input type="text" id="c-name"></div><div class="field"><label>Birth date, if known</label><input type="date" id="c-bdate"></div>`;
-    else if (type.valueType === 'relationship') fieldsEl.innerHTML += `
-      <div class="field"><label>Person A</label><select id="c-a">${personOpts}</select></div>
-      <div class="field"><label>Kind</label><select id="c-kind">${['parent', 'spouse', 'sibling', 'godparent', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
-      <div class="field"><label>Person B</label><select id="c-b">${personOpts}</select></div>`;
-    else if (type.valueType === 'event') fieldsEl.innerHTML += `
-      <div class="field"><label>About</label><select id="c-person">${personOpts}</select></div>
-      <div class="field"><label>Title</label><input type="text" id="c-title"></div>
-      <div class="field"><label>Kind</label><select id="c-ekind">${['birth', 'death', 'marriage', 'move', 'business', 'other'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
-      <div class="field"><label>Date</label><input type="date" id="c-edate"></div>`;
-  }
-  typeSel.addEventListener('change', drawFields);
-  drawFields();
-
-  body.querySelector('#c-save').addEventListener('click', async () => {
-    const type = CLAIM_TYPES.find((t) => t.field === typeSel.value);
-    const rationale = body.querySelector('#c-rationale').value || null;
-    let target_type = 'case', target_id = ctx.caseId, value;
-
-    if (type.field === 'person') {
-      // names (2026-09-13): this form has no autocapitalize either — cased
-      // the same way any other typed name is (applyClaim re-checks on accept too)
-      const typedName = body.querySelector('#c-name').value.trim();
-      value = { display_name: looksHurried(typedName) ? autoCaseName(typedName) : typedName, birth_date: body.querySelector('#c-bdate').value || null, birth_precision: body.querySelector('#c-bdate').value ? 'day' : 'unknown' };
-    } else if (type.field === 'relationship') {
-      value = { a_id: body.querySelector('#c-a').value, b_id: body.querySelector('#c-b').value, kind: body.querySelector('#c-kind').value };
-    } else if (type.field === 'event') {
-      const pid = body.querySelector('#c-person').value;
-      target_type = 'person'; target_id = pid;
-      value = { person_id: pid, title: body.querySelector('#c-title').value, kind: body.querySelector('#c-ekind').value, date: body.querySelector('#c-edate').value || null, date_precision: 'day' };
-    } else if (type.field === 'alias') {
-      target_type = 'person'; target_id = body.querySelector('#c-person').value;
-      value = { alias: body.querySelector('#c-alias').value, kind: body.querySelector('#c-alias-kind').value };
-    } else {
-      target_type = 'person'; target_id = body.querySelector('#c-person').value;
-      value = body.querySelector('#c-value').value;
-    }
-
-    await ctx.store.createClaim({ case_id: ctx.caseId, target_type, target_id, field: type.field, value, origin, rationale });
-    ctx.rerender();
-  });
 }
 
 const RELATIONSHIP_KINDS = ['parent', 'spouse', 'sibling', 'godparent', 'business', 'associate', 'household'];

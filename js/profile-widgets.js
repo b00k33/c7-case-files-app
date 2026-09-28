@@ -10,7 +10,6 @@ export const WIDGET_DEFS = [
   { id: 'family', label: 'Family' },
   { id: 'chart', label: 'Chart' },
   { id: 'profile-grid', label: 'Profile details' },
-  { id: 'contradictions', label: 'Contradictions' },
   { id: 'addresses', label: 'Addresses' },
   { id: 'relations-list', label: 'Relations' },
   { id: 'questions', label: 'Open questions' },

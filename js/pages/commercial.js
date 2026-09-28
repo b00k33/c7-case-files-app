@@ -161,7 +161,6 @@ export async function render(root, ctx, personId) {
         <div class="row between">
           <div class="panel-title" style="margin:0">Commercial milestones</div>
           <div class="row wrap" style="gap:8px">
-            <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
             <button class="btn btn-ghost btn-sm" id="cm-wiki-btn" title="Read releases and awards from Wikidata">+ From Wikipedia</button>
             <button class="btn btn-primary btn-sm" id="cm-add-btn">+ Add milestones</button>
           </div>

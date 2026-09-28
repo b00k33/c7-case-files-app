@@ -339,7 +339,6 @@ export async function render(root, ctx) {
       <div class="row between wrap" style="gap:12px">
         <span class="mono" style="font-size:11px;color:var(--text-3)">${people.length} ${people.length === 1 ? 'person' : 'people'} · every case</span>
         <div class="row" style="gap:8px">
-          <a class="btn btn-ghost btn-sm" href="#/compare">Compare artists →</a>
           <a class="btn btn-ghost btn-sm" href="#/fashion">Fashion →</a>
           ${missingPhotoCount ? `<button class="btn btn-ghost btn-sm" id="find-photos-btn" title="Look up a picture on Wikipedia for everyone who doesn't have one">Find photos (${missingPhotoCount})</button>` : ''}
           <button class="btn btn-primary btn-sm" id="new-person-btn">+ Person</button>

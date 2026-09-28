@@ -6,7 +6,7 @@ import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapC
 import { searchPeople, addPeopleFromWikidata, fillFromWikidata, insertFamily } from '../lookup.js';
 import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
-import { layoutTree, yearsText, FAMILY_KINDS, assignGenerations } from '../tree.js';
+import { layoutTree, yearsText } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
 import { buildRelationshipLine } from '../lifemap.js';
 
@@ -60,67 +60,20 @@ export async function render(root, ctx, focusId = null) {
   const savedView = localStorage.getItem(VIEW_KEY);
   const view = savedView === 'map' || savedView === 'lifeline' || (savedView === 'table' && focus) ? savedView : 'tree';
 
-  // Generation filter (her ask, 2026-09-03: "let me filter through
-  // generations"): a range, from row A to row B of the whole case, that the
-  // tree, the map, the other-connections list and the number panels all
-  // obey. Remembered per case. Row numbers are the tree's own (oldest = 1).
-  const gens = assignGenerations(allPeople, allRels);
-  const genCount = allPeople.length ? Math.max(...gens.values()) + 1 : 0;
-  const genKey = `c7-gen-range:${ctx.caseId}`;
-  let [genFrom, genTo] = (localStorage.getItem(genKey) || '').split(',').map(Number);
-  if (!(genFrom >= 1 && genTo >= genFrom && genTo <= genCount)) { genFrom = 1; genTo = genCount; }
-  const genNarrowed = genCount > 1 && (genFrom > 1 || genTo < genCount);
-
-  // Family filter (her pick, 2026-09-03, "A · a person's line"): a root,
-  // their spouses, their descendants and the descendants' spouses. The
-  // picker lists everyone who has a child in the case. Remembered per case,
-  // and it combines with the generation range.
-  const famKey = `c7-fam-root:${ctx.caseId}`;
-  const byId = new Map(allPeople.map((p) => [p.id, p]));
-  const hasChild = new Set(allRels.filter((r) => r.kind === 'parent').map((r) => r.a_id));
-  const roots = allPeople.filter((p) => hasChild.has(p.id)).sort((a, b) => a.display_name.localeCompare(b.display_name));
-  const famRoot = byId.has(localStorage.getItem(famKey)) && hasChild.has(localStorage.getItem(famKey)) ? localStorage.getItem(famKey) : null;
-  const lineOf = (rootId) => {
-    const line = new Set([rootId]);
-    const queue = [rootId];
-    while (queue.length) {
-      const id = queue.shift();
-      for (const r of allRels) {
-        if (r.kind === 'spouse' && (r.a_id === id || r.b_id === id)) line.add(r.a_id === id ? r.b_id : r.a_id);
-        if (r.kind === 'parent' && r.a_id === id && !line.has(r.b_id)) { line.add(r.b_id); queue.push(r.b_id); }
-      }
-    }
-    return line;
-  };
-  const line = famRoot ? lineOf(famRoot) : null;
-  const narrowed = genNarrowed || !!famRoot;
-  const people = allPeople.filter((p) => (!line || line.has(p.id)) && (!genNarrowed || (gens.get(p.id) + 1 >= genFrom && gens.get(p.id) + 1 <= genTo)));
-  const keep = new Set(people.map((p) => p.id));
-  const rels = narrowed ? allRels.filter((r) => keep.has(r.a_id) && keep.has(r.b_id)) : allRels;
-  const genOptions = (sel) => Array.from({ length: genCount }, (_, i) => `<option value="${i + 1}" ${i + 1 === sel ? 'selected' : ''}>${i + 1}</option>`).join('');
+  const people = allPeople;
+  const rels = allRels;
 
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:8px">
         <div class="row wrap" style="gap:8px;align-items:center">
-          <span class="section-label">${narrowed ? `${people.length} of ${allPeople.length}` : allPeople.length} people · ${rels.length} relationships</span>
+          <span class="section-label">${allPeople.length} people · ${rels.length} relationships</span>
           <div class="seg" id="rel-view">
             <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">Tree</button>
             <button class="${view === 'map' ? 'active' : ''}" data-view="map">Zodiac map</button>
             <button class="${view === 'lifeline' ? 'active' : ''}" data-view="lifeline" title="Every couple's own story — met, engaged, married, separated">Lifeline</button>
             ${focus ? `<button class="${view === 'table' ? 'active' : ''}" data-view="table" title="This person's family, one row each — fix a wrong parent/child or add a link without the tree">Family table</button>` : ''}
           </div>
-          ${roots.length ? `<span class="row" style="gap:6px;align-items:center" id="fam-filter" title="One person's line: them, their spouses, their descendants and the descendants' spouses">
-            <span class="section-label">Family</span>
-            <select id="fam-root" class="sel-sm"><option value="">Everyone</option>${roots.map((p) => `<option value="${p.id}" ${p.id === famRoot ? 'selected' : ''}>${p.display_name}’s line</option>`).join('')}</select>
-          </span>` : ''}
-          ${genCount > 1 ? `<span class="row" style="gap:6px;align-items:center" id="gen-filter" title="Show only these generations (1 = oldest)">
-            <span class="section-label">Generations</span>
-            <select id="gen-from" class="sel-sm">${genOptions(genFrom)}</select>
-            <span style="color:var(--text-3)">–</span>
-            <select id="gen-to" class="sel-sm">${genOptions(genTo)}</select>
-            ${genNarrowed ? '<button class="btn btn-ghost btn-sm" id="gen-all">All</button>' : ''}
-          </span>` : ''}
         </div>
         <div class="row" style="gap:8px;align-items:center">
           <button class="btn btn-primary btn-sm" id="add-wiki-btn" title="Search Wikipedia, tick who to add — their family comes with them">+ From Wikipedia</button>
@@ -129,7 +82,6 @@ export async function render(root, ctx, focusId = null) {
         </div>
       </div>
       <div id="map-slot"></div>
-      <div id="others-slot"></div>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-title">Repeating numbers — life path across this case</div>
@@ -164,11 +116,6 @@ export async function render(root, ctx, focusId = null) {
   addMoreSlot.querySelector('#add-type-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'pick')));
   addMoreSlot.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
-  const setGen = (a, b) => { localStorage.setItem(genKey, `${Math.min(a, b)},${Math.max(a, b)}`); render(root, ctx, focus); };
-  root.querySelector('#gen-from')?.addEventListener('change', (e) => setGen(Number(e.target.value), genTo));
-  root.querySelector('#gen-to')?.addEventListener('change', (e) => setGen(genFrom, Number(e.target.value)));
-  root.querySelector('#gen-all')?.addEventListener('click', () => { localStorage.removeItem(genKey); render(root, ctx, focus); });
-  root.querySelector('#fam-root')?.addEventListener('change', (e) => { if (e.target.value) localStorage.setItem(famKey, e.target.value); else localStorage.removeItem(famKey); render(root, ctx, focus); });
 
   const mapSlot = root.querySelector('#map-slot');
   if (!people.length) {
@@ -181,7 +128,6 @@ export async function render(root, ctx, focusId = null) {
     await renderFamilyTable(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
   } else {
     await renderTree(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
-    renderOthers(root.querySelector('#others-slot'), ctx, people, rels, focus);
   }
 
   renderNumberPanels(root, people);
@@ -586,28 +532,6 @@ function openFullTree(ctx, people, rels, focus, rerenderPage) {
     await renderTree(overlay, ctx, freshPeople, freshRels, focus, draw, { full: true, onClose: close });
   };
   draw();
-}
-
-// everything that isn't family: business, associate, household — listed, not drawn
-function renderOthers(slot, ctx, people, rels, focus) {
-  const others = rels.filter((r) => !FAMILY_KINDS.has(r.kind) && (!focus || r.a_id === focus || r.b_id === focus));
-  if (!others.length) return;
-  const byId = new Map(people.map((p) => [p.id, p]));
-  const panel = document.createElement('div');
-  panel.className = 'panel';
-  panel.innerHTML = `<div class="panel-title">Other connections</div><div class="stack" style="gap:2px" id="others-list"></div>`;
-  const list = panel.querySelector('#others-list');
-  for (const r of others) {
-    const a = byId.get(r.a_id), b = byId.get(r.b_id);
-    if (!a || !b) continue;
-    const other = focus ? (a.id === focus ? b : a) : null;
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${other ? other.display_name : `${a.display_name} · ${b.display_name}`}</div><div class="sub">${r.kind}${r.theory_id ? '' : r.confirmed ? '' : ' · unconfirmed'}${r.notes ? ' · ' + r.notes : ''}</div></div>${r.theory_id ? '<span class="chip violet" title="A theory link — from a theory timeline, not the record">theory</span>' : ''}`;
-    row.addEventListener('click', () => ctx.navigate(`#/subject/${(other || a).id}`));
-    list.appendChild(row);
-  }
-  slot.appendChild(panel);
 }
 
 // ---------------------------------------------------------------- table --

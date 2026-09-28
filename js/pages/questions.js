@@ -228,8 +228,7 @@ export async function render(root, ctx, personId = null) {
       row.querySelector('.star').addEventListener('click', async () => { await store.updateQuestion(t.id, { pick: t.pick ? 0 : 1 }); repaint(); });
       row.querySelectorAll('[data-ev]').forEach((chip) => chip.addEventListener('click', async (e) => {
         if (e.target.closest('[data-unlink]')) { await store.unlinkEvidence(e.target.closest('[data-unlink]').dataset.unlink); repaint(); return; }
-        const ev = await store.getEvidence(chip.dataset.ev);
-        ctx.navigate(ev && ev.type === 'video' ? `#/video/${ev.id}` : '#/evidence');
+        ctx.navigate('#/evidence');
       }));
       row.querySelector('.t-ev').addEventListener('click', () => evidencePicker(row.querySelector('.t-slot'), t, links, repaint));
       row.querySelector('.t-menu').addEventListener('click', () => {
@@ -292,7 +291,7 @@ export async function render(root, ctx, personId = null) {
         <span class="tl-date">${fmtEntryDate(e)}</span>
         <div style="min-width:0">
           <div class="tl-title">${esc(e.title)}</div>
-          ${withPeople.length || songs.length || e.notes ? `<div class="tl-sub">${withPeople.map((p) => `<a class="about" href="#/subject/${p.id}"><span class="mini">${initials(p.display_name)}</span>${esc(p.display_name)}</a>`).join('')}${songs.map(songChip).join('')}${e.notes ? `<span class="quote">${esc(e.notes)}${moment ? ` <a class="linkish" href="#/video/${moment.evidence_id}" title="Open the video at this moment">▶</a>` : ''}</span>` : ''}</div>` : ''}
+          ${withPeople.length || songs.length || e.notes ? `<div class="tl-sub">${withPeople.map((p) => `<a class="about" href="#/subject/${p.id}"><span class="mini">${initials(p.display_name)}</span>${esc(p.display_name)}</a>`).join('')}${songs.map(songChip).join('')}${e.notes ? `<span class="quote">${esc(e.notes)}${moment ? ` <a class="linkish" href="#/evidence" title="Open in Evidence">▶</a>` : ''}</span>` : ''}</div>` : ''}
         </div>
         <button class="linkish tl-del" title="Delete this entry">✕</button>`;
       twoTapConfirm(row.querySelector('.tl-del'), { confirmLabel: 'Really?', onConfirm: async () => { await store.deleteEvent(e.id); repaint(); } });

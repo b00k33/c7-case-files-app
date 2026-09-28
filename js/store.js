@@ -484,10 +484,6 @@ const CONTRA_SELECT = `
   LEFT JOIN video_moment ma ON ma.id = c.a_moment_id
   LEFT JOIN video_moment mb ON mb.id = c.b_moment_id`;
 
-export async function listContradictionsForPerson(personId) {
-  return db.exec(`${CONTRA_SELECT} WHERE c.person_id=? AND c.deleted_at IS NULL ORDER BY c.created_at DESC`, [personId]);
-}
-
 export async function listContradictionsForCase(caseId) {
   return db.exec(`${CONTRA_SELECT} WHERE c.case_id=? AND c.deleted_at IS NULL ORDER BY c.created_at DESC`, [caseId]);
 }
@@ -1315,27 +1311,6 @@ export async function deleteQuestion(id) {
   }
 }
 
-// -------------------------------------------------------------- findings --
-
-export async function listFindings(caseId) {
-  return db.exec('SELECT * FROM finding WHERE case_id=? ORDER BY created_at DESC', [caseId]);
-}
-
-export async function createFinding(obj) {
-  const id = uuid();
-  db.run(
-    'INSERT INTO finding (id,case_id,summary,kind,observed,expected,kept,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
-    [id, obj.case_id, obj.summary, obj.kind || null, obj.observed ?? null, obj.expected ?? null, obj.kept ? 1 : 0, obj.notes || null, nowISO()]
-  );
-  logChange('finding', id, 'insert', obj);
-  return id;
-}
-
-export async function keepFinding(id, kept = true) {
-  db.run('UPDATE finding SET kept=? WHERE id=?', [kept ? 1 : 0, id]);
-  logChange('finding', id, 'update', { kept });
-}
-
 // ---------------------------------------------------------- change log ---
 
 export async function recentChanges(limit = 20) {
@@ -1464,21 +1439,6 @@ export async function seedExampleCase() {
   });
 
   await createQuestion({ case_id: kase.id, text: 'Which birth-year record for R. Voss is correct — the 1889 civil register or the 1891 church register?' });
-
-  const { relation } = await import('./relations.js');
-  const { signFor } = await import('./chinese.js');
-  const { expectedCounts } = await import('./stats.js');
-  const { exactBirth } = await import('./person-dates.js');
-  const mSign = signFor(exactBirth(mara)), wSign = signFor(exactBirth(wren));
-  if (mSign.ok && !mSign.boundary && wSign.ok && !wSign.boundary) {
-    const kind = relation(mSign.animalIndex, wSign.animalIndex);
-    const exp = expectedCounts(1);
-    await createFinding({
-      case_id: kase.id, kind,
-      summary: `Mara and Wren (mother/child) show a ${kind} relation — ${mSign.animal} and ${wSign.animal}.`,
-      observed: 1, expected: exp[kind] ?? null,
-    });
-  }
 
   return kase;
 }

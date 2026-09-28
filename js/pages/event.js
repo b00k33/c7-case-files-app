@@ -13,11 +13,11 @@ import { resolveAssetUrl } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
 
 const TABS = [
-  ['overview', 'Overview'], ['evidence', 'Evidence'], ['contradictions', 'Contradictions'],
+  ['overview', 'Overview'], ['evidence', 'Evidence'],
   ['questions', 'Questions'], ['board', 'Board'],
 ];
 const TAB_MODULES = {
-  evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
+  evidence: () => import('./evidence.js'),
   questions: () => import('./questions.js'), board: () => import('./board.js'),
 };
 

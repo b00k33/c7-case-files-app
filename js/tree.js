@@ -17,7 +17,6 @@
 // actual rows: each spouse joins the person they married, and a set of
 // children drops from the midpoint of THEIR parents.
 
-export const FAMILY_KINDS = new Set(['parent', 'spouse', 'sibling', 'godparent']);
 export const GROUP_MIN = 4;      // fewer plain siblings than this stay as separate faces
 const GROUP_COLS = 4;
 const MINI_W = 64, MINI_H = 66, MINI_GAP = 6, GROUP_PAD = 8, GROUP_LABEL = 16;

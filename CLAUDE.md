@@ -417,7 +417,65 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — filmography joins works, alongside music/albums
+**2026-09-28, latest — ask28: nine unused features hidden, three kept
+after a verification pass caught what wasn't actually unused (v186).**
+Her request: "theres too much of the app i dont need or use ask28." The
+6-cluster, ~90-feature inventory already compiled earlier this session
+wasn't turned straight into questions — a verification Workflow (17
+parallel agents, one per borderline candidate) cross-checked each "looks
+unused" claim against the real code's reachability AND against CLAUDE.md/
+SPEC.md's own history for a protective quote first, since "no usage-signal
+note in the inventory" isn't the same claim as "she's never used this."
+That pass pulled Board, Commercial, Questions & Theories, the Series case
+kind and the Zodiac map view off the list before she ever saw them — each
+already has an explicit dated decision or a clear, recent reuse signal on
+record. The remaining 12 went to her as genuine yes/no questions, batched,
+with a visual guide shown first. She kept 3 and hid 9.
+
+"Hide" meant a full removal, not a CSS toggle: the button/tab/route itself
+gone, plus any function, import or store accessor it orphaned with zero
+remaining callers, checked by `Grep` before each deletion. Removed: the
+profile's "Compare with…" tool (button, slot, `lifemap.js`'s
+`renderCompare`, `people.js`'s and `commercial.js`'s own "Compare artists
+→" links, the `#/compare` route); Contradictions, which turned out to
+exist at three independent layers all pointing at the same
+`js/pages/contradictions.js` — a standalone route, a Profile "⋯" tab, and
+a Profile widget — removed as one coherent pass, along with
+`store.listContradictionsForPerson`/`listFindings`/`createFinding`/
+`keepFinding`; the Video page (`js/pages/video.js`), a video evidence item
+now behaves like any other evidence item with no special player, its
+underlying `video_moment` data and the "Contradicts…" picker that can
+still read it left untouched; Relations' Generation-filter, Family-line-
+filter and "Other connections" panel (`relations.js`), simplified down to
+a plain people/relationships list, taking `tree.js`'s now-unused
+`FAMILY_KINDS` with it; Evidence's Board and Table views (kept Grid +
+Inbox) and its per-item video-moments panel; Import's "Describe a topic"
+claim form (`renderClaimForm`, `CLAIM_TYPES`), removed completely rather
+than demoted, since it already had a "demoted but kept" precedent and she
+chose full removal this time; Patterns' pair matrix, case-wide relation
+counts, children-vs-parents panel, event-date numbers and Findings (the
+Traits gallery above them is unrelated — cross-case, her own ask, still
+in active use — and now IS the whole page); and dashboard.js's old
+Dashboard `render()`, confirmed already dead code from her 2026-09-07 "cut
+the old Dashboard route" decision, never reachable since.
+
+A follow-up `[Cc]ontradictions` grep sweep across all of `js/`, run after
+the "complete" removal, caught two reachability paths the plan hadn't
+named: `event.js` and `series.js` each keep their OWN independent
+`TABS`/`TAB_MODULES` array for Event-kind and Series-kind case
+workspaces, and both still imported the just-deleted
+`js/pages/contradictions.js` — a broken-import crash waiting for the
+first tap of that tab on either case kind. Fixed both. Verified live, not
+just by reading the fix: created a throwaway Event case and a throwaway
+Series case specifically to exercise this path, clicked through every tab
+on each (Overview/Evidence/Questions/Board for Event, Overview/Evidence/
+Questions/Board/Cast for Series) with a clean console throughout, then
+deleted both test cases. Also walked every other affected surface on her
+real Winston Churchill case — Relations' Tree/Zodiac map/Family table,
+an Evidence item's detail drawer, Patterns, Import's two remaining tabs —
+each rendering clean with no console errors.
+
+**2026-09-28, earlier — filmography joins works, alongside music/albums
 (v185).** Her ask, from Lily-Rose Depp's own profile: "include wikipedia
 music/albums in lifes works, filmography etc." `fetchWorks` (`works.js`)
 only ever covered a musician's catalogue (P175 performer) plus a narrow

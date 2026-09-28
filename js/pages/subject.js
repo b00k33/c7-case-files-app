@@ -4,7 +4,6 @@ import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, animalLabel, signHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
-import { renderPairs } from '../contradictions.js';
 import { parseProfileText, parseDate } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
 import { WIKIS, searchWiki, fetchWikiArticle, draftFromWikiText } from '../wiki-lookup.js';
@@ -13,7 +12,7 @@ import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, renderWikiFeed } from '../ui.js';
-import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
+import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree, renderAddFamilyMember } from './relations.js';
 import { subjectOf } from './cases.js';
@@ -200,11 +199,11 @@ const TABS = [
   ['profile', 'Profile'], ['relations', 'Relations'], ['evidence', 'Evidence'],
 ];
 const TABS_MORE = [
-  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['contradictions', 'Contradictions'], ['questions', 'Questions'], ['import', 'Import'], ['fashion', 'Fashion'],
+  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['questions', 'Questions'], ['import', 'Import'], ['fashion', 'Fashion'],
 ];
 const TAB_MODULES = {
   review: () => import('./review.js'),
-  evidence: () => import('./evidence.js'), contradictions: () => import('./contradictions.js'),
+  evidence: () => import('./evidence.js'),
   questions: () => import('./questions.js'),
   board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
   commercial: () => import('./commercial.js'),
@@ -427,11 +426,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
             <span class="row" style="gap:6px">
               <button type="button" class="btn btn-ghost btn-sm" id="fam-quick-btn" title="For someone private — type their name, skip the lookup">+ add & link</button>
               <button type="button" class="btn btn-ghost btn-sm" id="fam-add-btn" title="Look ${esc(person.display_name.split(' ')[0])} up on Wikipedia — their family comes with them, if they're public">+ From Wikipedia</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="compare-btn" title="Anyone, any case — the same verdicts, no relationship added">Compare with…</button>
               <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">Full tree →</a>
             </span>
           </div>
-          <div id="compare-slot"></div>
           <div id="family-tree"></div>
         </div>`;
       if (id === 'chart') return `
@@ -443,14 +440,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
         <div class="panel">
           <div class="panel-title">Profile</div>
           <div class="profile-grid" id="profile-grid"></div>
-        </div>`;
-      if (id === 'contradictions') return `
-        <div class="panel">
-          <div class="row between" style="margin-bottom:12px">
-            <div class="panel-title" style="margin:0">Contradictions <span class="mono" style="color:var(--text-3);font-size:11px" id="contra-count"></span></div>
-            <a href="#/subject/${person.id}/contradictions" class="btn btn-ghost btn-sm">All →</a>
-          </div>
-          <div id="contra-list" class="stack" style="gap:12px"></div>
         </div>`;
       if (id === 'addresses') return `
         <div class="panel">
@@ -675,11 +664,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
     renderTree(famTreeSlot, ctx, peopleInCase, freshRels, person.id, rerenderFamTree, { compact: true, state: famTreeState });
   };
   if (famTreeSlot) rerenderFamTree();
-  root.querySelector('#compare-btn')?.addEventListener('click', () => {
-    const slot = root.querySelector('#compare-slot');
-    if (slot.children.length) { slot.innerHTML = ''; return; }
-    renderCompare(slot, { person, store, onOpen: openPerson });
-  });
   root.querySelector('#year-list-btn')?.addEventListener('click', () => {
     const yl = root.querySelector('#year-list');
     yl.hidden = !yl.hidden;
@@ -1351,18 +1335,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
       if (item.evidenceId) card.addEventListener('click', () => ctx.navigate('#/evidence'));
       timelineEl.appendChild(card);
     }
-  }
-
-  // contradictions — the first three here, the full list on its own page
-  const contras = await store.listContradictionsForPerson(person.id);
-  root.querySelector('#contra-count').textContent = contras.length ? `· ${contras.length}` : '';
-  renderPairs(root.querySelector('#contra-list'), ctx, contras.slice(0, 3), { onDeleted: () => render(root, ctx, personId) });
-  if (contras.length > 3) {
-    const more = document.createElement('a');
-    more.href = `#/contradictions/${person.id}`;
-    more.className = 'btn btn-ghost btn-sm';
-    more.textContent = `and ${contras.length - 3} more →`;
-    root.querySelector('#contra-list').appendChild(more);
   }
 
   // open questions — this person's own first; the rest of the case's are a

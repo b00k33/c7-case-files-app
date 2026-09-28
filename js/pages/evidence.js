@@ -127,8 +127,6 @@ export async function render(root, ctx) {
       <div class="row between wrap" style="gap:12px">
         <div class="tabs" id="view-tabs">
           <button data-v="grid" class="${currentView === 'grid' ? 'active' : ''}">Grid</button>
-          <button data-v="board" class="${currentView === 'board' ? 'active' : ''}">Board</button>
-          <button data-v="table" class="${currentView === 'table' ? 'active' : ''}">Table</button>
           <button data-v="inbox" class="${currentView === 'inbox' ? 'active' : ''}">Inbox${inboxCount ? ` <span style="color:var(--brass)">${inboxCount}</span>` : ''}</button>
         </div>
         <div class="row" style="gap:8px">
@@ -252,9 +250,7 @@ export async function render(root, ctx) {
     return;
   }
 
-  if (currentView === 'grid') renderGrid(bodyEl, ctx, items);
-  else if (currentView === 'board') renderBoard(bodyEl, ctx, items);
-  else renderTable(bodyEl, ctx, items);
+  renderGrid(bodyEl, ctx, items);
 }
 
 // ---- the image inbox: capture now, title/person/purpose later ----
@@ -575,51 +571,6 @@ function renderGrid(el, ctx, items) {
   }
 }
 
-function renderBoard(el, ctx, items) {
-  el.style.display = 'flex';
-  el.style.gap = '12px';
-  el.style.overflowX = 'auto';
-  for (const v of VERIFICATIONS) {
-    const col = document.createElement('div');
-    col.className = 'panel';
-    col.style.flex = '0 0 220px';
-    const inCol = items.filter((i) => i.verification === v);
-    col.innerHTML = `<div class="panel-title">${VERIFICATION_LABEL[v]} <span class="mono" style="color:var(--text-3)">${inCol.length}</span></div>`;
-    for (const it of inCol) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.cursor = 'pointer';
-      card.style.marginBottom = '8px';
-      card.innerHTML = `<div class="mono" style="font-size:10px;color:var(--text-3)">${it.type}</div><div>${it.title}</div>`;
-      card.addEventListener('click', () => ctx.openDrawer((body) => renderDetail(body, ctx, it.id)));
-      col.appendChild(card);
-    }
-    el.appendChild(col);
-  }
-}
-
-function renderTable(el, ctx, items) {
-  const table = document.createElement('table');
-  table.className = 'dense';
-  table.innerHTML = `
-    <thead><tr><th>Title</th><th>Type</th><th>Source</th><th>Dated</th><th>Verification</th><th>Bytes</th></tr></thead>
-    <tbody>${items.map((it) => `
-      <tr data-id="${it.id}">
-        <td>${it.title}</td>
-        <td class="mono">${it.type}</td>
-        <td>${it.source_name || '—'}</td>
-        <td class="num">${it.dated || '—'}</td>
-        <td><span class="chip ${chipClass(it.verification)}">${verificationLabel(it.verification)}</span></td>
-        <td class="num">${it.bytes || '—'}</td>
-      </tr>`).join('')}</tbody>
-  `;
-  table.addEventListener('click', (e) => {
-    const tr = e.target.closest('tr[data-id]');
-    if (!tr) return;
-    ctx.openDrawer((body) => renderDetail(body, ctx, tr.dataset.id));
-  });
-  el.appendChild(table);
-}
 
 async function renderDetail(body, ctx, evidenceId) {
   const { store } = ctx;
@@ -666,7 +617,6 @@ async function renderDetail(body, ctx, evidenceId) {
     <div class="panel-title" style="margin-top:20px">Contradictions</div>
     <button class="btn btn-ghost btn-sm" id="contra-btn">Contradicts…</button>
     <div id="contra-slot"></div>
-    ${item.type === 'video' ? '<div id="moments-slot" style="margin-top:16px"></div>' : ''}
     <button class="btn btn-danger btn-sm" id="delete-btn" style="margin-top:20px">Delete (soft)</button>
   `;
 
@@ -758,22 +708,6 @@ async function renderDetail(body, ctx, evidenceId) {
     },
   });
 
-  if (item.type === 'video') {
-    const moments = await store.listVideoMoments(item.id);
-    const slot = body.querySelector('#moments-slot');
-    slot.innerHTML = '<div class="panel-title">Marked moments</div>';
-    for (const m of moments) {
-      const row = document.createElement('div');
-      row.className = 'moment-row';
-      row.innerHTML = `<span class="t">${Math.floor(m.t_ms / 60000)}:${String(Math.floor((m.t_ms % 60000) / 1000)).padStart(2, '0')}</span><span>${m.label || ''}${m.conflicts ? ' <span class="chip red">conflict</span>' : ''}</span>`;
-      slot.appendChild(row);
-    }
-    const openBtn = document.createElement('button');
-    openBtn.className = 'btn btn-sm';
-    openBtn.textContent = 'Open in Video player →';
-    openBtn.addEventListener('click', () => { ctx.closeDrawer(); ctx.navigate(`#/video/${item.id}`); });
-    slot.appendChild(openBtn);
-  }
 }
 
 // "This vs that": pair this item with another as a contradiction about one
