@@ -417,7 +417,26 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — the rhythm strip's tones stop reading as pastel
+**2026-09-28, latest — filmography joins works, alongside music/albums
+(v185).** Her ask, from Lily-Rose Depp's own profile: "include wikipedia
+music/albums in lifes works, filmography etc." `fetchWorks` (`works.js`)
+only ever covered a musician's catalogue (P175 performer) plus a narrow
+set of creator-type properties (notable work/creator/author/architect/
+inventor) — none of which ever fire for an actor, since a film credit
+lives the OTHER way round, on the film's own item pointing back at her
+(P161 cast member, reverse). That's why her "Use this ▸" pull had shown
+no Works line at all for an actor. Added `fetchFilmography` as a third
+source merged into the same `fetchWorks` list: P161 (cast, with the P453
+character-name qualifier where Wikidata has it, e.g. "The King (as
+Catherine of Valois)") plus P57 (director, reverse), landing as a new
+"Film & TV" family alongside Albums/EPs/Singles/Songs/Other works in the
+same picker — same checkboxes, same "Add N works" button, same `release`
+event kind on the timeline. Verified live against her real Lily-Rose
+Depp record: the picker showed "Songs · 1" and "Film & TV · 14" together
+(Tusk, Planetarium, Yoga Hosers, The Dancer as Isadora Duncan, The King
+as Catherine of Valois, and more), each correctly dated.
+
+**2026-09-28, earlier — the rhythm strip's tones stop reading as pastel
 (v184).** On a real Manuel screenshot: "the pastel makes it hard to
 read." The rhythm strip's ticks (`renderLifeLine`, `lifemap.js`) render
 at `opacity: .55` by design (a quiet glance-strip, not meant to compete

@@ -39,6 +39,7 @@ const COMPILATION_QIDS = new Set(['Q222910', 'Q209939', 'Q723849', 'Q10590726', 
 const FORM_LABEL = { Q209939: 'Live album', Q222910: 'Compilation', Q723849: 'Box set', Q10590726: 'Video album', Q394970: 'Remix album' };
 export const WORK_GROUPS = [
   { key: 'album', label: 'Albums' }, { key: 'ep', label: 'EPs' }, { key: 'single', label: 'Singles' }, { key: 'song', label: 'Songs' },
+  { key: 'role', label: 'Film & TV' },
   { key: 'other', label: 'Other works' },
 ];
 const familyOf = (q) => FAMILY_ORDER.find((f) => FAMILY_QIDS[f].includes(q)) || null;
@@ -342,18 +343,26 @@ async function fetchGeneralWorks(qid, onProgress = () => {}) {
  * sign anything had gone wrong until this was added).
  */
 export async function fetchWorks(qid, onProgress = () => {}) {
-  const [music, general] = await Promise.allSettled([
+  const [music, general, film] = await Promise.allSettled([
     fetchMusicWorks(qid, onProgress),
     fetchGeneralWorks(qid, onProgress),
+    fetchFilmography(qid, onProgress),
   ]);
-  if (music.status === 'rejected' && general.status === 'rejected') throw music.reason;
-  const rows = [...(music.status === 'fulfilled' ? music.value : []), ...(general.status === 'fulfilled' ? general.value : [])];
+  if (music.status === 'rejected' && general.status === 'rejected' && film.status === 'rejected') throw music.reason;
+  const rows = [
+    ...(music.status === 'fulfilled' ? music.value : []),
+    ...(general.status === 'fulfilled' ? general.value : []),
+    ...(film.status === 'fulfilled' ? film.value : []),
+  ];
   rows.sort((a, b) => {
     const ka = a.date ? dateRange(a.date)[0] : '9999', kb = b.date ? dateRange(b.date)[0] : '9999';
     return ka < kb ? -1 : ka > kb ? 1 : ((b.date && b.date.prec) || 0) - ((a.date && a.date.prec) || 0) || a.label.localeCompare(b.label);
   });
-  if (music.status === 'rejected') rows.failedSource = 'music';
-  else if (general.status === 'rejected') rows.failedSource = 'general';
+  const failed = [];
+  if (music.status === 'rejected') failed.push('music');
+  if (general.status === 'rejected') failed.push('general');
+  if (film.status === 'rejected') failed.push('filmography');
+  if (failed.length) rows.failedSource = failed.join('+');
   return rows;
 }
 
@@ -363,6 +372,93 @@ export function countByFamily(rows) {
   for (const g of WORK_GROUPS) n[g.key] = rows.filter((r) => r.families.has(g.key)).length;
   n.compilation = rows.filter((r) => r.compilation).length;
   return n;
+}
+
+// Filmography — acting and directing credits — from Wikidata (her ask,
+// 2026-09-28, on Lily-Rose Depp's record: "include wikipedia music/albums in
+// lifes works, filmography etc" — an actor's own page had shown nothing
+// under Works at all, because none of P175/P800/P170/P50/P84/P61 above ever
+// fire for an actor; a film credit only exists the OTHER way round, on the
+// film's own item pointing back at her). P161 "cast member" (reverse) is the
+// credit itself; its P453 qualifier is the character played, where Wikidata
+// records one. P57 "director" (reverse) covers anyone who's directed, tagged
+// separately so a credit as both shows "Actor & director" rather than two
+// unlabelled rows. No GROUP BY here (a flat UNION, same shape as
+// GENERAL_LIST_QUERY above), so the label service is safe to pair directly —
+// it resolves both the film's title and the character's name in one pass.
+const FILM_LIST_QUERY = (qid) => `SELECT ?item ?itemLabel ?character ?characterLabel ?origin WHERE {
+  { ?item wdt:P161 wd:${qid} .
+    OPTIONAL { ?item p:P161 ?st . ?st ps:P161 wd:${qid} ; pq:P453 ?character . }
+    BIND("cast" AS ?origin) }
+  UNION
+  { ?item wdt:P57 wd:${qid} . BIND("director" AS ?origin) }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul" }
+} LIMIT 500`;
+// Flat, same reason as GENERAL_DETAIL_QUERY: GROUP BY next to the label
+// service 500s the query service. P580 (start time) is the fallback after
+// P577/P571 because a TV series is often dated only by when it started, not
+// a single "publication date."
+const FILM_DETAIL_QUERY = (qids) => `SELECT ?item ?tyLabel ?date ?dateProp WHERE {
+  VALUES ?item { ${qids.map((q) => 'wd:' + q).join(' ')} }
+  OPTIONAL { ?item wdt:P31 ?ty }
+  OPTIONAL { ?item wdt:P577 ?d1 } OPTIONAL { ?item wdt:P571 ?d2 } OPTIONAL { ?item wdt:P580 ?d3 }
+  BIND(COALESCE(?d1,?d2,?d3) AS ?date)
+  BIND(IF(BOUND(?d1),"P577",IF(BOUND(?d2),"P571",IF(BOUND(?d3),"P580",""))) AS ?dateProp)
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" }
+}`;
+const FILM_CACHE_KEY = (qid) => `c7-works-film:${qid}`;
+
+async function fetchFilmography(qid, onProgress = () => {}) {
+  try { const c = JSON.parse(sessionStorage.getItem(FILM_CACHE_KEY(qid)) || 'null'); if (c && Date.now() - c.at < CACHE_MS) return c.rows.map((r) => ({ ...r, families: new Set(r.families) })); } catch (_) { /* no cache */ }
+  const ask = async (query) => { const url = `${SPARQL}?format=json&query=${encodeURIComponent(query)}`; try { return await getJSON(url); } catch (e) { if (!/\((429|500|502|503|504)\)/.test(e.message)) throw e; await new Promise((r) => setTimeout(r, 2000)); return getJSON(url); } };
+  onProgress('checking for filmography…');
+  const data = await ask(FILM_LIST_QUERY(qid));
+  const bindings = (data.results && data.results.bindings) || [];
+  const byQid = new Map(); // a title can carry both a cast row and a director row — merged into one credit
+  for (const b of bindings) {
+    const q = /Q\d+$/.exec(b.item.value)[0];
+    const label = b.itemLabel ? b.itemLabel.value : q;
+    const character = b.characterLabel ? b.characterLabel.value : null;
+    const isCast = b.origin.value === 'cast';
+    const existing = byQid.get(q);
+    if (!existing) { byQid.set(q, { qid: q, label, character: isCast ? character : null, cast: isCast, directed: !isCast }); continue; }
+    if (isCast) { existing.cast = true; if (character && !existing.character) existing.character = character; }
+    else existing.directed = true;
+  }
+  const items = [...byQid.values()];
+  const qids = items.map((i) => i.qid);
+  const details = new Map();
+  for (let i = 0; i < qids.length; i += 200) {
+    const chunk = qids.slice(i, i + 200);
+    onProgress(`filmography ${Math.min(i + 200, qids.length)} of ${qids.length}`);
+    let d = null;
+    try { d = await ask(FILM_DETAIL_QUERY(chunk)); } catch (_) { d = null; }
+    for (const b of (d && d.results && d.results.bindings) || []) {
+      const q = /Q\d+$/.exec(b.item.value)[0];
+      const existing = details.get(q) || { typeLabel: null, date: null, dateProp: null };
+      if (!existing.typeLabel && b.tyLabel) existing.typeLabel = b.tyLabel.value;
+      const iso = b.date ? b.date.value.slice(0, 10) : null;
+      if (iso && (!existing.date || iso < existing.date)) { existing.date = iso; existing.dateProp = b.dateProp ? b.dateProp.value : null; }
+      details.set(q, existing);
+    }
+  }
+  const rows = items.map((it) => {
+    const d = details.get(it.qid) || {};
+    const date = d.date ? { iso: d.date, prec: /-01-01$/.test(d.date) ? 9 : 11 } : null;
+    const roleNote = it.cast && it.directed ? 'Actor & director' : it.directed ? 'Director' : 'Actor';
+    const kindLabel = d.typeLabel ? `${d.typeLabel[0].toUpperCase()}${d.typeLabel.slice(1)}` : 'Film/TV';
+    return {
+      qid: it.qid, memberQids: [it.qid], label: it.character ? `${it.label} (as ${it.character})` : it.label, group: 'role',
+      families: new Set(['role']), typeLabel: `${kindLabel} · ${roleNote}`, compilation: false,
+      date, display: displayDate(date), dateSource: date ? 'item' : null, dateProp: d.dateProp || null, shared: false, suspect: false,
+    };
+  });
+  rows.sort((a, b) => {
+    const ka = a.date ? dateRange(a.date)[0] : '9999', kb = b.date ? dateRange(b.date)[0] : '9999';
+    return ka < kb ? -1 : ka > kb ? 1 : a.label.localeCompare(b.label);
+  });
+  try { sessionStorage.setItem(FILM_CACHE_KEY(qid), JSON.stringify({ at: Date.now(), rows: rows.map((r) => ({ ...r, families: [...r.families] })) })); } catch (_) { /* storage full or blocked — fine */ }
+  return rows;
 }
 
 // A series case's own installments (her ask, 2026-09-21: "i need a category

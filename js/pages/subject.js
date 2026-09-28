@@ -1135,9 +1135,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // 2026-09-04; moved off its own flat button 2026-09-18, ask28, SPEC §30):
   // albums / EPs / singles / songs for a musician, PLUS books / paintings /
   // buildings / discoveries for anyone else (her ask, 2026-09-21: "include
-  // more than just musical works") — from the person's Wikidata item, as
-  // the record. Pick the types, tick the works, Add; each becomes a
-  // 'release' event citing whichever Wikidata property actually dated it.
+  // more than just musical works"), PLUS film and TV credits — acting and
+  // directing — for an actor (her ask, 2026-09-28: "include wikipedia
+  // music/albums in lifes works, filmography etc") — from the person's
+  // Wikidata item, as the record. Pick the types, tick the works, Add;
+  // each becomes a 'release' event citing whichever Wikidata property
+  // actually dated it.
   async function showWorksPicker(m, slot) {
     slot.innerHTML = '<div class="inline-note" style="border-left-color:var(--brass)" id="wk-reading">Reading their works from Wikidata — up to a minute for a long catalogue when the service is busy…</div>';
     const reading = slot.querySelector('#wk-reading');
@@ -1145,7 +1148,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
     try { works = await fetchWorks(m.id, (msg) => { if (reading.isConnected) reading.textContent = `Reading their works from Wikidata — ${msg}`; }); }
     catch (e) { slot.innerHTML = `<div class="inline-note">Works could not be read — ${e.message}</div>`; return false; }
     if (!works.length) { slot.innerHTML = '<div class="inline-note">Wikidata lists no notable works — musical or otherwise — on that record.</div>'; return false; }
-    const failNote = works.failedSource ? `<div class="inline-note" style="border-left-color:var(--red)">Couldn't read ${works.failedSource === 'music' ? 'musical' : 'other non-musical'} works right now — showing what did load; try again in a moment for the rest.</div>` : '';
+    const FAILED_SOURCE_LABEL = { music: 'musical', general: 'other non-musical', filmography: 'filmography' };
+    const failNote = works.failedSource ? `<div class="inline-note" style="border-left-color:var(--red)">Couldn't read ${works.failedSource.split('+').map((k) => FAILED_SOURCE_LABEL[k] || k).join(' or ')} works right now — showing what did load; try again in a moment for the rest.</div>` : '';
     const existingIds = new Set((await store.listEventsForPerson(person.id)).map((e) => e.wikidata_id).filter(Boolean));
     const isHere = (w) => w.memberQids.some((q) => existingIds.has(q));
     const on = new Set(WORK_GROUPS.map((g) => g.key)); // every family on (her call); compilations & live are a sub-switch, off
