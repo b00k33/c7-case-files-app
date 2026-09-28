@@ -417,7 +417,24 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a life-line mark of her own can now be edited and
+**2026-09-28, latest — the "cute" theme's accent is sky blue, not pink
+(v177).** Her ask, from a screenshot of it in use: "make a theme that
+doesnt use pink." That theme's own design rule (SPEC, 2026-09-21) is
+accent colours come from the app's real zc-/ws- zodiac palette, never an
+invented hue — so rather than pick a replacement blind, mocked 3 real
+candidates from that same palette live in the browser (sky blue/ws-air,
+violet, mint green/zc-green), screenshotted each, asked which. She picked
+sky blue. `--brass`/`--on-brass` swapped in `tokens.css`'s
+`[data-theme="cute"]` block, plus every shadow that glowed pink to match
+the old accent (`--rail-edge`, `--lift-2`, `--lift-2-hover`, `--lift-btn`,
+`--lift-face` — all had the old accent's rgb baked in) recoloured to
+match, same as the other two grounds always keep their glow matching
+--brass. `--zc-pink` itself untouched — that's the real Pig/Goat/Rabbit
+trine colour, unrelated to which hue the UI's own accent happens to be.
+Verified live: reloaded fresh, confirmed no pink anywhere across Cases and
+a subject page (buttons, tags, nav highlight, avatar rings all sky blue).
+
+**2026-09-28, earlier — a life-line mark of her own can now be edited and
 deleted in place (v176).** Her ask, from a screenshot of a "Moved to USA"
 mark: "how to edit". Found there was genuinely no way, anywhere on the
 page: the why-card only ever offered Judge (worked/failed); the one

@@ -161,7 +161,14 @@
    colours (their NIGHT values, already tuned to read on a dark ground —
    see STYLE §1: "by night the pills are tinted... by day they are
    solid") instead of a made-up palette. Same rule as always: a theme is
-   tokens, never a second rule set. */
+   tokens, never a second rule set.
+
+   Accent changed 2026-09-28 ("make a theme that doesnt use pink"): the
+   accent was zc-pink; mocked 3 live candidates from this same real
+   zodiac/element palette (sky blue, violet, mint green) rather than
+   inventing a new hue, she picked sky blue (ws-air). Every shadow that
+   glowed pink to match the old accent is recoloured to match — same
+   convention as the other two grounds, whose glow always matches --brass. */
 :root[data-theme="cute"] {
   color-scheme: dark;
   --ink-0: #1b1420;      /* the ground — deep plum-black, not neutral charcoal */
@@ -174,8 +181,8 @@
   --text-2: #c3aed1;
   --text-3: #9683a8;
 
-  --brass: #ec86b4;      /* the accent — zc-pink (Pig · Goat · Rabbit), not an invented hue */
-  --on-brass: #2a1420;
+  --brass: #8fd0f5;      /* the accent — ws-air (Gemini · Libra · Aquarius), not an invented hue */
+  --on-brass: #12303d;
   --gold: #e8c34f;       /* the life path number — zc-yellow (Rat · Dragon · Monkey) */
   --teal: #8fd0f5;       /* ws-air (Gemini · Libra · Aquarius) */
   --green: #5cb87a;      /* zc-green (Dog · Tiger · Horse) */
@@ -185,16 +192,16 @@
 
   --ground: radial-gradient(120% 90% at 50% 30%, #241b2c 0%, #140e18 100%);
   --bar-bg: transparent;
-  --rail-edge: rgba(236, 134, 180, .08);
+  --rail-edge: rgba(143, 208, 245, .08);
   --rail-shadow: 0 0 0 0 transparent;
   --topbar-shadow: 0 0 0 0 transparent;
   --tabbar-shadow: 0 0 0 0 transparent;
   --lift-1: inset 0 1px 0 rgba(255, 255, 255, .04), 0 3px 8px rgba(0, 0, 0, .35);
-  --lift-2: inset 0 1px 0 rgba(255, 255, 255, .07), 0 5px 14px rgba(236, 134, 180, .16);
-  --lift-2-hover: inset 0 1px 0 rgba(255, 255, 255, .09), 0 12px 26px rgba(236, 134, 180, .28);
-  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .22), 0 3px 10px rgba(236, 134, 180, .4);
+  --lift-2: inset 0 1px 0 rgba(255, 255, 255, .07), 0 5px 14px rgba(143, 208, 245, .16);
+  --lift-2-hover: inset 0 1px 0 rgba(255, 255, 255, .09), 0 12px 26px rgba(143, 208, 245, .28);
+  --lift-btn: inset 0 1px 0 rgba(255, 255, 255, .22), 0 3px 10px rgba(143, 208, 245, .4);
   --press: inset 0 2px 3px rgba(0, 0, 0, .35);
-  --lift-face: 0 0 0 2px rgba(236, 134, 180, .14), 0 5px 12px rgba(0, 0, 0, .5);
+  --lift-face: 0 0 0 2px rgba(143, 208, 245, .14), 0 5px 12px rgba(0, 0, 0, .5);
   --lift-mark: 0 4px 8px rgba(0, 0, 0, .5);
   --sink: inset 0 2px 3px rgba(0, 0, 0, .55), inset 0 -1px 0 rgba(255, 255, 255, .05);
   --shadow: 0 14px 36px rgba(0, 0, 0, .55), 0 0 0 1px var(--line);

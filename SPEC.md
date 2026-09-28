@@ -1495,6 +1495,14 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 95. Cute theme's accent: sky blue instead of pink (v177, 2026-09-28)
+
+Her ask, from a screenshot: "make a theme that doesnt use pink." The theme in the screenshot was "cute" (§ note 2026-09-21) — its own design rule is that accent colours come from the app's real zc-/ws- zodiac trine/element palette, never an invented hue. Rather than guess a replacement, mocked 3 real candidates from that same palette live in the running app — sky blue (ws-air), violet (already sitting unused in this theme's own tokens), mint green (zc-green) — screenshotted each and asked which. She picked sky blue.
+
+`tokens.css`'s `:root[data-theme="cute"]` block: `--brass` and `--on-brass` swapped from the old pink (`#ec86b4`/`#2a1420`) to sky blue (`#8fd0f5`/`#12303d`, readable dark-on-light). The theme's own `--teal` was already `#8fd0f5` (ws-air) — `--brass` now doubling with an existing semantic token is the same convention the other two grounds already use (night: brass = amber/gold; day: brass = teal). Every shadow with the old accent's rgb baked in for its glow (`--rail-edge`, `--lift-2`, `--lift-2-hover`, `--lift-btn`, `--lift-face`) recoloured from `rgba(236, 134, 180, …)` to `rgba(143, 208, 245, …)` to match. `--zc-pink` left untouched — that token is the real Pig/Goat/Rabbit trine colour, unrelated to whatever hue the UI's own accent happens to be.
+
+Verified live: cleared the service worker cache, reloaded fresh, confirmed sky blue (not pink) on Cases (nav highlight, "+ New" button, avatar ring) and a subject page ("+ Add" button, the "active" tag) — no pink surviving anywhere.
+
 ## 94. Edit and delete a life-line event in place (v176, 2026-09-28)
 
 Her ask, from a screenshot of a "Moved to USA" mark on Winston Churchill's life line: "how to edit". There was genuinely no way — the why-card (`renderWhyCard`, `lifemap.js`) only ever offered Judge (worked/failed), and the only "Remove" control anywhere is scoped to the picker shown right after a Wikidata life-events batch-add, gone the moment she taps Done. A wrong title or date, once on the line, was permanent short of deleting the whole case's data.
