@@ -417,7 +417,32 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a Wikidata lookup now pulls the maximum it honestly
+**2026-09-28, latest — a life-line mark of her own can now be edited and
+deleted in place (v176).** Her ask, from a screenshot of a "Moved to USA"
+mark: "how to edit". Found there was genuinely no way, anywhere on the
+page: the why-card only ever offered Judge (worked/failed); the one
+"Remove" affordance that exists is scoped to the picker shown right after
+a Wikidata life-events batch-add, gone the moment she taps Done. Added
+Edit/Delete buttons to `renderWhyCard` (`lifemap.js`), gated to
+`m.event && !m.rel && !m.cluster` — a standalone event of her own, never a
+relationship milestone (those already edit from "Their story →" on
+Their Story) and never a cluster header (stands for several at once,
+nothing single to edit). Edit opens a small drawer (`renderEventEditForm`,
+`subject.js`) with the same title/kind/date fields as "+ Add event",
+prefilled; Delete is two-tap (`twoTapConfirm`), matching the app's other
+destructive actions rather than the single-click precedent on Their
+Story's own milestone delete. Both refresh the ribbon in place — no top
+`render()` — reusing the exact refetch-then-`buildLifeLine` shape
+`onOutcome` and "+ Collect pictures" already used (a mutation lands on the
+DB row, not this render's own `events` closure array, so it must be
+re-read from the store before rebuilding). Verified live on a throwaway
+test event on Winston Churchill: edited its title and date (year changed
+2014→2015), watched the mark move to its new position on the ribbon with
+the correct zodiac animal, then two-tap deleted it and confirmed the
+event was gone from the store, not just the card. Test event removed
+after.
+
+**2026-09-28, earlier — a Wikidata lookup now pulls the maximum it honestly
 can: 4 new fields, and Works + Life events land automatically instead of
 needing a separate click each (v175, SPEC §93).** Her synth22, item 1:
 "i want the maximum amount of info extracted from wiki for all people and

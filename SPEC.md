@@ -1495,6 +1495,18 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 94. Edit and delete a life-line event in place (v176, 2026-09-28)
+
+Her ask, from a screenshot of a "Moved to USA" mark on Winston Churchill's life line: "how to edit". There was genuinely no way — the why-card (`renderWhyCard`, `lifemap.js`) only ever offered Judge (worked/failed), and the only "Remove" control anywhere is scoped to the picker shown right after a Wikidata life-events batch-add, gone the moment she taps Done. A wrong title or date, once on the line, was permanent short of deleting the whole case's data.
+
+Added Edit and Delete buttons to the why-card, gated to `m.event && !m.rel && !m.cluster` — a standalone event of her own. A relationship milestone (`m.rel` set — marriage, divorce, dating) is deliberately excluded: it already has its own edit form on Their Story, reached via the card's existing "Their story →" link, and editing the same underlying event row from two different places would invite the two forms drifting out of sync. A cluster header (`m.cluster` — several same-kind events grouped into one mark) is excluded too: there's no single record to point Edit at.
+
+Edit opens a small drawer (`renderEventEditForm`, `subject.js`) with the same three fields "+ Add event" already uses — title, kind, date — prefilled from the event row, reusing the same `EVENT_KINDS` list and `parseDate` validation. Delete is two-tap (`twoTapConfirm`), matching the app's convention for destructive actions elsewhere (case delete, etc.) rather than the single-click precedent on Their Story's own milestone delete, since a life-line event carries real typed or Wikidata-sourced content and `store.deleteEvent` is a hard delete, not a soft one.
+
+Both redraw the ribbon in place — no top-level `render()` — reusing the exact refresh shape `onOutcome` and "+ Collect pictures" already established: re-read events from the store (`store.listEventsForPerson`), since a mutation lands on the DB row, not on this render pass's own `events` closure array; rebuild `lifeData` with `buildLifeLine`; re-render just the ribbon and, for Edit, re-show the same mark (found again by id, which survives a title/date change) so the card reflects what just saved.
+
+Verified live on a throwaway test event on Winston Churchill: added "Zzz Test Moved to USA" (kind `move`, 11 Oct 2014), confirmed Edit opened prefilled with the exact saved values, changed the title and pushed the date to 3 Mar 2015 — the mark correctly moved to its new position on the ribbon with the correct zodiac animal for the new year (Horse → Goat) and the correct "their year" line, all without disturbing the rest of the page (Married/Died marks, the family tree below, unchanged). Two-tap deleted it afterward and confirmed via a direct store query that the event row was actually gone, not just hidden. Test event removed after.
+
 ## 93. "Maximum" Wikidata extraction — 4 new fields, Works and Life events auto-pull (v175, 2026-09-28)
 
 Her synth22, item 1: "i want the maximum amount of info extracted from wiki for all people and family and cases to include date times events for all categories of life and work." Two research agents mapped the ground first (same synth22 batch as §92): exactly what's captured today, and exactly which of the 9 `kind === 'person'` checks needed widening. One hard limit was disclosed to her directly rather than silently worked around: Wikidata's time datatype carries no clock-time field at all, so "times" can never come from a lookup — only the existing hand-typed `person.birth_time` supplies one.

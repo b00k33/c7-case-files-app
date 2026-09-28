@@ -594,6 +594,16 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const lifeEl = root.querySelector('#life-line');
   const whySlot = root.querySelector('#why-slot');
   const openPerson = (id) => ctx.navigate(`#/subject/${id}`);
+  // one mark's own event edited or deleted (her ask, 2026-09-28: "how to
+  // edit" — there was no way to fix a wrong title/date, or remove one,
+  // once it was already on the line) — same refresh shape as onOutcome:
+  // re-read events from the store (a mutation lands on the DB row, not on
+  // this closure's own `events`), rebuild the ribbon in place, no top re-render
+  const refreshLifeLine = async () => {
+    const freshEvents = await store.listEventsForPerson(person.id);
+    Object.assign(lifeData, buildLifeLine({ person, events: [...freshEvents, ...relEvents], rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
+    await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, store, people: peopleInCase });
+  };
   const showWhy = (m) => renderWhyCard(whySlot, m, lifeData, {
     person, people: peopleInCase,
     onOutcome: async (mark, oc) => {
@@ -606,6 +616,20 @@ export async function render(root, ctx, personId, tab = 'profile') {
         lifeEl.querySelector(`.lm-mark[data-id="${CSS.escape(again.id)}"]`)?.classList.add('on');
         showWhy(again);
       }
+    },
+    onEdit: (mark) => ctx.openDrawer((body) => renderEventEditForm(body, ctx, mark.event, async () => {
+      ctx.closeDrawer();
+      await refreshLifeLine();
+      const again = lifeData.marks.find((x) => x.id === mark.id);
+      if (again) {
+        lifeEl.querySelector(`.lm-mark[data-id="${CSS.escape(again.id)}"]`)?.classList.add('on');
+        showWhy(again);
+      } else whySlot.innerHTML = '';
+    })),
+    onDelete: async (mark) => {
+      await store.deleteEvent(mark.event.id);
+      await refreshLifeLine();
+      whySlot.innerHTML = '';
     },
   });
   // empty states hand her straight to the + Add sheet (openAdd is declared
@@ -1571,5 +1595,39 @@ function renderEditForm(body, ctx, person, tags = []) {
     if (blocked) return;
     ctx.closeDrawer();
     ctx.rerender();
+  });
+}
+
+// Edit a single life-line event of her own — the counterpart to the "Add an
+// event by hand" form above, same fields, reached from the why-card's own
+// Edit button (her ask, 2026-09-28: "how to edit" — a mark like "Moved to
+// USA" had no way back in once it was on the line). Only ever opened for a
+// mark with m.event and no m.rel (see renderWhyCard) — a relationship
+// milestone keeps its own edit form on Their Story.
+function renderEventEditForm(body, ctx, event, onDone) {
+  const currentDateText = event.date_precision && event.date_precision !== 'unknown'
+    ? preciseText({ precision: event.date_precision, date: event.date, year: event.date_year_min })
+    : '';
+  body.innerHTML = `
+    <h3 class="title" style="margin-bottom:16px">Edit event</h3>
+    <div class="field"><label>What happened</label><input type="text" id="ee-title" value="${esc(event.title)}"></div>
+    <div class="row" style="gap:8px">
+      <div class="field" style="flex:1"><label>Kind</label><select id="ee-kind">${EVENT_KINDS.map(([v, l]) => `<option value="${v}" ${event.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="field" style="flex:1"><label>Date</label><input type="text" id="ee-date" value="${esc(currentDateText)}" placeholder="14 Nov 1996 · Nov 1996 · 1996"></div>
+    </div>
+    <button class="btn btn-primary" id="ee-save">Save</button>
+  `;
+  body.querySelector('#ee-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); body.querySelector('#ee-save').click(); } });
+  body.querySelector('#ee-save').addEventListener('click', async () => {
+    const btn = body.querySelector('#ee-save');
+    clearInlineNote(btn);
+    const title = body.querySelector('#ee-title').value.trim();
+    const kind = body.querySelector('#ee-kind').value;
+    const dateText = body.querySelector('#ee-date').value.trim();
+    if (!title) { inlineNote(btn, 'Say what happened first.'); return; }
+    const d = dateText ? parseDate(dateText) : null;
+    if (dateText && !d) { inlineNote(btn, 'That date didn’t read — try "14 Nov 1996", "Nov 1996" or "1996".'); return; }
+    await ctx.store.updateEvent(event.id, { title, kind, date: d ? d.date : null, date_precision: d ? d.precision : 'unknown', date_year_min: d ? d.year : null, date_year_max: d ? d.year : null });
+    await onDone();
   });
 }
