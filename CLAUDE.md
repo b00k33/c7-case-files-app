@@ -417,7 +417,44 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a Profile-tab "+ add & link" gets a private family
+**2026-09-28, latest — "+ add & link" becomes a progressive, animated
+3-step flow with a real-sentence relationship picker (v179).** Straight
+follow-up to v178, from a screenshot: "Manuel Dad" had landed UNDER
+Manuel on the tree (his child) instead of above (his parent) — proof the
+v178 form's "Their parent"/"Their child" dropdown pair was itself easy to
+pick backwards, same root cause new-person-flow.js's own family step
+already carries. Her words: "the process is confusing... use a
+progressive animated process." New `renderAddFamilyMember` (relations.js)
+replaces the flat form everywhere it was used for family: three short
+screens (who → how they connect → when), `.npf-panel` fade transitions
+and a dot tracker reused verbatim from new-person-flow.js's own approved
+pattern, and — the actual fix — step 2 is never an abstract "parent"/
+"child" pair again: it's five full-sentence buttons built from the two
+REAL names just typed ("Zzz Test Grandparent is Winston Churchill's
+**parent**"), which cannot be misread the way "Their parent" can. Wired
+into both places this mistake could actually happen: Profile's own
+"+ add & link" (locked to the profile) and the Relations tab's OWN
+"+ add & link" (the more likely real source — `defaultWithId: focus` now
+starts "With" on whoever's tree she's looking at, instead of an arbitrary
+case-name anchor she might not have noticed needed changing). Also fixed
+the one gap that would have left her stuck either way: a backwards link
+had no self-service repair (re-adding it right only dedupes against the
+wrong one, it doesn't fix it) — step 1 now lists everyone already
+connected, each with a two-tap Remove, right where she'd next go looking.
+Gave "link two people" (`renderAddRel`) the same real-names treatment too,
+as a live hint line under its plain dropdowns, without a full rebuild —
+lower ambiguity risk there already, so proportionate effort. Verified
+live end to end, reading the actual saved row, not just the tree's
+redraw: created "Zzz Test Grandparent," picked the "parent" sentence,
+saved, and confirmed directly against the relationship table that
+`a_id` was the new person and `b_id` was Winston with `kind:'parent'` —
+Wikidata's own real family (11 correctly-labeled existing relationships,
+Winston's actual parents/children/spouse/siblings) also displayed
+correctly in the new "already connected" list, cross-checking the
+direction logic against known-good data before trusting it on new data.
+Test person and relationship removed after.
+
+**2026-09-28, earlier — a Profile-tab "+ add & link" gets a private family
 member onto the tree without leaving Profile (v178).** Said right after
 adding "Manuel Dad" by hand: "make it easier to add family." The Family
 widget's existing "+ Add family" button only ever ran a Wikipedia lookup

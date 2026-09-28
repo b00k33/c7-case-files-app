@@ -15,7 +15,7 @@ import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../as
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, renderWikiFeed } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
-import { renderTree, renderQuickRelationship } from './relations.js';
+import { renderTree, renderAddFamilyMember } from './relations.js';
 import { subjectOf } from './cases.js';
 import { isPersonKind } from './dashboard.js';
 import { saveStyleFiles } from './fashion.js';
@@ -715,22 +715,16 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // said right after adding a private relative by hand, which meant
   // leaving Profile for the Relations tab, since this button only ever
   // did a Wikipedia lookup of THIS person, no help at all for a private
-  // one). Reuses the Relations tab's own one-step form verbatim, locked to
-  // this person so there's no "With" picker to fill in, scoped to the
-  // kinds the Family tree above actually draws (blood + marriage, not
-  // business/associate/household — those stay on the Relations tab's own
-  // general-purpose version of this same form).
-  root.querySelector('#fam-quick-btn')?.addEventListener('click', () => ctx.openDrawer((body) => renderQuickRelationship(body, ctx, peopleInCase, {
+  // one). Upgraded the same day, same ask continued: a flat form with a
+  // "Their parent"/"Their child" dropdown proved genuinely easy to pick
+  // backwards (her real Manuel Dad case, landing as Manuel's CHILD on the
+  // tree) — renderAddFamilyMember replaces it with a short, animated,
+  // one-thing-at-a-time flow whose relationship choice is a full sentence
+  // with real names ("Manuel Dad is Manuel's parent"), never misreadable,
+  // plus a way to remove an existing backwards link right there on step 1.
+  root.querySelector('#fam-quick-btn')?.addEventListener('click', () => ctx.openDrawer((body) => renderAddFamilyMember(body, ctx, peopleInCase, {
     lockedPersonId: person.id,
-    kinds: [
-      { value: 'parent', label: 'Their parent', lockedIsB: true },
-      { value: 'parent', label: 'Their child', lockedIsB: false },
-      { value: 'sibling', label: 'Sibling' },
-      { value: 'spouse', label: 'Spouse' },
-      { value: 'partner', label: 'Partner' },
-    ],
     heading: `Add family to ${person.display_name}`,
-    subheading: "Type a name — new or already in this case. Skip the lookup if they're not on Wikipedia.",
   })));
   // Enter in the Look up field looks up, explicitly — there's no <form> here to do it for free
   tools.querySelector('#lk-name').addEventListener('keydown', (e) => {

@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
-import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker } from '../ui.js';
+import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapConfirm } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata, fillFromWikidata, insertFamily } from '../lookup.js';
 import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
@@ -153,7 +153,13 @@ export async function render(root, ctx, focusId = null) {
   // same attention
   const addMoreSlot = root.querySelector('#add-more-slot');
   addMoreSlot.innerHTML = `<button class="linkish" id="add-quick-btn" title="One drawer: name them, how they connect, and when — saved together">+ add & link</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-type-btn">or pick from People</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
-  addMoreSlot.querySelector('#add-quick-btn').addEventListener('click', () => ctx.openDrawer((body) => renderQuickRelationship(body, ctx, allPeople)));
+  // her ask, 2026-09-28 ("make it easier to add family... progressive
+  // animated process" — a real relative landed backwards on the tree from
+  // this exact button's plain "parent" option): the same upgrade as
+  // Profile's own "+ add & link". `defaultWithId: focus` starts "With" on
+  // whoever's tree she's actually looking at, instead of an arbitrary
+  // case-name anchor she might not notice needs changing.
+  addMoreSlot.querySelector('#add-quick-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddFamilyMember(body, ctx, allPeople, { defaultWithId: focus })));
   addMoreSlot.querySelector('#add-type-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'pick')));
   addMoreSlot.querySelector('#add-rel-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddRel(body, ctx, allPeople)));
   root.querySelectorAll('#rel-view button').forEach((b) => b.addEventListener('click', () => { localStorage.setItem(VIEW_KEY, b.dataset.view); render(root, ctx, focus); }));
@@ -1104,6 +1110,259 @@ function paintMatches(results, rows, ctx) {
 }
 
 /**
+ * A progressive, animated way to add ONE family member — three short
+ * screens (who, how they connect, when) instead of one dense form, and a
+ * relationship-kind picker phrased as a real sentence with real names
+ * instead of the abstract "parent"/"child" pair that her real case proved
+ * easy to pick backwards (her ask, 2026-09-28, from a screenshot showing
+ * "Manuel Dad" under Manuel on the tree instead of above it: "the process
+ * is confusing... use a progressive animated process"). A dropdown reading
+ * "parent" relies on already knowing which side of the pair it means; a
+ * button reading "Manuel Dad is Manuel's parent" cannot be misread.
+ * Shares renderQuickRelationship's save logic (person match-or-create,
+ * dedup, optional "Met" date) below — only the interaction is different.
+ */
+export async function renderAddFamilyMember(body, ctx, people, opts = {}) {
+  const { lockedPersonId = null, defaultWithId = null, heading = null, onSaved = null } = opts;
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const kase = await ctx.store.getCase(ctx.caseId);
+  const anchor = (defaultWithId && people.find((p) => p.id === defaultWithId))
+    || (kase && people.find((p) => p.display_name.trim().toLowerCase() === kase.name.trim().toLowerCase()))
+    || people[0] || null;
+  const peopleById = new Map(people.map((p) => [p.id, p]));
+  const withOpts = people.map((p) => `<option value="${p.id}" ${anchor && p.id === anchor.id ? 'selected' : ''}>${esc(p.display_name)}</option>`).join('');
+
+  // sibling/spouse/partner read the same either way; parent doesn't — the
+  // schema stores "A is the parent of B," so the two parent-flavoured
+  // options here differ only in which side the TYPED name lands on
+  const FAMILY_KINDS = [
+    { value: 'parent', word: 'parent', lockedIsB: true },
+    { value: 'parent', word: 'child', lockedIsB: false },
+    { value: 'sibling', word: 'sibling', lockedIsB: false },
+    { value: 'spouse', word: 'spouse', lockedIsB: false },
+    { value: 'partner', word: 'partner', lockedIsB: false },
+  ];
+
+  let withId = lockedPersonId || (anchor ? anchor.id : null);
+  let typedName = '';
+  let pick = null; // a chosen Wikidata match, or null to just save the typed name
+  let kindChoice = null;
+  let step = 0;
+
+  body.innerHTML = `
+    <h3 class="title" style="margin-bottom:2px">${heading || 'Add family'}</h3>
+    <div class="npf-dots" style="margin:10px 0">${[0, 1, 2].map(() => '<span></span>').join('')}</div>
+    <div class="npf-body" id="fm-body" style="min-height:150px"></div>
+    <div class="npf-foot" id="fm-foot">
+      <button type="button" class="btn btn-ghost" id="fm-back" style="visibility:hidden">Back</button>
+      <button type="button" class="btn btn-primary" id="fm-next">Next</button>
+    </div>
+  `;
+  const dots = [...body.querySelectorAll('.npf-dots span')];
+  const stepBody = body.querySelector('#fm-body');
+  const backBtn = body.querySelector('#fm-back');
+  const nextBtn = body.querySelector('#fm-next');
+  const paintDots = () => dots.forEach((d, i) => { d.classList.toggle('done', i < step); d.classList.toggle('active', i === step); });
+
+  function setPanel(builder) {
+    const panel = document.createElement('div');
+    panel.className = 'npf-panel';
+    stepBody.innerHTML = '';
+    stepBody.appendChild(panel);
+    requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add('in')));
+    builder(panel);
+  }
+
+  function withName() { return withId ? (peopleById.get(withId)?.display_name || '') : ''; }
+
+  // shown right on step 1 (her real blocker, not a hypothetical): a
+  // backwards link from before this fix has no self-service repair
+  // otherwise, since re-adding it correctly only ever dedupes against the
+  // wrong one rather than fixing it — it has to be removed first
+  async function renderExisting(container) {
+    if (!withId) { container.innerHTML = ''; return; }
+    const rels = await ctx.store.listRelationshipsForPerson(withId);
+    const rows = rels.map((r) => {
+      const otherId = r.a_id === withId ? r.b_id : r.a_id;
+      const other = peopleById.get(otherId);
+      if (!other) return null;
+      const lockedIsA = r.a_id === withId;
+      const word = r.kind === 'parent' ? (lockedIsA ? 'child' : 'parent') : r.kind;
+      return { relId: r.id, text: `${esc(other.display_name)} — ${esc(word)}` };
+    }).filter(Boolean);
+    if (!rows.length) { container.innerHTML = ''; return; }
+    container.innerHTML = `
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:11px;color:var(--text-3)">▸ Already connected (${rows.length}) — spot one that's backwards?</summary>
+        <div class="stack" style="gap:2px;margin-top:8px">
+          ${rows.map((r) => `<div class="list-row" data-rel="${r.relId}" style="min-height:30px;padding:4px 8px"><span class="main" style="font-size:12px">${r.text}</span><button type="button" class="btn btn-ghost btn-sm" data-rm="${r.relId}">Remove</button></div>`).join('')}
+        </div>
+      </details>`;
+    container.querySelectorAll('[data-rm]').forEach((btn) => twoTapConfirm(btn, {
+      confirmLabel: 'Remove — tap again',
+      onConfirm: async () => {
+        await ctx.store.deleteRelationship(btn.dataset.rm);
+        btn.closest('[data-rel]')?.remove();
+      },
+    }));
+  }
+
+  function renderWho() {
+    setPanel((panel) => {
+      panel.innerHTML = `
+        <p class="npf-step-desc">Who are you adding?</p>
+        ${lockedPersonId ? '' : `<div class="field"><label>With</label><select id="fm-with">${withOpts}</select></div>`}
+        <div class="field"><label>Their name</label>
+          <div class="row wrap" style="gap:8px">
+            <input type="text" id="fm-name" style="flex:1 1 160px" value="${esc(typedName)}" placeholder="Andrew Parker Bowles">
+            <button type="button" class="btn btn-ghost btn-sm" id="fm-lookup">Look up on Wikipedia</button>
+          </div>
+        </div>
+        <div id="fm-matches"></div>
+        <div id="fm-existing-slot"></div>
+      `;
+      queueMicrotask(() => panel.querySelector('#fm-name')?.focus());
+      const nameInput = panel.querySelector('#fm-name');
+      const matchesSlot = panel.querySelector('#fm-matches');
+      const existingSlot = panel.querySelector('#fm-existing-slot');
+      renderExisting(existingSlot);
+      if (!lockedPersonId) panel.querySelector('#fm-with').addEventListener('change', (e) => { withId = e.target.value; renderExisting(existingSlot); });
+      const runLookup = async () => {
+        const q = nameInput.value.trim();
+        const btn = panel.querySelector('#fm-lookup');
+        clearInlineNote(btn);
+        if (!q) { inlineNote(btn, 'Type their name first.'); return; }
+        btn.disabled = true; btn.textContent = 'Searching…';
+        let matches = [];
+        try { matches = await searchPeople(q); }
+        catch (e) { btn.disabled = false; btn.textContent = 'Look up on Wikipedia'; inlineNote(btn, `Couldn't reach Wikidata — ${e.message}.`); return; }
+        btn.disabled = false; btn.textContent = 'Look up on Wikipedia';
+        if (!matches.length) { matchesSlot.innerHTML = `<div class="inline-note">No match on Wikidata — that's fine, just the name will be saved.</div>`; pick = null; return; }
+        matchesSlot.innerHTML = matches.map((m, i) => `
+          <div class="list-row" data-pick="${i}">
+            <div class="main"><div class="title" style="font-size:13px">${esc(m.label)}</div><div class="sub">${esc(m.description) || 'no description'} · ${m.id}</div></div>
+            <span class="chip">use this</span>
+          </div>`).join('') + `<div class="list-row" data-pick="none"><div class="main"><div class="title" style="font-size:13px">Just the name — not this person</div></div></div>`;
+        matchesSlot.querySelectorAll('[data-pick]').forEach((row) => row.addEventListener('click', () => {
+          if (row.dataset.pick === 'none') { pick = null; matchesSlot.innerHTML = `<div class="inline-note">Saving just the typed name.</div>`; return; }
+          pick = matches[+row.dataset.pick];
+          nameInput.value = pick.label;
+          matchesSlot.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ ${esc(pick.label)} — their profile will be filled in from Wikidata.</div>`;
+        }));
+      };
+      panel.querySelector('#fm-lookup').addEventListener('click', runLookup);
+      nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); nextBtn.click(); } });
+    });
+  }
+
+  function renderHow() {
+    setPanel((panel) => {
+      const wName = esc(withName());
+      const tName = esc(typedName);
+      panel.innerHTML = `
+        <p class="npf-step-desc">How is <b>${tName}</b> related to <b>${wName}</b>?</p>
+        <div class="stack" style="gap:6px">
+          ${FAMILY_KINDS.map((k, i) => `<button type="button" class="btn btn-ghost" data-i="${i}" style="text-align:left;justify-content:flex-start;padding:10px 12px;font-size:13px">${tName} is ${wName}&rsquo;s <b style="color:var(--brass);margin-left:4px">${k.word}</b></button>`).join('')}
+        </div>
+      `;
+      panel.querySelectorAll('[data-i]').forEach((btn) => btn.addEventListener('click', () => {
+        kindChoice = FAMILY_KINDS[+btn.dataset.i];
+        goTo(2);
+      }));
+    });
+  }
+
+  function renderWhen() {
+    setPanel((panel) => {
+      panel.innerHTML = `
+        <p class="npf-step-desc"><b>${esc(typedName)}</b> is <b>${esc(withName())}</b>&rsquo;s <b style="color:var(--brass)">${kindChoice.word}</b>. When did this happen? <span style="color:var(--text-3);font-weight:400">(optional)</span></p>
+        <div class="field"><input type="text" id="fm-when" placeholder="1970 · Nov 1996 · 14 Nov 1996"></div>
+      `;
+      queueMicrotask(() => panel.querySelector('#fm-when')?.focus());
+      panel.querySelector('#fm-when').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); nextBtn.click(); } });
+    });
+  }
+
+  function renderDone() {
+    setPanel((panel) => {
+      panel.innerHTML = `
+        <div class="npf-done" id="fm-done">
+          <div class="npf-done-circle">✓</div>
+          <h4>Added</h4>
+          <p>${esc(typedName)} is on ${esc(withName())}&rsquo;s tree now.</p>
+        </div>`;
+      requestAnimationFrame(() => requestAnimationFrame(() => panel.querySelector('#fm-done')?.classList.add('pop')));
+    });
+  }
+
+  async function save() {
+    const fresh = await ctx.store.listPeople(ctx.caseId);
+    const byName = (n) => fresh.find((p) => p.display_name.trim().toLowerCase() === n.trim().toLowerCase());
+    let person = (pick && ctx.store.findPersonByWikidata(ctx.caseId, pick.id)) || byName(typedName);
+    if (person) {
+      if (pick && !person.wikidata_id) await ctx.store.updatePerson(person.id, { wikidata_id: pick.id });
+    } else {
+      person = await ctx.store.createPerson({ case_id: ctx.caseId, kind: 'person', display_name: pick ? pick.label : typedName, wikidata_id: pick ? pick.id : null });
+    }
+    if (pick) { try { await fillFromWikidata(ctx.store, ctx.caseId, person.id, pick.id); } catch { /* profile fill is a bonus, not required to save the link */ } }
+    const aId = kindChoice.lockedIsB ? person.id : withId;
+    const bId = kindChoice.lockedIsB ? withId : person.id;
+    const rels = await ctx.store.listRelationships(ctx.caseId);
+    let rel = rels.find((r) => r.kind === kindChoice.value && ((r.a_id === aId && r.b_id === bId) || (r.a_id === bId && r.b_id === aId)));
+    if (!rel) {
+      const relId = await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: aId, b_id: bId, kind: kindChoice.value, confidence: 50, confirmed: 0 });
+      rel = { id: relId };
+    }
+    const whenRaw = (stepBody.querySelector('#fm-when')?.value || '').trim();
+    const d = whenRaw ? parseDate(whenRaw) : null;
+    if (d) await ctx.store.createEvent({ case_id: ctx.caseId, relationship_id: rel.id, title: 'Met', kind: 'met', date: d.date, date_precision: d.precision, date_year_min: d.year, date_year_max: d.year });
+    return person;
+  }
+
+  function goTo(n) {
+    step = n;
+    paintDots();
+    if (n === 0) {
+      backBtn.style.visibility = 'hidden';
+      nextBtn.style.display = ''; nextBtn.disabled = false; nextBtn.textContent = 'Next';
+      nextBtn.onclick = () => {
+        typedName = stepBody.querySelector('#fm-name').value.trim();
+        if (!lockedPersonId) withId = stepBody.querySelector('#fm-with')?.value || withId;
+        if (!typedName) { inlineNote(nextBtn, 'Type their name first.'); return; }
+        if (!withId) { inlineNote(nextBtn, 'Pick who they connect to.'); return; }
+        clearInlineNote(nextBtn);
+        goTo(1);
+      };
+      renderWho();
+    } else if (n === 1) {
+      backBtn.style.visibility = 'visible';
+      nextBtn.style.display = 'none'; // step 2's own buttons carry the action
+      renderHow();
+    } else if (n === 2) {
+      backBtn.style.visibility = 'visible';
+      nextBtn.style.display = ''; nextBtn.disabled = false; nextBtn.textContent = 'Add';
+      nextBtn.onclick = async () => {
+        clearInlineNote(nextBtn);
+        nextBtn.disabled = true; nextBtn.textContent = 'Saving…';
+        const savedPerson = await save();
+        if (onSaved) { onSaved(savedPerson); return; }
+        goTo(3);
+        setTimeout(() => { ctx.closeDrawer(); ctx.rerender(); }, 900);
+      };
+      renderWhen();
+    } else {
+      dots.forEach((d) => d.classList.add('done'));
+      backBtn.style.visibility = 'hidden';
+      nextBtn.style.display = 'none';
+      renderDone();
+    }
+  }
+
+  backBtn.addEventListener('click', () => { if (step > 0) goTo(step - 1); });
+  goTo(0);
+}
+
+/**
  * The fast path for "someone new, and how they connect, in one go" (her
  * ask, 2026-09-26: "that takes too long make it faster" — the old way was
  * search-and-add, then a separate drawer to link two people, then Their
@@ -1233,14 +1492,35 @@ export async function renderQuickRelationship(body, ctx, people, opts = {}) {
 }
 
 function renderAddRel(body, ctx, people) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const byId = new Map(people.map((p) => [p.id, p]));
   const opts = people.map((p) => `<option value="${p.id}">${p.display_name}</option>`).join('');
+  const DIRECTIONAL = { parent: 'is the parent of', godparent: 'is the godparent of' };
   body.innerHTML = `
     <h3 class="title" style="margin-bottom:16px">Add a relationship</h3>
     <div class="field"><label>A</label><select id="r-a">${opts}</select></div>
     <div class="field"><label>Kind</label><select id="r-kind">${['parent', 'spouse', 'partner', 'sibling', 'godparent', 'business', 'associate', 'household'].map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
-    <div class="field"><label>B ${'(for "parent" or "godparent", A is the parent or godparent of B)'}</label><select id="r-b">${opts}</select></div>
+    <div class="field"><label>B</label><select id="r-b">${opts}</select></div>
+    <p class="npf-step-desc" id="r-hint" style="margin-top:-8px"></p>
     <button class="btn btn-primary" id="r-save">Add</button>
   `;
+  // her real Manuel Dad case — added backwards through this exact form,
+  // relying on a static label's "A is the parent of B" wording rather than
+  // seeing it spelled out with the actual two names picked. This line
+  // updates live so a directional kind like "parent" can't be misread the
+  // way "Their parent"/"Their child" turned out to be (2026-09-28).
+  const paintHint = () => {
+    const a = byId.get(body.querySelector('#r-a').value);
+    const b = byId.get(body.querySelector('#r-b').value);
+    const kind = body.querySelector('#r-kind').value;
+    const hint = body.querySelector('#r-hint');
+    if (!a || !b) { hint.textContent = ''; return; }
+    hint.innerHTML = DIRECTIONAL[kind]
+      ? `→ <b>${esc(a.display_name)}</b> ${DIRECTIONAL[kind]} <b>${esc(b.display_name)}</b>`
+      : `→ <b>${esc(a.display_name)}</b> and <b>${esc(b.display_name)}</b> — ${esc(kind)}`;
+  };
+  body.querySelectorAll('#r-a, #r-kind, #r-b').forEach((el) => el.addEventListener('change', paintHint));
+  paintHint();
   body.querySelector('#r-save').addEventListener('click', async () => {
     const a = body.querySelector('#r-a').value, b = body.querySelector('#r-b').value;
     const kind = body.querySelector('#r-kind').value;
