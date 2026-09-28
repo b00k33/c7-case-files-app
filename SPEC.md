@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 91. A Wikidata pull animates as a live feed, not a flickering status line (v173, 2026-09-28)
+
+Her ask, after seeing her own real Barack Obama profile mid-pull: "reminder to download info from wiki - make an animated workflow for it." `insertFamily`'s `onProgress` callback (lookup.js) already fired once per relative — `"3 of 11 — Michelle Obama"` — but every call site just dumped that string into a single element's `textContent`, so a big pull read as a counter flickering in place, not a build happening.
+
+Mocked three real, working concepts before building anything — a live feed, an import tray, a family constellation — and asked her to pick. She chose "A — Live feed." Caught, before showing her, a JS syntax bug in both mock files: `\\'` inside a single-quoted string is invalid (`\\` is a literal backslash; the bare `'` right after it closes the string early), silently breaking the entire `<script>` block with no visible symptom besides a console SyntaxError. Fixed by switching the three affected lines to double-quoted strings. No Node or Python in this environment for a plain syntax check, so verified by serving the corrected mock from the C7 dev server itself and clicking through all three concepts before republishing — this same bug pattern likely also broke the first mock she picked "guided stepper" from (§89), though the shipped v171/v172 features were separately verified live and are unaffected by it.
+
+Built one small reusable piece, `renderWikiFeed(container)` (ui.js): replaces a container with a scrolling list, one checked-off, animated-in line per `onProgress` call, ending in a green summary line. Wired into the two places a pull already had room for a real panel: the profile's own "Use this ▸" Wikidata-match flow (subject.js — the exact flow her screenshot came from) and the new-person stepper's mass-add (new-person-flow.js, §90). Left the two small "+ family" pill controls (family.js's face-card, relations.js's chip row) as plain text — no room for a feed panel in a 10px pill.
+
+Verified live pulling the real Marie Curie record onto a throwaway test person: watched "Linked to Marie Curie on Wikidata" → "Reading the family…" → all 8 relatives stream in one by one with their own checkmark animation, ending in "8 pulled, 8 links drawn." No console errors through the flow. Test case and its 9 pulled people removed afterward.
+
 ## 90. Stepper leads with a Wikidata mass-pull, manual add tucked behind a disclosure (v172, 2026-09-28)
 
 A synth22 batch of two: "give option to search wiki mass add instead of manually adding one by one," then "make the app prioritise mass adding and hide manual adds — that is expandable." Both point at the same place — §89's stepper, steps 1 and 2 — so they became one change.

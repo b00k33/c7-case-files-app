@@ -105,6 +105,38 @@ export function clearInlineNote(anchorEl) {
 }
 
 /**
+ * Live feed for a Wikidata pull (her ask, 2026-09-28: "download info from
+ * wiki - make an animated workflow for it" — insertFamily's onProgress
+ * used to just swap one line of status text, e.g. "3 of 11 — Michelle
+ * Obama"; this turns each of those calls into its own animated line
+ * instead, so the pull reads as a running log rather than a counter).
+ * Mocked as 3 concepts and picked by her (2026-09-28); this is "A — Live
+ * feed". Replaces container's content; returns {addLine, finish}.
+ */
+export function renderWikiFeed(container) {
+  container.innerHTML = '<div class="wf-feed"></div>';
+  const feed = container.querySelector('.wf-feed');
+  function addLine(text) {
+    const line = document.createElement('div');
+    line.className = 'wf-line';
+    line.innerHTML = `<span class="wf-chk">✓</span><span class="wf-v"></span>`;
+    line.querySelector('.wf-v').textContent = text;
+    feed.appendChild(line);
+    feed.scrollTop = feed.scrollHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => line.classList.add('in')));
+  }
+  function finish(summaryText) {
+    const summary = document.createElement('div');
+    summary.className = 'wf-summary';
+    summary.textContent = summaryText;
+    feed.appendChild(summary);
+    feed.scrollTop = feed.scrollHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => summary.classList.add('in')));
+  }
+  return { addLine, finish };
+}
+
+/**
  * Someone with nowhere else yet, picked instead of typed — the "type it
  * in" replacement everywhere a case wants to add a person (her ask,
  * 2026-09-21: "remove people from the case files and just use the people

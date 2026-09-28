@@ -417,7 +417,45 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — the stepper's Relationships/Family steps lead with
+**2026-09-28, latest — a Wikidata pull now streams as an animated live
+feed (one checked-off line per relative, ending in a green summary) instead
+of swapping a single line of status text (v173, SPEC §91).** Her ask,
+after seeing her own real Barack Obama profile mid-pull: "reminder to
+download info from wiki - make an animated workflow for it" — `insertFamily`'s
+onProgress callback (lookup.js) was already firing once per relative
+("3 of 11 — Michelle Obama"); every call site just threw that string at a
+single `<div>`/button's textContent, so it read as a flickering counter,
+not a build log. Mocked three concepts (live feed, import tray, family
+constellation — all three genuinely animated and interactive, not stills)
+and asked her to pick; she chose "A — Live feed." **Caught before showing
+her: both mock files had a JS syntax error** — `\\'` (backslash-escaped
+apostrophe) inside a single-quoted string is invalid; `\\` is a literal
+backslash, so the following bare `'` closes the string early and corrupts
+the rest of the `<script>` block, silently killing ALL its JS with zero
+visible symptom beyond a console SyntaxError. Found via `grep` for the
+pattern, fixed by switching the three affected strings to double quotes.
+Verified the fix by serving the corrected mock from the C7 dev server
+itself (no local Node/Python in this environment for a plain syntax
+check) and clicking through all three concepts before republishing the
+artifact — this bug likely also broke the FIRST mock she picked from for
+v171 (same pattern, same author, never independently caught), though the
+shipped v171/v172 features were separately verified working live and are
+unaffected. Built as one small reusable piece — `renderWikiFeed(container)`
+(ui.js) — wired into the two places the pull already had room for a real
+panel: the profile's own "Use this ▸" Wikidata match flow (subject.js,
+the exact flow her screenshot came from) and the new-person stepper's
+mass-add (new-person-flow.js, v172). Left the two tiny "+ family" pill
+buttons (family.js's face-card, relations.js's chip row) as plain text —
+no room for a feed panel in a 10px pill without it looking broken.
+Verified live pulling the real Marie Curie record onto a throwaway test
+person: watched "Linked to Marie Curie on Wikidata" → "Reading the
+family…" → all 8 relatives (Skłodowski parents, Bronia Dłuska, Irène
+Joliot-Curie, Ève Curie, Pierre Curie…) stream in one by one with their
+own checkmark animation, ending in "8 pulled, 8 links drawn." No console
+errors through the whole flow. Test case and all 9 pulled people removed
+after.
+
+**2026-09-28, earlier — the stepper's Relationships/Family steps lead with
 a Wikidata mass-pull; manual one-by-one add moved behind a collapsed
 disclosure (v172, SPEC §90).** Her synth22 batch, two requests taken
 together: "give option to search wiki mass add instead of manually

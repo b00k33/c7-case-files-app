@@ -8,7 +8,7 @@
 // sessionStorage flag armed only by the two cold-start creation points,
 // read once and cleared here, so it can only ever fire once per person.
 import { renderQuickRelationship } from './pages/relations.js';
-import { inlineNote, clearInlineNote } from './ui.js';
+import { inlineNote, clearInlineNote, renderWikiFeed } from './ui.js';
 import { parseDate } from './profile-parse.js';
 import { searchPeople, insertFamily } from './lookup.js';
 
@@ -152,12 +152,20 @@ function renderStepper(body, ctx, person, redraw) {
       container.querySelector('#npf-pull').addEventListener('click', async () => {
         const btn = container.querySelector('#npf-pull');
         btn.disabled = true;
+        btn.textContent = '🔗 Pulling…';
+        const feedWrap = document.createElement('div');
+        feedWrap.className = 'inline-note';
+        feedWrap.style.cssText = 'border-left-color:var(--brass);margin-top:8px';
+        container.appendChild(feedWrap);
+        const feed = renderWikiFeed(feedWrap);
         try {
-          const r = await insertFamily(store, ctx.caseId, person.id, person.wikidata_id, (msg) => { btn.textContent = msg; });
+          const r = await insertFamily(store, ctx.caseId, person.id, person.wikidata_id, (msg) => feed.addLine(msg));
           massState.pulled = true;
           changed = true;
-          container.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ ${r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn.` : 'Wikidata had no relatives on file for them.'}</div>`;
+          feed.finish(r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn.` : 'Wikidata had no relatives on file for them.');
+          btn.remove();
         } catch (e) {
+          feedWrap.remove();
           btn.disabled = false;
           btn.textContent = `Failed — ${e.message}. Tap to retry.`;
         }
@@ -192,14 +200,20 @@ function renderStepper(body, ctx, person, redraw) {
         </div>`).join('');
       resultsSlot.querySelectorAll('[data-pick]').forEach((row) => row.addEventListener('click', async () => {
         const m = matches[+row.dataset.pick];
-        resultsSlot.innerHTML = `<div class="inline-note" style="border-left-color:var(--brass)" id="npf-wk-progress">Pulling family for ${esc(m.label)}…</div>`;
+        const feedWrap = document.createElement('div');
+        feedWrap.className = 'inline-note';
+        feedWrap.style.borderLeftColor = 'var(--brass)';
+        resultsSlot.innerHTML = '';
+        resultsSlot.appendChild(feedWrap);
+        const feed = renderWikiFeed(feedWrap);
+        feed.addLine(`Linked to ${m.label} on Wikidata`);
         await store.updatePerson(person.id, { wikidata_id: m.id });
         person.wikidata_id = m.id;
         try {
-          const r = await insertFamily(store, ctx.caseId, person.id, m.id, (msg) => { const p = resultsSlot.querySelector('#npf-wk-progress'); if (p) p.textContent = msg; });
+          const r = await insertFamily(store, ctx.caseId, person.id, m.id, (msg) => feed.addLine(msg));
           massState.pulled = true;
           changed = true;
-          container.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">✓ ${r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn.` : 'Wikidata had no relatives on file for them.'}</div>`;
+          feed.finish(r.total ? `${r.created.length + r.linked.length} pulled, ${r.relationships} link${r.relationships === 1 ? '' : 's'} drawn.` : 'Wikidata had no relatives on file for them.');
         } catch (e) {
           container.innerHTML = `<div class="inline-note">Linked to Wikidata; the family pull failed (${esc(e.message)}) — try again from the next step, or add by hand below.</div>`;
         }

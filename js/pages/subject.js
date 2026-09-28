@@ -12,7 +12,7 @@ import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, renderWikiFeed } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree } from './relations.js';
@@ -1025,10 +1025,18 @@ export async function render(root, ctx, personId, tab = 'profile') {
           factsMsg = `Facts — lookup failed (${e.message}).`;
           factsOk = false;
         }
-        if (prog.isConnected) prog.textContent = 'Reading the family…';
+        let feed = null; let feedWrap = null;
+        if (resultSlot.isConnected) {
+          feedWrap = document.createElement('div');
+          feedWrap.className = 'inline-note';
+          feedWrap.style.borderLeftColor = 'var(--brass)';
+          resultSlot.innerHTML = '';
+          resultSlot.appendChild(feedWrap);
+          feed = renderWikiFeed(feedWrap);
+        }
         let familyMsg; let familyOk = true;
         try {
-          const r = await insertFamily(store, ctx.caseId, person.id, m.id, (msg) => { if (prog.isConnected) prog.textContent = `Inserting family… ${msg}`; });
+          const r = await insertFamily(store, ctx.caseId, person.id, m.id, (msg) => feed?.addLine(msg));
           const bits = [
             r.created.length ? `${r.created.length} new ${r.created.length === 1 ? 'person' : 'people'} with their profiles` : null,
             r.linked.length ? `${r.linked.length} already here (${r.linked.join(', ')})` : null,
@@ -1037,9 +1045,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
             r.failed.length ? `couldn't read ${r.failed.join(', ')}` : null,
           ].filter(Boolean).join(' · ');
           familyMsg = r.total ? `Family — ${bits}.` : 'Family — Wikidata lists no relatives on that record.';
+          feed?.finish(r.total ? bits : 'Wikidata lists no relatives on that record.');
         } catch (e) {
           familyMsg = `Family — insert failed (${e.message}).`;
           familyOk = false;
+          if (feedWrap?.isConnected) feedWrap.textContent = familyMsg;
         }
         sessionStorage.setItem('c7-pi-result', `${factsMsg} ${familyMsg} Everything cites Wikidata; relationships arrive unconfirmed.`);
         if (!factsOk || !familyOk) sessionStorage.setItem('c7-pi-result-ok', '0');

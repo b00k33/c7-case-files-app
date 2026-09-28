@@ -1463,3 +1463,31 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .npf-panel, .npf-done-circle, .npf-dots span { transition: none; }
 }
+
+/* ---- Wikidata pull, live feed (2026-09-28, v173) -----------------------
+   insertFamily's onProgress used to just swap one line of status text
+   ("3 of 11 — Michelle Obama"). Her ask: "reminder to download info from
+   wiki - make an animated workflow for it." Picked from three animated
+   mocks ("A, live feed"). js/ui.js renderWikiFeed(). */
+.wf-feed { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+.wf-line {
+  display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: 12.5px;
+  opacity: 0; transform: translateY(6px); transition: opacity .28s ease, transform .28s ease;
+}
+.wf-line.in { opacity: 1; transform: translateY(0); }
+.wf-chk {
+  width: 15px; height: 15px; border-radius: 50%; background: var(--green); color: #0f1a10; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700;
+  transform: scale(0); transition: transform .3s cubic-bezier(.34, 1.56, .64, 1);
+}
+.wf-line.in .wf-chk { transform: scale(1); }
+.wf-v { color: var(--text-2); }
+.wf-summary {
+  margin-top: 6px; padding: 7px 9px; border-radius: var(--r-sm); background: rgba(111, 170, 111, .14);
+  border-left: 2px solid var(--green); color: var(--green); font-size: 12px; font-weight: 600;
+  opacity: 0; transform: translateY(6px); transition: opacity .3s ease, transform .3s ease;
+}
+.wf-summary.in { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .wf-line, .wf-chk, .wf-summary { transition: none; }
+}
