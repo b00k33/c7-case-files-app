@@ -1495,6 +1495,12 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 102. The rhythm strip's tones stop reading as pastel (v184, 2026-09-28)
+
+Her call, on a real screenshot of Manuel's own life line: "the pastel makes it hard to read." The rhythm strip (§32/v114 — one tick per calendar year, toned like its spine segment, meant as a glance at the whole shape of a life before scrolling into any one mark) renders its ticks at `opacity: .55` by design, a deliberately quiet ambient strip that shouldn't visually compete with the cards underneath it. At that opacity over the app's dark ground, though, all five `pyTone()` tones — gold, teal, red, violet, and the neutral grey — wash toward the same muddy, hard-to-tell-apart colour, defeating the strip's actual job: reading the shape of the years at a glance depends on the tones staying visually distinct.
+
+One-rule fix in `app.css`: `.lm-rhythm-tick`'s base opacity raised from `.55` to `.92`, and `.lm-t-none` (a year with no personal-year data — no full birth date) kept deliberately the one fainter tick, moved from `.35` to `.5` rather than left behind at its old absolute value once the others brightened, which would have let it vanish into the now much brighter background of toned ticks instead of reading as "intentionally quieter." No layout, colour palette, or interaction change — same five tones, same hover-lift (`opacity: 1` + `scaleY(1.2)`), same click-to-jump-to-decade behaviour.
+
 ## 101. A parent or sibling stops getting a "Met" milestone (v183, 2026-09-28)
 
 Her real case, from a why-card screenshot of Manuel's own life line: "his brother was born in 2005, they didnt 'meet'." Both places that ask "when did this happen" after picking how someone connects — `renderAddFamilyMember`'s own step 3 and `renderQuickRelationship`'s single "When they met" field (still reachable through `new-person-flow.js`'s cold-start family step) — wrote whatever date she typed as a `title: 'Met', kind: 'met'` relationship milestone, unconditionally, for every kind the form offered. That's correct for spouse and partner, which do have a real first-meeting moment; it's simply wrong for parent and sibling, family you're born into rather than meet.

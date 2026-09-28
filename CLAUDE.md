@@ -417,7 +417,21 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a parent/sibling no longer gets a "Met" milestone
+**2026-09-28, latest — the rhythm strip's tones stop reading as pastel
+(v184).** On a real Manuel screenshot: "the pastel makes it hard to
+read." The rhythm strip's ticks (`renderLifeLine`, `lifemap.js`) render
+at `opacity: .55` by design (a quiet glance-strip, not meant to compete
+with the cards below) — but at that opacity, over the dark ground, gold/
+teal/red/violet all wash toward the same muddy grey instead of staying
+readable apart, which is the strip's whole job (a glance at the shape of
+a life before scrolling into any one mark). Raised the default to `.92`
+(near-full — the five tones actually separate now) and kept `.lm-t-none`
+(no personal-year data for that year) deliberately the one fainter tick,
+at `.5` instead of `.35`, rather than letting it vanish entirely once the
+others got brighter. One CSS rule, no visual redesign — same five tones,
+same layout, same hover lift.
+
+**2026-09-28, earlier — a parent/sibling no longer gets a "Met" milestone
 (v183).** Her real Manuel case, from a why-card screenshot: "his brother
 was born in 2005, they didnt 'meet'." Both `renderAddFamilyMember`'s
 "When" step and `renderQuickRelationship`'s "When they met" field (the
