@@ -417,7 +417,40 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — "+ add & link" becomes a progressive, animated
+**2026-09-28, latest — a "Family table" view: fix a backwards link in
+place, no wizard needed (v180).** Follow-up to v179, from a screenshot of
+Manuel's own tree still showing "Manuel Dad" under him: "allow me to edit
+Manuel's family tree through a family table." New view in the Relations
+tab's own segmented control (Tree / Zodiac map / Lifeline / **Family
+table**) — only shown once a person is focused, since it's anchored on
+one person the way the case-wide tree isn't. One row per direct family
+relationship (parent/sibling/spouse/partner/godparent), Person | a
+Relationship `<select>` using the exact same real-word options v179's
+wizard introduced (Parent/Child/Sibling/Spouse/Partner/Godparent/
+Godchild) | a Confirmed checkbox | Remove (`twoTapConfirm`). Changing the
+Relationship select is the actual fix: it recomputes `a_id`/`b_id` and
+writes straight through `upsertRelationship` — a backwards "child" link
+becomes a correct "parent" one in one click, in place, no remove-and-
+readd through the wizard v179 had to add as a workaround. A "link an
+existing person" row at the bottom covers connecting two people already
+in the case (with the same `relationshipExists` dedupe guard `renderAddRel`
+uses); adding someone brand-new to the case stays on "+ add & link" above
+it, since that flow can look them up on Wikidata and this table's job is
+fast editing of what's already there, not person creation. Verified live
+against Winston Churchill's real 11-relationship family: every row's
+direction word checked correct against known-good data, a real kind
+change (Diana: Child → Sibling → Child) round-tripped correctly, the
+dedupe guard refused a duplicate Spouse add with an inline note, and a
+full add-then-two-tap-remove cycle left the table clean — all on a fresh
+tab, after the long-lived one threw stray `SyntaxError`s from itself
+being mid-way through the same stuck-tab pattern noted below (module
+fetches piling up on a tab reused across many test sessions); a brand-new
+tab showed zero errors, first try. The separate "when I add someone it
+keeps changing Manuel's name" report from earlier the same day is still
+open — paused mid-investigation at her own "wait for next instruction,"
+not resolved by this change.
+
+**2026-09-28, earlier — "+ add & link" becomes a progressive, animated
 3-step flow with a real-sentence relationship picker (v179).** Straight
 follow-up to v178, from a screenshot: "Manuel Dad" had landed UNDER
 Manuel on the tree (his child) instead of above (his parent) — proof the

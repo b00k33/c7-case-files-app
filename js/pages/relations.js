@@ -14,7 +14,7 @@ const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 
-const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map' | 'lifeline'
+const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map' | 'lifeline' | 'table'
 const NUMBERS_KEY = 'c7-tree-numbers'; // '1' shows number · animal · sign under each face
 const FIT_KEY = 'c7-tree-fit';         // '0' turns "Fit" off (on by default: she wants the whole tree)
 const GRID_SORT_KEY = 'c7-grid-sort';  // 'name' (default) | 'animal' | 'trine' | 'sun' | 'element'
@@ -58,7 +58,7 @@ export async function render(root, ctx, focusId = null) {
   const focus = focusId && typeof focusId === 'string' ? focusId : null;
   const [allPeople, allRels] = await Promise.all([store.listPeople(ctx.caseId), store.listRelationships(ctx.caseId)]);
   const savedView = localStorage.getItem(VIEW_KEY);
-  const view = savedView === 'map' || savedView === 'lifeline' ? savedView : 'tree';
+  const view = savedView === 'map' || savedView === 'lifeline' || (savedView === 'table' && focus) ? savedView : 'tree';
 
   // Generation filter (her ask, 2026-09-03: "let me filter through
   // generations"): a range, from row A to row B of the whole case, that the
@@ -108,6 +108,7 @@ export async function render(root, ctx, focusId = null) {
             <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">Tree</button>
             <button class="${view === 'map' ? 'active' : ''}" data-view="map">Zodiac map</button>
             <button class="${view === 'lifeline' ? 'active' : ''}" data-view="lifeline" title="Every couple's own story — met, engaged, married, separated">Lifeline</button>
+            ${focus ? `<button class="${view === 'table' ? 'active' : ''}" data-view="table" title="This person's family, one row each — fix a wrong parent/child or add a link without the tree">Family table</button>` : ''}
           </div>
           ${roots.length ? `<span class="row" style="gap:6px;align-items:center" id="fam-filter" title="One person's line: them, their spouses, their descendants and the descendants' spouses">
             <span class="section-label">Family</span>
@@ -176,6 +177,8 @@ export async function render(root, ctx, focusId = null) {
     await renderZodiacMap(mapSlot, ctx, people, rels);
   } else if (view === 'lifeline') {
     await renderRelationshipsLifeline(mapSlot, ctx, people, rels);
+  } else if (view === 'table') {
+    await renderFamilyTable(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
   } else {
     await renderTree(mapSlot, ctx, people, rels, focus, () => render(root, ctx, focus));
     renderOthers(root.querySelector('#others-slot'), ctx, people, rels, focus);
@@ -605,6 +608,121 @@ function renderOthers(slot, ctx, people, rels, focus) {
     list.appendChild(row);
   }
   slot.appendChild(panel);
+}
+
+// ---------------------------------------------------------------- table --
+
+// The family table (her ask, 2026-09-28, from a screenshot of Manuel's own
+// tree — Manuel Dad still sitting as his child, unfixed: "allow me to edit
+// Manuel's family tree through a family table"). One row per direct family
+// link, sorted by name; the Relationship cell is the same real-word select
+// as the add-family wizard's "Already connected" list, so the exact bug
+// that put Manuel Dad in the wrong spot (a "parent"/"child" pair only
+// legible if you already know which side it means) is now a one-click fix
+// in place — no remove-and-readd through the wizard. Only meaningful
+// anchored on one person, so the tab only appears from a profile's own
+// Relations tab (focus set); the case-wide tree already has the picture for
+// everyone at once.
+const FAM_TABLE_WORDS = [
+  { value: 'parent', word: 'Parent', lockedIsB: true },
+  { value: 'parent', word: 'Child', lockedIsB: false },
+  { value: 'sibling', word: 'Sibling', lockedIsB: false },
+  { value: 'spouse', word: 'Spouse', lockedIsB: false },
+  { value: 'partner', word: 'Partner', lockedIsB: false },
+  { value: 'godparent', word: 'Godparent', lockedIsB: true },
+  { value: 'godparent', word: 'Godchild', lockedIsB: false },
+];
+const FAM_TABLE_KINDS = new Set(FAM_TABLE_WORDS.map((k) => k.value));
+
+// which word describes the OTHER person, from the focus person's side
+function famTableRowWord(rel, focusId) {
+  const lockedIsA = rel.a_id === focusId;
+  if (rel.kind === 'parent') return lockedIsA ? 'Child' : 'Parent';
+  if (rel.kind === 'godparent') return lockedIsA ? 'Godchild' : 'Godparent';
+  return rel.kind[0].toUpperCase() + rel.kind.slice(1);
+}
+
+async function renderFamilyTable(slot, ctx, people, rels, focus, rerender) {
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const focusPerson = focus ? byId.get(focus) : null;
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  if (!focusPerson) {
+    panel.appendChild(emptyState({ missing: 'Open one person’s Relations tab to edit their family table.', why: 'The table works on one person at a time — open anyone from People, then Relations.' }));
+    slot.appendChild(panel);
+    return;
+  }
+  const wordToKind = (w) => FAM_TABLE_WORDS.find((k) => k.word === w);
+  const rows = rels
+    .filter((r) => FAM_TABLE_KINDS.has(r.kind) && (r.a_id === focus || r.b_id === focus))
+    .map((r) => {
+      const other = byId.get(r.a_id === focus ? r.b_id : r.a_id);
+      return other ? { rel: r, other, word: famTableRowWord(r, focus) } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.other.display_name.localeCompare(b.other.display_name));
+
+  panel.innerHTML = `
+    <div class="panel-title">${esc(focusPerson.display_name)}’s family table</div>
+    <table class="dense" id="fam-table" style="margin-top:8px">
+      <thead><tr><th>Person</th><th>Relationship</th><th style="text-align:center">Confirmed</th><th></th></tr></thead>
+      <tbody>
+        ${rows.length ? rows.map((r, i) => `
+          <tr>
+            <td><span data-open="${r.other.id}" style="cursor:pointer">${esc(r.other.display_name)}</span></td>
+            <td><select data-kind="${i}">${FAM_TABLE_WORDS.map((k) => `<option value="${esc(k.word)}" ${k.word === r.word ? 'selected' : ''}>${esc(k.word)}</option>`).join('')}</select></td>
+            <td style="text-align:center"><input type="checkbox" data-confirm="${i}" ${r.rel.confirmed ? 'checked' : ''}></td>
+            <td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">Remove</button></td>
+          </tr>`).join('') : `<tr><td colspan="4" class="dim" style="padding:12px 8px;cursor:default">No family links yet — add one below.</td></tr>`}
+      </tbody>
+    </table>
+    <div class="row wrap" style="gap:8px;align-items:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--ink-3)">
+      <div class="field" style="flex:1 1 160px;margin:0"><label>Link an existing person</label>
+        <select id="ft-person"><option value="">Pick someone…</option>${people.filter((p) => p.id !== focus).map((p) => `<option value="${p.id}">${esc(p.display_name)}</option>`).join('')}</select>
+      </div>
+      <div class="field" style="flex:0 1 130px;margin:0"><label>as</label>
+        <select id="ft-kind">${FAM_TABLE_WORDS.map((k) => `<option value="${esc(k.word)}">${esc(k.word)}</option>`).join('')}</select>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="ft-add">Add</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin:8px 0 0">Adding someone new to the case? Use "+ add &amp; link" above — it can look them up on Wikipedia too.</p>
+  `;
+  slot.appendChild(panel);
+
+  panel.querySelectorAll('[data-open]').forEach((el) => el.addEventListener('click', () => ctx.navigate(`#/subject/${el.dataset.open}`)));
+  panel.querySelectorAll('[data-kind]').forEach((sel) => sel.addEventListener('change', async () => {
+    const r = rows[+sel.dataset.kind];
+    const k = wordToKind(sel.value);
+    const aId = k.lockedIsB ? r.other.id : focus;
+    const bId = k.lockedIsB ? focus : r.other.id;
+    await ctx.store.upsertRelationship({ id: r.rel.id, a_id: aId, b_id: bId, kind: k.value });
+    rerender();
+  }));
+  panel.querySelectorAll('[data-confirm]').forEach((cb) => cb.addEventListener('change', () => {
+    const r = rows[+cb.dataset.confirm];
+    ctx.store.upsertRelationship({ id: r.rel.id, confirmed: cb.checked ? 1 : 0 });
+  }));
+  panel.querySelectorAll('[data-rm]').forEach((btn) => twoTapConfirm(btn, {
+    confirmLabel: 'Remove — tap again',
+    onConfirm: async () => {
+      const r = rows[+btn.dataset.rm];
+      await ctx.store.deleteRelationship(r.rel.id);
+      rerender();
+    },
+  }));
+  panel.querySelector('#ft-add').addEventListener('click', async () => {
+    const addBtn = panel.querySelector('#ft-add');
+    const otherId = panel.querySelector('#ft-person').value;
+    if (!otherId) { inlineNote(addBtn, 'Pick who to link.'); return; }
+    const k = wordToKind(panel.querySelector('#ft-kind').value);
+    const aId = k.lockedIsB ? otherId : focus;
+    const bId = k.lockedIsB ? focus : otherId;
+    if (ctx.store.relationshipExists(ctx.caseId, aId, bId, k.value)) { inlineNote(addBtn, 'That relationship is already recorded.'); return; }
+    clearInlineNote(addBtn);
+    await ctx.store.upsertRelationship({ case_id: ctx.caseId, a_id: aId, b_id: bId, kind: k.value, confidence: 50, confirmed: 0 });
+    rerender();
+  });
 }
 
 // -------------------------------------------------------------- lifeline --
