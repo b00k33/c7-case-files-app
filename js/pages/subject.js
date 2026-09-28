@@ -17,6 +17,7 @@ import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree } from './relations.js';
 import { subjectOf } from './cases.js';
+import { isPersonKind } from './dashboard.js';
 import { saveStyleFiles } from './fashion.js';
 import { loadWidgetPrefs, renderArrangeDrawer } from '../profile-widgets.js';
 import { maybeStartNewPersonFlow } from '../new-person-flow.js';
@@ -264,7 +265,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // Cases grid without touching it — the only way back is from here,
   // since a hidden case has no tile of its own to undo it from. Only the
   // case's own subject gets the button, not a relative sharing the case.
-  const movedToPeople = !!(kase && kase.hidden && kase.kind === 'person' && subjectOf(kase, casePeople)?.id === person.id);
+  const movedToPeople = !!(kase && kase.hidden && isPersonKind(kase.kind) && subjectOf(kase, casePeople)?.id === person.id);
   // Commercial tab (her ask, 2026-09-15): only for people with a real
   // commercial footprint — lives in "⋯" already (2026-09-26 trim), and
   // drops out of there too when it doesn't apply, so the rare miss is

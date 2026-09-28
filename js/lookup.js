@@ -652,7 +652,10 @@ export async function draftFromLookup(store, caseId, personId, facts) {
     await store.createAcceptedClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'display_name', value: facts.label, origin: 'lookup', rationale: cite('label') });
     // a person-case named after them follows, so the card and the profile agree
     const kase = await store.getCase(caseId);
-    if (kase && kase.kind === 'person' && kase.name.trim().toLowerCase() === current.display_name.trim().toLowerCase()) await store.updateCase(caseId, { name: facts.label });
+    // mirrors dashboard.js's isPersonKind (not imported — that would cycle
+    // back through new-person-flow.js, which already imports from here)
+    const kaseIsPersonKind = kase && !['family', 'event', 'series'].includes(kase.kind);
+    if (kaseIsPersonKind && kase.name.trim().toLowerCase() === current.display_name.trim().toLowerCase()) await store.updateCase(caseId, { name: facts.label });
     renamed = facts.label;
   }
 

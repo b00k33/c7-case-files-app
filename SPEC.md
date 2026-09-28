@@ -1495,6 +1495,22 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 92. Legacy-kind cases (predating person/family/event/series) become eligible for "Move to People" (v174, 2026-09-28)
+
+Her synth22, item 2, with proof: "why cant dolly james sexton garry grinberg etc be considered as people and moved to people category," followed by a screenshot of Dolly Parton's real ⋯ menu — all three "Make it a family/event/series case" options, but no "Move to People."
+
+Root cause: `case_file.kind` still `DEFAULT 'research'` (schema.sql; `store.js`'s `createCase` falls back to it too) — the original kind vocabulary from before the person/family/event/series system existed (2026-09-13, §13u). Nothing ever migrated old rows, so a case created before then can still hold `'research'` today. `otherKinds()` (cases.js) already had a fallback treating any unrecognized kind as if it were `'person'` for deciding which "Make it a ___" buttons to show — exactly why Dolly Parton's menu looked person-shaped everywhere except the one strict `kind === 'person'` check gating "Move to People" itself.
+
+Ran two research agents in parallel (the synth22 protocol: collect every ask, then synthesize one plan before building) — one mapped every place in the codebase doing that strict check, the other mapped the separate "maximum Wikidata extraction" ask (item 1 of the same batch, still being scoped, not built yet).
+
+Added `isPersonKind(kind)` (dashboard.js) — true for anything that isn't literally `family`/`event`/`series` — and widened 5 of 9 strict checks found: the "Move to People" button, its title-page reversal link ("Move back to Cases," subject.js — moved together, since a legacy case moved to People with a still-strict reversal check would have no way back), the review-chip routing (cases.js), and the search-result dedup (main.js). Left 2 checks untouched — they read the *new*-case-creation dropdown's chosen kind, not an existing case's, irrelevant to old data.
+
+The remaining 2 (the tile's zodiac/life-path tokens, and the bulk "Move all N to People" button) needed an added person-count guard, not just the kind check — a real multi-person family case sitting under the same stale `'research'` kind shouldn't suddenly render one person's tokens, or get swept into a bulk move with zero per-case review. **Caught a real regression during testing:** an early version of the guard applied the count restriction to every person-shaped case, including genuine `kind:'person'` ones, and started hiding tokens and shrinking the bulk count for her real Winston Churchill and Amber Heard cases (both hold more than one person — family pulled into the same case). Fixed by keeping literal `kind === 'person'` completely unconditional, exactly as it always was, and only applying the person-count guard to the legacy/unrecognized kinds.
+
+Also hit the SPA hash-navigation trap a second time: navigating to a different `#/route` on the same origin never re-fetches or re-executes any JS, so the first verification pass was silently testing yesterday's code the whole time regardless of clearing the service worker cache — only a genuine full-document reload (`?fresh=…`) picks up an edited file.
+
+Verified by simulating a legacy case directly — `store.updateCase(id, {kind:'research'})` via the console, since the app itself has no path left that creates one — confirmed "Move to People" appeared, clicked it, confirmed the case left the Cases grid while the person still showed under People (global search still finds them), confirmed "Move back to Cases" appeared on their profile and genuinely restored the case tile on click. Test case removed after.
+
 ## 91. A Wikidata pull animates as a live feed, not a flickering status line (v173, 2026-09-28)
 
 Her ask, after seeing her own real Barack Obama profile mid-pull: "reminder to download info from wiki - make an animated workflow for it." `insertFamily`'s `onProgress` callback (lookup.js) already fired once per relative — `"3 of 11 — Michelle Obama"` — but every call site just dumped that string into a single element's `textContent`, so a big pull read as a counter flickering in place, not a build happening.

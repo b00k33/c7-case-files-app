@@ -28,6 +28,17 @@ export const CASE_KINDS = [
 ];
 export const CASE_KIND_LABEL = { person: 'person', family: 'family', event: 'event', series: 'series', research: 'research', history: 'history', fun: 'fun' };
 
+// "person-shaped," for anything that isn't deliberately about more-than-one
+// (found live, 2026-09-28 — her real "Dolly Parton" case had no "Move to
+// People" option): schema.sql's case_file.kind still DEFAULTS to 'research'
+// (store.js's createCase falls back to it too), a leftover from before this
+// four-kind system existed (2026-09-13) — nothing ever migrated old rows, so
+// a case created before then can still carry 'research' today. Family, event
+// and series are the only kinds deliberately NOT about a single person;
+// everything else (the literal 'person', or any legacy/unrecognized value)
+// counts as person-shaped.
+export const isPersonKind = (kind) => !['family', 'event', 'series'].includes(kind);
+
 // creating a person-case also creates the person, so their file (and Look
 // up) exists immediately — no empty case, no extra step. An event-case and a
 // series-case each start on their own overview instead — no auto-created

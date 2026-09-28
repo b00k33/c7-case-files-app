@@ -3,6 +3,7 @@ import * as store from './store.js';
 import * as sync from './sync.js';
 import { seedExampleCase } from './store.js';
 import { inlineNote, clearInlineNote } from './ui.js';
+import { isPersonKind } from './pages/dashboard.js';
 
 const ROUTES = {
   evidence: () => import('./pages/evidence.js'),
@@ -175,7 +176,7 @@ async function runSearch() {
   // the person is the unit (her pick): a person-case whose person is already
   // a hit would only be the same row twice — the person row opens the same place
   const personCaseIds = new Set(hits.filter((h) => h.type === 'person').map((h) => h.case_id));
-  hits = hits.filter((h) => !(h.type === 'case' && h.case_kind === 'person' && personCaseIds.has(h.case_id)));
+  hits = hits.filter((h) => !(h.type === 'case' && isPersonKind(h.case_kind) && personCaseIds.has(h.case_id)));
   gsResults.innerHTML = '';
   if (!hits.length) {
     gsResults.innerHTML = `<div class="empty-state" style="padding:12px"><p class="empty-missing" style="margin:0">No one matching “${escapeHtml(q)}”.</p><p class="empty-why" style="margin:4px 0 0">Names, birth names, notes, evidence titles and quotes, in every case.</p></div>`;

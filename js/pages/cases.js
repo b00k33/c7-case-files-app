@@ -13,7 +13,7 @@ import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote, duplicateNa
 import { autoCaseName } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
-import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
+import { CASE_KINDS, createCaseOfKind, isPersonKind } from './dashboard.js';
 import { armNewPersonFlow } from '../new-person-flow.js';
 import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks, fetchInstallments, addInstallments } from '../works.js';
@@ -76,7 +76,7 @@ export async function openCase(ctx, kase) {
 export async function openReview(ctx, kase, sum) {
   markOpened(kase.id);
   await ctx.setCaseId(kase.id);
-  const p = kase.kind === 'person' ? subjectOf(kase, sum ? sum.people : await ctx.store.listPeople(kase.id)) : null;
+  const p = isPersonKind(kase.kind) ? subjectOf(kase, sum ? sum.people : await ctx.store.listPeople(kase.id)) : null;
   ctx.navigate(p ? `#/subject/${p.id}/review` : '#/review');
 }
 
@@ -267,7 +267,7 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
         ${otherKinds(c.kind).map((k) => `<button class="btn btn-ghost btn-sm m-kind" data-kind="${k}">Make it ${KIND_LABEL[k]}</button>`).join('')}
         <button class="btn btn-ghost btn-sm m-fiction">${c.world ? 'Edit the world' : 'Mark as fiction'}</button>
         ${c.world ? '<button class="btn btn-ghost btn-sm m-real">Mark as real</button>' : ''}
-        ${c.kind === 'person' ? '<button class="btn btn-ghost btn-sm m-to-people" title="Keeps everything on her — Evidence, Questions, Board — just stops showing her as her own case; find her from People instead">Move to People</button>' : ''}
+        ${isPersonKind(c.kind) ? '<button class="btn btn-ghost btn-sm m-to-people" title="Keeps everything on her — Evidence, Questions, Board — just stops showing her as her own case; find her from People instead">Move to People</button>' : ''}
         ${dups.total ? `<button class="btn btn-ghost btn-sm m-dups" style="color:var(--brass)">Clean up duplicates · ${dups.total}</button>` : ''}
         <button class="btn btn-ghost btn-sm m-delete" style="color:var(--text-3)">Delete case</button>
       </div>
@@ -391,7 +391,13 @@ async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
   const row = document.createElement('div');
   row.className = 'tile';
   const subject = c.kind === 'event' || c.kind === 'series' ? null : subjectOf(c, sum.people);
-  const tokens = c.kind === 'person' && subject ? tokensHtml(subject, { compact: true }) : '';
+  // a real, explicit person-kind case keeps its original, count-independent
+  // behaviour; a legacy/unrecognized kind (schema's old 'research' default)
+  // only counts as person-shaped here when there's genuinely just the one
+  // person — a real multi-person family stuck on that old kind shouldn't
+  // show one person's own tokens as if the tile were about them alone
+  const tokensOk = c.kind === 'person' || (isPersonKind(c.kind) && sum.people.length <= 1);
+  const tokens = tokensOk && subject ? tokensHtml(subject, { compact: true }) : '';
   row.innerHTML = `
     <div class="pic"></div>
     <div class="main">
@@ -452,7 +458,13 @@ export async function render(root, ctx) {
   const lastOpened = (c) => opened[c.id] || Date.parse(c.updated_at) || 0;
   withSums.sort((a, b) => lastOpened(b.c) - lastOpened(a.c));
 
-  const personCases = cases.filter((c) => c.kind === 'person');
+  // an explicit person-kind case counts regardless of how many people ended
+  // up in it (original behaviour, untouched). The bulk button acts on every
+  // match with one click and no per-case review, unlike the single-case menu
+  // button above — so a legacy/unrecognized kind only counts here when the
+  // case genuinely has just the one person, not when it's really a
+  // multi-person family stuck on the schema's old default
+  const personCases = withSums.filter(({ c, sum }) => c.kind === 'person' || (isPersonKind(c.kind) && sum.people.length <= 1)).map(({ c }) => c);
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">

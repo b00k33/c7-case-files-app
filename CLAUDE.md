@@ -417,7 +417,58 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — a Wikidata pull now streams as an animated live
+**2026-09-28, latest — old, single-person cases (a legacy `kind` value
+predating the person/family/event/series system) can now use "Move to
+People" (v174, SPEC §92).** Her synth22, item 2: "why cant dolly james
+sexton garry grinberg etc be considered as people and moved to people
+category" — with a screenshot of Dolly Parton's real ⋯ menu proving it:
+all three "Make it a family/event/series case" options, but no "Move to
+People." Root cause, found in the actual schema, not guessed: `case_file
+.kind` still `DEFAULT 'research'` (schema.sql, `store.js`'s `createCase`
+falls back to it too) — the ORIGINAL kind vocabulary from before the
+person/family/event/series system existed (2026-09-13); nothing ever
+migrated old rows. `otherKinds()` (cases.js) already had a fallback
+treating any unrecognized kind AS IF it were 'person' for deciding which
+"Make it a ___" buttons to show — which is exactly why Dolly Parton's menu
+looked person-shaped everywhere except the one strict `kind === 'person'`
+check gating "Move to People" itself. Ran two research agents in
+parallel (synth22 protocol: collect, then synthesize one plan) — one
+mapped all 9 places in the codebase doing that strict check, one mapped
+the separate "maximum Wikidata extraction" ask (item 1, still being
+scoped with her, not yet built). Added `isPersonKind(kind)` (dashboard.js)
+— true for anything that isn't literally `family`/`event`/`series` — and
+widened 5 of the 9 checks: the "Move to People" button and its title-page
+reversal link ("Move back to Cases," subject.js — **had to move together,
+or a legacy case moved to People has no way back**), the review-chip
+routing, and the search-dedup. Left 2 checks untouched (they read the
+NEW-case-creation dropdown, not an existing case's kind — irrelevant to
+old data). The remaining 2 (the card's zodiac/life-path tokens, and the
+bulk "Move all N to People" button) needed an extra person-count guard,
+NOT just the kind check, since a real multi-person family case sitting
+under the same stale `'research'` kind should not suddenly render one
+person's tokens or get silently swept into a bulk move with zero
+per-case review — **caught a real regression here during testing**: an
+early version of the guard (`sum.people.length <= 1`) applied to EVERY
+person-shaped case, including genuine `kind:'person'` ones, and started
+hiding tokens / shrinking the bulk count for her actual Winston
+Churchill and Amber Heard cases (both hold more than one person). Fixed
+by keeping literal `kind === 'person'` unconditional (original behaviour,
+untouched) and only applying the count guard to the legacy/unrecognized
+kinds. Also hit, again, the SPA hash-navigation trap: `navigate()` to a
+different `#/route` on the same origin doesn't re-fetch or re-execute any
+JS — only a real full-document reload does, force or not — so the first
+round of "verification" was actually testing yesterday's code the whole
+time; had to reload the bare origin (`?fresh=…` to bust any cache) to
+actually pick up the fix. Verified by simulating a legacy case directly
+(`store.updateCase(id, {kind:'research'})` — this app has no way to
+create one honestly, since every current creation path sets an explicit
+kind): confirmed "Move to People" appeared, clicked it, confirmed the
+case left the Cases grid while the person still showed under People
+(global search), confirmed "Move back to Cases" appeared on their
+profile and actually restored the case tile on click. Test case removed
+after.
+
+**2026-09-28, earlier — a Wikidata pull now streams as an animated live
 feed (one checked-off line per relative, ending in a green summary) instead
 of swapping a single line of status text (v173, SPEC §91).** Her ask,
 after seeing her own real Barack Obama profile mid-pull: "reminder to
