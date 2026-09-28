@@ -1495,6 +1495,18 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 89. Guided animated "add a person" stepper (v171, 2026-09-28)
+
+Her ask: "when i add a person, make an animated workflow - i usually add their relationships, family tree and life events." Three animated concepts were mocked and shown to her before any code was written — a guided stepper drawer, an inline checklist card, corner nudge toasts, each a real working prototype with its own transitions, not stills — and she picked "A, guided stepper."
+
+**When it fires.** Once, automatically, only right after a person is created from a true cold start: People's "+ Person," Cases' "+ New," or either page's own Wikipedia-match create. All of these funnel through `dashboard.js`'s `createCaseOfKind` for the plain-name path, or call `armNewPersonFlow(person.id)` directly for the Wikidata path (`people.js`, `cases.js`) — a sessionStorage flag (`c7-new-person-flow`) that `subject.js`'s own `render()` checks once and clears, opening the drawer via `js/new-person-flow.js`'s `maybeStartNewPersonFlow`. It deliberately never fires from Relations' own "Add & link, in one step" quick-add (relations.js) or a family-kind case's own person creation — in both, she's already mid-relationship-building, so a wizard walking her through relationships first would be backwards, not helpful.
+
+**The three steps.** Relationships → Family tree → Life events, each with Back/Skip and a shared "Next"/"Finish" action, progress dots, and a done screen with a spring-pop checkmark. Steps 1 and 2 both embed `renderQuickRelationship` (relations.js) — the exact same fast form the Relations page's own "+" already uses (type a name, optional Wikidata lookup, pick a kind, an optional "when they met" date, one save) — extended with an opts object (`lockedPersonId`, `kinds`, `heading`, `subheading`, `onSaved`) so the drawer can lock "With" to the person whose page this is and hide that field, rather than making her re-pick someone she's already looking at. The original call site passes no opts and is unaffected.
+
+Family needed one more piece: the schema only ever stores "A is the parent of B," so adding this person's *parent* has to put the typed name on A while adding their *child* leaves the new person on A. The kind `<option>`s in the family step carry a `data-locked-is-b` flag read at save time, swapping which side the locked person lands on for "Their parent" vs "Their child" (sibling doesn't care about order). Step 3 is a small local copy of subject.js's own by-hand event fields (title, kind, date) — not imported, to avoid a two-way import between subject.js and the new module over one small array.
+
+**Verified live:** created a throwaway person, watched the drawer open on its own, added a spouse, added a parent by name (confirmed via a direct store read that the typed name became `a_id` and the new person `b_id` — the swap works), logged a dated life event, hit Finish, watched the checkmark pop, and confirmed the profile page behind the drawer redrew on its own — marital status, the life-line mark, and the family tree all present without a reload. Confirmed opening an ordinary existing profile (Johnny Depp) triggers nothing. Test data removed afterward.
+
 ## 88. Fashion on the profile's "⋯" tab menu (v170, 2026-09-28)
 
 Her ask, pointed at the same "⋯" more-tabs panel this session already worked on: "show fashion here." That panel lists the profile's quieter tabs — Board, Commercial, Review, Contradictions, Questions, Import (§the trim, 2026-09-26) — all case-level pages mounted inline under the person's header via `TAB_MODULES`.

@@ -1,6 +1,7 @@
 import { barRow, emptyState } from '../indicators.js';
 import { inlineNameForm, twoTapConfirm } from '../ui.js';
 import { autoCaseName, looksHurried } from '../names.js';
+import { armNewPersonFlow } from '../new-person-flow.js';
 
 const EVIDENCE_TYPES = ['screenshot', 'photo', 'clipping', 'document', 'note', 'video', 'audio'];
 
@@ -41,6 +42,7 @@ export async function createCaseOfKind(store, ctx, typedName, kind, world) {
   await ctx.setCaseId(kase.id);
   if ((kind || 'person') === 'person') {
     const p = await store.createPerson({ case_id: kase.id, display_name: name, kind: 'person', name_needs_formatting: hurried ? 1 : 0 });
+    armNewPersonFlow(p.id);
     ctx.navigate(`#/subject/${p.id}`);
   } else if (kind === 'event') {
     ctx.navigate('#/event');

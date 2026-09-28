@@ -12,6 +12,7 @@ import { tokensHtml } from '../lifemap.js';
 import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
+import { armNewPersonFlow } from '../new-person-flow.js';
 import { searchPeople, fillFromWikidata, fetchItemPhoto, savePhotoFromUrl } from '../lookup.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
@@ -178,6 +179,7 @@ function wireAddPersonLookup(form, ctx, store) {
     const person = await store.createPerson({ case_id: kase.id, display_name: m.label, kind: 'person', wikidata_id: m.id, notes: `Wikidata https://www.wikidata.org/wiki/${m.id}` });
     try { await fillFromWikidata(store, kase.id, person.id, m.id); }
     catch (e) { prog.textContent = `They're added; the record could not be read (${e.message}). Look up again from their profile.`; }
+    armNewPersonFlow(person.id);
     ctx.navigate(`#/subject/${person.id}`);
   }
 }

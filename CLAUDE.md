@@ -417,7 +417,60 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — Fashion joins the profile's "⋯" tab menu (v170,
+**2026-09-28, latest — a guided, animated 3-step drawer opens right after
+a brand-new person is created from a cold start (v171, SPEC §89).** Her
+ask: "when i add a person, make an animated workflow - i usually add
+their relationships, family tree and life events." Rather than build
+blind, mocked three real animated concepts first (a guided stepper, an
+inline checklist, corner nudge toasts — each with working transitions,
+not stills) and asked her to pick; she chose "A — Guided stepper." Fires
+once, only from the two true cold-start creation points — People's "+
+Person" and Cases' "+ New" (both funnel through `createCaseOfKind` in
+dashboard.js) and either page's own Wikipedia-match create — armed via a
+sessionStorage flag (`c7-new-person-flow`, `js/new-person-flow.js`) read
+once and cleared by `subject.js`'s own render(), same spot as its
+existing `c7-open-add` flag. Deliberately does NOT fire from Relations'
+own quick-add or a case's "+ New" family-kind path — she's already
+mid-relationship-building there, so a wizard for it would be backwards.
+
+Step 1 (Relationships) and step 2 (Family tree) both embed
+`renderQuickRelationship` — the real, current, fast "Add & link, in one
+step" form from `relations.js` (her 2026-09-26 speed-up: type a name,
+optional Wikidata match, kind, when-met, one save) — not a separate
+invented form, so there's exactly one save path to ever maintain.
+Extended that function with an opts object (`lockedPersonId`, `kinds`,
+`heading`, `subheading`, `onSaved`) so a caller can lock "With" to a
+known person and hide that field entirely — fully backward compatible,
+Relations' own call site passes no opts and behaves exactly as before.
+Family's two directions ("Their parent" vs "Their child") needed a real
+fix, not just a label: the schema only ever reads "A is the parent of
+B," so `<option>`s can now carry a `data-locked-is-b` flag read at save
+time, swapping which side the locked person lands on — "Their parent"
+puts the typed name on A, "Their child" leaves the new person on A. Step
+3 (Life events) is a small local copy of subject.js's own by-hand event
+fields (not exported, to avoid a subject.js ↔ new-person-flow.js import
+cycle for one array).
+
+Each step's Skip/Back/Next lives in one shared footer with a single
+`.btn-primary` at a time — steps 1/2 hide it entirely rather than merely
+visually, since main.js's drawer-wide "Enter fires .btn-primary"
+convention finds by query, not by visibility, and two primaries would
+race. New CSS (`.npf-*`, app.css) gives each step a fade+slide panel
+transition and the done screen a spring-pop checkmark, guarded by
+`prefers-reduced-motion` like every other animated component here.
+
+Verified live end to end: created a throwaway test person, watched the
+drawer auto-open, added a spouse (step 1), a parent via "Their parent"
+(step 2 — confirmed by direct store read that the typed name landed as
+`a_id`, the new person as `b_id`), a dated life event (step 3), hit
+Finish, watched the done screen's checkmark pop, and confirmed the
+profile behind the drawer redrew with the marital status, the life-line
+mark and the family tree all showing without a manual reload. Confirmed
+the flow stays silent on an ordinary visit to an existing person (Johnny
+Depp) — it only ever wakes up for the person the flag names. Test case
+removed after.
+
+**2026-09-28, earlier — Fashion joins the profile's "⋯" tab menu (v170,
 SPEC §88).** She pointed at the same "⋯" more-tabs panel this session
 already touched (Profile · Relations · Evidence · Board · Commercial ·
 Review · Contradictions · Questions · Import) and said "show fashion

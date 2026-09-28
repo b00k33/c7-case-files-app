@@ -1115,17 +1115,24 @@ function paintMatches(results, rows, ctx) {
  * relationship, and — if a date parsed — the first milestone on Their
  * Story, all at once.
  */
-async function renderQuickRelationship(body, ctx, people) {
+export async function renderQuickRelationship(body, ctx, people, opts = {}) {
+  const { lockedPersonId = null, kinds: kindsOverride = null, heading = null, subheading = null, onSaved = null } = opts;
   const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const kase = await ctx.store.getCase(ctx.caseId);
   const anchor = (kase && people.find((p) => p.display_name.trim().toLowerCase() === kase.name.trim().toLowerCase())) || people[0] || null;
-  const opts = people.map((p) => `<option value="${p.id}" ${anchor && p.id === anchor.id ? 'selected' : ''}>${p.display_name}</option>`).join('');
-  const kinds = ['partner', 'spouse', 'parent', 'sibling', 'godparent', 'business', 'associate', 'household'];
+  const aOpts = people.map((p) => `<option value="${p.id}" ${anchor && p.id === anchor.id ? 'selected' : ''}>${p.display_name}</option>`).join('');
+  // a kind entry is either a plain string (today's list — "With" is always A,
+  // the typed name always B) or, when a caller locks "With" to a fixed person,
+  // an { value, label, lockedIsB } — the schema only ever reads "A is the
+  // parent of B," so adding THIS person's *parent* needs the typed name to
+  // land on A instead of the usual B; adding their *child* doesn't
+  const kindList = (kindsOverride || ['partner', 'spouse', 'parent', 'sibling', 'godparent', 'business', 'associate', 'household'])
+    .map((k) => (typeof k === 'string' ? { value: k, label: k, lockedIsB: false } : { lockedIsB: false, ...k }));
   let pick = null; // a chosen Wikidata match, or null to just save the typed name
   body.innerHTML = `
-    <h3 class="title" style="margin-bottom:4px">Add & link, in one step</h3>
-    <p style="font-size:12px;color:var(--text-3);margin:0 0 16px">For someone new — met, dated, worked with. Skip the lookup if they're not on Wikipedia.</p>
-    <div class="field"><label>With</label><select id="qr-a">${opts}</select></div>
+    <h3 class="title" style="margin-bottom:4px">${heading || 'Add & link, in one step'}</h3>
+    <p style="font-size:12px;color:var(--text-3);margin:0 0 16px">${subheading || "For someone new — met, dated, worked with. Skip the lookup if they're not on Wikipedia."}</p>
+    ${lockedPersonId ? '' : `<div class="field"><label>With</label><select id="qr-a">${aOpts}</select></div>`}
     <div class="field"><label>Their name</label>
       <div class="row wrap" style="gap:8px">
         <input type="text" id="qr-name" style="flex:1 1 160px" placeholder="Andrew Parker Bowles">
@@ -1134,7 +1141,7 @@ async function renderQuickRelationship(body, ctx, people) {
     </div>
     <div id="qr-matches"></div>
     <div class="row wrap" style="gap:8px">
-      <div class="field" style="flex:1 1 140px"><label>Kind</label><select id="qr-kind">${kinds.map((k) => `<option value="${k}">${k}</option>`).join('')}</select></div>
+      <div class="field" style="flex:1 1 140px"><label>Kind</label><select id="qr-kind">${kindList.map((k) => `<option value="${esc(k.value)}" data-locked-is-b="${k.lockedIsB ? '1' : '0'}">${esc(k.label)}</option>`).join('')}</select></div>
       <div class="field" style="flex:1 1 160px"><label>When they met</label><input type="text" id="qr-when" placeholder="1970 · Nov 1996 · 14 Nov 1996"></div>
     </div>
     <div class="field"><label>Notes</label><input type="text" id="qr-notes" placeholder="optional — a quote, a source"></div>
@@ -1170,12 +1177,14 @@ async function renderQuickRelationship(body, ctx, people) {
   body.querySelector('#qr-save').addEventListener('click', async () => {
     const saveBtn = body.querySelector('#qr-save');
     const name = nameInput.value.trim();
-    const aId = body.querySelector('#qr-a').value;
-    const kind = body.querySelector('#qr-kind').value;
+    const withId = lockedPersonId || body.querySelector('#qr-a').value;
+    const kindSelect = body.querySelector('#qr-kind');
+    const kind = kindSelect.value;
+    const kindLockedIsB = kindSelect.selectedOptions[0]?.dataset.lockedIsB === '1';
     const whenRaw = body.querySelector('#qr-when').value.trim();
     const notes = body.querySelector('#qr-notes').value.trim();
     if (!name) { inlineNote(saveBtn, 'Type their name.'); nameInput.focus(); return; }
-    if (!aId) { inlineNote(saveBtn, 'Pick who they connect to.'); return; }
+    if (!withId) { inlineNote(saveBtn, 'Pick who they connect to.'); return; }
     clearInlineNote(saveBtn);
     saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
     const fresh = await ctx.store.listPeople(ctx.caseId);
@@ -1187,7 +1196,8 @@ async function renderQuickRelationship(body, ctx, people) {
       person = await ctx.store.createPerson({ case_id: ctx.caseId, kind: 'person', display_name: pick ? pick.label : name, wikidata_id: pick ? pick.id : null });
     }
     if (pick) { try { await fillFromWikidata(ctx.store, ctx.caseId, person.id, pick.id); } catch { /* profile fill is a bonus, not required to save the link */ } }
-    const bId = person.id;
+    const aId = kindLockedIsB ? person.id : withId;
+    const bId = kindLockedIsB ? withId : person.id;
     if (aId === bId) {
       inlineNote(saveBtn, 'That\'s the same person as "With" — pick someone else, or a different name.');
       saveBtn.disabled = false; saveBtn.textContent = 'Add';
@@ -1216,6 +1226,7 @@ async function renderQuickRelationship(body, ctx, people) {
       inlineNote(saveBtn, `${person.display_name} and the link are saved. "${whenRaw}" isn't a date I recognise — try "1970" or "14 Nov 1996" and Add again, or add it later from Their Story.`);
       return;
     }
+    if (onSaved) { onSaved(person); return; }
     ctx.closeDrawer();
     ctx.rerender();
   });

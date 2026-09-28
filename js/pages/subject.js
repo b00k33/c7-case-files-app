@@ -19,6 +19,7 @@ import { renderTree } from './relations.js';
 import { subjectOf } from './cases.js';
 import { saveStyleFiles } from './fashion.js';
 import { loadWidgetPrefs, renderArrangeDrawer } from '../profile-widgets.js';
+import { maybeStartNewPersonFlow } from '../new-person-flow.js';
 
 // the kinds she can give an event by hand (the life line's marks read them)
 const EVENT_KINDS = [
@@ -765,6 +766,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
     openAdd();
     setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80);
   }
+  // a brand-new person, just created from a cold start — her ask, 2026-09-28:
+  // "when i add a person, make an animated workflow - i usually add their
+  // relationships, family tree and life events." No-ops for everyone else.
+  maybeStartNewPersonFlow(ctx, person, () => render(root, ctx, personId, tab));
 
   // ---- Life events, reached from the "more" menu on a matched record
   // (ask28, 2026-09-18 — this used to be its own flat button that re-ran

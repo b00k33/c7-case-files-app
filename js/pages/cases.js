@@ -14,6 +14,7 @@ import { autoCaseName } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
 import { CASE_KINDS, createCaseOfKind } from './dashboard.js';
+import { armNewPersonFlow } from '../new-person-flow.js';
 import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks, fetchInstallments, addInstallments } from '../works.js';
 
@@ -212,6 +213,7 @@ function wireCaseLookup(form, ctx, store) {
         sessionStorage.setItem('c7-pi-result', `${r.added} work${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a release date)` : ''}.`);
       } catch (e) { prog.textContent = `Works could not be read (${e.message}) — + Works again from the profile.`; }
     }
+    if (kind !== 'family') armNewPersonFlow(person.id);
     ctx.navigate(kind === 'family' ? '#/family' : `#/subject/${person.id}`);
   }
 }

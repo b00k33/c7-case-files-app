@@ -1427,3 +1427,39 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .shots .shot, .shots .shot-add { width: 78px; height: 58px; }
   .shot-view .nav { width: 38px; height: 60px; font-size: 20px; }
 }
+
+/* ---- the guided "add a person" stepper (2026-09-28, v170) --------------
+   Opens once, right after a brand-new person is created from a cold start
+   (People's "+ Person", Cases' "+ New", either's Wikipedia lookup) — her
+   ask: "when i add a person, make an animated workflow - i usually add
+   their relationships, family tree and life events." Picked from three
+   animated mocks ("A, guided stepper"). js/new-person-flow.js. */
+.npf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.npf-sub { margin: 3px 0 0; font-size: 11.5px; color: var(--text-3); }
+.npf-skip-all { font-size: 11.5px; color: var(--text-3); background: none; border: 0; cursor: pointer; text-decoration: underline; font-family: inherit; flex: none; }
+.npf-skip-all:hover { color: var(--text-2); }
+.npf-dots { display: flex; gap: 6px; margin-bottom: var(--sp-3); }
+.npf-dots span { width: 22px; height: 4px; border-radius: 2px; background: var(--ink-3); transition: background .25s, width .25s; }
+.npf-dots span.done { background: var(--green); }
+.npf-dots span.active { background: var(--brass); width: 30px; }
+.npf-step-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: var(--sp-2); display: flex; align-items: center; gap: 6px; }
+.npf-step-icon { font-size: 14px; }
+.npf-step-desc { font-size: 12.5px; color: var(--text-2); margin: 0 0 var(--sp-3); }
+.npf-body { min-height: 180px; }
+.npf-panel { opacity: 0; transform: translateX(14px); transition: opacity .28s ease, transform .28s cubic-bezier(.22,.9,.32,1); }
+.npf-panel.in { opacity: 1; transform: translateX(0); }
+.npf-foot { display: flex; gap: 8px; margin-top: var(--sp-4); }
+.npf-foot .btn { flex: 1; }
+.npf-foot #npf-back { flex: 0 0 auto; padding-left: var(--sp-3); padding-right: var(--sp-3); }
+.npf-done { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--sp-2); padding: var(--sp-6) var(--sp-3); }
+.npf-done-circle {
+  width: 52px; height: 52px; border-radius: 50%; background: rgba(111, 170, 111, .15); border: 2px solid var(--green);
+  display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--green);
+  transform: scale(0); transition: transform .4s cubic-bezier(.34, 1.56, .64, 1);
+}
+.npf-done.pop .npf-done-circle { transform: scale(1); }
+.npf-done h4 { margin: 0; font-size: 14.5px; }
+.npf-done p { margin: 0; font-size: 11.5px; color: var(--text-3); max-width: 260px; }
+@media (prefers-reduced-motion: reduce) {
+  .npf-panel, .npf-done-circle, .npf-dots span { transition: none; }
+}
