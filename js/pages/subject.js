@@ -15,7 +15,7 @@ import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../as
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, renderWikiFeed } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, renderCompare, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
-import { renderTree } from './relations.js';
+import { renderTree, renderQuickRelationship } from './relations.js';
 import { subjectOf } from './cases.js';
 import { isPersonKind } from './dashboard.js';
 import { saveStyleFiles } from './fashion.js';
@@ -425,7 +425,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div class="row between wrap" style="gap:8px">
             <span class="section-label">Family</span>
             <span class="row" style="gap:6px">
-              <button type="button" class="btn btn-ghost btn-sm" id="fam-add-btn">+ Add family</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="fam-quick-btn" title="For someone private — type their name, skip the lookup">+ add & link</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="fam-add-btn" title="Look ${esc(person.display_name.split(' ')[0])} up on Wikipedia — their family comes with them, if they're public">+ From Wikipedia</button>
               <button type="button" class="btn btn-ghost btn-sm" id="compare-btn" title="Anyone, any case — the same verdicts, no relationship added">Compare with…</button>
               <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">Full tree →</a>
             </span>
@@ -705,11 +706,32 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // skipping Look up and the by-hand forms entirely — same sheet, same
   // #pi-save handler, just opened pre-expanded with the rest hidden
   root.querySelector('#paste-btn')?.addEventListener('click', () => openAdd({ pasteOnly: true }));
-  // the Family widget's own "+ Add family" (her ask, 2026-09-15: "easily
+  // the Family widget's own "+ From Wikipedia" (her ask, 2026-09-15: "easily
   // add family") — straight to the Look-up field, already pre-filled with
   // her own name and now the sheet's first field (ask28, 2026-09-19: wiki
   // lookup moved to the top), instead of hunting for it
   root.querySelector('#fam-add-btn')?.addEventListener('click', () => { openAdd(); setTimeout(() => tools.querySelector('#lk-name')?.focus(), 80); });
+  // "+ add & link" (her ask, 2026-09-28: "make it easier to add family" —
+  // said right after adding a private relative by hand, which meant
+  // leaving Profile for the Relations tab, since this button only ever
+  // did a Wikipedia lookup of THIS person, no help at all for a private
+  // one). Reuses the Relations tab's own one-step form verbatim, locked to
+  // this person so there's no "With" picker to fill in, scoped to the
+  // kinds the Family tree above actually draws (blood + marriage, not
+  // business/associate/household — those stay on the Relations tab's own
+  // general-purpose version of this same form).
+  root.querySelector('#fam-quick-btn')?.addEventListener('click', () => ctx.openDrawer((body) => renderQuickRelationship(body, ctx, peopleInCase, {
+    lockedPersonId: person.id,
+    kinds: [
+      { value: 'parent', label: 'Their parent', lockedIsB: true },
+      { value: 'parent', label: 'Their child', lockedIsB: false },
+      { value: 'sibling', label: 'Sibling' },
+      { value: 'spouse', label: 'Spouse' },
+      { value: 'partner', label: 'Partner' },
+    ],
+    heading: `Add family to ${person.display_name}`,
+    subheading: "Type a name — new or already in this case. Skip the lookup if they're not on Wikipedia.",
+  })));
   // Enter in the Look up field looks up, explicitly — there's no <form> here to do it for free
   tools.querySelector('#lk-name').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;

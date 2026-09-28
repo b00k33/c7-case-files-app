@@ -417,7 +417,32 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — the "cute" theme's accent is sky blue, not pink
+**2026-09-28, latest — a Profile-tab "+ add & link" gets a private family
+member onto the tree without leaving Profile (v178).** Said right after
+adding "Manuel Dad" by hand: "make it easier to add family." The Family
+widget's existing "+ Add family" button only ever ran a Wikipedia lookup
+of the PERSON BEING VIEWED — no help at all for a private relative, who's
+never going to be on Wikipedia; the actual manual path (type a name, skip
+the lookup, pick how they connect) already existed, verbatim, just one
+tab away on Relations (`renderQuickRelationship`), with no link over to
+it from here. Renamed the old button "+ From Wikipedia" (matching its
+real behaviour and the Relations tab's own name for it) and added a new
+"+ add & link" beside it, reusing `renderQuickRelationship` straight from
+`relations.js`, `lockedPersonId` set so there's no "With" picker to fill
+in, `kinds` scoped to what the Family tree widget actually draws (parent/
+child/sibling/spouse/partner — not business/associate/household, which
+stay Relations-tab-only). Hit and fixed a real bug while verifying: an
+extra closing paren from a debug edit broke `subject.js`'s parse
+entirely, and a long-lived heavily-reused test tab gave a false "still
+broken" reading afterward even once the syntax was fixed (the same
+stuck-tab class of false alarm from the v175 cleanup, this time on the
+JS module/console layer rather than data) — resolved by testing in a
+genuinely fresh tab, which worked first try. Verified end to end: added
+"Zzz Test Sibling" to Winston Churchill from Profile alone, confirmed it
+landed on the family tree and the relationship saved correctly, cleaned
+up after.
+
+**2026-09-28, earlier — the "cute" theme's accent is sky blue, not pink
 (v177).** Her ask, from a screenshot of it in use: "make a theme that
 doesnt use pink." That theme's own design rule (SPEC, 2026-09-21) is
 accent colours come from the app's real zc-/ws- zodiac palette, never an
