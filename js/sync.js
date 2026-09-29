@@ -18,7 +18,7 @@ import { SUPABASE_URL, SUPABASE_KEY, AUTH_STORAGE_KEY } from './config.js';
 
 const SYNC_TABLES = [
   'case_file', 'person', 'person_alias', 'address', 'relationship', 'event', 'event_photo',
-  'source', 'evidence', 'video_moment', 'evidence_shot', 'evidence_link', 'tag', 'tagging',
+  'event_video', 'source', 'evidence', 'video_moment', 'evidence_shot', 'evidence_link', 'tag', 'tagging',
   'claim', 'question', 'finding', 'contradiction', 'distinct_pair', 'style_image',
 ];
 const PAGE = 500;

@@ -309,6 +309,18 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
   )`,
   'CREATE INDEX IF NOT EXISTS idx_event_photo_event ON event_photo(event_id)',
+  // a video on an event or milestone (2026-09-29, her ask: "add video to
+  // the event in timeline or relationship"). Link-only, never downloaded —
+  // same one-slot-vs-several split as event_photo above.
+  `CREATE TABLE IF NOT EXISTS event_video (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    caption TEXT,
+    ord INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_event_video_event ON event_video(event_id)',
 ];
 // columns added to existing tables after first release (SQLite has no
 // ADD COLUMN IF NOT EXISTS, so check PRAGMA first)

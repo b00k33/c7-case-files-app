@@ -421,3 +421,71 @@ export function openShotViewer({ pictures, index = 0, onCaption, onRemove, onRea
   paint();
   return { close };
 }
+
+/**
+ * A video, link-only (her ask, 2026-09-29). Same overlay class and
+ * escape/backdrop-close conventions as openShotViewer above, but no
+ * paging/caption/tag bar — a video plays with its own native controls, and
+ * there's only ever one open at a time. The url is never fetched or stored
+ * locally; the browser's own <video> element streams it from wherever she
+ * pasted it from.
+ */
+export function openVideoViewer(url, { onClosed } = {}) {
+  if (!url || document.querySelector('.shot-view')) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'shot-view';
+  overlay.innerHTML = `
+    <button class="close" type="button">‹ Close</button>
+    <div class="frame"><video controls autoplay playsinline></video></div>
+  `;
+  overlay.querySelector('video').src = url; // set as a property, not interpolated into the template — a url can carry quotes
+  document.body.appendChild(overlay);
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+
+  const video = overlay.querySelector('video');
+  const close = () => {
+    video.pause();
+    overlay.remove();
+    document.body.style.overflow = prevOverflow;
+    document.removeEventListener('keydown', onKey);
+    if (onClosed) onClosed();
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.querySelector('.close').addEventListener('click', close);
+  // tapping the dark space around the video closes, like any lightbox — but
+  // not a tap on the video itself, which is its own set of controls
+  overlay.querySelector('.frame').addEventListener('click', (e) => { if (e.target !== video) close(); });
+
+  return { close };
+}
+
+/**
+ * A small dark poster tile with a play glyph — tapping it opens
+ * openVideoViewer above. Shared by the event edit form and the milestone
+ * form so a link-only video looks and behaves the same in both places.
+ * `onRemove`, if passed, adds a ✕ button under the tile (same small-button
+ * shape as the photo strip's own remove button).
+ */
+export function videoPosterTile(url, { size = 64, onRemove } = {}) {
+  const cell = document.createElement('div');
+  cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px';
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.title = 'Watch';
+  tile.style.cssText = `width:${size}px;height:${size}px;border:1px solid var(--line);border-radius:var(--r-md,8px);background:var(--ink-2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);font-size:${Math.round(size * 0.32)}px;padding:0`;
+  tile.textContent = '▶';
+  tile.addEventListener('click', () => openVideoViewer(url));
+  cell.appendChild(tile);
+  if (onRemove) {
+    const x = document.createElement('button');
+    x.type = 'button'; x.className = 'btn btn-ghost btn-sm'; x.textContent = '✕';
+    x.style.cssText = 'padding:2px 8px;min-height:auto';
+    x.addEventListener('click', onRemove);
+    cell.appendChild(x);
+  }
+  return cell;
+}

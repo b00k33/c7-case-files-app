@@ -1419,6 +1419,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .shot-view { position: fixed; inset: 0; z-index: 70; background: rgba(8,10,14,.975); backdrop-filter: blur(3px); display: flex; flex-direction: column; }
 .shot-view .frame { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 56px var(--sp-3) var(--sp-3); }
 .shot-view .frame img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--r-sm); }
+.shot-view .frame video { max-width: 100%; max-height: 100%; border-radius: var(--r-sm); }
 .shot-view .bar { flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom)); background: rgba(0,0,0,.45); }
 /* two classes beats the UA stylesheet's [hidden] (one attribute) on
    specificity alone, so a caller that skips onReassignPerson (evidence.js,

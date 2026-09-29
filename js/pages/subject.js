@@ -11,7 +11,7 @@ import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, renderWikiFeed } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, openVideoViewer, videoPosterTile, renderWikiFeed } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree, renderAddFamilyMember } from './relations.js';
@@ -594,8 +594,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
     Object.assign(lifeData, buildLifeLine({ person, events: [...freshEvents, ...relEvents], rels, people: peopleInCase, outcomes: await store.listEventOutcomes() }));
     await renderLifeLine(lifeEl, lifeData, { onPick: showWhy, store, people: peopleInCase });
   };
-  const showWhy = (m) => renderWhyCard(whySlot, m, lifeData, {
+  const showWhy = async (m) => renderWhyCard(whySlot, m, lifeData, {
     person, people: peopleInCase,
+    video: m.event && !m.rel && !m.cluster ? (await store.listEventVideos(m.event.id))[0] : null,
     onOutcome: async (mark, oc) => {
       // her tag wins over the record's inference; the ribbon and the card redraw in place
       await store.setEventOutcome(mark.event.id, oc);
@@ -1616,6 +1617,10 @@ function renderEventEditForm(body, ctx, event, onDone) {
         ${hasPhoto ? '<button type="button" class="linkish" id="ee-photo-remove">Remove</button>' : ''}
       </div>
     </div>
+    <div class="field">
+      <label>Video</label>
+      <div id="ee-video-slot"></div>
+    </div>
     <button class="btn btn-primary" id="ee-save">Save</button>
   `;
   // a hand-typed event ("Crashed Tesla," "code13 launch") had no way to
@@ -1653,6 +1658,41 @@ function renderEventEditForm(body, ctx, event, onDone) {
     await ctx.store.updateEvent(event.id, { photo_path: null, photo_url: null });
     await onDone();
   });
+
+  // Video (her ask, 2026-09-29: "add video to the event in timeline or
+  // relationship") — link-only, one slot per event (a milestone's own form
+  // allows several; a plain life-line event stays to one, matching how its
+  // own Picture field above is also single-slot).
+  const videoSlot = body.querySelector('#ee-video-slot');
+  const paintVideoSlot = (video) => {
+    videoSlot.innerHTML = '';
+    if (video) {
+      videoSlot.appendChild(videoPosterTile(video.url, {
+        onRemove: async () => { await ctx.store.deleteEventVideo(video.id); paintVideoSlot(null); },
+      }));
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.cssText = 'gap:8px;align-items:center';
+    row.innerHTML = `
+      <input type="text" id="ee-video-url" placeholder="Paste a video link — https://…" style="flex:1">
+      <button type="button" class="btn btn-ghost btn-sm" id="ee-video-add">Add</button>
+    `;
+    videoSlot.appendChild(row);
+    const input = row.querySelector('#ee-video-url');
+    const add = row.querySelector('#ee-video-add');
+    const submit = async () => {
+      clearInlineNote(add);
+      const url = input.value.trim();
+      if (!/^https?:\/\//i.test(url)) { inlineNote(add, 'That doesn’t look like a link — paste the full https://… address.'); return; }
+      const id = await ctx.store.addEventVideo({ event_id: event.id, url });
+      paintVideoSlot({ id, url });
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    add.addEventListener('click', submit);
+  };
+  ctx.store.listEventVideos(event.id).then((rows) => paintVideoSlot(rows[0] || null));
   body.querySelector('#ee-date').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); body.querySelector('#ee-save').click(); } });
   body.querySelector('#ee-save').addEventListener('click', async () => {
     const btn = body.querySelector('#ee-save');

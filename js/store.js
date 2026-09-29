@@ -445,6 +445,38 @@ export async function deleteEventPhoto(id) {
   logChange('event_photo', id, 'delete', {});
 }
 
+// ---- video on an event or milestone --------------------------------------
+// Link-only (her call, 2026-09-29) — a URL string, never a downloaded file.
+// Same shape as event_photo above; a plain event's own form caps this at
+// one row, a milestone's form allows several.
+
+export async function listEventVideos(eventId) {
+  return db.exec(
+    'SELECT * FROM event_video WHERE event_id=? AND deleted_at IS NULL ORDER BY ord, created_at',
+    [eventId]
+  );
+}
+
+export async function addEventVideo(obj) {
+  const id = uuid();
+  const now = nowISO();
+  const r = db.exec('SELECT MAX(ord) AS m FROM event_video WHERE event_id=?', [obj.event_id]);
+  const ord = (r.length && r[0].m != null ? r[0].m : 0) + 1;
+  db.run(
+    `INSERT INTO event_video (id,event_id,url,caption,ord,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?)`,
+    [id, obj.event_id, obj.url, obj.caption || null, ord, now, now]
+  );
+  logChange('event_video', id, 'insert', obj);
+  return id;
+}
+
+export async function deleteEventVideo(id) {
+  const now = nowISO();
+  db.run('UPDATE event_video SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('event_video', id, 'delete', {});
+}
+
 export async function deleteEvent(id) {
   db.run('DELETE FROM event WHERE id=?', [id]);
   logChange('event', id, 'delete', {});

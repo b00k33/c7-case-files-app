@@ -13,7 +13,7 @@ import { exactBirth, exactDeath } from './person-dates.js';
 import { relationGlyph, animalLabel, animalIcon, animalChipHtml, signChipHtml, signGlyph, signElement, emptyState } from './indicators.js';
 import { resolveAssetUrl, preloadImage } from './assets.js';
 import { fetchItemPhoto, saveEventPhotoFromUrl, searchPeople } from './lookup.js';
-import { twoTapConfirm } from './ui.js';
+import { twoTapConfirm, videoPosterTile } from './ui.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -699,7 +699,7 @@ export function verdictChips(a, b) {
  * onEdit(mark)/onDelete(mark) — only wired for a standalone event of her own
  * (m.event set, no m.rel and no m.cluster): a relationship milestone already
  * edits from "Their story →", and a cluster stands for several at once. */
-export function renderWhyCard(el, m, data, { person, people, onOutcome, onEdit, onDelete }) {
+export function renderWhyCard(el, m, data, { person, people, onOutcome, onEdit, onDelete, video }) {
   const y = data.years.find((x) => x.year === m.year);
   const py = y ? y.py : null;
   const me = signFor(exactBirth(person));
@@ -720,6 +720,7 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome, onEdit, 
       ${m.cluster
         ? `<span class="line" style="flex-direction:column;align-items:flex-start;gap:2px"><b>${m.glyph} ${esc(m.title)} · ${m.year}</b>${m.cluster.map((x) => `<span style="display:flex;gap:8px;align-items:baseline"><span class="mono dim" style="width:88px;flex:none">${fmtWhen(x)}</span><span>${esc(x.title)}</span>${x.outcome ? outcomeChip(x) : ''}</span>`).join('')}</span>`
         : `<span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhen(m)}</span>${outcomeChip(m)}${m.rel ? `<a href="#/relationship/${m.rel.id}" class="linklike">Their story →</a>` : ''}</span>`}
+      ${video ? '<span class="k"></span><span class="line" id="lm-video-slot"></span>' : ''}
       ${m.event && !m.rel && !m.cluster ? '<span class="k"></span><span class="line"><button type="button" class="btn btn-ghost btn-sm" id="lm-edit-btn">Edit</button><button type="button" class="btn btn-ghost btn-sm" id="lm-del-btn">Delete</button></span>' : ''}
       <span class="k">their year</span>
       <span class="line">${py != null ? `<span class="lm-py dot lm-t-${pyTone(py)}">${py}</span><span>personal year ${y.total}/${py} — ${PY_GLOSS[py] || ''}</span>` : '<span class="dim">personal year needs a full birth date</span>'}${animalChipHtml(yearAnimal)}<span class="mono dim">${yearLine}</span></span>
@@ -727,6 +728,7 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome, onEdit, 
       ${m.event ? `<span class="k">judge</span><span class="line"><button type="button" class="lm-v lm-v-best lm-tag ${m.tagged === 'worked' ? 'on' : ''}" data-oc="worked">✓ worked</button><button type="button" class="lm-v lm-v-enemy lm-tag ${m.tagged === 'failed' ? 'on' : ''}" data-oc="failed">✕ failed</button>${m.inferred ? '<span class="dim">from the record — tap to overrule</span>' : m.tagged ? '<span class="dim">your call — tap again to clear</span>' : ''}</span>` : `<span class="k">judge</span><span class="line dim">${m.cluster ? 'judge each one from the year list' : 'from the relationship record'}</span>`}
     </div>`;
   if (spouse) el.querySelector('#lm-pair').append(...verdictChips(person, spouse));
+  if (video) el.querySelector('#lm-video-slot').appendChild(videoPosterTile(video.url, { size: 56 }));
   el.querySelectorAll('[data-oc]').forEach((b) => b.addEventListener('click', () => onOutcome(m, m.tagged === b.dataset.oc ? null : b.dataset.oc)));
   if (m.event && !m.rel && !m.cluster) {
     el.querySelector('#lm-edit-btn')?.addEventListener('click', () => onEdit(m));

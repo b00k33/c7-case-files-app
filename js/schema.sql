@@ -110,6 +110,23 @@ CREATE TABLE event_photo (
 );
 CREATE INDEX idx_event_photo_event ON event_photo(event_id);
 
+-- a video on an event or milestone (2026-09-29, her ask: "i want to be
+-- able to add video to the event in timeline or relationship"). Link-only,
+-- never downloaded or re-hosted — her call, since there's no compression
+-- or documented storage limit for video the way there is for a photo, and
+-- this app is otherwise offline-first. A life-line event keeps one row
+-- (its own edit form enforces that); a milestone allows several, same
+-- one-slot-vs-several split as event_photo above.
+CREATE TABLE event_video (
+  id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
+  event_id TEXT NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  caption TEXT,
+  ord INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE INDEX idx_event_video_event ON event_video(event_id);
+
 CREATE TABLE source (
   id TEXT PRIMARY KEY,                     -- uuid v4, generated client-side
   name TEXT NOT NULL,

@@ -8,7 +8,7 @@
 import { verdictChips, buildRelationshipLine, renderRelationshipLine, REL_KINDS } from '../lifemap.js';
 import { resolveAssetUrl, preloadImage, compressImage, queueUpload, flushUploads } from '../assets.js';
 import { parseDate } from '../profile-parse.js';
-import { inlineNote, clearInlineNote, openShotViewer } from '../ui.js';
+import { inlineNote, clearInlineNote, openShotViewer, videoPosterTile } from '../ui.js';
 import { emptyState } from '../indicators.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -132,11 +132,13 @@ export async function render(root, ctx, relationshipId) {
 
   const showDetail = async (m) => {
     let extraPhotos = [];
+    let videos = [];
     if (m.event) {
       const rows = await store.listEventPhotos(m.event.id);
       extraPhotos = (await Promise.all(rows.map(async (p) => resolveAssetUrl(p.file_path, p.mime || 'image/jpeg')))).filter(Boolean);
+      videos = await store.listEventVideos(m.event.id);
     }
-    renderMilestoneDetail(whyEl, m, extraPhotos, {
+    renderMilestoneDetail(whyEl, m, extraPhotos, videos, {
       // a photo pasted in edit mode saves straight to the store as it
       // lands (renderMilestoneForm's own addPastedFile/removeShot) — redraw
       // is passed through so the mark's own card picks up a new cover the
@@ -217,7 +219,7 @@ function fmtWhenLoose(m) {
   return String(m.year);
 }
 
-function renderMilestoneDetail(el, m, extraPhotos, { onEdit, onDelete, onEditYear }) {
+function renderMilestoneDetail(el, m, extraPhotos, videos = [], { onEdit, onDelete, onEditYear }) {
   el.innerHTML = '';
   const card = document.createElement('div');
   card.className = 'lm-why';
@@ -242,6 +244,7 @@ function renderMilestoneDetail(el, m, extraPhotos, { onEdit, onDelete, onEditYea
     ${m.event.place ? `<span class="k">where</span><span class="line">${esc(m.event.place)}</span>` : ''}
     ${m.event.notes ? `<span class="k">notes</span><span class="line">${esc(m.event.notes)}</span>` : ''}
     ${m._pic || extraPhotos.length ? '<span class="k"></span><span class="line" id="ms-pic-slot" style="flex-wrap:wrap"></span>' : ''}
+    ${videos.length ? '<span class="k"></span><span class="line" id="ms-video-slot" style="flex-wrap:wrap"></span>' : ''}
     <span class="k"></span>
     <span class="line"><button type="button" class="btn btn-ghost btn-sm" id="ms-edit-btn">Edit</button><button type="button" class="btn btn-ghost btn-sm" id="ms-del-btn">Delete</button></span>
   `;
@@ -258,6 +261,10 @@ function renderMilestoneDetail(el, m, extraPhotos, { onEdit, onDelete, onEditYea
       img.style.cssText = 'max-width:220px;border-radius:var(--r-md);display:block';
       slot.appendChild(img);
     });
+  }
+  if (videos.length) {
+    const slot = card.querySelector('#ms-video-slot');
+    videos.forEach((v) => slot.appendChild(videoPosterTile(v.url, { size: 56 })));
   }
   card.querySelector('#ms-edit-btn').addEventListener('click', onEdit);
   card.querySelector('#ms-del-btn').addEventListener('click', onDelete);
@@ -306,6 +313,14 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone, onLiveChange
       <label>Photos</label>
       <div class="row wrap" id="ms-shots" style="gap:8px"></div>
       <div class="inline-note" style="border-left-color:var(--text-3);margin-top:6px">Copy a picture and press Ctrl+V while this is open to add it — as many as you like.</div>
+    </div>
+    <div class="field">
+      <label>Videos</label>
+      <div class="row wrap" id="ms-videos" style="gap:8px"></div>
+      <div class="row" style="gap:8px;align-items:center;margin-top:6px">
+        <input type="text" id="ms-video-url" placeholder="Paste a video link — https://…" style="flex:1">
+        <button type="button" class="btn btn-ghost btn-sm" id="ms-video-add">Add</button>
+      </div>
     </div>
     <div class="row" style="gap:8px">
       <button class="btn btn-primary" id="ms-save">${isEdit ? 'Save' : 'Add'}</button>
@@ -382,6 +397,57 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone, onLiveChange
     paintShots();
   })();
 
+  // Videos (her ask, 2026-09-29: "add video to the event in timeline or
+  // relationship") — link-only, several allowed per milestone, same split
+  // as Photos above but no cover concept: every link is its own event_video
+  // row. Editing writes each Add straight to the store as it lands; a
+  // brand-new milestone holds pasted-in links in memory until "Add" creates
+  // the event to attach them to.
+  let videos = []; // { key, url, existing, id? }
+  const paintVideos = () => {
+    const strip = body.querySelector('#ms-videos');
+    strip.innerHTML = '';
+    videos.forEach((v) => {
+      strip.appendChild(videoPosterTile(v.url, { onRemove: () => removeVideo(v.key) }));
+    });
+  };
+  const removeVideo = async (key) => {
+    const v = videos.find((x) => x.key === key);
+    if (!v) return;
+    if (v.existing) { await ctx.store.deleteEventVideo(v.id); onLiveChange?.(); }
+    videos = videos.filter((x) => x.key !== key);
+    paintVideos();
+  };
+  const addVideoLink = async (url) => {
+    if (isEdit) {
+      const id = await ctx.store.addEventVideo({ event_id: existingEvent.id, url });
+      videos.push({ key: id, url, existing: true, id });
+      onLiveChange?.();
+    } else {
+      videos.push({ key: `pending-${videos.length}-${Date.now()}`, url, existing: false });
+    }
+    paintVideos();
+  };
+  (async () => {
+    if (!existingEvent) return;
+    for (const v of await ctx.store.listEventVideos(existingEvent.id)) {
+      videos.push({ key: v.id, url: v.url, existing: true, id: v.id });
+    }
+    paintVideos();
+  })();
+  const videoUrlInput = body.querySelector('#ms-video-url');
+  const videoAddBtn = body.querySelector('#ms-video-add');
+  const submitVideoLink = () => {
+    clearInlineNote(videoAddBtn);
+    const url = videoUrlInput.value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) { inlineNote(videoAddBtn, 'That doesn’t look like a link — paste the full https://… address.'); return; }
+    addVideoLink(url);
+    videoUrlInput.value = '';
+  };
+  videoUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitVideoLink(); } });
+  videoAddBtn.addEventListener('click', submitVideoLink);
+
   if (msPasteHandler) document.removeEventListener('paste', msPasteHandler);
   msPasteHandler = async (e) => {
     const drawerEl = document.getElementById('drawer');
@@ -432,6 +498,9 @@ function renderMilestoneForm(body, ctx, rel, existingEvent, onDone, onLiveChange
         else await ctx.store.addEventPhoto({ event_id: eventId, ...meta });
       }
       if (pending.length) flushUploads();
+      for (const v of videos.filter((s) => !s.existing)) {
+        await ctx.store.addEventVideo({ event_id: eventId, url: v.url });
+      }
     }
     onDone();
   });

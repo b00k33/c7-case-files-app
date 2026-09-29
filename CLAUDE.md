@@ -417,7 +417,46 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-28, latest — ask28: nine unused features hidden, three kept
+**2026-09-29, latest — video joins the life line and relationship milestones,
+link-only (v187).** Her ask: "i want to be able to add video to the event in
+timeline or relationship." Investigated first: the previous day's ask28
+declutter had removed `video.js`, the only page that could actually PLAY a
+video evidence item — "video" was left as a bare label with no player
+anywhere in the app, and there's no compression or documented size limit
+for a non-image file the way there is for a photo (`compressImage` is
+canvas-based, image-only). Asked 9 questions across 3 rounds, with an
+interactive toggle mockup shown first: she picked link-only (never
+downloaded — a genuine first for this app, since Fashion's own "picture's
+web address" field DOES fetch-and-restore), a direct-file link only (no
+YouTube/Vimeo embed machinery, which the app has never had), decorative
+rather than Evidence-linked, one slot on an event / several on a milestone
+(matching each surface's existing photo convention), tap-a-poster-to-open
+rather than inline playback, and no revival of the just-cut moment-marking
+feature. New `event_video` table (`schema.sql`/`db.js`, added to
+`sync.js`'s allow-list — checked against the v166 lesson, a table left off
+that list silently fails to sync); `listEventVideos`/`addEventVideo`/
+`deleteEventVideo` in `store.js` mirror `event_photo`'s shape without its
+legacy cover-column split, since video has no old column to preserve. A
+shared `videoPosterTile()`/`openVideoViewer()` (`ui.js`) reuse
+`openShotViewer`'s `.shot-view` lightbox class for a real `<video
+controls>` player. Wired into FOUR places once "tap a poster" (her literal
+playback pick) made clear a field on the edit form alone wasn't enough — a
+photo doesn't show on the why-card either, but a photo's absence there was
+never the ask, and a video's was: both edit forms (`subject.js`,
+`relationship.js`), the shared why-card (`lifemap.js`'s `renderWhyCard`,
+gated to a plain event the same way Edit/Delete already are — a milestone
+mark's own `resolveMarkPicture` deliberately shows the spouse's photo
+instead, untouched), and `relationship.js`'s own `renderMilestoneDetail`.
+Verified live against her real Winston Churchill case and a real
+Winston-and-Clementine milestone: a real public direct-video-file link
+genuinely streamed and played (native controls, real frames advancing) in
+both the Edit form and the why-card/detail card, add/remove/cascade-delete
+all confirmed via direct store queries, not just visual reads. Hit the
+project's own documented stuck-tab false alarm mid-session (a long-lived
+test tab showed an empty page with zero console error); a fresh tab
+resolved it immediately.
+
+**2026-09-28, earlier — ask28: nine unused features hidden, three kept
 after a verification pass caught what wasn't actually unused (v186).**
 Her request: "theres too much of the app i dont need or use ask28." The
 6-cluster, ~90-feature inventory already compiled earlier this session
