@@ -417,7 +417,82 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-29, latest — video joins the life line and relationship milestones,
+**2026-09-29, latest — a fifth case kind, Business / corporation, with its
+own founding, founders, locations and commercial story (v188).** Her ask,
+straight after the video feature shipped: "add an option for me to add
+corporations/businesses including founding date, franchise founding date,
+founder, location opening etc." Investigated first (an Explore agent
+mapped how a case kind is wired — `dashboard.js`'s `CASE_KINDS`/
+`isPersonKind`, `cases.js`'s `KIND_LABEL`/`otherKinds`, `main.js`'s
+ROUTES/TITLES/INSIDE_CASE, `sw.js`'s SHELL — a purely JS-level convention,
+no database enum) and a live Wikidata probe against McDonald's real item
+(Q38076): P571 (inception) and P740 (location of formation, itself
+resolving to a country via its own P17) map cleanly to founding date and
+founding location; P112 (founder) exists but does NOT separate an original
+founder from whoever later took it to franchise — the McDonald brothers
+and Ray Kroc sit on the same undifferentiated property — and there is no
+Wikidata property at all for "when franchising began" as a distinct fact.
+12 questions across 4 rounds (two follow-ups on genuinely ambiguous
+answers, not guesses): one case kind whose label covers Business/
+Corporation/Company; founding date and franchise-founding date as two
+distinct historical facts, not one computed era (departing from series.js's
+own installments-derived era, the closest existing template); founders as
+a flat person list — same roster mechanism as a series' cast — each
+carrying an optional role label ("Founder", "Franchise founder") in the
+same `person.role` column a cast member's character name already uses;
+"many locations," each with its own structured city+country and its own
+opening date, on a dedicated Locations tab (not an Overview-embedded
+section like series' installments); Wikidata auto-pull for the fields that
+map cleanly (date/location/founder(s), defaulted to role "Founder" —
+Wikidata gives no signal to auto-detect "franchise founder"), leaving
+franchise-founding-date and every individual location as manual entry,
+matching this app's own precedent (2026-09-17, the awards-list call) of
+declining to guess at data Wikidata doesn't cleanly separate; and a sixth,
+Commercial-style tab alongside Overview/Locations/Evidence/Questions/Board.
+Storage: ten new `case_file` columns (`founding_date`/`_precision`/
+`_year_min`/`_year_max`, `founding_city`, `founding_country`, and the same
+quad for `franchise_date`) rather than a new table, mirroring how
+`era_start`/`era_end` already live directly on `case_file` for an event
+case; two new `event` columns, `city`/`country`, used only by the
+Locations tab's own `kind='location'` rows (case-level, `person_id` null,
+the same shape a series' installments already use) — deliberately NOT a
+separate table, since every dated list in this app already reuses the one
+`event` table (life events, milestones, installments) and a location isn't
+different enough to earn its own. New `js/company-facts.js`
+(`fetchCompanyFacts`/`applyCompanyFacts`, the P571/P740/P112 SPARQL query
+and the "fill blanks, never overwrite her own edits" merge — same
+re-run-adds-only-what's-new rule as installments) and `js/pages/
+company.js` (its own Overview/Locations/Commercial tab bodies rendered
+inline, matching series.js's own pattern; Evidence/Questions/Board
+delegated to the shared modules). The Commercial tab is its own small
+vocabulary (`revenue`/`product`/`deal`/`award`, plain `event.kind` values,
+no schema change) rather than reusing person.js's `MILESTONE_KINDS` —
+`isCommercialRelevant()`'s occupation gate and `chart`/`certification` are
+both person/musician-specific and don't fit a business case; the shared
+`parseMilestoneText()` paste-parser is reused as-is for its date-finding,
+with its own kind-guesses remapped to the new vocabulary (she corrects a
+wrong guess via the same per-row dropdown the person Commercial tab
+already has). Kind-switch ("Make it a business case") added to the
+existing menu; a company case drops its would-be placeholder person on
+creation and on switch-in, same as an event case. One bug caught and fixed
+before shipping: a founder's role editor (Enter to save) re-rendered the
+page, which detaches the still-focused input and fires a native `blur` —
+wired to the same save handler — a split second later; guarded with a
+`saved` flag so Enter's save can't fire twice. Verified live against a
+real McDonald's Wikidata pull (correct 15 May 1940 · San Bernardino,
+United States founding date and place, Ray Kroc and "Richard and Maurice
+McDonald" as founders with real photos), a manually added location with
+structured city/country, three commercial milestones pasted and grouped
+by kind, the founder-role inline editor (corrected Ray Kroc to "Franchise
+founder", confirmed a re-check afterward left it untouched — "Nothing new
+from Wikidata"), and the kind-switch menu on an unrelated existing case
+(Winston Churchill) showing "Make it a business case" while the new
+McDonald's case's own menu correctly excluded it. A stale hardcoded string
+("Move all N to People", listing family/event/series as the person-kind
+exclusions) caught and fixed to include company while in the area. Test
+case deleted after verification; zero console errors throughout.
+
+**2026-09-29, earlier — video joins the life line and relationship milestones,
 link-only (v187).** Her ask: "i want to be able to add video to the event in
 timeline or relationship." Investigated first: the previous day's ask28
 declutter had removed `video.js`, the only page that could actually PLAY a

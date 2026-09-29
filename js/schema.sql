@@ -11,7 +11,20 @@ CREATE TABLE case_file (
   era_start INTEGER, era_end INTEGER,      -- years, for the board strip
   owner_id TEXT NOT NULL DEFAULT 'local',  -- always 'local' now; the seam for accounts later
   world TEXT,                              -- set at creation only: the fictional world this case is about ('Harry Potter'); null = real research
-  wikidata_id TEXT,                        -- series cases: the franchise's own Wikidata item, so "+installments" can be re-run without duplicating rows
+  wikidata_id TEXT,                        -- series/company cases: the franchise or business's own Wikidata item, so a re-check can be re-run without duplicating rows
+  hidden INTEGER DEFAULT 0,                -- "Move to People" on a thin person-kind case (2026-09-22)
+
+  -- a company/corporation case's own facts (2026-09-29, her ask: "add an
+  -- option for me to add corporations/businesses including founding date,
+  -- franchise founding date, founder, location opening etc"). Founding date
+  -- and founding location (P571/P740 on Wikidata) are one clean historical
+  -- fact each; franchise_date ("when franchising began") has no matching
+  -- Wikidata property — always typed by hand — see js/company-facts.js.
+  founding_date TEXT, founding_date_precision TEXT DEFAULT 'unknown',
+  founding_year_min INTEGER, founding_year_max INTEGER,
+  founding_city TEXT, founding_country TEXT,
+  franchise_date TEXT, franchise_date_precision TEXT DEFAULT 'unknown',
+  franchise_year_min INTEGER, franchise_year_max INTEGER,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
 
@@ -90,10 +103,11 @@ CREATE TABLE event (
   case_id TEXT REFERENCES case_file(id) ON DELETE CASCADE,
   person_id TEXT REFERENCES person(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
-  kind TEXT,                               -- birth|death|marriage|move|business|other
+  kind TEXT,                               -- birth|death|marriage|move|business|other|location (a company case's own locations)
   date TEXT, date_precision TEXT DEFAULT 'day',
   date_year_min INTEGER, date_year_max INTEGER,
-  place TEXT, notes TEXT
+  place TEXT, notes TEXT,
+  city TEXT, country TEXT                  -- structured place, for a company case's Locations tab only (2026-09-29); every other kind keeps using the plain `place` text above
 );
 
 -- extra pictures on one milestone (2026-09-27, her ask: "let multiple photos

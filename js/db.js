@@ -353,6 +353,13 @@ const ADDED_COLUMNS = [
   ['case_file', 'wikidata_id', 'TEXT'],  // series cases (2026-09-21): the franchise's own Wikidata item, so "+installments" can be re-run without duplicating rows
   ['person', 'death_place', 'TEXT'],     // "maximum info" (2026-09-28, synth22): P20, only ever set for the deceased
   ['person', 'death_manner', 'TEXT'],    // same ask: P1196 (natural causes, accident, suicide…), only for the deceased
+  // a company/corporation case (2026-09-29) — see schema.sql's case_file note
+  ['case_file', 'founding_date', 'TEXT'], ['case_file', 'founding_date_precision', "TEXT DEFAULT 'unknown'"],
+  ['case_file', 'founding_year_min', 'INTEGER'], ['case_file', 'founding_year_max', 'INTEGER'],
+  ['case_file', 'founding_city', 'TEXT'], ['case_file', 'founding_country', 'TEXT'],
+  ['case_file', 'franchise_date', 'TEXT'], ['case_file', 'franchise_date_precision', "TEXT DEFAULT 'unknown'"],
+  ['case_file', 'franchise_year_min', 'INTEGER'], ['case_file', 'franchise_year_max', 'INTEGER'],
+  ['event', 'city', 'TEXT'], ['event', 'country', 'TEXT'], // a company case's Locations tab only — see schema.sql's event note
 ];
 function applyMigrations() {
   for (const sql of MIGRATIONS) db.run(sql);

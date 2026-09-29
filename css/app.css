@@ -757,6 +757,7 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .event-era .val { color: var(--violet); }
 .event-era button { color: var(--text-3); }
 .event-badge.series { color: var(--teal); }
+.event-badge.business { color: var(--brass); }
 .tl-entry { position: relative; padding-left: 16px; }
 .tl-entry::before { content: ''; position: absolute; left: 3px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--violet); }
 .tl-entry .tl-date { color: var(--violet); }

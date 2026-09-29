@@ -395,11 +395,12 @@ export async function listEventsForRelationship(relationshipId) {
 export async function createEvent(obj) {
   const id = uuid();
   db.run(
-    `INSERT INTO event (id,case_id,person_id,title,kind,date,date_precision,date_year_min,date_year_max,place,notes,theory_id,songs,with_ids,wikidata_id,relationship_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO event (id,case_id,person_id,title,kind,date,date_precision,date_year_min,date_year_max,place,notes,theory_id,songs,with_ids,wikidata_id,relationship_id,city,country)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, obj.case_id, obj.person_id || null, obj.title, obj.kind || 'other', obj.date || null,
       obj.date_precision || 'day', obj.date_year_min ?? null, obj.date_year_max ?? null, obj.place || null, obj.notes || null,
-      obj.theory_id || null, obj.songs || null, obj.with_ids || null, obj.wikidata_id || null, obj.relationship_id || null]
+      obj.theory_id || null, obj.songs || null, obj.with_ids || null, obj.wikidata_id || null, obj.relationship_id || null,
+      obj.city || null, obj.country || null]
   );
   logChange('event', id, 'insert', obj);
   return id;

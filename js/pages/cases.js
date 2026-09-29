@@ -17,13 +17,14 @@ import { CASE_KINDS, createCaseOfKind, isPersonKind } from './dashboard.js';
 import { armNewPersonFlow } from '../new-person-flow.js';
 import { searchPeople, fillFromWikidata, insertFamily } from '../lookup.js';
 import { fetchWorks, addWorks, fetchInstallments, addInstallments } from '../works.js';
+import { fetchCompanyFacts, applyCompanyFacts, summarizeCompanyFacts } from '../company-facts.js';
 
 const OPENED_KEY = 'c7-case-opened'; // { caseId: timestamp } — per device, that's fine
 
 // the "⋯" menu's kind-switcher offers the two kinds a case ISN'T, each one
 // click away — a cycle button hid "event" a click deep behind "family" for
 // any case starting as a person (2026-09-04, her screenshot)
-const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case', series: 'a series case' };
+const KIND_LABEL = { person: 'a person case', family: 'a family case', event: 'an event case', series: 'a series case', company: 'a business case' };
 const otherKinds = (kind) => Object.keys(KIND_LABEL).filter((k) => k !== (KIND_LABEL[kind] ? kind : 'person'));
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -51,6 +52,7 @@ export async function openCase(ctx, kase) {
   await ctx.setCaseId(kase.id);
   if (kase.kind === 'event') { ctx.navigate('#/event'); return; }
   if (kase.kind === 'series') { ctx.navigate('#/series'); return; }
+  if (kase.kind === 'company') { ctx.navigate('#/company'); return; }
   const people = await ctx.store.listPeople(kase.id);
   if (kase.kind === 'family' || (kase.kind !== 'person' && people.length > 1)) { ctx.navigate('#/family'); return; }
   let p = subjectOf(kase, people);
@@ -137,11 +139,14 @@ function wireCaseLookup(form, ctx, store) {
     btn.disabled = false; btn.textContent = 'Look up on Wikipedia';
     if (!matches.length) { if (!btn.nextElementSibling?.classList.contains('inline-note')) inlineNote(btn, 'No match on Wikidata — likely a private person; Create makes the case by name.'); return; }
     const isSeries = kindSelect?.value === 'series';
+    const isCompany = kindSelect?.value === 'company';
     results.innerHTML = `
       <div class="row wrap" style="gap:12px;margin-top:8px;align-items:center">
         <span class="section-label">Create the case from a Wikipedia record</span>
-        ${isSeries ? '' : '<label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-family"> + family — their relatives too, like Insert family</label>'}
-        <label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-works" checked${isSeries ? ' disabled' : ''}> ${isSeries ? '+ installments — every book or film in the series, pulled straight from Wikidata' : '+ works — albums, EPs, singles and songs with release dates (for a musician)'}</label>
+        ${isSeries || isCompany ? '' : '<label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-family"> + family — their relatives too, like Insert family</label>'}
+        ${isCompany
+          ? '<label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" checked disabled> + founding details — date, location and founders, pulled straight from Wikidata</label>'
+          : `<label class="row" style="gap:4px;font-size:12px;color:var(--text-3);align-items:center"><input type="checkbox" class="if-works" checked${isSeries ? ' disabled' : ''}> ${isSeries ? '+ installments — every book or film in the series, pulled straight from Wikidata' : '+ works — albums, EPs, singles and songs with release dates (for a musician)'}</label>`}
       </div>`;
     for (const m of matches) {
       const row = document.createElement('div');
@@ -188,6 +193,24 @@ function wireCaseLookup(form, ctx, store) {
         sessionStorage.setItem('c7-pi-result', `${r.added} installment${r.added === 1 ? '' : 's'} added from Wikidata${r.undated ? ` (${r.undated} without a date)` : ''}.`);
       } catch (e) { prog.textContent = `The case is made; the installments could not be read (${e.message}). + Installments again from the series page.`; }
       ctx.navigate('#/series');
+      return;
+    }
+
+    // a company case isn't about a person either — no subject, no + family;
+    // founding date, founding location and founder(s) are pulled and filled
+    // straight away (mirrors the series case above; see company-facts.js
+    // for what Wikidata does and doesn't cleanly give)
+    if (kind === 'company') {
+      const kase = await store.createCase({ name: m.label, kind, world, wikidata_id: m.id });
+      await ctx.setCaseId(kase.id);
+      markOpened(kase.id);
+      try {
+        prog.textContent = 'Reading founding details from Wikidata…';
+        const facts = await fetchCompanyFacts(m.id);
+        const r = await applyCompanyFacts(store, kase, facts);
+        sessionStorage.setItem('c7-pi-result', summarizeCompanyFacts(r));
+      } catch (e) { prog.textContent = `The case is made; founding details could not be read (${e.message}). Check Wikidata again from the company page.`; }
+      ctx.navigate('#/company');
       return;
     }
 
@@ -291,7 +314,7 @@ function wireCaseMenu(menuBtn, slot, c, ctx, store, onChanged) {
       btn.addEventListener('click', async () => {
         const kind = btn.dataset.kind;
         await store.updateCase(c.id, { kind });
-        if (kind === 'event') await dropPlaceholderPerson(store, c);
+        if (kind === 'event' || kind === 'company') await dropPlaceholderPerson(store, c);
         onChanged();
       });
     }
@@ -469,7 +492,7 @@ export async function render(root, ctx) {
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
         <span class="mono" style="font-size:12px;color:var(--text-3);flex:1;min-width:120px">${cases.length} case${cases.length === 1 ? '' : 's'}</span>
-        ${personCases.length ? `<button class="btn btn-ghost btn-sm" id="move-all-btn" title="Every person-kind case (not family, event or series) stops being its own tile — nothing on any of them is deleted or reassigned, and each is reachable from People instead">Move all ${personCases.length} to People</button>` : ''}
+        ${personCases.length ? `<button class="btn btn-ghost btn-sm" id="move-all-btn" title="Every person-kind case (not family, event, series or company) stops being its own tile — nothing on any of them is deleted or reassigned, and each is reachable from People instead">Move all ${personCases.length} to People</button>` : ''}
         <button class="btn btn-primary" id="new-case-btn">+ New</button>
       </div>
       <div id="new-case-slot"></div>

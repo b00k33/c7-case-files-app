@@ -4,13 +4,16 @@ import { armNewPersonFlow } from '../new-person-flow.js';
 // what a case is about (her call, 2026-09-02; event added 2026-09-04; series
 // added 2026-09-21, "i need a category for novel/film series" — neither a
 // person, a household, nor a major event, but a franchise with its own cast
-// and a dated run of installments): a person, a family, a major event, or a
-// novel/film series.
+// and a dated run of installments; company added 2026-09-29, "add an option
+// for me to add corporations/businesses" — a business has its own founding,
+// founders and a run of locations opening over time): a person, a family, a
+// major event, a novel/film series, or a business/corporation.
 export const CASE_KINDS = [
   { value: 'person', label: 'A person' },
   { value: 'family', label: 'A family / household' },
   { value: 'event', label: 'A major event' },
   { value: 'series', label: 'A novel / film series' },
+  { value: 'company', label: 'A business / corporation' },
 ];
 
 // "person-shaped," for anything that isn't deliberately about more-than-one
@@ -18,11 +21,11 @@ export const CASE_KINDS = [
 // People" option): schema.sql's case_file.kind still DEFAULTS to 'research'
 // (store.js's createCase falls back to it too), a leftover from before this
 // four-kind system existed (2026-09-13) — nothing ever migrated old rows, so
-// a case created before then can still carry 'research' today. Family, event
-// and series are the only kinds deliberately NOT about a single person;
-// everything else (the literal 'person', or any legacy/unrecognized value)
-// counts as person-shaped.
-export const isPersonKind = (kind) => !['family', 'event', 'series'].includes(kind);
+// a case created before then can still carry 'research' today. Family,
+// event, series and company are the only kinds deliberately NOT about a
+// single person; everything else (the literal 'person', or any legacy/
+// unrecognized value) counts as person-shaped.
+export const isPersonKind = (kind) => !['family', 'event', 'series', 'company'].includes(kind);
 
 // creating a person-case also creates the person, so their file (and Look
 // up) exists immediately — no empty case, no extra step. An event-case and a
@@ -44,6 +47,8 @@ export async function createCaseOfKind(store, ctx, typedName, kind, world) {
     ctx.navigate('#/event');
   } else if (kind === 'series') {
     ctx.navigate('#/series');
+  } else if (kind === 'company') {
+    ctx.navigate('#/company');
   } else {
     ctx.navigate('#/family');
   }
