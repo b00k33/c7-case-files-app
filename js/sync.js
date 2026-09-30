@@ -87,16 +87,28 @@ function hasPendingLocalChange(entity, entityId) {
   return r.length > 0;
 }
 
+// A pulled tagging record's own `id` is a hashed placeholder (see push()'s
+// taggingCloudId, below) — never the tagId:targetType:targetId triple every
+// LOCAL lookup (the outbox, readLocalRow) is keyed by. Anything that needs
+// to match a pulled tagging record against local state has to rebuild that
+// triple from the record's own `data` first.
+function localEntityId(record) {
+  if (record.entity !== 'tagging') return record.id;
+  const d = record.data || {};
+  return `${d.tag_id}:${d.target_type}:${d.target_id}`;
+}
+
 /** Returns true only when this device's data actually changed. */
 function applyRemote(record) {
   const entity = record.entity;
   if (!SYNC_TABLES.includes(entity)) return false;
   const cols = columnsOf(entity);
+  const localId = localEntityId(record);
   if (record.deleted) {
-    const existing = readLocalRow(entity, record.id);
+    const existing = readLocalRow(entity, localId);
     if (!existing || existing.deleted_at != null) return false; // already gone here
     if (entity === 'tagging') {
-      const [tagId, targetType, targetId] = String(record.id).split(':');
+      const [tagId, targetType, targetId] = localId.split(':');
       db.run('DELETE FROM tagging WHERE tag_id=? AND target_type=? AND target_id=?', [tagId, targetType, targetId]);
     } else if (cols.includes('deleted_at')) {
       db.run(`UPDATE ${entity} SET deleted_at=? WHERE id=? AND deleted_at IS NULL`, [record.updated_at || nowISO(), record.id]);
@@ -106,7 +118,7 @@ function applyRemote(record) {
     return true;
   }
   const data = record.data || {};
-  const local = readLocalRow(entity, record.id);
+  const local = readLocalRow(entity, localId);
   // last-writer-wins per record: an older remote copy never overwrites newer
   // local. Equal timestamps are the SAME version.
   if (entity !== 'tagging' && cols.includes('updated_at')) {
@@ -192,7 +204,7 @@ async function pull() {
       seenAtCursor.add(rec.id);
       fresh += 1;
       // a record she edited here and hasn't pushed yet wins locally
-      if (!hasPendingLocalChange(rec.entity, rec.id) && applyRemote(rec)) applied += 1;
+      if (!hasPendingLocalChange(rec.entity, localEntityId(rec)) && applyRemote(rec)) applied += 1;
       if (rec.updated_at > newest) newest = rec.updated_at;
     }
     if (data.length < PAGE) break;
@@ -208,6 +220,24 @@ async function pull() {
   return applied;
 }
 
+// c7_records.id is a uuid column; tagging's own key (tagId:targetType:
+// targetId) isn't one, so it's hashed into a stable, uuid-shaped id instead
+// of being sent raw — the same composite key always maps to the same hash,
+// so repeated tag/untag of the same pair still upserts in place rather than
+// piling up duplicate cloud rows. Found live, 2026-09-30: every tag/untag
+// push had been failing Postgres's "invalid input syntax for type uuid"
+// check since sync shipped — one bad row in a batch throws for the whole
+// batch, and a permanently-failing batch is never cleared from the outbox,
+// so it blocks every later-queued record behind it too (471 stuck on her
+// real device, sync fully wedged). The real composite key travels in `data`
+// (tag_id/target_type/target_id) instead, which is what applyRemote()'s own
+// tagging lookups read now — never this id.
+async function taggingCloudId(compositeKey) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(compositeKey)));
+  const hex = [...bytes.slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 async function push() {
   // queued_at comes along so the delete below can tell "the entry I just
   // uploaded" from "a newer edit to the same record, queued while I was on
@@ -218,20 +248,27 @@ async function push() {
   for (let i = 0; i < items.length; i += PUSH_BATCH) {
     const slice = items.slice(i, i + PUSH_BATCH);
     const pushedAt = nowISO();
-    const rows = slice.map(({ entity, entity_id }) => {
+    const rows = await Promise.all(slice.map(async ({ entity, entity_id }) => {
       const row = readLocalRow(entity, entity_id);
       const gone = !row || (row.deleted_at != null);
+      let data = gone ? (row || {}) : row;
+      let cloudId = String(entity_id);
+      if (entity === 'tagging') {
+        const [tagId, targetType, targetId] = String(entity_id).split(':');
+        data = { ...data, tag_id: tagId, target_type: targetType, target_id: targetId };
+        cloudId = await taggingCloudId(entity_id);
+      }
       return {
         owner_id: uid,
         entity,
-        id: String(entity_id),
-        data: gone ? (row || {}) : row,
+        id: cloudId,
+        data,
         deleted: gone,
         // arrival time, so other devices' pull cursors can't skip it; the
         // row's own updated_at (inside data) still decides last-writer-wins
         updated_at: pushedAt,
       };
-    });
+    }));
     const { error } = await sb.from('c7_records').upsert(rows, { onConflict: 'owner_id,entity,id' });
     if (error) throw error;
     db.runMany(slice.map(({ entity, entity_id, queued_at }) => ['DELETE FROM c7_outbox WHERE entity=? AND entity_id=? AND queued_at=?', [entity, entity_id, queued_at]]));

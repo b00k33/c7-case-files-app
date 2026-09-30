@@ -417,7 +417,56 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-29, latest — a fifth case kind, Business / corporation, with its
+**2026-09-30, latest — every tag/untag push had been failing since sync
+shipped; 471 records stuck, fixed (v189).** She sent a screenshot of the
+sync drawer, no text: `STATUS problem — see below`, `WAITING TO UPLOAD 471`,
+and the actual Postgres error inline — `invalid input syntax for type
+uuid: "a21c5333-6e4d-4115-b902-946e2b967255:person:8a72ffb9-55d1-42f8-900c-
+22023545e8e9"`. Confirmed with her first that this predated the business-
+case-kind push (it did — ruled out as the cause before digging further).
+Root cause: `c7_records.id` (the cloud sync table) is a `uuid`-typed
+column, but `tagging` is the one entity in `SYNC_TABLES` with no uuid of
+its own — its real key is a `tagId:targetType:targetId` triple (person
+traits, event outcome tags, Fashion tags — anything using the tag/tagging
+tables), and `push()` had always been sending that triple straight into
+the uuid column. Postgres rejects it outright, `sb.from('c7_records').
+upsert()` throws, and `push()`'s per-100 batching means ONE bad tagging
+row in a batch fails the WHOLE batch — which is never cleared from
+`c7_outbox` on failure, so every sync cycle re-fetches and re-fails the
+identical batch forever, permanently blocking every record queued behind
+it too. This is not new — it's been broken since sync shipped
+(2026-09-01); her real account had simply never hit a tag/untag before
+now (or had, and it's sat silently wedged since). Fix, entirely
+client-side since there's no schema-migration path to a hosted Supabase
+table from this repo: `taggingCloudId()` (`js/sync.js`) hashes the
+composite triple (SHA-256, first 16 bytes, formatted 8-4-4-4-12) into a
+valid, deterministic uuid-shaped id — same triple always hashes to the
+same id, so repeated tag/untag of the same pair still upserts in place
+rather than piling up cloud duplicates. The real triple travels inside
+`data` (`tag_id`/`target_type`/`target_id`) on every tagging push, add or
+delete alike — needed because a deleted tagging row is hard-deleted
+locally (no `deleted_at` column), so by push time there's nothing left to
+read the triple back off except the outbox's own `entity_id`, which
+`push()` already has in scope. New shared `localEntityId(record)` reads
+that same triple back off a PULLED record's `data` (never its now-opaque
+`id`) — needed in two more places that had quietly relied on
+`record.id` being parseable for tagging and would have been silently
+broken the same way once this shipped: `applyRemote`'s own local-row
+lookups (both the delete-tombstone path and the general upsert path), and
+`pull()`'s `hasPendingLocalChange` guard, which protects a pending local
+tag/untag from being clobbered by an incoming pull — a real, narrower
+version of the same bug that would have gone unnoticed until it silently
+overwrote her own not-yet-pushed change. Verified: `sync.js` loads with no
+import/syntax errors; the hash function is deterministic (same input twice
+→ identical output), distinct across different composite keys, and always
+matches valid UUID textual format. Could not exercise the real push/pull
+cycle end to end — that needs her actual Supabase sign-in, which this
+session has no access to and shouldn't attempt to obtain — so this is
+verified as far as it can be without her live account; the true test is
+whether "waiting to upload: 471" drains to 0 once she's on v189. No schema
+change, no version bump beyond the usual `js/version.js`/`sw.js` pair.
+
+**2026-09-29, earlier — a fifth case kind, Business / corporation, with its
 own founding, founders, locations and commercial story (v188).** Her ask,
 straight after the video feature shipped: "add an option for me to add
 corporations/businesses including founding date, franchise founding date,
