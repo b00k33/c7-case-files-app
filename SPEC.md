@@ -1495,6 +1495,16 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 108. A loosely-typed date required leading zeros it never promised (v190, 2026-09-30)
+
+She typed "2002-2-22" into the business case's founding-date field (§106) and got "Date not recognised — try 1955-04-15, 1955-04, 1955 or 1955-1960," despite the placeholder itself implying loose typing. `parseDateInput()`'s day-precision branch matched `^\d{4}-\d{2}-\d{2}$` — exactly two digits for both month and day — so a single-digit month or day was silently rejected even though it's a perfectly natural way to type a date.
+
+Checked scope before fixing anything: this function is hand-copied, byte-for-byte identical, in three places (`event.js`, `series.js`, `company.js` — each case kind that lets her type a loose date by hand). Fixing only the page she happened to hit would have left the other two with the exact same bug, undiscovered until she typed a non-padded date into one of them too. Fixed in all three: the month and day segments now accept 1 or 2 digits (`\d{1,2}`) and are zero-padded when the ISO string is built, so "2002-2-22" and "2002-02-22" store identically. The month-only branch got the same treatment.
+
+One small, adjacent correctness fix bundled in while touching this code: the original regex validated digit COUNT only, never the VALUE — "2002-99-99" would have silently passed through as a "recognised" date before this. Both branches now range-check (month 1–12, day 1–31) and refuse a nonsense value the same way they refuse genuinely unparseable text, which is what the error message already claimed happened.
+
+Verified live: a throwaway business case's founding date, typed as the exact reported "2002-2-22," saved and displayed as "Founded 22 Feb 2002"; re-opening the edit form read it back zero-padded ("2002-02-22"), confirming the stored value is identical regardless of how it was typed. "2002-13-01" (invalid month) is still correctly refused, without disturbing the already-saved date underneath it. A non-padded month-only date ("1998-6") and a plain year both still save correctly — no regression on the formats that already worked. `event.js` and `series.js` confirmed to load with no console errors after the identical edit (the change is mechanical and identical across all three; not separately re-exercised through each page's own UI). 44/44 in `tests/browser-tests.html`. Hit the project's own stale-service-worker trap mid-session — edited the files, tested before bumping the version, and the first attempt silently re-ran the old cached code and still failed the exact same way; re-learned bump-then-verify, not verify-then-bump.
+
 ## 107. Every tag/untag push had been failing since sync shipped — 471 records stuck (v189, 2026-09-30)
 
 She sent a screenshot of the sync drawer with no text: `STATUS problem — see below`, `WAITING TO UPLOAD 471`, and the raw Postgres error shown inline — `invalid input syntax for type uuid: "a21c5333-6e4d-4115-b902-946e2b967255:person:8a72ffb9-55d1-42f8-900c-22023545e8e9"`. Confirmed with her first whether this started with the business-case push (it didn't — ruled out before investigating further, so the fix below addresses a pre-existing bug, not a regression).

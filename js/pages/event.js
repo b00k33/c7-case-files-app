@@ -24,13 +24,21 @@ const TAB_MODULES = {
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function initials(name) { return String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 
-/** "1914", "1914-08" or "1914-06-28" (typed loosely, kept honest) → date fields at the precision she actually gave. */
+/** "1914", "1914-8", "1914-08", "1914-6-28" or "1914-06-28" (typed loosely, kept honest — no leading zero required) → date fields at the precision she actually gave. */
 function parseDateInput(raw) {
   const d = String(raw || '').trim();
   if (!d) return { date: null, date_precision: 'unknown', date_year_min: null, date_year_max: null };
   let m;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return { date: d, date_precision: 'day', date_year_min: null, date_year_max: null };
-  if ((m = d.match(/^(\d{4})-(\d{2})$/))) return { date: `${d}-01`, date_precision: 'month', date_year_min: null, date_year_max: null };
+  if ((m = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) {
+    const mo = +m[2], day = +m[3];
+    if (mo < 1 || mo > 12 || day < 1 || day > 31) return null;
+    return { date: `${m[1]}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`, date_precision: 'day', date_year_min: null, date_year_max: null };
+  }
+  if ((m = d.match(/^(\d{4})-(\d{1,2})$/))) {
+    const mo = +m[2];
+    if (mo < 1 || mo > 12) return null;
+    return { date: `${m[1]}-${String(mo).padStart(2, '0')}-01`, date_precision: 'month', date_year_min: null, date_year_max: null };
+  }
   if ((m = d.match(/^(\d{4})$/))) return { date: null, date_precision: 'year', date_year_min: +m[1], date_year_max: +m[1] };
   if ((m = d.match(/^(\d{4})\s*[–-]\s*(\d{4})$/))) return { date: null, date_precision: 'range', date_year_min: +m[1], date_year_max: +m[2] };
   return null; // unrecognised — the form refuses rather than guessing

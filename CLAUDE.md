@@ -417,7 +417,39 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-30, latest — every tag/untag push had been failing since sync
+**2026-09-30, latest — a loosely-typed date needed leading zeros it was
+never told to expect (v190).** She typed "2002-2-22" into the new business
+case's founding-date field and got "Date not recognised" — a real papercut,
+not a fluke: `parseDateInput()`'s day-precision regex required exactly two
+digits for month and day (`\d{4}-\d{2}-\d{2}$`), silently rejecting a
+single-digit month or day even though every placeholder in the app
+("1955-04-15, 1955-04 or 1955") implies loose, forgiving typing. Checked
+scope before fixing: this exact function is hand-copied, byte-identical,
+in three places — `event.js`, `series.js`, and the just-shipped
+`company.js` — so fixing only the page she happened to hit would have left
+the other two silently broken the same way. Fixed in all three: the day
+and month segments now accept 1 or 2 digits (`\d{1,2}`) and are zero-padded
+when building the stored ISO string, so "2002-2-22" and "2002-02-22"
+produce the identical stored value. Bundled a small, adjacent correctness
+fix while touching this code: the original regex only checked digit COUNT,
+never the actual value, so "2002-99-99" would have silently been accepted
+as a "valid" day-precision date before this — now month (1–12) and day
+(1–31) are range-checked and a nonsense value is refused like any other
+unrecognised input, same as it always claimed to. Verified live: created a
+throwaway business case, typed the exact reported "2002-2-22" — saved as
+"Founded 22 Feb 2002"; re-opened the edit form and confirmed it read back
+zero-padded ("2002-02-22"); confirmed "2002-13-01" (invalid month) is
+still correctly refused without disturbing the already-saved date;
+confirmed a non-padded month-only ("1998-6") and a plain year both still
+save correctly. Re-verified event.js and series.js load with no console
+errors after the same edit (not separately exercised through their own
+UI — the change is identical and mechanical across all three). 44/44 in
+`tests/browser-tests.html`. Caught the project's own stale-service-worker
+trap mid-session (edited the files but hadn't bumped the version yet, so
+the first re-test silently re-ran the OLD cached code and still failed) —
+bump-then-verify, not verify-then-bump, as always.
+
+**2026-09-30, earlier — every tag/untag push had been failing since sync
 shipped; 471 records stuck, fixed (v189).** She sent a screenshot of the
 sync drawer, no text: `STATUS problem — see below`, `WAITING TO UPLOAD 471`,
 and the actual Postgres error inline — `invalid input syntax for type
