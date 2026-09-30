@@ -357,6 +357,7 @@ const ADDED_COLUMNS = [
   ['case_file', 'founding_date', 'TEXT'], ['case_file', 'founding_date_precision', "TEXT DEFAULT 'unknown'"],
   ['case_file', 'founding_year_min', 'INTEGER'], ['case_file', 'founding_year_max', 'INTEGER'],
   ['case_file', 'founding_city', 'TEXT'], ['case_file', 'founding_country', 'TEXT'],
+  ['case_file', 'headquarters_city', 'TEXT'], ['case_file', 'headquarters_country', 'TEXT'], // distinct from founding location (2026-09-30) — see schema.sql's case_file note
   ['case_file', 'franchise_date', 'TEXT'], ['case_file', 'franchise_date_precision', "TEXT DEFAULT 'unknown'"],
   ['case_file', 'franchise_year_min', 'INTEGER'], ['case_file', 'franchise_year_max', 'INTEGER'],
   ['event', 'city', 'TEXT'], ['event', 'country', 'TEXT'], // a company case's Locations tab only — see schema.sql's event note

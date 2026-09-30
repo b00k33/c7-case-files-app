@@ -115,9 +115,15 @@ export async function render(root, ctx, tab = 'overview') {
 
   const foundingDate = fmtLoose({ date: kase.founding_date, date_precision: kase.founding_date_precision, date_year_min: kase.founding_year_min, date_year_max: kase.founding_year_max });
   const foundingPlace = [kase.founding_city, kase.founding_country].filter(Boolean).join(', ');
+  // headquarters (2026-09-30) is a distinct fact from founding location and
+  // only ever shown as a labeled fallback when founding location is blank —
+  // never blended in, since HQ can genuinely differ from where a business
+  // was founded. See company-facts.js's file-top note.
+  const hqPlace = [kase.headquarters_city, kase.headquarters_country].filter(Boolean).join(', ');
+  const placeHtml = foundingPlace ? esc(foundingPlace) : hqPlace ? `Headquarters: ${esc(hqPlace)}` : '';
   const franchiseDate = fmtLoose({ date: kase.franchise_date, date_precision: kase.franchise_date_precision, date_year_min: kase.franchise_year_min, date_year_max: kase.franchise_year_max });
-  const summaryHtml = (foundingDate || foundingPlace)
-    ? `<span style="color:var(--brass)">${foundingDate ? `Founded ${esc(foundingDate)}` : 'Founding date not set'}${foundingPlace ? ` · ${esc(foundingPlace)}` : ''}</span>${franchiseDate ? `<div style="margin-top:2px;color:var(--text-3);font-size:11px">Franchising began ${esc(franchiseDate)}</div>` : ''}`
+  const summaryHtml = (foundingDate || placeHtml)
+    ? `<span style="color:var(--brass)">${foundingDate ? `Founded ${esc(foundingDate)}` : 'Founding date not set'}${placeHtml ? ` · ${placeHtml}` : ''}</span>${franchiseDate ? `<div style="margin-top:2px;color:var(--text-3);font-size:11px">Franchising began ${esc(franchiseDate)}</div>` : ''}`
     : 'Set the founding details';
 
   root.innerHTML = `
@@ -185,6 +191,11 @@ export async function render(root, ctx, tab = 'overview') {
         <input type="text" id="fnd-country" placeholder="Country" value="${esc(kase.founding_country || '')}" style="width:130px">
         <input type="text" id="fnd-franchise" placeholder="Franchising began — optional" value="${esc(looseToInput(kase.franchise_date, kase.franchise_date_precision, kase.franchise_year_min, kase.franchise_year_max))}" style="width:200px">
       </div>
+      <div class="section-label" style="margin-top:10px">Headquarters — only shown above if the city/country fields are left blank</div>
+      <div class="row wrap" style="gap:8px;margin-top:4px">
+        <input type="text" id="fnd-hq-city" placeholder="HQ city" value="${esc(kase.headquarters_city || '')}" style="width:130px">
+        <input type="text" id="fnd-hq-country" placeholder="HQ country" value="${esc(kase.headquarters_country || '')}" style="width:130px">
+      </div>
       <div class="row" style="gap:8px;margin-top:10px">
         <button type="button" class="btn btn-primary btn-sm" id="fnd-save">Save</button>
         <button type="button" class="btn btn-ghost btn-sm" id="fnd-cancel">Cancel</button>
@@ -201,6 +212,8 @@ export async function render(root, ctx, tab = 'overview') {
         founding_date: fParsed.date, founding_date_precision: fParsed.date_precision, founding_year_min: fParsed.date_year_min, founding_year_max: fParsed.date_year_max,
         founding_city: slot.querySelector('#fnd-city').value.trim() || null,
         founding_country: slot.querySelector('#fnd-country').value.trim() || null,
+        headquarters_city: slot.querySelector('#fnd-hq-city').value.trim() || null,
+        headquarters_country: slot.querySelector('#fnd-hq-country').value.trim() || null,
         franchise_date: xParsed.date, franchise_date_precision: xParsed.date_precision, franchise_year_min: xParsed.date_year_min, franchise_year_max: xParsed.date_year_max,
       });
       render(root, ctx, tab);

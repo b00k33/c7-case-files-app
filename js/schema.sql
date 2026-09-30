@@ -23,6 +23,12 @@ CREATE TABLE case_file (
   founding_date TEXT, founding_date_precision TEXT DEFAULT 'unknown',
   founding_year_min INTEGER, founding_year_max INTEGER,
   founding_city TEXT, founding_country TEXT,
+  -- headquarters (2026-09-30, her ask re: Anytime Fitness): a distinct fact
+  -- from founding location — Wikidata's P159, not P740 — shown only as a
+  -- labeled fallback when founding_city/country above are blank, since a
+  -- company's HQ can genuinely differ from (and even disagree with other
+  -- sources about) where it was founded.
+  headquarters_city TEXT, headquarters_country TEXT,
   franchise_date TEXT, franchise_date_precision TEXT DEFAULT 'unknown',
   franchise_year_min INTEGER, franchise_year_max INTEGER,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT

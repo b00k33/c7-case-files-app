@@ -417,7 +417,47 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-30, latest — a loosely-typed date needed leading zeros it was
+**2026-09-30, latest — Wikidata had no founder data at all for a real
+business, and the location fact it did have was the wrong one (v191).**
+"c7 is not extracting all info from wiki for anytime fitness despite it
+showing on website" — no bug in the query logic, a genuine gap in what
+Wikidata (the structured database the pull reads) has on file versus what
+Wikipedia (the article she was looking at) shows. Checked three things
+live against the real item (Q4778364) before touching any code: (1)
+Wikidata's founding date (P571 = 2002) is correct and already pulled fine;
+(2) Wikidata has zero P112 (founder) claims for this company, even though
+Wikipedia's infobox names three (Chuck Runyon, Dave Mortensen, Jeff
+Klinger) — and none of the three has their own Wikidata person-item
+either, so no query, however written, could retrieve them; (3) Wikidata
+has no P740 (location of formation) for this item at all, only P159
+(headquarters = "Hastings"), a distinct fact `company-facts.js` never
+read — and headquarters is genuinely shakier than founding location here,
+since Wikipedia's own infobox disagrees with Wikidata and says "Woodbury,
+MN" instead. Two different fixes for two different problems: founders
+needed no code change at all — the existing "+ Add founder" button (v188)
+is a plain typed-name field, not a Wikidata lookup, so she can just type
+the three names in by hand. Location got a real, disclosed feature add,
+after asking her: `FACTS_QUERY` now also reads P159 (+ its own P17
+country, same pattern as P740), and `applyCompanyFacts` fills new
+`headquarters_city`/`headquarters_country` columns — but only as a
+labeled fallback. The Overview summary line shows the real founding
+location when it has one; only when that's blank does it show
+"Headquarters: Hastings, United States" (never silently as if it were the
+founding fact), and the same labeling carries into the edit form, with its
+own caption explaining when it's shown. Founding location and headquarters
+are stored and edited independently — typing one never touches the other.
+Verified live end-to-end: created a throwaway Anytime Fitness business
+case from the real Wikidata record, confirmed the summary read "Founded
+2002 · Headquarters: Hastings, United States" and "No founders yet.";
+typed "Chuck Runyon" into "+ Add founder" and confirmed it saved as a real
+founder with no Wikidata match needed; typed a founding city ("Woodbury")
+and confirmed the summary switched to it and dropped the headquarters
+fallback, while the stored headquarters fields survived untouched
+underneath on reopening the edit form. 44/44 in `tests/browser-tests.html`.
+Bump-then-verify as always — unregistered the SW and cleared caches before
+the first test, not after a false failure this time.
+
+**2026-09-30, earlier — a loosely-typed date needed leading zeros it was
 never told to expect (v190).** She typed "2002-2-22" into the new business
 case's founding-date field and got "Date not recognised" — a real papercut,
 not a fluke: `parseDateInput()`'s day-precision regex required exactly two
