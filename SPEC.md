@@ -1495,6 +1495,14 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 110. A manual "look this up here" link for a business Wikidata barely covers (v192, 2026-10-01)
+
+She sent a Style Encyclopedia page for Songmont (a real handbag brand founded 2013 in Beijing by Song Wang) and, after typing the founding facts in by hand — Wikidata has nothing usable on this one at all, a step past even §109's gap — asked to add the URL itself "for looking up." Not a Wikidata-coverage problem this time: a business case had nowhere at all to keep an arbitrary source link once she'd found one worth coming back to.
+
+Added `reference_url TEXT` to `case_file` (schema.sql, db.js's `ADDED_COLUMNS`) — a generic column, scoped in the UI to `company.js` only for now, the same pattern `wikidata_id` already uses for series and company cases. Editable from the same founding-details form as the other facts, under its own caption ("a page worth going back to when Wikidata doesn't have enough") so it reads as a companion source, not a replacement for the Wikidata controls above it. Typed loosely, kept honest — the same rule §108 applied to dates — a bare `stylencyclopedia.com/brands/songmont/` with no scheme gets `https://` prepended before saving. Displayed as a plain outbound link labeled by hostname only (`↗ stylencyclopedia.com`), via a `hostOf()` helper matching `questions.js`'s existing link-labeling convention exactly. The link is never fetched, parsed, or treated as a second data source to pull facts from — it's a bookmark for her, nothing more.
+
+Verified live: created a throwaway Songmont business case, typed `2013` / `Beijing` / `China` into the founding fields and the bare domain into the new reference field, saved, and confirmed the summary read "Founded 2013 · Beijing, China" with "↗ stylencyclopedia.com" showing underneath; re-opening the edit form read back the full `https://stylencyclopedia.com/brands/songmont/` with the scheme correctly prepended. 44/44 in `tests/browser-tests.html`.
+
 ## 109. Wikidata had no founder data for a real business, and the location fact it had was the wrong one (v191, 2026-09-30)
 
 "c7 is not extracting all info from wiki for anytime fitness despite it showing on website." Investigated live against the real Wikidata item (Q4778364) before assuming anything was broken: the founding date (P571 = 2002) was already pulling correctly. The gap was two separate, genuine data-availability limits, not a query bug.

@@ -417,7 +417,31 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-09-30, latest — Wikidata had no founder data at all for a real
+**2026-10-01, latest — a plain "look this up here" link for a business
+Wikidata barely covers (v192).** She sent a Style Encyclopedia page for
+Songmont (a real handbag brand) and, once the founding facts were typed in
+by hand — Wikidata has no usable entry for it at all, not even the gap
+v191 just covered — asked to "add [the URL] for looking up." Not a
+Wikidata problem this time: there was nowhere on a business case to keep
+an arbitrary source link at all. Added one: a new `reference_url` column
+on `case_file` (schema.sql, db.js), editable from the same founding-
+details form as the other business facts, with its own caption ("a page
+worth going back to when Wikidata doesn't have enough") so it reads as a
+companion to the Wikidata controls, not a replacement for them. Typed
+loosely and kept honest, same spirit as the date fields: a bare
+`stylencyclopedia.com/brands/songmont/` with no `https://` gets it
+prepended before saving, same "forgiving in, exact out" rule v190 applied
+to dates. Shown as a plain outbound link, labeled by hostname only
+(`↗ stylencyclopedia.com`, via a `hostOf()` matching questions.js's own
+link-labeling convention) — never fetched, parsed or treated as a second
+Wikidata source; it's a bookmark, not a data pull. Verified live: created
+a throwaway Songmont business case, typed 2013/Beijing/China and the bare
+domain into the new field, saved, and confirmed the summary read "Founded
+2013 · Beijing, China" with "↗ stylencyclopedia.com" appearing underneath,
+linking to the exact full URL (scheme correctly prepended) when read back
+from the form. 44/44 in `tests/browser-tests.html`.
+
+**2026-09-30, earlier — Wikidata had no founder data at all for a real
 business, and the location fact it did have was the wrong one (v191).**
 "c7 is not extracting all info from wiki for anytime fitness despite it
 showing on website" — no bug in the query logic, a genuine gap in what

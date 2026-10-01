@@ -29,6 +29,12 @@ CREATE TABLE case_file (
   -- company's HQ can genuinely differ from (and even disagree with other
   -- sources about) where it was founded.
   headquarters_city TEXT, headquarters_country TEXT,
+  -- a manual "look this up here" link (2026-10-01, Songmont: a brand with no
+  -- usable Wikidata entry) — for when the only good source she's found is a
+  -- plain web page, not a structured one this app's own Wikidata pulls can
+  -- read. Shown as a plain outbound link next to the Wikidata controls;
+  -- never fetched, parsed or auto-filled from — see company.js.
+  reference_url TEXT,
   franchise_date TEXT, franchise_date_precision TEXT DEFAULT 'unknown',
   franchise_year_min INTEGER, franchise_year_max INTEGER,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT

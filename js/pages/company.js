@@ -53,6 +53,8 @@ let lastResult = null; // shown once, on the next render
 
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function initials(name) { return String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
+// same convention as questions.js's hostOf — a plain readable label for an outbound link
+function hostOf(url) { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (_) { return null; } }
 
 /** "1955-4-15", "1955-04-15", "1955-04", "1955-4" or "1955" (typed loosely, kept honest — no leading zero required) → date fields at the precision she actually gave. */
 function parseDateInput(raw) {
@@ -140,6 +142,7 @@ export async function render(root, ctx, tab = 'overview') {
           <button class="btn btn-ghost btn-sm" id="link-wiki-btn">Search Wikipedia</button>
         </div>
         <div id="link-wiki-results"></div>`}
+        ${kase.reference_url ? `<div class="row" style="margin-top:8px"><a href="${esc(kase.reference_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm">↗ ${esc(hostOf(kase.reference_url) || 'Look up')}</a></div>` : ''}
         ${lastResult ? `<div class="inline-note" style="border-left-color:var(--green);margin-top:8px" id="result-note">${esc(lastResult)}</div>` : ''}
       </div>
 
@@ -196,6 +199,10 @@ export async function render(root, ctx, tab = 'overview') {
         <input type="text" id="fnd-hq-city" placeholder="HQ city" value="${esc(kase.headquarters_city || '')}" style="width:130px">
         <input type="text" id="fnd-hq-country" placeholder="HQ country" value="${esc(kase.headquarters_country || '')}" style="width:130px">
       </div>
+      <div class="section-label" style="margin-top:10px">Reference link — a page worth going back to when Wikidata doesn't have enough</div>
+      <div class="row wrap" style="gap:8px;margin-top:4px">
+        <input type="text" id="fnd-ref-url" placeholder="https://…" value="${esc(kase.reference_url || '')}" style="flex:1 1 260px;min-width:0">
+      </div>
       <div class="row" style="gap:8px;margin-top:10px">
         <button type="button" class="btn btn-primary btn-sm" id="fnd-save">Save</button>
         <button type="button" class="btn btn-ghost btn-sm" id="fnd-cancel">Cancel</button>
@@ -208,12 +215,15 @@ export async function render(root, ctx, tab = 'overview') {
       const fParsed = parseDateInput(slot.querySelector('#fnd-date').value);
       const xParsed = parseDateInput(slot.querySelector('#fnd-franchise').value);
       if (fParsed === null || xParsed === null) { inlineNote(btn, 'Date not recognised — try 1955-04-15, 1955-04, 1955 or 1955-1960.'); return; }
+      let refUrl = slot.querySelector('#fnd-ref-url').value.trim();
+      if (refUrl && !/^https?:\/\//i.test(refUrl)) refUrl = `https://${refUrl}`; // typed loosely, kept honest — same spirit as the date fields
       await store.updateCase(kase.id, {
         founding_date: fParsed.date, founding_date_precision: fParsed.date_precision, founding_year_min: fParsed.date_year_min, founding_year_max: fParsed.date_year_max,
         founding_city: slot.querySelector('#fnd-city').value.trim() || null,
         founding_country: slot.querySelector('#fnd-country').value.trim() || null,
         headquarters_city: slot.querySelector('#fnd-hq-city').value.trim() || null,
         headquarters_country: slot.querySelector('#fnd-hq-country').value.trim() || null,
+        reference_url: refUrl || null,
         franchise_date: xParsed.date, franchise_date_precision: xParsed.date_precision, franchise_year_min: xParsed.date_year_min, franchise_year_max: xParsed.date_year_max,
       });
       render(root, ctx, tab);
