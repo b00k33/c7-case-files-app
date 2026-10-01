@@ -384,6 +384,29 @@ export async function listEventsForCase(caseId) {
   return db.exec('SELECT * FROM event WHERE case_id=? ORDER BY date', [caseId]);
 }
 
+/**
+ * Every product logged on any business case's Products tab, with its
+ * brand's own founding facts attached — the one cross-case query My Shelf
+ * (js/pages/shelf.js) needs to group her inventory by brand zodiac
+ * (2026-10-01, her ask: "organise my inventory... group them in
+ * numerology/astrology"). kind='shelf_item', deliberately not 'product' —
+ * the Commercial tab's BIZ_MILESTONE_KINDS already uses 'product' for a
+ * brand's own "product launch" milestone, a different fact (the brand
+ * shipping something) from this (her owning something). `category` is
+ * `event.place` reused, not a new column — see schema.sql's event note.
+ */
+export async function listBeautyProducts() {
+  return db.exec(`
+    SELECT e.id, e.title AS name, e.place AS category, e.notes,
+           c.id AS case_id, c.name AS brand,
+           c.founding_date, c.founding_date_precision, c.founding_year_min
+    FROM event e
+    JOIN case_file c ON c.id = e.case_id
+    WHERE e.kind='shelf_item' AND c.deleted_at IS NULL
+    ORDER BY c.name, e.title
+  `);
+}
+
 export async function listEventsForPerson(personId) {
   return db.exec('SELECT * FROM event WHERE person_id=? ORDER BY date', [personId]);
 }

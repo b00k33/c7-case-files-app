@@ -26,9 +26,14 @@ import { fetchCompanyFacts, applyCompanyFacts, summarizeCompanyFacts } from '../
 import { parseMilestoneText } from '../milestone-parse.js';
 
 const TABS = [
-  ['overview', 'Overview'], ['locations', 'Locations'], ['commercial', 'Commercial'],
+  ['overview', 'Overview'], ['products', 'Products'], ['locations', 'Locations'], ['commercial', 'Commercial'],
   ['evidence', 'Evidence'], ['questions', 'Questions'], ['board', 'Board'],
 ];
+// her own shelf (2026-10-01): what she personally owns from this brand —
+// see store.listBeautyProducts and js/pages/shelf.js. Deliberately plain
+// (name + category + a note), nothing evidentiary — same spirit as Fun &
+// Zodiac being exempt from Review, this is "my stuff," not research.
+const SHELF_CATEGORIES = ['Skincare', 'Makeup', 'Perfume', 'Other'];
 const TAB_MODULES = {
   evidence: () => import('./evidence.js'),
   questions: () => import('./questions.js'), board: () => import('./board.js'),
@@ -157,6 +162,18 @@ export async function render(root, ctx, tab = 'overview') {
         <div class="faces-row" id="figures-row"></div>
         <div id="figure-form-slot"></div>
       </div>
+      ` : tab === 'products' ? `
+      <div class="panel">
+        <div class="row between" style="margin-bottom:4px">
+          <div>
+            <div class="panel-title" style="margin:0">Products</div>
+            <div class="section-label" id="shelf-count" style="margin-top:2px"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="add-shelf-btn">+ Add product</button>
+        </div>
+        <div id="shelf-form-slot"></div>
+        <div id="shelf-list" style="margin-top:8px"></div>
+      </div>
       ` : tab === 'locations' ? `
       <div class="panel">
         <div class="row between" style="margin-bottom:4px">
@@ -277,7 +294,7 @@ export async function render(root, ctx, tab = 'overview') {
     }
   });
 
-  if (tab !== 'overview' && tab !== 'locations' && tab !== 'commercial') {
+  if (tab !== 'overview' && tab !== 'products' && tab !== 'locations' && tab !== 'commercial') {
     const mod = await TAB_MODULES[tab]();
     return mod.render(root.querySelector('#tab-body'), ctx);
   }
@@ -331,6 +348,86 @@ export async function render(root, ctx, tab = 'overview') {
       if (slot.children.length) { slot.innerHTML = ''; return; }
       renderUnplacedPicker(slot, ctx, { onPicked: () => render(root, ctx, tab) });
     });
+    return;
+  }
+
+  if (tab === 'products') {
+    const items = events.filter((e) => e.kind === 'shelf_item');
+    const listEl = root.querySelector('#shelf-list');
+    const countEl = root.querySelector('#shelf-count');
+    if (!items.length) {
+      if (countEl) countEl.textContent = '';
+      listEl.appendChild(emptyState({ missing: 'Nothing from this brand on your shelf yet.', why: 'Add what you own — it shows up grouped by brand zodiac on My Shelf.' }));
+    } else {
+      if (countEl) countEl.textContent = `${items.length} product${items.length === 1 ? '' : 's'}`;
+      for (const e of items) listEl.appendChild(shelfRow(e));
+    }
+    root.querySelector('#add-shelf-btn').addEventListener('click', () => {
+      const slot = root.querySelector('#shelf-form-slot');
+      if (slot.children.length) { slot.innerHTML = ''; return; }
+      slot.appendChild(shelfForm(null));
+    });
+
+    function shelfRow(e) {
+      const row = document.createElement('div');
+      row.className = 'card tl-entry';
+      row.innerHTML = `
+        <div class="row between" style="align-items:flex-start">
+          <div>
+            <div style="margin-top:2px">${esc(e.title)}</div>
+            ${e.category || e.place ? `<div class="row wrap" style="gap:6px;margin-top:6px"><span class="chip">${esc(e.place)}</span></div>` : ''}
+            ${e.notes ? `<p style="margin-top:6px;color:var(--text-3);font-size:12px">${esc(e.notes)}</p>` : ''}
+          </div>
+          <div class="row" style="gap:4px;flex:none">
+            <button class="btn btn-ghost btn-sm shelf-edit" title="Edit">✎</button>
+            <button class="btn btn-ghost btn-sm shelf-delete" title="Delete">✕</button>
+          </div>
+        </div>
+        <div class="entry-edit-slot"></div>
+      `;
+      row.querySelector('.shelf-delete').addEventListener('click', (ev) => {
+        twoTapConfirm(ev.currentTarget, { confirmLabel: 'Really?', onConfirm: async () => { await store.deleteEvent(e.id); render(root, ctx, tab); } });
+      });
+      row.querySelector('.shelf-edit').addEventListener('click', () => {
+        const slot = row.querySelector('.entry-edit-slot');
+        if (slot.children.length) { slot.innerHTML = ''; return; }
+        slot.appendChild(shelfForm(e));
+      });
+      return row;
+    }
+    function shelfForm(existing) {
+      const wrap = document.createElement('div');
+      wrap.className = 'inline-form';
+      wrap.style.marginTop = '8px';
+      wrap.innerHTML = `
+        <div class="row wrap" style="gap:8px">
+          <input type="text" class="sf-title" placeholder="Product name" value="${esc(existing?.title || '')}" style="flex:1 1 200px;min-width:0">
+          <select class="sf-category" style="width:140px">
+            ${SHELF_CATEGORIES.map((c) => `<option value="${esc(c)}" ${existing?.place === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>
+        </div>
+        <textarea class="sf-notes" placeholder="Notes — optional" style="margin-top:8px;min-height:44px;font-size:12px">${esc(existing?.notes || '')}</textarea>
+        <div class="row" style="gap:8px;margin-top:10px">
+          <button type="button" class="btn btn-primary btn-sm sf-save">${existing ? 'Save' : 'Add'}</button>
+          <button type="button" class="btn btn-ghost btn-sm sf-cancel">Cancel</button>
+        </div>
+      `;
+      const titleEl = wrap.querySelector('.sf-title');
+      const saveBtn = wrap.querySelector('.sf-save');
+      wrap.querySelector('.sf-cancel').addEventListener('click', () => wrap.remove());
+      saveBtn.addEventListener('click', async () => {
+        clearInlineNote(saveBtn);
+        const title = titleEl.value.trim();
+        if (!title) { inlineNote(saveBtn, 'Give it a name first.'); titleEl.focus(); return; }
+        const patch = { title, place: wrap.querySelector('.sf-category').value, notes: wrap.querySelector('.sf-notes').value.trim() || null };
+        if (existing) await store.updateEvent(existing.id, patch);
+        else await store.createEvent({ case_id: kase.id, kind: 'shelf_item', ...patch });
+        wrap.remove();
+        render(root, ctx, tab);
+      });
+      queueMicrotask(() => titleEl.focus());
+      return wrap;
+    }
     return;
   }
 

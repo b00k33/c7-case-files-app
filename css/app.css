@@ -783,6 +783,50 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .chip-icon-pic { width: 18px; height: 18px; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .chip-icon-pic.glyph { font-size: 14px; }
 
+/* ----------------------------------------------------- My Shelf (2026-10-01) */
+/* her beauty inventory — see js/pages/shelf.js. Zodiac badges reuse the
+   chip-icon trine pills above (animalChipHtml); category badges reuse the
+   plain .chip colour variants (green/red/violet/teal) already used
+   everywhere else — nothing here invents a new colour language. */
+.shelf-topbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.shelf-eyebrow { margin: 0 0 2px; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--brass); }
+.shelf-h1 { font-size: 26px; margin-bottom: 2px; }
+.shelf-stat { margin: 0; font-size: 12px; color: var(--text-3); }
+
+.shelf-segctrl { position: relative; display: inline-flex; background: var(--ink-1); border-radius: 999px; padding: 3px; gap: 2px; box-shadow: var(--lift-1); }
+.shelf-seg-thumb { position: absolute; top: 3px; left: 3px; width: calc(50% - 3px); height: calc(100% - 6px); background: var(--ink-3); border-radius: 999px; box-shadow: var(--lift-2); transition: transform .35s cubic-bezier(.2,.8,.2,1); z-index: 0; }
+.shelf-seg-btn { position: relative; z-index: 1; border: none; background: transparent; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--text-3); padding: 8px 18px; border-radius: 999px; cursor: pointer; transition: color .25s ease; white-space: nowrap; }
+.shelf-seg-btn.active { color: var(--text); }
+.shelf-seg-btn:hover:not(.active) { color: var(--text-2); }
+
+@keyframes shelf-group-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.shelf-group { margin-bottom: var(--sp-6); animation: shelf-group-in .4s ease both; }
+.shelf-group-header { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.shelf-group-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gc); flex: none; }
+.shelf-group-header h2 { font-size: 16px; text-transform: capitalize; }
+.shelf-group-count { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+.shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--sp-4); }
+@keyframes shelf-card-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.shelf-card { cursor: pointer; animation: shelf-card-in .5s cubic-bezier(.16,.84,.44,1) both; transition: transform .22s ease, box-shadow .22s ease; }
+.shelf-card:hover { transform: translateY(-4px); box-shadow: var(--lift-2-hover); }
+.shelf-swatch { height: 56px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; margin-bottom: var(--sp-3); }
+.shelf-swatch .ic { font-family: var(--font-title); font-weight: 700; font-size: 18px; }
+.shelf-swatch.cat-green { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.shelf-swatch.cat-red { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
+.shelf-swatch.cat-violet { background: color-mix(in srgb, var(--violet) 16%, transparent); color: var(--violet); }
+.shelf-swatch.cat-teal { background: color-mix(in srgb, var(--teal) 16%, transparent); color: var(--teal); }
+.shelf-brand { font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--brass); }
+.shelf-pname { font-size: 14px; margin-top: 2px; }
+.shelf-note { margin: 4px 0 0; font-size: 11.5px; color: var(--text-3); line-height: 1.45; }
+.shelf-meta-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--sp-3); }
+.shelf-zbadge-unknown { opacity: .6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-group, .shelf-card { animation: none; }
+  .shelf-seg-thumb, .shelf-card { transition: none; }
+}
+
 /* life-path grid, sorted by animal / sun sign: each group is its own tbody
    under an accented header row (so the zebra restarts cleanly per group) */
 table.dense tr.grp-head { cursor: default; }

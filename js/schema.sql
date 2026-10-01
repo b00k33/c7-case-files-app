@@ -115,10 +115,10 @@ CREATE TABLE event (
   case_id TEXT REFERENCES case_file(id) ON DELETE CASCADE,
   person_id TEXT REFERENCES person(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
-  kind TEXT,                               -- birth|death|marriage|move|business|other|location (a company case's own locations)
+  kind TEXT,                               -- birth|death|marriage|move|business|other|location (a company case's own locations)|shelf_item (a company case's Products tab, 2026-10-01 — distinct from the Commercial tab's own 'product' milestone kind: that's the brand launching something, this is her owning something)
   date TEXT, date_precision TEXT DEFAULT 'day',
   date_year_min INTEGER, date_year_max INTEGER,
-  place TEXT, notes TEXT,
+  place TEXT, notes TEXT,                  -- kind='shelf_item': `place` holds its category (Skincare|Makeup|Perfume|Other), reusing the column rather than adding one — see js/pages/shelf.js
   city TEXT, country TEXT                  -- structured place, for a company case's Locations tab only (2026-09-29); every other kind keeps using the plain `place` text above
 );
 

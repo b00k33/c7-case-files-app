@@ -417,7 +417,54 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-10-01, latest — a plain "look this up here" link for a business
+**2026-10-01, latest — My Shelf: her beauty inventory, grouped by brand
+zodiac (v193).** "i want to add skincare brands and beauty brands so i can
+organise my inventory of products so i can group them in
+numerology/astrology" + "makeup perfume etc" + "i want it to have
+animations" + "insert this into c7" (over a standalone-app option she'd
+first been offered). Mocked first as a Design-canvas artifact — her
+answers there set the real shape: 12-animal zodiac as the primary grouping
+(not the 5-element Wu Xing the mock defaulted to), and Wikidata-first-then-
+manual for each brand, same as v192. No new case kind, no parallel data
+model: a beauty brand IS a Business/corporation case (company.js, already
+built for Songmont/Anytime Fitness), now with a fourth tab, Products —
+what she personally owns from that brand (name, category, a note),
+case-scoped `event` rows at `kind='shelf_item'`. Named deliberately NOT
+`'product'`: the Commercial tab's own BIZ_MILESTONE_KINDS already uses
+`'product'` for a brand's "product launch" milestone, a different fact
+(the brand shipping something) from this (her owning something) — caught
+before it shipped as a collision, not after. `category` reuses `event.place`
+rather than a new column (unused by every other kind). My Shelf
+(js/pages/shelf.js, new nav item) is the one cross-case view: a
+`store.listBeautyProducts()` JOIN pulls every brand's products with their
+case's own founding facts attached, a segmented "By category / By zodiac"
+toggle (her animations ask — sliding thumb, staggered card entrance,
+reduced-motion respected) regroups them live. The zodiac comes from
+chinese.js's existing `animalIndex(year)` — a plain calendar-year lookup,
+not `signFor()`'s lunar-boundary-exact version built for a person's birth
+date — because almost no brand has a known day of founding (Songmont and
+Anytime Fitness both only ever gave a year): `signFor()` would refuse
+every single brand on the shelf. Disclosed, not silent: a January/early-
+February founding could in principle land a calendar year off from the
+true lunar sign, same honesty-over-guessing spirit as the rest of the app,
+just not worth person-level rigor for a shelf. Colour is `indicators.js`'s
+own `animalChipHtml` — the exact trine-coloured pill already used on every
+other animal in the app (the life-path grid, the subject header), not a
+new palette; category badges reuse the plain `.chip` green/red/violet/teal
+variants that already exist. A brand with no founding year yet buckets
+into an honest "Zodiac not set yet" group rather than being silently
+dropped. Verified live: built two real brands (Songmont, 2013; SK-II,
+1980) plus one with no founding date at all, added a product to each,
+confirmed My Shelf showed "3 products · 3 brands," the right animal per
+year (Snake for 2013, Monkey for 1980 — both checked against the real
+60-year cycle before writing any mock data), the undated brand landing in
+"Zodiac not set yet," the category/zodiac toggle re-sorting and
+re-animating correctly in both light and dark theme, and clicking a card
+opening straight into that brand's own case. 44/44 in
+`tests/browser-tests.html`. Bump-then-verify, service worker cleared
+before the first test.
+
+**2026-09-30, earlier — a plain "look this up here" link for a business
 Wikidata barely covers (v192).** She sent a Style Encyclopedia page for
 Songmont (a real handbag brand) and, once the founding facts were typed in
 by hand — Wikidata has no usable entry for it at all, not even the gap

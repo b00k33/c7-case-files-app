@@ -23,6 +23,7 @@ const ROUTES = {
   company: () => import('./pages/company.js'),
   people: () => import('./pages/people.js'),
   fashion: () => import('./pages/fashion.js'),
+  shelf: () => import('./pages/shelf.js'),
   inbox: () => import('./pages/evidence.js'), // the Evidence page opened on its Inbox view
 };
 // the old Dashboard route is gone (her pick, 2026-09-07) — pages/dashboard.js
@@ -33,7 +34,7 @@ const ROUTES = {
 const TITLES = {
   evidence: 'Evidence', board: 'Board', relations: 'Relations',
   patterns: 'Patterns', import: 'Import', review: 'Review', questions: 'Questions', subject: 'Subject File',
-  fun: 'Fun & Zodiac', cases: 'Cases', family: 'Family', event: 'Event', series: 'Series', company: 'Business', people: 'People', fashion: 'Fashion', inbox: 'Inbox',
+  fun: 'Fun & Zodiac', cases: 'Cases', family: 'Family', event: 'Event', series: 'Series', company: 'Business', people: 'People', fashion: 'Fashion', shelf: 'My Shelf', inbox: 'Inbox',
   relationship: 'Their Story',
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav
