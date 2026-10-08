@@ -417,7 +417,9 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-10-08, latest — Inspo Board (v194).** "an inspo board where i can add
+**2026-10-08, latest — Inspo Board photos / Wikidata / C7 link (v195).** Her "do all" on the three disclosed gaps: `inspo_person` gained photo_path, photo_url, wikidata_id, person_id (ADDED_COLUMNS). Form: "Find on Wikidata" (searchPeople → pick → name + one-line description blank-only + fetchItemPhoto), "Upload photo", optional "Same person in C7?" select (falls back to their photo, adds a "C7 ↗" button). Photo shown over the coloured initial, which stays if none.
+
+**2026-10-08 — Inspo Board (v194).** "an inspo board where i can add
 people, with their quotes and accomplishments for different themes e.g.
 productivity inspo page". Her picks: inside C7; each theme has its OWN people
 (same person under two themes = two rows); Cards / Quotes toggle (reuses My

@@ -373,6 +373,7 @@ const ADDED_COLUMNS = [
   ['case_file', 'reference_url', 'TEXT'], // a manual lookup link for a business Wikidata doesn't cover well (2026-10-01) — see schema.sql's case_file note
   ['case_file', 'franchise_date', 'TEXT'], ['case_file', 'franchise_date_precision', "TEXT DEFAULT 'unknown'"],
   ['case_file', 'franchise_year_min', 'INTEGER'], ['case_file', 'franchise_year_max', 'INTEGER'],
+  ['inspo_person', 'photo_path', 'TEXT'], ['inspo_person', 'photo_url', 'TEXT'], ['inspo_person', 'wikidata_id', 'TEXT'], ['inspo_person', 'person_id', 'TEXT'], // Inspo Board photo / Wikidata match / link to a C7 person (2026-10-08)
   ['event', 'city', 'TEXT'], ['event', 'country', 'TEXT'], // a company case's Locations tab only — see schema.sql's event note
 ];
 function applyMigrations() {

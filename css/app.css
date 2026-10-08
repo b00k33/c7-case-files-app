@@ -1591,3 +1591,13 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .wf-line, .wf-chk, .wf-summary { transition: none; }
 }
+
+/* Inspo Board photos / lookup (2026-10-08) */
+.inspo-avatar { position: relative; overflow: hidden; }
+.inspo-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.inspo-lookup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.inspo-upload { cursor: pointer; }
+.inspo-results { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-3); }
+.inspo-hit { text-align: left; border: none; background: var(--ink-1); color: var(--text); font: inherit; font-size: 12.5px; padding: 8px 12px; border-radius: var(--r-sm); cursor: pointer; }
+.inspo-hit span { color: var(--text-3); }
+.inspo-hit:hover { background: var(--ink-3); }

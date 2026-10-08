@@ -299,6 +299,7 @@ CREATE TABLE inspo_theme (
 CREATE TABLE inspo_person (
   id TEXT PRIMARY KEY, theme_id TEXT NOT NULL REFERENCES inspo_theme(id) ON DELETE CASCADE,
   name TEXT NOT NULL, tagline TEXT, quotes TEXT, accomplishments TEXT,
+  photo_path TEXT, photo_url TEXT, wikidata_id TEXT, person_id TEXT,  -- photo (upload or Wikipedia), Wikidata match, optional link to a C7 person (added 2026-10-08)
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
 );
 CREATE INDEX idx_inspo_person_theme ON inspo_person(theme_id);

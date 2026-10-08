@@ -432,8 +432,9 @@ export async function listInspoPeople(themeId) {
 }
 export async function createInspoPerson(obj) {
   const id = uuid(); const now = nowISO();
-  db.run('INSERT INTO inspo_person (id,theme_id,name,tagline,quotes,accomplishments,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
-    [id, obj.theme_id, obj.name, obj.tagline || null, obj.quotes || null, obj.accomplishments || null, now, now]);
+  db.run('INSERT INTO inspo_person (id,theme_id,name,tagline,quotes,accomplishments,photo_path,photo_url,wikidata_id,person_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+    [id, obj.theme_id, obj.name, obj.tagline || null, obj.quotes || null, obj.accomplishments || null,
+      obj.photo_path || null, obj.photo_url || null, obj.wikidata_id || null, obj.person_id || null, now, now]);
   logChange('inspo_person', id, 'insert', obj);
   return id;
 }

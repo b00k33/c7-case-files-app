@@ -1497,6 +1497,8 @@ like an official rubber stamp in a grotesque sans than it did in a serif.
 
 ## 112. Inspo Board — admired people, their quotes and accomplishments, per theme (v194, 2026-10-08)
 
+(v195 addendum: photos [upload, or the Wikipedia lead image via a Wikidata match], the Wikidata match itself, and an optional link to a C7 person — everything in the "Not built" list below is now built.)
+
 Route `#/inspo`, page `js/pages/inspo.js`. Tables `inspo_theme(id,name,ord)`
 and `inspo_person(id,theme_id,name,tagline,quotes,accomplishments)` (soft
 delete, synced). Each theme owns its people. Quotes and accomplishments are
