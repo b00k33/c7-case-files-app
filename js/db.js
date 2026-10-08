@@ -297,6 +297,18 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
   )`,
   'CREATE INDEX IF NOT EXISTS idx_style_image_person ON style_image(person_id)',
+  // the Inspo board (2026-10-08): themes (Productivity…), each with its own
+  // people; quotes/accomplishments are one-per-line text. See schema.sql.
+  `CREATE TABLE IF NOT EXISTS inspo_theme (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, ord INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS inspo_person (
+    id TEXT PRIMARY KEY, theme_id TEXT NOT NULL REFERENCES inspo_theme(id) ON DELETE CASCADE,
+    name TEXT NOT NULL, tagline TEXT, quotes TEXT, accomplishments TEXT,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_inspo_person_theme ON inspo_person(theme_id)',
   // extra pictures on one milestone (2026-09-27, her ask: "let multiple
   // photos per milestone"). event.photo_path stays the cover, same split as
   // evidence/evidence_shot above.

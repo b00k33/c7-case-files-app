@@ -407,6 +407,48 @@ export async function listBeautyProducts() {
   `);
 }
 
+// ---- Inspo board (2026-10-08) — see schema.sql's inspo_theme note ----------
+export async function listInspoThemes() {
+  return db.exec('SELECT * FROM inspo_theme WHERE deleted_at IS NULL ORDER BY ord, created_at');
+}
+export async function createInspoTheme(name) {
+  const id = uuid(); const now = nowISO();
+  db.run('INSERT INTO inspo_theme (id,name,ord,created_at,updated_at) VALUES (?,?,?,?,?)', [id, name, Date.now() % 1e9, now, now]);
+  logChange('inspo_theme', id, 'insert', { name });
+  return id;
+}
+export async function renameInspoTheme(id, name) {
+  db.run('UPDATE inspo_theme SET name=?, updated_at=? WHERE id=?', [name, nowISO(), id]);
+  logChange('inspo_theme', id, 'update', { name });
+}
+export async function deleteInspoTheme(id) {
+  const now = nowISO();
+  db.run('UPDATE inspo_theme SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  db.run('UPDATE inspo_person SET deleted_at=?, updated_at=? WHERE theme_id=? AND deleted_at IS NULL', [now, now, id]);
+  logChange('inspo_theme', id, 'delete', {});
+}
+export async function listInspoPeople(themeId) {
+  return db.exec('SELECT * FROM inspo_person WHERE theme_id=? AND deleted_at IS NULL ORDER BY created_at', [themeId]);
+}
+export async function createInspoPerson(obj) {
+  const id = uuid(); const now = nowISO();
+  db.run('INSERT INTO inspo_person (id,theme_id,name,tagline,quotes,accomplishments,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
+    [id, obj.theme_id, obj.name, obj.tagline || null, obj.quotes || null, obj.accomplishments || null, now, now]);
+  logChange('inspo_person', id, 'insert', obj);
+  return id;
+}
+export async function updateInspoPerson(id, patch) {
+  const fields = Object.keys(patch);
+  if (!fields.length) return;
+  db.run(`UPDATE inspo_person SET ${fields.map((f) => `${f}=?`).join(',')}, updated_at=? WHERE id=?`, [...fields.map((f) => patch[f]), nowISO(), id]);
+  logChange('inspo_person', id, 'update', patch);
+}
+export async function deleteInspoPerson(id) {
+  const now = nowISO();
+  db.run('UPDATE inspo_person SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('inspo_person', id, 'delete', {});
+}
+
 export async function listEventsForPerson(personId) {
   return db.exec('SELECT * FROM event WHERE person_id=? ORDER BY date', [personId]);
 }

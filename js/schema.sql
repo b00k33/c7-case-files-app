@@ -286,6 +286,23 @@ CREATE TABLE style_image (
 );
 CREATE INDEX idx_style_image_person ON style_image(person_id);
 
+-- the Inspo board (2026-10-08, her ask: "an inspo board where i can add
+-- people, with their quotes and accomplishments for different themes e.g.
+-- productivity"). Each theme has its OWN people (her pick) — the same
+-- admired person under two themes is two rows. `quotes` and
+-- `accomplishments` are plain text, one per line. Free-standing: not tied
+-- to a case or a C7 person.
+CREATE TABLE inspo_theme (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, ord INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE TABLE inspo_person (
+  id TEXT PRIMARY KEY, theme_id TEXT NOT NULL REFERENCES inspo_theme(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, tagline TEXT, quotes TEXT, accomplishments TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE INDEX idx_inspo_person_theme ON inspo_person(theme_id);
+
 -- append-only history: undo today, sync between devices later
 CREATE TABLE change_log (
   id TEXT PRIMARY KEY,

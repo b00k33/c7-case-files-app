@@ -417,7 +417,17 @@ bump the version number BEFORE the fix would even show up in the sandbox,
 not after — bump-then-verify, not verify-then-bump, whenever a fix touches
 anything the service worker caches.
 
-**2026-10-01, latest — My Shelf: her beauty inventory, grouped by brand
+**2026-10-08, latest — Inspo Board (v194).** "an inspo board where i can add
+people, with their quotes and accomplishments for different themes e.g.
+productivity inspo page". Her picks: inside C7; each theme has its OWN people
+(same person under two themes = two rows); Cards / Quotes toggle (reuses My
+Shelf's sliding segmented control). New free-standing tables `inspo_theme` +
+`inspo_person` (MIGRATIONS in db.js, schema.sql, added to sync.js
+SYNC_TABLES); quotes + accomplishments are one-per-line text. Page
+`js/pages/inspo.js`, nav link "Inspo". No photo / Wikidata pull yet (coloured
+initial instead) — disclosed scope. 44/44 tests.
+
+**2026-10-01 — My Shelf: her beauty inventory, grouped by brand
 zodiac (v193).** "i want to add skincare brands and beauty brands so i can
 organise my inventory of products so i can group them in
 numerology/astrology" + "makeup perfume etc" + "i want it to have

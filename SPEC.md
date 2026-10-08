@@ -1495,6 +1495,17 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 112. Inspo Board — admired people, their quotes and accomplishments, per theme (v194, 2026-10-08)
+
+Route `#/inspo`, page `js/pages/inspo.js`. Tables `inspo_theme(id,name,ord)`
+and `inspo_person(id,theme_id,name,tagline,quotes,accomplishments)` (soft
+delete, synced). Each theme owns its people. Quotes and accomplishments are
+newline-separated text. Two views, remembered in localStorage: Cards (first
+quote + "N more" disclosure + accomplishment bullets) and Quotes (big-quote
+feed with attribution). Themes can be added (suggestions: Productivity,
+Confidence, Money, Health, Creativity), renamed, deleted (cascades to its
+people). Not built: photos, Wikidata lookup, linking to a C7 person.
+
 ## 111. My Shelf — her beauty inventory, grouped by brand zodiac (v193, 2026-10-01)
 
 "i want to add skincare brands and beauty brands so i can organise my inventory of products so i can group them in numerology/astrology," followed by "makeup perfume etc," "i want it to have animations," and "insert this into c7" after a mock had first been offered as a possible standalone app. A quick investigation before building anything: nothing in any of her other apps already tracks personal belongings by brand — c7's whole case/evidence/Review model is built for researching a subject, not logging what she owns, so this needed a genuine design decision, not just a feature bolt-on. Mocked first (a Design-canvas artifact, 8 real brands, real founding years, real Chinese-zodiac math checked against each one) so she could react to the shape before any schema changed. Her picks from that round: the 12-animal zodiac as the primary grouping (not the 5-element Wu Xing the mock defaulted to), Wikidata-first-then-manual per brand (same pattern as §109/§110), and — the one still open after the mock — "insert this into c7" rather than a separate app.
