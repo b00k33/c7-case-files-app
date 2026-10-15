@@ -309,6 +309,26 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
   )`,
   'CREATE INDEX IF NOT EXISTS idx_inspo_person_theme ON inspo_person(theme_id)',
+  // the Learn page (2026-10-15): teachers she studies from, their lectures,
+  // and timestamped moments. See schema.sql.
+  `CREATE TABLE IF NOT EXISTS learn_teacher (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, subject TEXT, tagline TEXT,
+    photo_path TEXT, photo_url TEXT, wikidata_id TEXT, person_id TEXT,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS learn_lecture (
+    id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL REFERENCES learn_teacher(id) ON DELETE CASCADE,
+    title TEXT NOT NULL, url TEXT, status TEXT NOT NULL DEFAULT 'queued',
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS learn_moment (
+    id TEXT PRIMARY KEY, lecture_id TEXT NOT NULL REFERENCES learn_lecture(id) ON DELETE CASCADE,
+    seconds INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'point', text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_learn_lecture_teacher ON learn_lecture(teacher_id)',
+  'CREATE INDEX IF NOT EXISTS idx_learn_moment_lecture ON learn_moment(lecture_id)',
   // extra pictures on one milestone (2026-09-27, her ask: "let multiple
   // photos per milestone"). event.photo_path stays the cover, same split as
   // evidence/evidence_shot above.

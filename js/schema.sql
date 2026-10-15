@@ -304,6 +304,33 @@ CREATE TABLE inspo_person (
 );
 CREATE INDEX idx_inspo_person_theme ON inspo_person(theme_id);
 
+-- the Learn page (2026-10-15, her ask: "list people as part of my education
+-- journey so i can post links of their video lectures and include
+-- timestamps of significant things they say and quotes"). Three levels:
+-- teacher → lecture (a link, with a Queued/Watching/Watched status) →
+-- moment (seconds into the video + kind + text). Separate from the Inspo
+-- Board (people who lift her up); a teacher can optionally link to a C7
+-- person and a Wikidata item the same way. `kind` = quote | point |
+-- question | action; `done` only means something for an action.
+CREATE TABLE learn_teacher (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, subject TEXT, tagline TEXT,
+  photo_path TEXT, photo_url TEXT, wikidata_id TEXT, person_id TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE TABLE learn_lecture (
+  id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL REFERENCES learn_teacher(id) ON DELETE CASCADE,
+  title TEXT NOT NULL, url TEXT, status TEXT NOT NULL DEFAULT 'queued',  -- queued | watching | watched
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE TABLE learn_moment (
+  id TEXT PRIMARY KEY, lecture_id TEXT NOT NULL REFERENCES learn_lecture(id) ON DELETE CASCADE,
+  seconds INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'point', text TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT
+);
+CREATE INDEX idx_learn_lecture_teacher ON learn_lecture(teacher_id);
+CREATE INDEX idx_learn_moment_lecture ON learn_moment(lecture_id);
+
 -- append-only history: undo today, sync between devices later
 CREATE TABLE change_log (
   id TEXT PRIMARY KEY,

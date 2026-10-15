@@ -450,6 +450,84 @@ export async function deleteInspoPerson(id) {
   logChange('inspo_person', id, 'delete', {});
 }
 
+// ---- Learn page (2026-10-15) — see schema.sql's learn_teacher note ----------
+export async function listLearnTeachers() {
+  return db.exec(`
+    SELECT t.*,
+      (SELECT COUNT(*) FROM learn_lecture l WHERE l.teacher_id=t.id AND l.deleted_at IS NULL) AS lecture_count,
+      (SELECT COUNT(*) FROM learn_moment m JOIN learn_lecture l ON l.id=m.lecture_id
+         WHERE l.teacher_id=t.id AND l.deleted_at IS NULL AND m.deleted_at IS NULL) AS moment_count
+    FROM learn_teacher t WHERE t.deleted_at IS NULL
+    ORDER BY t.subject COLLATE NOCASE, t.created_at`);
+}
+export async function createLearnTeacher(obj) {
+  const id = uuid(); const now = nowISO();
+  db.run(`INSERT INTO learn_teacher (id,name,subject,tagline,photo_path,photo_url,wikidata_id,person_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [id, obj.name, obj.subject || null, obj.tagline || null, obj.photo_path || null, obj.photo_url || null, obj.wikidata_id || null, obj.person_id || null, now, now]);
+  logChange('learn_teacher', id, 'insert', obj);
+  return id;
+}
+export async function updateLearnTeacher(id, patch) {
+  const fields = Object.keys(patch);
+  if (!fields.length) return;
+  db.run(`UPDATE learn_teacher SET ${fields.map((f) => `${f}=?`).join(',')}, updated_at=? WHERE id=?`, [...fields.map((f) => patch[f]), nowISO(), id]);
+  logChange('learn_teacher', id, 'update', patch);
+}
+/** Soft-deletes the teacher, and every lecture and moment under them. */
+export async function deleteLearnTeacher(id) {
+  const now = nowISO();
+  for (const l of db.exec('SELECT id FROM learn_lecture WHERE teacher_id=? AND deleted_at IS NULL', [id])) await deleteLearnLecture(l.id);
+  db.run('UPDATE learn_teacher SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('learn_teacher', id, 'delete', {});
+}
+export async function listLearnLectures(teacherId) {
+  return db.exec('SELECT * FROM learn_lecture WHERE teacher_id=? AND deleted_at IS NULL ORDER BY created_at', [teacherId]);
+}
+export async function createLearnLecture(obj) {
+  const id = uuid(); const now = nowISO();
+  db.run('INSERT INTO learn_lecture (id,teacher_id,title,url,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',
+    [id, obj.teacher_id, obj.title, obj.url || null, obj.status || 'queued', now, now]);
+  logChange('learn_lecture', id, 'insert', obj);
+  return id;
+}
+export async function updateLearnLecture(id, patch) {
+  const fields = Object.keys(patch);
+  if (!fields.length) return;
+  db.run(`UPDATE learn_lecture SET ${fields.map((f) => `${f}=?`).join(',')}, updated_at=? WHERE id=?`, [...fields.map((f) => patch[f]), nowISO(), id]);
+  logChange('learn_lecture', id, 'update', patch);
+}
+export async function deleteLearnLecture(id) {
+  const now = nowISO();
+  for (const m of db.exec('SELECT id FROM learn_moment WHERE lecture_id=? AND deleted_at IS NULL', [id])) await deleteLearnMoment(m.id);
+  db.run('UPDATE learn_lecture SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('learn_lecture', id, 'delete', {});
+}
+/** Every moment under one teacher's lectures, in time order within each lecture. */
+export async function listLearnMoments(teacherId) {
+  return db.exec(`
+    SELECT m.* FROM learn_moment m JOIN learn_lecture l ON l.id=m.lecture_id
+    WHERE l.teacher_id=? AND l.deleted_at IS NULL AND m.deleted_at IS NULL
+    ORDER BY m.lecture_id, m.seconds, m.created_at`, [teacherId]);
+}
+export async function createLearnMoment(obj) {
+  const id = uuid(); const now = nowISO();
+  db.run('INSERT INTO learn_moment (id,lecture_id,seconds,kind,text,done,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
+    [id, obj.lecture_id, obj.seconds || 0, obj.kind || 'point', obj.text, obj.done ? 1 : 0, now, now]);
+  logChange('learn_moment', id, 'insert', obj);
+  return id;
+}
+export async function updateLearnMoment(id, patch) {
+  const fields = Object.keys(patch);
+  if (!fields.length) return;
+  db.run(`UPDATE learn_moment SET ${fields.map((f) => `${f}=?`).join(',')}, updated_at=? WHERE id=?`, [...fields.map((f) => patch[f]), nowISO(), id]);
+  logChange('learn_moment', id, 'update', patch);
+}
+export async function deleteLearnMoment(id) {
+  const now = nowISO();
+  db.run('UPDATE learn_moment SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
+  logChange('learn_moment', id, 'delete', {});
+}
+
 export async function listEventsForPerson(personId) {
   return db.exec('SELECT * FROM event WHERE person_id=? ORDER BY date', [personId]);
 }

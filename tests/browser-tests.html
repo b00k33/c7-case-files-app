@@ -10,6 +10,7 @@ import { clash, trine, harmony, same, relation } from '../js/relations.js';
 import { expectedCounts } from '../js/stats.js';
 import { parseDate, parseProfileText } from '../js/profile-parse.js';
 import { layoutTree, assignGenerations } from '../js/tree.js';
+import { parseTimestamp, formatTimestamp, parseMomentLines, parseLectureUrl } from '../js/learn-parse.js';
 
 const results = [];
 function test(name, fn) {
@@ -279,6 +280,42 @@ test('tree: an ordinary couple with children is unchanged — one line, one trun
 test('expectedCounts: uniform distribution over the 144 ordered outcomes', () => {
   eq(expectedCounts(12), { clash: 1, trine: 2, harmony: 1, same: 1 });
   eq(expectedCounts(6), { clash: 0.5, trine: 1, harmony: 0.5, same: 0.5 });
+});
+
+
+// --- Learn page: timestamps, pasted lines, lecture links ---
+test('parseTimestamp: m:ss, h:mm:ss, plain seconds, 12m30s; junk and 75 seconds-in-a-minute are null', () => {
+  eq(parseTimestamp('12:30'), 750);
+  eq(parseTimestamp('1:05:10'), 3910);
+  eq(parseTimestamp('90'), 90);
+  eq(parseTimestamp('12m30s'), 750);
+  eq(parseTimestamp('1h2m'), 3720);
+  eq(parseTimestamp('12:75'), null);
+  eq(parseTimestamp('abc'), null);
+  eq(parseTimestamp(''), null);
+});
+test('formatTimestamp: round trip with parseTimestamp', () => {
+  eq(formatTimestamp(750), '12:30');
+  eq(formatTimestamp(3910), '1:05:10');
+  eq(formatTimestamp(5), '0:05');
+  eq(parseTimestamp(formatTimestamp(3910)), 3910);
+});
+test('parseMomentLines: bracketed/dashed times, quote marks make a quote, timeless lines are reported not dropped', () => {
+  const r = parseMomentLines('12:30 Plan the day\n[1:05:10] - “Do the hard thing first”\nno time here\n\n45 - seconds only', 'point');
+  eq(r.moments[0], { seconds: 750, kind: 'point', text: 'Plan the day' });
+  eq(r.moments[1], { seconds: 3910, kind: 'quote', text: 'Do the hard thing first' });
+  eq(r.skipped.includes('no time here'), true);
+});
+test('parseLectureUrl: YouTube watch / youtu.be / shorts, Vimeo, and anything else', () => {
+  const a = parseLectureUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s');
+  eq([a.platform, a.id], ['youtube', 'dQw4w9WgXcQ']);
+  eq(a.open(750), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=750s');
+  eq(parseLectureUrl('youtu.be/dQw4w9WgXcQ').id, 'dQw4w9WgXcQ');
+  eq(parseLectureUrl('https://www.youtube.com/shorts/abcDEF12345').id, 'abcDEF12345');
+  const v = parseLectureUrl('https://vimeo.com/123456789');
+  eq([v.platform, v.id], ['vimeo', '123456789']);
+  eq(parseLectureUrl('https://example.com/course/lesson-1').platform, 'link');
+  eq(parseLectureUrl('not a url at all'), null);
 });
 
 const pass = results.filter(r => r.pass).length;

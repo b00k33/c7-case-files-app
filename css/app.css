@@ -1601,3 +1601,70 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .inspo-hit { text-align: left; border: none; background: var(--ink-1); color: var(--text); font: inherit; font-size: 12.5px; padding: 8px 12px; border-radius: var(--r-sm); cursor: pointer; }
 .inspo-hit span { color: var(--text-3); }
 .inspo-hit:hover { background: var(--ink-3); }
+
+/* ----------------------------------------------------- Learn (2026-10-15) */
+/* js/pages/learn.js — reuses the My Shelf topbar/toggle and the Inspo avatar,
+   quote and form styles above. */
+.learn-shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+.learn-list { display: flex; flex-direction: column; gap: 2px; position: sticky; top: var(--sp-3); }
+.learn-subject { margin: var(--sp-3) 0 4px; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--brass); }
+.learn-subject:first-child { margin-top: 0; }
+.learn-teacher { display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left; border: none; background: transparent; font: inherit; color: var(--text); padding: 8px; border-radius: var(--r-sm); cursor: pointer; transition: background .2s ease, transform .2s ease; }
+.learn-teacher:hover { background: var(--ink-1); transform: translateX(2px); }
+.learn-teacher.on { background: var(--ink-2); box-shadow: var(--lift-1); }
+.learn-teacher-text { display: flex; flex-direction: column; min-width: 0; }
+.learn-teacher-text b { font-size: 13px; font-weight: 600; }
+.learn-teacher-text small { font-size: 11px; color: var(--text-3); }
+.inspo-avatar.sm { width: 32px; height: 32px; font-size: 13px; }
+.learn-add-teacher { margin-top: var(--sp-3); align-self: flex-start; }
+.learn-back { display: none; margin-bottom: var(--sp-3); }
+.learn-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.learn-head-text { flex: 1; min-width: 160px; }
+.learn-head-text h2 { font-size: 19px; }
+.learn-head-text p { margin: 2px 0 0; font-size: 12px; color: var(--text-3); }
+.learn-lecture { margin-bottom: var(--sp-4); animation: inspo-in .45s cubic-bezier(.16,.84,.44,1) both; }
+.learn-lec-head { display: flex; align-items: center; gap: var(--sp-3); }
+.learn-plat { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: var(--r-sm); background: var(--ink-1); color: var(--brass); font-size: 13px; }
+.learn-lec-title { flex: 1; min-width: 0; }
+.learn-lec-title h3 { font-size: 15px; }
+.learn-lec-title small { font-size: 11px; color: var(--text-3); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.learn-status { cursor: pointer; border: none; font: inherit; font-size: 11.5px; transition: transform .15s ease; }
+.learn-status:hover { transform: scale(1.06); }
+.learn-lec-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-3) 0; }
+.learn-player:empty { display: none; }
+.learn-frame { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--r-sm); background: #000; display: block; animation: inspo-in .4s ease both; }
+.learn-player-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-3); }
+.learn-moments { display: flex; flex-direction: column; }
+.learn-moment { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-3); padding: 9px 0; border-top: 1px solid var(--ink-2); }
+.learn-moments.enter .learn-moment, .learn-moment.fresh { animation: inspo-in .35s both; }
+.learn-moment.editing { align-items: center; }
+.learn-moment-body { flex: 1; min-width: 160px; font-size: 13.5px; line-height: 1.5; }
+.learn-moment-body .inspo-quote { margin: 0; }
+.learn-moment.done .learn-moment-body { text-decoration: line-through; color: var(--text-3); }
+.learn-done { font-size: 11.5px; color: var(--text-3); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.learn-ts { font-family: var(--font-mono); font-size: 12px; font-weight: 600; border: none; border-radius: var(--r-sm); padding: 4px 9px; background: color-mix(in srgb, var(--brass) 16%, transparent); color: var(--brass); cursor: pointer; flex: none; transition: transform .15s ease, background .2s ease; }
+.learn-ts:hover { transform: scale(1.07); background: color-mix(in srgb, var(--brass) 26%, transparent); }
+.learn-addmoment { margin-top: var(--sp-3); border-top: 1px solid var(--ink-2); padding-top: var(--sp-3); }
+.learn-add-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.learn-time { width: 92px; font-family: var(--font-mono); }
+.learn-text { flex: 1; min-width: 160px; }
+.learn-kinds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: var(--sp-2); }
+.learn-kind { cursor: pointer; border: none; font: inherit; font-size: 11.5px; opacity: .55; transition: opacity .2s ease, transform .15s ease; }
+.learn-kind.on { opacity: 1; box-shadow: var(--lift-2); }
+.learn-kind:hover { opacity: .9; }
+.learn-paste { margin-top: var(--sp-3); font-size: 12px; color: var(--text-3); }
+.learn-paste summary { cursor: pointer; }
+.learn-paste textarea { width: 100%; margin: var(--sp-2) 0; }
+.learn-add-lecture { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 620px; }
+@media (max-width: 760px) {
+  .learn-shell { grid-template-columns: 1fr; }
+  .learn-list { position: static; }
+  .learn-shell .learn-detail { display: none; }
+  .learn-shell.detail-open .learn-list { display: none; }
+  .learn-shell.detail-open .learn-detail { display: block; }
+  .learn-back { display: inline-flex; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .learn-lecture, .learn-moments.enter .learn-moment, .learn-moment.fresh, .learn-frame { animation: none; }
+  .learn-teacher, .learn-ts, .learn-status, .learn-kind { transition: none; }
+}

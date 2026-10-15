@@ -1495,6 +1495,10 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 113. Learn — teachers, lectures and timestamped moments (v196, 2026-10-15)
+
+Route `#/learn`, page `js/pages/learn.js`, helpers `js/learn-parse.js`. Tables `learn_teacher`, `learn_lecture(status queued|watching|watched)`, `learn_moment(seconds, kind quote|point|question|action, done)`; soft delete cascades teacher → lectures → moments; all three synced. Lecture title is fetched from YouTube/Vimeo oEmbed when she leaves it blank. Time input accepts 12:30, 1:05:10, 90, 12m30s. Not built: a "mark now" button that reads the playing video's clock; Vimeo/YouTube seeking is by postMessage and was not exercised against a live video's clock in testing.
+
 ## 112. Inspo Board — admired people, their quotes and accomplishments, per theme (v194, 2026-10-08)
 
 (v195 addendum: photos [upload, or the Wikipedia lead image via a Wikidata match], the Wikidata match itself, and an optional link to a C7 person — everything in the "Not built" list below is now built.)
