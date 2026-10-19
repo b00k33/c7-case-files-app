@@ -12,6 +12,8 @@ import { buildRelationshipLine } from '../lifemap.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const treeSeen = new Map(); // which tree each view last drew, so only a NEW tree plays its entrance
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 
 const VIEW_KEY = 'c7-rel-view';       // 'tree' (default) | 'map' | 'lifeline' | 'table'
@@ -194,22 +196,24 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
     </div>
     <div class="tree-scroll"><div class="tree-scale"><div class="tree" style="width:${L.width}px;height:${L.height}px"></div></div></div>
   ` : `
-    <div class="row between wrap" style="gap:8px;margin-bottom:8px">
-      <span class="mono" style="font-size:11px;color:var(--text-3)">${shownCount} of ${people.length} shown · ${shownGens} generation${shownGens === 1 ? '' : 's'}</span>
-      <div class="row wrap" style="gap:6px">
-        ${focus ? `<button class="btn btn-ghost btn-sm" id="tree-up" ${L.hiddenAbove ? '' : 'disabled'}>Up 1</button>
-        <button class="btn btn-ghost btn-sm" id="tree-down" ${L.hiddenBelow ? '' : 'disabled'}>Down 1</button>
-        <button class="btn btn-ghost btn-sm" id="tree-all" ${L.hiddenAbove || L.hiddenBelow ? '' : 'disabled'}>Expand all</button>` : ''}
-        <button class="btn btn-ghost btn-sm" id="tree-numbers">${numbers ? 'Numbers on' : 'Numbers off'}</button>
-        <button class="btn btn-ghost btn-sm" id="tree-god" title="Godparent links — the dotted curves and the godchild/godparent tags">${godparents ? 'Godparents on' : 'Godparents off'}</button>
-        <span class="seg">
+    <div class="tree-bar">
+      <span class="tree-count mono">${shownCount} of ${people.length} shown · ${shownGens} generation${shownGens === 1 ? '' : 's'}</span>
+      <div class="tree-bar-groups">
+        ${focus ? `<span class="tree-grp" title="How far the tree opens either side of this person">
+          <button id="tree-up" ${L.hiddenAbove ? '' : 'disabled'}>Up 1</button>
+          <button id="tree-down" ${L.hiddenBelow ? '' : 'disabled'}>Down 1</button>
+          <button id="tree-all" ${L.hiddenAbove || L.hiddenBelow ? '' : 'disabled'}>Expand all</button>
+        </span>` : ''}
+        <button class="tree-switch ${numbers ? 'on' : ''}" id="tree-numbers" aria-pressed="${numbers}" title="Number, animal and sign under each face">Numbers</button>
+        <button class="tree-switch ${godparents ? 'on' : ''}" id="tree-god" aria-pressed="${godparents}" title="Godparent links — the dotted curves and the godchild/godparent tags">Godparents</button>
+        <span class="tree-grp">
           <button id="tree-fit" class="${fit ? 'active' : ''}" title="Shrink the tree to fit this box">Fit</button>
-          <button id="tree-zoom-out" title="Zoom out">−</button>
-          <button id="tree-zoom-in" title="Zoom in">+</button>
+          <button id="tree-zoom-out" title="Zoom out (or Ctrl + scroll)">−</button>
+          <button id="tree-zoom-in" title="Zoom in (or Ctrl + scroll)">+</button>
         </span>
         ${full
-          ? '<button class="btn btn-ghost btn-sm" id="tree-close">✕ Close</button>'
-          : '<button class="btn btn-ghost btn-sm" id="tree-expand" title="The tree on the whole screen">Expand</button>'}
+          ? '<button class="tree-switch" id="tree-close">✕ Close</button>'
+          : '<button class="tree-switch" id="tree-expand" title="The tree on the whole screen">Expand ⤢</button>'}
       </div>
     </div>
     ${L.hiddenAbove ? `<button class="tree-more" id="tree-more-up">+ ${L.hiddenAbove} above</button>` : ''}
@@ -237,26 +241,54 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
   const stroke = (confirmed) => (confirmed ? 'var(--text-3)' : 'var(--ink-3)');
   const relById = new Map(rels.map((r) => [r.id, r]));
   const peopleById = new Map(people.map((p) => [p.id, p]));
+  // 2026-10-19 tidy-up (her picks from the mock): every line is straight or a
+  // rounded elbow — no nested arcs. A person with several marriages is ONE
+  // rail with numbered beads (e.nth, in marriage order); each child hangs from
+  // its parents in a single rounded elbow (so the separate trunk and bus edges
+  // are not drawn). The long across-the-tree links (far / godparent / theory)
+  // stay faint until a family line is lit. Every drawn line carries
+  // data-ids (the people it joins) so hover can light it.
+  const elbow = (e) => {
+    if (Math.abs(e.x - e.trunkX) < 1) return `M${e.x},${e.trunkY1} V${e.y2}`;
+    const dir = e.x > e.trunkX ? 1 : -1;
+    const r = Math.max(0, Math.min(9, Math.abs(e.x - e.trunkX) / 2, (e.busY - e.trunkY1) / 2, (e.y2 - e.busY) / 2));
+    return `M${e.trunkX},${e.trunkY1} V${e.busY - r} Q${e.trunkX},${e.busY} ${e.trunkX + dir * r},${e.busY} H${e.x - dir * r} Q${e.x},${e.busY} ${e.x},${e.busY + r} V${e.y2}`;
+  };
   for (const e of L.edges) {
+    if (e.kind === 'trunk' || e.kind === 'bus') continue;
     let el = null;
-    if (e.kind === 'couple' && e.arc) el = svgEl('path', { d: `M${e.x1},${e.top} C${e.x1},${e.top - e.rise} ${e.x2},${e.top - e.rise} ${e.x2},${e.top}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
-    else if (e.kind === 'couple') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
-    else if (e.kind === 'trunk') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
-    else if (e.kind === 'bus') el = svgEl('line', { x1: e.x1, y1: e.y, x2: e.x2, y2: e.y, stroke: 'var(--text-3)', 'stroke-width': 1.5 });
-    else if (e.kind === 'drop') el = svgEl('line', { x1: e.x, y1: e.y1, x2: e.x, y2: e.y2, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
+    // a couple line runs face-centre to face-centre, behind the faces — a rail the beads sit on
+    const cx1 = e.kind === 'couple' ? (e.arc ? e.x1 : e.x1 - L.nodeW / 2) : 0;
+    const cx2 = e.kind === 'couple' ? (e.arc ? e.x2 : e.x2 + L.nodeW / 2) : 0;
+    if (e.kind === 'couple') el = svgEl('line', { x1: cx1, y1: e.y, x2: cx2, y2: e.y, stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
+    else if (e.kind === 'drop') el = svgEl('path', { d: elbow(e), fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
     else if (e.kind === 'far') el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: stroke(e.confirmed), 'stroke-width': 1.5 });
-    else if (e.kind === 'god' && godparents) el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--brass)', 'stroke-width': 1, opacity: 0.6 });
-    else if (e.kind === 'theory') { el = svgEl('path', { d: `M${e.x1},${e.y1} C${(e.x1 + e.x2) / 2},${e.y1} ${(e.x1 + e.x2) / 2},${e.y2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--violet)', 'stroke-width': 1.2, opacity: 0.75, 'stroke-dasharray': '1.5,4' }); const t = svgEl('title'); t.textContent = e.label; el.appendChild(t); }
+    else if (e.kind === 'god' && godparents) el = svgEl('path', { d: `M${e.x1},${e.y1} C${e.x1},${(e.y1 + e.y2) / 2} ${e.x2},${(e.y1 + e.y2) / 2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--brass)', 'stroke-width': 1 });
+    else if (e.kind === 'theory') { el = svgEl('path', { d: `M${e.x1},${e.y1} C${(e.x1 + e.x2) / 2},${e.y1} ${(e.x1 + e.x2) / 2},${e.y2} ${e.x2},${e.y2}`, fill: 'none', stroke: 'var(--violet)', 'stroke-width': 1.2, 'stroke-dasharray': '1.5,4' }); const t = svgEl('title'); t.textContent = e.label; el.appendChild(t); }
     if (!el) continue;
+    el.setAttribute('class', `tree-edge${e.kind === 'far' || e.kind === 'god' || e.kind === 'theory' ? ' tree-soft' : ''}`);
+    el.dataset.ids = (e.ids || []).join(',');
+    el.dataset.y = String(e.kind === 'drop' ? e.trunkY1 : (e.y ?? e.y1 ?? 0));
     if ((e.kind === 'couple' || e.kind === 'drop') && !e.confirmed) el.setAttribute('stroke-dasharray', '4,4');
     if (e.kind === 'far') el.setAttribute('stroke-dasharray', e.confirmed ? '6,3' : '3,4'); // always broken: it reaches across the tree
     if (e.kind === 'god') el.setAttribute('stroke-dasharray', '2,4');
+    if (!el.hasAttribute('stroke-dasharray')) el.dataset.draw = '1'; // solid lines draw themselves in; broken ones fade in
     svg.appendChild(el);
+    // the marriage number: a small bead on the rail beside the spouse it belongs to
+    if (e.kind === 'couple' && e.nth) {
+      const g = svgEl('g', { class: 'tree-bead', transform: `translate(${e.badgeX},${e.y})` });
+      g.dataset.ids = (e.ids || []).join(',');
+      g.appendChild(svgEl('circle', { r: 8 }));
+      const bt = svgEl('text', { y: 3.5, 'text-anchor': 'middle' }); bt.textContent = String(e.nth);
+      const btt = svgEl('title'); btt.textContent = `Marriage ${e.nth} · ${(e.label || '').replace(' · spouse', '')}`;
+      g.appendChild(bt); g.appendChild(btt);
+      svg.appendChild(g);
+    }
     // a recorded-but-unconfirmed link gets a small brass dot at its midpoint: one tap confirms it
     const ids = e.relIds || (e.relId ? [e.relId] : []);
     if (!e.confirmed && !e.implied && ids.length) {
-      const mx = e.kind === 'couple' || e.kind === 'bus' ? (e.x1 + e.x2) / 2 : (e.kind === 'drop' || e.kind === 'trunk' ? e.x : (e.x1 + e.x2) / 2);
-      const my = e.kind === 'couple' ? (e.arc ? e.top - e.rise * 0.75 : e.y) : (e.y1 + e.y2) / 2;
+      const mx = e.kind === 'couple' ? (e.nth ? e.badgeX + 15 : (cx1 + cx2) / 2) : (e.kind === 'drop' ? e.x : (e.x1 + e.x2) / 2);
+      const my = e.kind === 'couple' ? e.y : (e.y1 + e.y2) / 2;
       const dot = svgEl('circle', { cx: mx, cy: my, r: 5, class: 'tree-confirm' });
       const t = svgEl('title'); t.textContent = `Confirm — ${e.label || 'this link'}`; dot.appendChild(t);
       dot.addEventListener('click', async (ev) => {
@@ -280,9 +312,9 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
     if (e.kind === 'couple' && e.relId && !e.implied) {
       const rel = relById.get(e.relId);
       if (rel) {
-        const mx = (e.x1 + e.x2) / 2;
-        const lineY = e.arc ? e.top - e.rise : e.y;
-        const my = lineY - 8;
+        const mx = e.nth ? e.badgeX : (cx1 + cx2) / 2;
+        const lineY = e.y; // the rail is always straight now — labels sit above (m.) and below (age, d.) it, clear of the bead
+        const my = lineY - (e.nth ? 13 : 8);
         const year = rel.start_date ? rel.start_date.slice(0, 4) : null;
         const endYear = rel.end_date ? rel.end_date.slice(0, 4) : null;
         const openEditor = (ev) => {
@@ -308,7 +340,7 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
             const bBy = birthYearOf(peopleById.get(rel.b_id));
             if (aBy && bBy) {
               const yearNum = parseInt(year, 10);
-              const at = svgEl('text', { x: mx, y: lineY + 16, class: 'tree-marriage-age', 'text-anchor': 'middle' });
+              const at = svgEl('text', { x: mx, y: e.nth ? lineY - 25 : lineY + 16, class: 'tree-marriage-age', 'text-anchor': 'middle' });
               at.textContent = `${yearNum - aBy} & ${yearNum - bBy}`;
               const title = svgEl('title'); title.textContent = `Married at ${yearNum - aBy} and ${yearNum - bBy}`; at.appendChild(title);
               at.addEventListener('click', openEditor);
@@ -329,7 +361,7 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
         // majority of married couples on a tree never divorce and a second
         // empty-state target under the first would just be clutter.
         if (year && endYear) {
-          const et = svgEl('text', { x: mx, y: lineY + 16, class: 'tree-marriage-year tree-divorce-year', 'text-anchor': 'middle' });
+          const et = svgEl('text', { x: mx, y: lineY + (e.nth ? 20 : 16), class: 'tree-marriage-year tree-divorce-year', 'text-anchor': 'middle' });
           et.textContent = `d. ${endYear}`;
           et.addEventListener('click', openEditor);
           svg.appendChild(et);
@@ -381,6 +413,8 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       // the sibling block: small faces in rows of four, one tap each opens the profile
       const g = document.createElement('div');
       g.className = 'tree-group';
+      g.dataset.ids = n.items.map((it) => it.id).join(',');
+      g.style.setProperty('--d', (n.gen * 0.14).toFixed(2) + 's');
       g.style.left = `${n.x}px`; g.style.top = `${n.y}px`; g.style.width = `${n.w}px`; g.style.height = `${n.h}px`;
       g.innerHTML = `<div class="glabel">${n.items.length} siblings</div>`;
       for (const it of n.items) {
@@ -396,7 +430,9 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
           <div class="name">${p.display_name.split(' ')[0]}${lp ? ` <span class="lp${lp.ok ? '' : ' unknown'}" title="${lp.ok ? 'Life path ' + lp.value : 'Life path — needs a full birth date'}">${lp.ok ? lp.value + (lp.master ? '★' : '') : '—'}</span>` : ''}</div>
           ${years ? `<div class="years">${years.slice(0, 4)}${day ? ` · day ${day}` : ''}</div>` : (day ? `<div class="years">day ${day}</div>` : '')}`;
         m.title = `${p.display_name}${years ? ' · ' + years : ''} — open profile`;
-        m.addEventListener('click', () => openProfile(p.id));
+        m.dataset.id = p.id;
+        m.style.setProperty('--d', (n.gen * 0.14 + 0.05 + it.col * 0.03).toFixed(2) + 's');
+        wireNode(m, p);
         g.appendChild(m);
         faceJobs.push(loadFace(m, p));
       }
@@ -431,11 +467,124 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       }
     }
     el.title = `${p.display_name} — open profile`;
-    el.addEventListener('click', () => openProfile(p.id));
+    el.dataset.id = p.id;
+    el.style.setProperty('--d', (n.gen * 0.14 + 0.05).toFixed(2) + 's');
+    wireNode(el, p);
     tree.appendChild(el);
     faceJobs.push(loadFace(el, p));
   }
   await Promise.all(faceJobs);
+
+  // ---- 2026-10-19 tidy-up: a family line you can light, a card you can open ----
+  // Hover (or tap) a person → their ancestors, descendants, spouses and
+  // siblings stay bright, everyone else fades, and only the lines between lit
+  // people glow. A tap also opens a small card (Open profile) and glides the
+  // tree to centre them; a double-tap goes straight to the profile. The Profile
+  // page's compact widget keeps its old one-tap-opens behaviour (no room for a card).
+  const addTo = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  const upOf = new Map(), downOf = new Map(), mateOf = new Map();
+  for (const r of rels) {
+    if (r.kind === 'parent') { addTo(downOf, r.a_id, r.b_id); addTo(upOf, r.b_id, r.a_id); }
+    else if (r.kind === 'spouse' || r.kind === 'partner' || r.kind === 'sibling') { addTo(mateOf, r.a_id, r.b_id); addTo(mateOf, r.b_id, r.a_id); }
+  }
+  const kinOf = (id) => {
+    const s = new Set([id]);
+    const walk = (map) => { const q = [id]; while (q.length) for (const n of map.get(q.shift()) || []) if (!s.has(n)) { s.add(n); q.push(n); } };
+    walk(upOf); walk(downOf);
+    for (const n of mateOf.get(id) || []) s.add(n);
+    return s;
+  };
+  let selectedId = null;
+  const peek = compact ? null : document.createElement('div');
+  if (peek) { peek.className = 'tree-peek'; wrap.appendChild(peek); }
+  function light(id) {
+    const kin = id ? kinOf(id) : null;
+    wrap.classList.toggle('lit', !!id);
+    tree.querySelectorAll('.tree-node, .mini').forEach((n) => {
+      n.classList.toggle('dim', !!kin && !kin.has(n.dataset.id));
+      n.classList.toggle('sel', !!selectedId && n.dataset.id === selectedId);
+    });
+    tree.querySelectorAll('.tree-group').forEach((g) => g.classList.toggle('dim', !!kin && !g.dataset.ids.split(',').some((x) => kin.has(x))));
+    svg.querySelectorAll('.tree-edge, .tree-bead').forEach((e) => {
+      const ids = (e.dataset.ids || '').split(',').filter(Boolean);
+      const hot = !!kin && ids.length > 0 && ids.every((x) => kin.has(x));
+      e.classList.toggle('hot', hot);
+      e.classList.toggle('dim', !!kin && !hot);
+    });
+  }
+  function nodeCentre(id) {
+    for (const n of L.nodes) {
+      if (n.group) { const it = n.items.find((i) => i.id === id); if (it) return { x: n.x + it.x + L.mini.w / 2, y: n.y + it.y + L.mini.h / 2 }; }
+      else if (n.id === id) return { x: n.x + L.nodeW / 2, y: n.y + L.faceH / 2 };
+    }
+    return null;
+  }
+  function showPeek(p) {
+    const names = (ids) => ids.map((i) => peopleById.get(i)).filter(Boolean).map((x) => x.display_name);
+    const parents = names(upOf.get(p.id) || []);
+    const spouses = names((mateOf.get(p.id) || []).filter((i) => rels.some((r) => (r.kind === 'spouse' || r.kind === 'partner') && ((r.a_id === p.id && r.b_id === i) || (r.b_id === p.id && r.a_id === i)))));
+    const kids = (downOf.get(p.id) || []).length;
+    const years = yearsText(p);
+    peek.innerHTML = `
+      <b>${esc(p.display_name)}</b>
+      ${years ? `<span class="mono">${esc(years)}</span>` : ''}
+      ${parents.length ? `<p>Child of ${esc(parents.join(' & '))}</p>` : ''}
+      ${spouses.length ? `<p>${spouses.length > 1 ? 'Married to' : 'With'} ${esc(spouses.join(', '))}</p>` : ''}
+      ${kids ? `<p>${kids} child${kids === 1 ? '' : 'ren'}</p>` : ''}
+      <div class="tree-peek-actions"><button class="tree-switch on" data-peek="open">Open profile</button><button class="tree-switch" data-peek="close">Close</button></div>`;
+    peek.querySelector('[data-peek="open"]').addEventListener('click', () => openProfile(p.id));
+    peek.querySelector('[data-peek="close"]').addEventListener('click', () => deselect());
+    peek.classList.add('on');
+  }
+  function deselect() { selectedId = null; peek?.classList.remove('on'); light(null); }
+  function wireNode(elm, p) {
+    elm.addEventListener('mouseenter', () => light(p.id));
+    elm.addEventListener('mouseleave', () => light(selectedId));
+    if (compact) { elm.addEventListener('click', () => openProfile(p.id)); return; }
+    elm.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (scrollBox.dataset.dragged) return;
+      if (selectedId === p.id) { deselect(); return; }
+      selectedId = p.id; light(p.id); showPeek(p);
+      const c = nodeCentre(p.id), s = parseFloat(wrap.dataset.scale) || 1;
+      if (c) scrollBox.scrollTo({ left: Math.max(0, c.x * s - scrollBox.clientWidth / 2), top: Math.max(0, c.y * s - scrollBox.clientHeight / 2), behavior: 'smooth' });
+    });
+    elm.addEventListener('dblclick', (ev) => { ev.stopPropagation(); openProfile(p.id); });
+  }
+  scrollBox.addEventListener('click', () => { if (selectedId && !scrollBox.dataset.dragged) deselect(); });
+  // Ctrl / ⌘ + scroll (and a trackpad pinch) zooms, one step per notch
+  let wheelAt = 0;
+  scrollBox.addEventListener('wheel', (ev) => {
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    ev.preventDefault();
+    if (Date.now() - wheelAt < 220) return;
+    wheelAt = Date.now();
+    wrap.querySelector(ev.deltaY < 0 ? '#tree-zoom-in' : '#tree-zoom-out')?.click();
+  }, { passive: false });
+
+  // ---- entrance: rows rise in generation by generation, solid lines draw themselves ----
+  // Only when the tree is NEW (another person or case) — never on a zoom or an
+  // Up/Down click, which re-draw the same tree and would replay it every time.
+  const animKey = `${compact ? 'c' : full ? 'f' : 't'}`;
+  const seen = `${ctx.caseId}|${focus}|${L.nodes.length}`;
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const animate = !calm && treeSeen.get(animKey) !== seen;
+  treeSeen.set(animKey, seen);
+  if (animate) {
+    wrap.classList.add('tree-animate');
+    svg.querySelectorAll('[data-draw]').forEach((el) => {
+      const len = el.getTotalLength ? el.getTotalLength() : 0;
+      if (!len) return;
+      const delay = (0.1 + (parseFloat(el.dataset.y) / (L.height || 1)) * 0.6).toFixed(2);
+      el.style.strokeDasharray = len;
+      el.style.strokeDashoffset = len;
+      el.getBoundingClientRect(); // commit the hidden start before the transition
+      el.style.transition = `stroke-dashoffset .7s ease ${delay}s`;
+      el.style.strokeDashoffset = 0;
+      setTimeout(() => { el.style.strokeDasharray = ''; el.style.strokeDashoffset = ''; el.style.transition = ''; }, 1700);
+    });
+    setTimeout(() => wrap.classList.remove('tree-animate'), 2000);
+  }
 
   // ---- scale: Fit, or the hand-set zoom ----
   const applyScale = () => {

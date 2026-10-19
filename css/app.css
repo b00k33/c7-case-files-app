@@ -1668,3 +1668,56 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .learn-lecture, .learn-moments.enter .learn-moment, .learn-moment.fresh, .learn-frame { animation: none; }
   .learn-teacher, .learn-ts, .learn-status, .learn-kind { transition: none; }
 }
+
+/* ----------------------------------------------------- Family tree tidy-up (2026-10-19) */
+/* her picks from the mock: one numbered marriage rail, rounded elbows, hover
+   lights a family line, tap opens a card, lively entrance, one tidy bar.
+   js/pages/relations.js renderTree + js/tree.js (edge ids, nth, badgeX). */
+.tree-wrap { position: relative; }
+.tree-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.tree-count { font-size: 11px; color: var(--text-3); }
+.tree-bar-groups { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.tree-grp { display: inline-flex; background: var(--ink-2); border-radius: 999px; padding: 2px; gap: 1px; }
+.tree-grp button { border: none; background: transparent; font: inherit; font-size: 12px; color: var(--text-2); padding: 5px 12px; border-radius: 999px; cursor: pointer; transition: background .2s ease, color .2s ease; }
+.tree-grp button:hover:not(:disabled) { background: var(--ink-3); color: var(--text); }
+.tree-grp button.active { background: var(--ink-3); color: var(--brass); }
+.tree-grp button:disabled { opacity: .35; cursor: default; }
+.tree-switch { border: none; background: var(--ink-2); font: inherit; font-size: 12px; color: var(--text-2); padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: background .2s ease, color .2s ease, transform .15s ease; }
+.tree-switch:hover { background: var(--ink-3); color: var(--text); }
+.tree-switch.on { background: color-mix(in srgb, var(--brass) 20%, transparent); color: var(--brass); }
+
+.tree-edge { stroke-linecap: round; stroke-linejoin: round; transition: stroke .25s ease, opacity .25s ease, stroke-width .25s ease; }
+.tree-soft { opacity: .3; }
+.tree-edge.hot { stroke: var(--brass); stroke-width: 2.4; }
+.tree-soft.hot { opacity: 1; }
+.tree-edge.dim { opacity: .12; }
+.tree-bead circle { fill: var(--ink-1); stroke: var(--text-3); stroke-width: 1; transition: stroke .25s ease, fill .25s ease; }
+.tree-bead text { fill: var(--text-2); font-family: var(--font-mono); font-size: 10px; }
+.tree-bead.hot circle { stroke: var(--brass); fill: color-mix(in srgb, var(--brass) 22%, var(--ink-1)); }
+.tree-bead.hot text { fill: var(--brass); }
+.tree-bead.dim { opacity: .2; }
+
+.tree-node, .tree-group .mini { transition: opacity .28s ease, transform .25s cubic-bezier(.2,.8,.2,1); }
+.tree-node:hover, .tree-group .mini:hover { transform: translateY(-3px); }
+.tree-node .name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tree-node .face { transition: box-shadow .25s ease; }
+.tree-node.sel .face, .tree-group .mini.sel .face { box-shadow: 0 0 0 3px var(--brass); }
+.tree-node.dim, .tree-group .mini.dim { opacity: .22; }
+.tree-group { transition: opacity .28s ease; }
+.tree-group.dim { opacity: .4; }
+
+.tree-peek { position: absolute; right: var(--sp-3); bottom: var(--sp-3); z-index: 5; width: 224px; background: var(--ink-3); border-radius: var(--r-lg); padding: 12px 14px; box-shadow: var(--lift-2); transform: translateY(14px); opacity: 0; pointer-events: none; transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .25s ease; }
+.tree-peek.on { transform: none; opacity: 1; pointer-events: auto; }
+.tree-peek b { display: block; font-size: 14px; font-weight: 600; }
+.tree-peek .mono { font-size: 11px; color: var(--text-3); }
+.tree-peek p { margin: 4px 0 0; font-size: 12px; color: var(--text-2); }
+.tree-peek-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
+
+@keyframes tree-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes tree-fade { from { opacity: 0; } to { opacity: 1; } }
+.tree-animate .tree-node, .tree-animate .tree-group, .tree-animate .tree-group .mini { animation: tree-rise .5s cubic-bezier(.16,.84,.44,1) both; animation-delay: var(--d, 0s); }
+.tree-animate .tree-lines > :not([data-draw]) { animation: tree-fade .6s ease .6s both; }
+@media (prefers-reduced-motion: reduce) {
+  .tree-animate .tree-node, .tree-animate .tree-group, .tree-animate .tree-group .mini, .tree-animate .tree-lines > :not([data-draw]) { animation: none; }
+  .tree-node, .tree-group .mini, .tree-edge, .tree-peek, .tree-switch { transition: none; }
+}

@@ -284,7 +284,18 @@ export function layoutTree(people, rels, opts = {}) {
         const r = relOf.get(`${a.id}|${b.id}|spouse`);
         const isImplied = implied.has(`${a.id}|${b.id}`);
         const [i, j] = [idx.get(a.id), idx.get(b.id)].sort((p, q) => p - q);
-        const base = { kind: 'couple', y: rowY(u.gen) + faceH / 2, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied, relId: r ? r.id : null, label: `${a.display_name} · ${b.display_name} · spouse` };
+        // her 2026-10-19 tidy-up: a person with 2+ marriages draws them as ONE rail, each
+        // spouse a numbered bead (nth) in marriage order — no more nested arcs. The
+        // anchor is whichever of the pair has the most marriages in this unit.
+        const countIn = (m) => (spousesOf.get(m.id) || []).filter((sid) => idx.has(sid)).length;
+        const anchor = countIn(b) > countIn(a) ? b : a, spouse = anchor === a ? b : a;
+        const marriages = countIn(anchor) >= 2
+          ? (spousesOf.get(anchor.id) || []).filter((sid) => idx.has(sid)).map((sid) => byId.get(sid)).sort((p, q) => marriageKey(anchor, p) - marriageKey(anchor, q))
+          : null;
+        const step = nodeW + coupleGap;
+        const spouseCx = mx + idx.get(spouse.id) * step + nodeW / 2;
+        const rail = marriages ? { nth: marriages.findIndex((s) => s.id === spouse.id) + 1, badgeX: spouseCx + (idx.get(anchor.id) > idx.get(spouse.id) ? 1 : -1) * step / 2 } : {};
+        const base = { kind: 'couple', y: rowY(u.gen) + faceH / 2, ids: [a.id, b.id], ...rail, confirmed: !isImplied && !!(r && r.confirmed), implied: isImplied, relId: r ? r.id : null, label: `${a.display_name} · ${b.display_name} · spouse` };
         if (j === i + 1) edges.push({ ...base, x1: mx + i * (nodeW + coupleGap) + nodeW, x2: mx + j * (nodeW + coupleGap) });
         else {
           // a longer reach arcs higher, so six marriages nest like rainbows instead of merging
@@ -306,7 +317,7 @@ export function layoutTree(people, rels, opts = {}) {
         if (!links.length) continue;
         const n = nodeById.get(c.id);
         dropTo(links[0].parentIds.join('|'), {
-          x: n.x + n.w / 2, y2: n.y, parentIds: links[0].parentIds,
+          x: n.x + n.w / 2, y2: n.y, parentIds: links[0].parentIds, childIds: c.members.map((m) => m.id),
           confirmed: links.every((l) => l.confirmed), implied: links.every((l) => l.implied),
           relIds: links.flatMap((l) => l.relIds), label: `${c.members.length} siblings · children of ${links[0].parents.join(' & ')}`,
         });
@@ -316,21 +327,26 @@ export function layoutTree(people, rels, opts = {}) {
         const link = parentLinkOf(m, u);
         if (!link) continue;
         const n = nodeById.get(m.id);
-        dropTo(link.parentIds.join('|'), { x: n.x + nodeW / 2, y2: n.y, parentIds: link.parentIds, confirmed: link.confirmed, implied: link.implied, relIds: link.relIds, label: `${m.display_name} · child of ${link.parents.join(' & ')}` });
+        dropTo(link.parentIds.join('|'), { x: n.x + nodeW / 2, y2: n.y, parentIds: link.parentIds, childIds: [m.id], confirmed: link.confirmed, implied: link.implied, relIds: link.relIds, label: `${m.display_name} · child of ${link.parents.join(' & ')}` });
       }
     }
     const spans = [];
     for (const [, drops] of sets) {
-      const trunkX = drops[0].parentIds.reduce((s, pid) => s + faceX(pid), 0) / drops[0].parentIds.length;
+      // a child of a numbered marriage hangs from that marriage's bead on the rail,
+      // not from a point over some other spouse's face (2026-10-19)
+      const pids0 = drops[0].parentIds;
+      const rail = pids0.length === 2 ? edges.find((e) => e.kind === 'couple' && e.nth && e.ids.includes(pids0[0]) && e.ids.includes(pids0[1])) : null;
+      const trunkX = rail ? rail.badgeX : pids0.reduce((s, pid) => s + faceX(pid), 0) / pids0.length;
+      const trunkTop = rail ? rail.y + 9 : rowY(u.gen) + faceH;
       const xs = drops.map((d) => d.x).concat([trunkX]);
       const x1 = Math.min(...xs), x2 = Math.max(...xs);
       // two sets of children under one couple's row: bars that would overlap sit a step apart
       let busY = busYFor(u.gen);
       while (spans.some((s) => s.busY === busY && s.x1 <= x2 && x1 <= s.x2)) busY += 6;
       spans.push({ x1, x2, busY });
-      edges.push({ kind: 'trunk', x: trunkX, y1: rowY(u.gen) + faceH, y2: busY });
-      edges.push({ kind: 'bus', x1, x2, y: busY });
-      for (const d of drops) edges.push({ kind: 'drop', x: d.x, y1: busY, y2: d.y2, confirmed: d.confirmed, implied: d.implied, relIds: d.relIds, label: d.label });
+      edges.push({ kind: 'trunk', x: trunkX, y1: trunkTop, y2: busY, ids: drops[0].parentIds });
+      edges.push({ kind: 'bus', x1, x2, y: busY, ids: drops[0].parentIds });
+      for (const d of drops) edges.push({ kind: 'drop', x: d.x, y1: busY, y2: d.y2, ids: [...d.parentIds, ...d.childIds], trunkX, trunkY1: trunkTop, busY, confirmed: d.confirmed, implied: d.implied, relIds: d.relIds, label: d.label });
     }
   };
   let x = 0;
@@ -355,7 +371,7 @@ export function layoutTree(people, rels, opts = {}) {
         const pn = nodeById.get(pids[0]), cn = nodeById.get(m.id);
         if (!xs.length || !pn || !cn) continue;
         edges.push({
-          kind: 'far', x1: xs.reduce((s, v) => s + v, 0) / xs.length, y1: pn.y + (pn.group ? pn.h : faceH), x2: cn.x + nodeW / 2, y2: cn.y,
+          ids: [...pids, m.id], kind: 'far', x1: xs.reduce((s, v) => s + v, 0) / xs.length, y1: pn.y + (pn.group ? pn.h : faceH), x2: cn.x + nodeW / 2, y2: cn.y,
           confirmed: !isImplied && rs.length > 0 && rs.every((r) => r.confirmed), implied: isImplied, relIds: rs.map((r) => r.id),
           label: `${m.display_name} · child of ${pids.map(nameOf).filter(Boolean).join(' & ')}`,
         });
@@ -367,14 +383,14 @@ export function layoutTree(people, rels, opts = {}) {
   for (const r of rels) {
     if (r.kind !== 'godparent' || !vis.has(r.a_id) || !vis.has(r.b_id)) continue;
     const a = nodeById.get(r.a_id), b = nodeById.get(r.b_id);
-    if (a && b && !a.group && !b.group) edges.push({ kind: 'god', x1: a.x + nodeW / 2, y1: a.y + faceH, x2: b.x + nodeW / 2, y2: b.y, confirmed: !!r.confirmed, relIds: [r.id], label: `${a.person.display_name} · godparent of ${b.person.display_name}` });
+    if (a && b && !a.group && !b.group) edges.push({ ids: [a.id, b.id], kind: 'god', x1: a.x + nodeW / 2, y1: a.y + faceH, x2: b.x + nodeW / 2, y2: b.y, confirmed: !!r.confirmed, relIds: [r.id], label: `${a.person.display_name} · godparent of ${b.person.display_name}` });
   }
   // theory links (2026-09-04): from a theory timeline, never the record —
   // a fine dashed curve between the two faces, no confirm dot (implied)
   for (const r of rels) {
     if (!r.theory_id || !vis.has(r.a_id) || !vis.has(r.b_id)) continue;
     const a = nodeById.get(r.a_id), b = nodeById.get(r.b_id);
-    if (a && b && !a.group && !b.group) edges.push({ kind: 'theory', x1: a.x + nodeW / 2, y1: a.y + faceH / 2, x2: b.x + nodeW / 2, y2: b.y + faceH / 2, confirmed: false, implied: true, relIds: [r.id], label: `${a.person.display_name} · ${r.kind} of ${b.person.display_name} — a theory` });
+    if (a && b && !a.group && !b.group) edges.push({ ids: [a.id, b.id], kind: 'theory', x1: a.x + nodeW / 2, y1: a.y + faceH / 2, x2: b.x + nodeW / 2, y2: b.y + faceH / 2, confirmed: false, implied: true, relIds: [r.id], label: `${a.person.display_name} · ${r.kind} of ${b.person.display_name} — a theory` });
   }
 
   // the topmost visible row becomes y = 0 (plus room for the tallest arc over it)
@@ -384,6 +400,7 @@ export function layoutTree(people, rels, opts = {}) {
   for (const e of edges) {
     if ('y' in e) e.y -= yShift;
     if ('top' in e) e.top -= yShift;
+    if ('trunkY1' in e) { e.trunkY1 -= yShift; e.busY -= yShift; }
     if ('y1' in e) { e.y1 -= yShift; e.y2 -= yShift; }
   }
   const height = nodes.length ? Math.max(...nodes.map((n) => n.y + (n.group ? n.h : nodeH))) : 0;

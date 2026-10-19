@@ -1495,6 +1495,10 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 114. Family tree tidy-up (v197, 2026-10-19)
+
+Marriages: a person with 2+ marriages draws ONE straight rail through the face centres; each spouse gets a numbered bead (`nth`, marriage order) on the gap toward the anchor (`badgeX`); marriage year sits above the bead, age above that, divorce year below. Children hang from their own marriage's bead in a single rounded elbow. Far / godparent / theory links are faint (30%) until a family line is lit. Hover or tap a person: kin stay bright, the rest fade (22%), lit lines turn brass. Tap opens a card (parents, spouses, child count, Open profile) and glides to centre; double-tap opens the profile; the profile page's compact tree still opens on one tap. Toolbar: Up/Down/Expand-all group, Numbers and Godparents switches, Fit/−/+ group (Ctrl/⌘+scroll zooms), Expand.
+
 ## 113. Learn — teachers, lectures and timestamped moments (v196, 2026-10-15)
 
 Route `#/learn`, page `js/pages/learn.js`, helpers `js/learn-parse.js`. Tables `learn_teacher`, `learn_lecture(status queued|watching|watched)`, `learn_moment(seconds, kind quote|point|question|action, done)`; soft delete cascades teacher → lectures → moments; all three synced. Lecture title is fetched from YouTube/Vimeo oEmbed when she leaves it blank. Time input accepts 12:30, 1:05:10, 90, 12m30s. Not built: a "mark now" button that reads the playing video's clock; Vimeo/YouTube seeking is by postMessage and was not exercised against a live video's clock in testing.
