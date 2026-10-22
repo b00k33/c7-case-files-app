@@ -280,7 +280,8 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       g.dataset.ids = (e.ids || []).join(',');
       g.appendChild(svgEl('circle', { r: 8 }));
       const bt = svgEl('text', { y: 3.5, 'text-anchor': 'middle' }); bt.textContent = String(e.nth);
-      const btt = svgEl('title'); btt.textContent = `Marriage ${e.nth} · ${(e.label || '').replace(' · spouse', '')}`;
+      const btt = svgEl('title'); btt.textContent = `Marriage ${e.nth} · ${(e.label || '').replace(' · spouse', '')} — tap for their story`;
+      if (e.relId) g.addEventListener('click', (ev) => { ev.stopPropagation(); if (scrollBox.dataset.dragged) return; ctx.navigate(`#/relationship/${e.relId}`); });
       g.appendChild(bt); g.appendChild(btt);
       svg.appendChild(g);
     }
@@ -523,6 +524,8 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
     const names = (ids) => ids.map((i) => peopleById.get(i)).filter(Boolean).map((x) => x.display_name);
     const parents = names(upOf.get(p.id) || []);
     const spouses = names((mateOf.get(p.id) || []).filter((i) => rels.some((r) => (r.kind === 'spouse' || r.kind === 'partner') && ((r.a_id === p.id && r.b_id === i) || (r.b_id === p.id && r.a_id === i)))));
+    // one chip per recorded marriage or partnership: it opens that couple's own page (milestones, timeline, photos)
+    const storyRels = rels.filter((r) => (r.kind === 'spouse' || r.kind === 'partner') && (r.a_id === p.id || r.b_id === p.id)).map((r) => ({ id: r.id, name: (peopleById.get(r.a_id === p.id ? r.b_id : r.a_id) || {}).display_name })).filter((s) => s.name);
     const kids = (downOf.get(p.id) || []).length;
     const years = yearsText(p);
     peek.innerHTML = `
@@ -531,8 +534,10 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       ${parents.length ? `<p>Child of ${esc(parents.join(' & '))}</p>` : ''}
       ${spouses.length ? `<p>${spouses.length > 1 ? 'Married to' : 'With'} ${esc(spouses.join(', '))}</p>` : ''}
       ${kids ? `<p>${kids} child${kids === 1 ? '' : 'ren'}</p>` : ''}
+      ${storyRels.length ? `<p class="tree-peek-label">Their story</p><div class="tree-peek-actions wrap">${storyRels.map((s) => `<button class="tree-switch" data-story="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div>` : ''}
       <div class="tree-peek-actions"><button class="tree-switch on" data-peek="open">Open profile</button><button class="tree-switch" data-peek="close">Close</button></div>`;
     peek.querySelector('[data-peek="open"]').addEventListener('click', () => openProfile(p.id));
+    peek.querySelectorAll('[data-story]').forEach((b) => b.addEventListener('click', () => { if (full && opts.onClose) opts.onClose({ skipRerender: true }); ctx.navigate(`#/relationship/${b.dataset.story}`); }));
     peek.querySelector('[data-peek="close"]').addEventListener('click', () => deselect());
     peek.classList.add('on');
   }

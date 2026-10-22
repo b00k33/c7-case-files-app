@@ -1691,6 +1691,10 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .tree-edge.hot { stroke: var(--brass); stroke-width: 2.4; }
 .tree-soft.hot { opacity: 1; }
 .tree-edge.dim { opacity: .12; }
+.tree-bead { cursor: pointer; pointer-events: all; }
+.tree-bead:hover circle { stroke: var(--brass); }
+.tree-peek-label { margin: 10px 0 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.tree-peek-actions.wrap { flex-wrap: wrap; margin-top: 4px; }
 .tree-bead circle { fill: var(--ink-1); stroke: var(--text-3); stroke-width: 1; transition: stroke .25s ease, fill .25s ease; }
 .tree-bead text { fill: var(--text-2); font-family: var(--font-mono); font-size: 10px; }
 .tree-bead.hot circle { stroke: var(--brass); fill: color-mix(in srgb, var(--brass) 22%, var(--ink-1)); }
