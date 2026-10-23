@@ -221,6 +221,7 @@ gsInput.addEventListener('keydown', (e) => {
 document.addEventListener('click', (e) => { if (!e.target.closest('#global-search')) hideSearch(); });
 
 let currentUnmount = null;
+let arriveTimer = null;
 let redrawTimer = null; // a pull's redraw, waiting for her to finish what she is doing
 
 async function renderRoute() {
@@ -250,6 +251,11 @@ async function renderRoute() {
   void pageRoot.offsetWidth;
   pageRoot.classList.add('fade-in');
 
+  // .zd-arrive (2026-10-23, the app-wide Zanda style): the page's blocks rise in
+  // as she arrives; it comes off again so a redraw after an edit never replays it
+  clearTimeout(arriveTimer);
+  pageRoot.classList.add('zd-arrive');
+  arriveTimer = setTimeout(() => pageRoot.classList.remove('zd-arrive'), 1400);
   try {
     const mod = await loader();
     currentUnmount = await mod.render(pageRoot, ctx, param, sub);

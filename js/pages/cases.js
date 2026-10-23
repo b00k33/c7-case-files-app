@@ -9,7 +9,7 @@
 // for the phone and the desktop — the grid just fits more tiles per row on
 // a wider screen.
 import { emptyState } from '../indicators.js';
-import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
+import { inlineNameForm, twoTapConfirm, inlineNote, clearInlineNote, duplicateNameBlock, zdIcon } from '../ui.js';
 import { autoCaseName } from '../names.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
@@ -488,12 +488,28 @@ export async function render(root, ctx) {
   // case genuinely has just the one person, not when it's really a
   // multi-person family stuck on the schema's old default
   const personCases = withSums.filter(({ c, sum }) => c.kind === 'person' || (isPersonKind(c.kind) && sum.people.length <= 1)).map(({ c }) => c);
+  // the Zanda-style header card (2026-10-23, "do it for all pages"): the same
+  // teal-edged card as People, with the count pill and squared buttons
+  const kindCount = (k) => withSums.filter(({ c }) => c.kind === k).length;
   root.innerHTML = `
     <div class="stack">
-      <div class="row between wrap" style="gap:12px">
-        <span class="mono" style="font-size:12px;color:var(--text-3);flex:1;min-width:120px">${cases.length} case${cases.length === 1 ? '' : 's'}</span>
-        ${personCases.length ? `<button class="btn btn-ghost btn-sm" id="move-all-btn" title="Every person-kind case (not family, event, series or company) stops being its own tile — nothing on any of them is deleted or reassigned, and each is reachable from People instead">Move all ${personCases.length} to People</button>` : ''}
-        <button class="btn btn-primary" id="new-case-btn">+ New</button>
+      <div class="zd-head">
+        <div class="zd-top"><span class="zd-since">${zdIcon('brief')}${cases.length} case${cases.length === 1 ? '' : 's'}</span></div>
+        <div class="zd-who"><div class="zd-id">
+          <div class="zd-name">Cases</div>
+          <div class="zd-meta">
+            ${kindCount('family') ? `<span>${zdIcon('tree')}${kindCount('family')} famil${kindCount('family') === 1 ? 'y' : 'ies'}</span>` : ''}
+            ${kindCount('event') ? `<span>${zdIcon('cal')}${kindCount('event')} event${kindCount('event') === 1 ? '' : 's'}</span>` : ''}
+            ${kindCount('series') ? `<span>${zdIcon('star')}${kindCount('series')} series</span>` : ''}
+            ${kindCount('company') ? `<span>${zdIcon('brief')}${kindCount('company')} compan${kindCount('company') === 1 ? 'y' : 'ies'}</span>` : ''}
+            ${personCases.length ? `<span>${zdIcon('user')}${personCases.length} about one person</span>` : ''}
+          </div>
+        </div></div>
+        <div class="zd-btns">
+          <button class="btn btn-primary" id="new-case-btn">${zdIcon('plus')}New</button>
+          <span class="zd-sp"></span>
+          ${personCases.length ? `<button class="btn btn-ghost btn-sm" id="move-all-btn" title="Every person-kind case (not family, event, series or company) stops being its own tile — nothing on any of them is deleted or reassigned, and each is reachable from People instead">Move all ${personCases.length} to People</button>` : ''}
+        </div>
       </div>
       <div id="new-case-slot"></div>
       <div id="cases-body"></div>

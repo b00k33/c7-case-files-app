@@ -1977,3 +1977,92 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 @media (max-width: 720px) { .zd-people-body { padding: 12px; } }
 @media (prefers-reduced-motion: reduce) { .zd-tiles-in .tile, .zd-people .tile, .zd-people .tile img { animation: none !important; transition: none !important; } }
 .zd-people > div:empty { display: none; }
+
+/* ==== EVERY page in the same Zanda style (2026-10-23, her ask: "do it for
+   all pages all at once"). #page-root and #drawer both carry `.zd`, so the
+   `.zd .btn` buttons above already reach every page and every drawer; the
+   rules below carry the rest of the language — titled panels, squared tabs
+   and switches, squared inputs, the tiles, list rows — app-wide. The
+   bespoke header cards stay on Profile, Their Story, Tree and People. ==== */
+/* panels: squared, a hairline border, and a title row like Zanda's sections */
+.zd .panel { border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); box-shadow: none; transition: box-shadow .25s ease; }
+.zd .panel:hover { box-shadow: var(--lift-1); }
+.zd .panel .panel { background: var(--ink-1); }
+.zd .panel > .panel-title:first-child, .zd .panel > .section-label:first-child { display: block; margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-3); padding: 12px var(--sp-4); border-bottom: 1px solid var(--line); font: 700 15px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text); }
+.zd .panel > .row.between:first-child { margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-3); padding: 10px var(--sp-4); border-bottom: 1px solid var(--line); }
+.zd .panel > .row.between:first-child > .section-label, .zd .panel > .row.between:first-child > .panel-title, .zd .panel > .row.between:first-child > div > .panel-title { font: 700 15px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text); margin: 0; }
+/* every tab strip: Zanda's tabs, a sliding underline, the active one teal */
+.zd .tab-strip { display: flex; align-items: center; gap: 24px; border-bottom: 1px solid var(--line); }
+.zd .tab-strip a { position: relative; padding: 12px 2px 10px; border: 0; color: var(--text-3); font: 600 14px var(--font-body); transition: color .2s ease; }
+.zd .tab-strip a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brass); transform: scaleX(0); transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .2s ease; }
+.zd .tab-strip a:hover { color: var(--text); }
+.zd .tab-strip a:hover::after { transform: scaleX(.35); opacity: .5; }
+.zd .tab-strip a.active { color: var(--brass); }
+.zd .tab-strip a.active::after { transform: scaleX(1); opacity: 1; }
+/* every segmented switch (.seg, .view-toggle): one squared outlined group, the chosen one filled */
+.zd .seg, .zd .view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--ink-2); padding: 0; }
+.zd .seg button, .zd .view-toggle button { height: 32px; min-height: 32px; padding: 0 12px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--text-2); font: 700 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: background .2s ease, color .2s ease; }
+.zd .seg button:last-child, .zd .view-toggle button:last-child { border-right: 0; }
+.zd .seg button:hover, .zd .view-toggle button:hover { background: color-mix(in srgb, var(--brass) 8%, var(--ink-2)); color: var(--brass); }
+.zd .seg button.active, .zd .view-toggle button.on { background: var(--brass); color: var(--on-brass); }
+/* inputs: squared with a hairline, a teal ring on focus */
+.zd input[type="text"], .zd input[type="date"], .zd input[type="time"], .zd input[type="number"], .zd input[type="search"],
+.zd input[type="url"], .zd input[type="email"], .zd input[type="password"], .zd select, .zd textarea { border: 1px solid var(--line); border-radius: 4px; background: var(--ink-2); font-family: var(--font-body); transition: border-color .2s ease, box-shadow .2s ease; }
+.zd input:focus, .zd select:focus, .zd textarea:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 18%, transparent); }
+.zd .zd-status select, .zd .zd-status select:focus { border: 0; box-shadow: none; }
+.zd .field label { font: 600 12px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text-2); }
+/* tiles everywhere (Cases, Shelf, Inspo…): squared, a teal line under the picture, lift + zoom */
+.zd .tile { border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); box-shadow: none; transition: transform .2s ease, box-shadow .25s ease, border-color .25s ease; }
+.zd .tile:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--brass) 40%, var(--line)); box-shadow: var(--lift-2-hover); background: var(--ink-2); }
+.zd .tile .pic { border-radius: 5px 5px 0 0; }
+.zd .tile .pic + .main { border-top: 3px solid var(--brass); }
+.zd .tile .pic .seg img { transition: transform .4s ease; }
+.zd .tile:hover .pic .seg img { transform: scale(1.04); }
+.zd .tile .title { font: 700 14px/1.3 var(--font-body); }
+.zd .tile .where { font: 600 11px var(--font-body); }
+/* list rows: a teal edge slides in on hover */
+.zd .list-row { position: relative; border-radius: 4px; transition: background .2s ease; }
+.zd .list-row::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 3px; background: var(--brass); transform: scaleY(0); transition: transform .22s ease; }
+.zd .list-row:hover::before { transform: scaleY(1); }
+/* chips that are doors read as Zanda pills */
+.zd .chip { border-radius: 999px; padding: 2px 10px; font-family: var(--font-body); font-weight: 600; }
+/* the entrance: when she ARRIVES on a page (main.js adds .zd-arrive for a
+   moment), its top-level blocks rise in one after another; a redraw after an
+   edit inserts new nodes after the class is gone, so nothing replays */
+.zd-arrive > *:not(.zd), .zd-arrive > .stack:not(.zd) > *, .zd-arrive > .grid-2 > * { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+.zd-arrive > .stack:not(.zd) > *:nth-child(2) { animation-delay: .06s; }
+.zd-arrive > .stack:not(.zd) > *:nth-child(3) { animation-delay: .12s; }
+.zd-arrive > .stack:not(.zd) > *:nth-child(4) { animation-delay: .18s; }
+.zd-arrive > .stack:not(.zd) > *:nth-child(n+5) { animation-delay: .24s; }
+.zd-arrive .tile-grid > .tile { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+.zd-arrive .tile-grid > .tile:nth-child(2) { animation-delay: .03s; }
+.zd-arrive .tile-grid > .tile:nth-child(3) { animation-delay: .06s; }
+.zd-arrive .tile-grid > .tile:nth-child(4) { animation-delay: .09s; }
+.zd-arrive .tile-grid > .tile:nth-child(5) { animation-delay: .12s; }
+.zd-arrive .tile-grid > .tile:nth-child(6) { animation-delay: .15s; }
+.zd-arrive .tile-grid > .tile:nth-child(n+7) { animation-delay: .18s; }
+/* the drawer slides its contents in, too */
+#drawer.open > * { animation: zd-rise .35s cubic-bezier(.2,.8,.2,1) .05s both; }
+@media (prefers-reduced-motion: reduce) {
+  .zd-arrive *, #drawer.open > *, .zd .tile, .zd .list-row::before, .zd .tab-strip a::after { animation: none !important; transition: none !important; }
+}
+/* the shared page headings become header cards too: Shelf, Inspo and Learn's
+   .shelf-topbar, and the Event / Series / Company opening panel */
+.zd .shelf-topbar { background: var(--ink-2); border: 1px solid var(--line); border-left: 6px solid var(--brass); border-radius: 6px; padding: 16px 20px; margin-bottom: var(--sp-4); align-items: center; box-shadow: var(--lift-1); }
+.zd .shelf-eyebrow { display: inline-flex; align-items: center; background: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; margin-bottom: 8px; font: 600 12px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.zd .shelf-h1 { font: 700 22px/1.25 var(--font-title); color: var(--text); }
+.zd .shelf-stat { font-size: 13px; color: var(--text-2); }
+.zd .shelf-segctrl { border: 1px solid var(--line); border-radius: 4px; background: var(--ink-2); padding: 0; gap: 0; box-shadow: none; overflow: hidden; }
+.zd .shelf-seg-thumb { top: 0; left: 0; width: 50%; height: 100%; border-radius: 0; background: var(--brass); box-shadow: none; }
+.zd .shelf-seg-btn { border-radius: 0; padding: 0 16px; height: 34px; font: 700 11.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.zd .shelf-seg-btn.active { color: var(--on-brass); }
+.zd .panel:has(> .event-head:first-child) { border-left: 6px solid var(--brass); }
+.zd-arrive .shelf-topbar { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+/* the last two holdouts: the .tabs switch (Evidence's Grid · Inbox) and the empty-state button */
+.zd .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--ink-2); padding: 0; gap: 0; box-shadow: none; }
+.zd .tabs button { height: 32px; min-height: 32px; padding: 0 14px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--text-2); font: 700 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; box-shadow: none; cursor: pointer; transition: background .2s ease, color .2s ease; }
+.zd .tabs button:last-child { border-right: 0; }
+.zd .tabs button:hover { background: color-mix(in srgb, var(--brass) 8%, var(--ink-2)); color: var(--brass); }
+.zd .tabs button.active, .zd .tabs button.on, .zd .tabs button[aria-selected="true"] { background: var(--brass); color: var(--on-brass); }
+.zd .empty-action { border-radius: 4px; text-transform: uppercase; letter-spacing: .06em; font: 700 12px var(--font-body); transition: transform .15s ease, filter .2s ease; }
+.zd .empty-action:hover { transform: translateY(-1px); filter: brightness(1.08); }
