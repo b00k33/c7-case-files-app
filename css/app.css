@@ -1791,6 +1791,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .zd-name small { font: 400 12px var(--font-mono); color: var(--text-3); }
 .zd-meta { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 4px; font-size: 13px; color: var(--text-2); }
 .zd-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.zd-meta span span { display: inline; }
 .zd-ic { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .zd-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
 .zd-sp { flex: 1; }
@@ -2246,3 +2247,53 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .zd-inbox *, .zd-inbox *::before, .zd-inbox .dropzone { animation: none !important; transition: none !important; }
   .zd-inbox .inbox-thumb img { opacity: 1; transform: none; }
 }
+
+/* ==== People, lively (2026-10-23, her ask: "make the people page more
+   lively with animations"). people.js: countUp() on arrival, the old tiles
+   drop away (.pp-out) before a filter's tiles rise in, tiltTiles() on a
+   mouse. Arrival-only motion sits under .zd-enter / .zd-tiles-in so a
+   redraw after an edit plays nothing. ==== */
+.zd-people .zd-since b, .zd-people .zd-meta b { font-weight: 700; font-variant-numeric: tabular-nums; }
+/* arrival: the teal edge draws down, a sheen sweeps the header, the facts pop in */
+.zd-enter.zd-people .zd-head::before { content: ""; position: absolute; left: -6px; top: 0; bottom: 0; width: 6px; background: var(--brass); transform-origin: top; animation: dash-edge .6s cubic-bezier(.2,.8,.2,1) both; }
+.zd-enter.zd-people .zd-head::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(105deg, transparent 40%, color-mix(in srgb, var(--brass) 14%, transparent) 50%, transparent 60%) no-repeat; background-size: 300% 100%; animation: pp-sheen 1.3s ease .35s both; pointer-events: none; }
+.zd-enter.zd-people .zd-meta > span { animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) both; }
+.zd-enter.zd-people .zd-meta > span:nth-child(1) { animation-delay: .2s; }
+.zd-enter.zd-people .zd-meta > span:nth-child(2) { animation-delay: .28s; }
+.zd-enter.zd-people .zd-meta > span:nth-child(3) { animation-delay: .36s; }
+.zd-enter.zd-people .zd-btns > .zb { animation: zd-rise .4s cubic-bezier(.2,.8,.2,1) both; animation-delay: .3s; }
+/* buttons: the plus turns, the photo icon nudges while photos are missing */
+.zd-people #new-person-btn .zd-ic { transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+.zd-people #new-person-btn:hover .zd-ic { transform: rotate(90deg) scale(1.15); }
+.zd-people #find-photos-btn .zd-ic { animation: dash-nudge 3.4s ease-in-out 1.4s infinite; }
+/* filter switch: the old tiles drop away together */
+.zd-people .tile-grid.pp-out > .tile { animation: pp-out .17s ease-in both !important; pointer-events: none; }
+@keyframes pp-out { to { opacity: 0; transform: translateY(8px) scale(.97); } }
+/* tiles rise in one after another; the photo develops from soft to sharp; the numbers pop in after */
+.zd-people .tile-grid.zd-tiles-in > .tile { animation-delay: calc(.08s + var(--i, 0) * 32ms); }
+.zd-tiles-in .tile .pic img { animation: pp-develop .7s ease both; animation-delay: calc(.1s + var(--i, 0) * 32ms); }
+@keyframes pp-develop { from { opacity: 0; filter: blur(8px) saturate(.4); transform: scale(1.08); } }
+.zd-tiles-in .tile .lm-tokens > * { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.3s + var(--i, 0) * 32ms); }
+/* the teal line under the photo draws across as the tile lands */
+.zd-people .tile .main { position: relative; border-top: 0; }
+.zd-people .tile .main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--brass); transform-origin: left; }
+.zd-tiles-in .tile .main::before { animation: pp-line .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * 32ms); }
+@keyframes pp-line { from { transform: scaleX(0); } }
+/* tilt toward the mouse, a light glides over the photo, a press sinks */
+.zd-people .tile-grid { perspective: 900px; }
+.zd-people .tile { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); will-change: transform; }
+.zd-people .tile:hover { transform: translateY(-4px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.zd-people .tile:active { transform: translateY(-1px) scale(.98); transition-duration: .08s; }
+.zd-people .tile .pic { position: relative; }
+.zd-people .tile .pic::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at var(--mx, 50%) 20%, rgba(255,255,255,.28), transparent 55%); opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.zd-people .tile:hover .pic::after { opacity: 1; }
+.zd-people .tile:hover .main::before { background: linear-gradient(90deg, var(--brass), color-mix(in srgb, var(--brass) 55%, var(--zc-pink))); }
+/* a possible duplicate breathes pink so it gets noticed */
+.zd-people .tile .dup-flag { animation: pp-dup 2.8s ease-in-out infinite; }
+.zd-people .tile .dup-flag:hover { animation: none; }
+@keyframes pp-dup { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--zc-pink) 0%, transparent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--zc-pink) 22%, transparent); } }
+@media (prefers-reduced-motion: reduce) {
+  .zd-people *, .zd-people *::before, .zd-people *::after { animation: none !important; transition: none !important; }
+  .zd-people .tile { transform: none !important; }
+}
+@keyframes pp-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }

@@ -350,15 +350,15 @@ export async function render(root, ctx) {
     <div class="stack zd zd-people${enter ? ' zd-enter' : ''}">
       <div class="zd-head">
         <div class="zd-top">
-          <span class="zd-since">${zdIcon('user')}${people.length} ${people.length === 1 ? 'person' : 'people'} · every case</span>
+          <span class="zd-since">${zdIcon('user')}<span><b data-count="${people.length}">${people.length}</b> ${people.length === 1 ? 'person' : 'people'} · every case</span></span>
         </div>
         <div class="zd-who">
           <div class="zd-id">
             <div class="zd-name">People</div>
             <div class="zd-meta">
-              <span>${zdIcon('brief')}${caseCount} case${caseCount === 1 ? '' : 's'}</span>
-              <span>${zdIcon('img')}${people.length - missingPhotoCount} with a photo</span>
-              ${placelessCount ? `<span>${zdIcon('pin')}${placelessCount} not in a case yet</span>` : ''}
+              <span>${zdIcon('brief')}<span><b data-count="${caseCount}">${caseCount}</b> case${caseCount === 1 ? '' : 's'}</span></span>
+              <span>${zdIcon('img')}<span><b data-count="${people.length - missingPhotoCount}">${people.length - missingPhotoCount}</b> with a photo</span></span>
+              ${placelessCount ? `<span>${zdIcon('pin')}<span><b data-count="${placelessCount}">${placelessCount}</b> not in a case yet</span></span>` : ''}
             </div>
           </div>
         </div>
@@ -414,14 +414,55 @@ export async function render(root, ctx) {
     const rows = await Promise.all(shown.map((p) => buildPicRow(p, ctx, dupOf.get(p.id), onChanged)));
     rows.forEach((r, i) => { r.style.setProperty('--i', String(Math.min(i, 24))); list.appendChild(r); });
     body.replaceChildren(list);
+    tiltTiles(list);
+    // once they've landed, the arrival class goes so hover and tilt glide again
+    if (animate) setTimeout(() => list.classList.remove('zd-tiles-in'), 1200 + Math.min(rows.length, 24) * 32);
   };
-  tabs.addEventListener('click', (e) => {
+  tabs.addEventListener('click', async (e) => {
     const a = e.target.closest('[data-f]');
     if (!a) return;
     e.preventDefault();
+    if (a.dataset.f === filter) return;
     filter = a.dataset.f;
     try { localStorage.setItem(FILTER_KEY, filter); } catch { /* private window */ }
+    // the old tiles drop away before the new ones rise in
+    const old = body.querySelector('.tile-grid');
+    if (old && !calm()) { old.classList.add('pp-out'); await new Promise((r) => setTimeout(r, 170)); }
     paint(true);
   });
   await paint(enter);
+  if (enter) countUp(root);
+}
+
+// Lively People page (her ask, 2026-10-23: "make the people page more lively
+// with animations"): the header numbers count up once per visit, tiles tilt
+// toward a mouse with a light over the photo (same as the dashboard's tiles).
+const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function countUp(root) {
+  if (calm()) return;
+  root.querySelectorAll('.zd-people [data-count]').forEach((el, k) => {
+    const to = +el.dataset.count;
+    if (!to) return;
+    const t0 = performance.now() + k * 90, dur = 700 + Math.min(to, 60) * 10;
+    el.textContent = '0';
+    const step = (now) => {
+      const p = Math.min(1, Math.max(0, (now - t0) / dur));
+      el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => { el.textContent = String(to); }, dur + k * 90 + 600); // the real number always lands, even in a hidden tab
+  });
+}
+function tiltTiles(list) {
+  if (calm() || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  list.querySelectorAll('.tile').forEach((tile) => {
+    tile.addEventListener('pointermove', (e) => {
+      const r = tile.getBoundingClientRect();
+      tile.style.setProperty('--ry', `${((e.clientX - r.left) / r.width - 0.5) * 8}deg`);
+      tile.style.setProperty('--rx', `${(0.5 - (e.clientY - r.top) / r.height) * 8}deg`);
+      tile.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+    });
+    tile.addEventListener('pointerleave', () => { tile.style.removeProperty('--rx'); tile.style.removeProperty('--ry'); });
+  });
 }
