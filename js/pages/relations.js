@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
-import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapConfirm } from '../ui.js';
+import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapConfirm, zdIcon } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata, fillFromWikidata, insertFamily } from '../lookup.js';
 import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
@@ -39,6 +39,7 @@ const WESTERN_ELEMENTS = [
 
 // per render: how far the tree is opened either side of the focus person, and the zoom
 const treeState = { up: 1, down: 1, scale: 1 };
+let treePageLast = null; // the page rises in once per case/person, not on every redraw
 // Fit never shrinks below four-fifths — names stay readable on the phone;
 // a wider tree scrolls sideways instead (her pick, 2026-09-03: "stop
 // shrinking at a readable size")
@@ -65,33 +66,52 @@ export async function render(root, ctx, focusId = null) {
   const people = allPeople;
   const rels = allRels;
 
+  // Zanda-style redesign (her ask, 2026-10-23: "redesign the family tree page
+  // the same way" as the v200 profile / v201 Their Story): squared uppercase
+  // view tabs + action buttons, a row of count pills (Zanda's badges), and
+  // every view inside one titled panel. `.zd` here too, so the page matches
+  // whether it's opened inside a profile or on its own.
+  const couples = rels.filter((r) => (r.kind === 'spouse' || r.kind === 'partner') && !r.theory_id).length;
+  const kids = rels.filter((r) => r.kind === 'parent').length;
+  const VIEW_TITLE = { tree: 'Family tree', map: 'Zodiac map', lifeline: 'Every couple’s story', table: 'Family table' };
+  const enter = treePageLast !== `${ctx.caseId}:${focus}`;
+  treePageLast = `${ctx.caseId}:${focus}`;
   root.innerHTML = `
-    <div class="stack">
-      <div class="row between wrap" style="gap:8px">
-        <div class="row wrap" style="gap:8px;align-items:center">
-          <span class="section-label">${allPeople.length} people · ${rels.length} relationships</span>
-          <div class="seg" id="rel-view">
-            <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">Tree</button>
-            <button class="${view === 'map' ? 'active' : ''}" data-view="map">Zodiac map</button>
-            <button class="${view === 'lifeline' ? 'active' : ''}" data-view="lifeline" title="Every couple's own story — met, engaged, married, separated">Lifeline</button>
-            ${focus ? `<button class="${view === 'table' ? 'active' : ''}" data-view="table" title="This person's family, one row each — fix a wrong parent/child or add a link without the tree">Family table</button>` : ''}
-          </div>
+    <div class="stack zd zd-treepage${enter ? ' zd-enter' : ''}">
+      <div class="zd-subbar">
+        <div class="zd-seg" id="rel-view" role="tablist">
+          <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">${zdIcon('tree')}Tree</button>
+          <button class="${view === 'map' ? 'active' : ''}" data-view="map">${zdIcon('star')}Zodiac map</button>
+          <button class="${view === 'lifeline' ? 'active' : ''}" data-view="lifeline" title="Every couple's own story — met, engaged, married, separated">${zdIcon('heart')}Lifeline${couples ? ` <span class="zd-cnt pink">${couples}</span>` : ''}</button>
+          ${focus ? `<button class="${view === 'table' ? 'active' : ''}" data-view="table" title="This person's family, one row each — fix a wrong parent/child or add a link without the tree">${zdIcon('list')}Family table</button>` : ''}
         </div>
-        <div class="row" style="gap:8px;align-items:center">
-          <button class="btn btn-primary btn-sm" id="add-wiki-btn" title="Search Wikipedia, tick who to add — their family comes with them">+ From Wikipedia</button>
-          <button class="btn btn-ghost btn-sm" id="questions-btn" title="The case's questions and the theories answering them">Questions</button>
-          <span class="row" id="add-more-slot" style="gap:8px;margin-left:4px"></span>
-        </div>
+        <span class="zd-sp"></span>
+        <button class="btn btn-primary btn-sm" id="add-wiki-btn" title="Search Wikipedia, tick who to add — their family comes with them">${zdIcon('plus')}From Wikipedia</button>
+        <span class="row wrap" id="add-more-slot" style="gap:8px"></span>
+        <button class="btn btn-ghost btn-sm" id="questions-btn" title="The case's questions and the theories answering them">${zdIcon('check')}Questions</button>
       </div>
-      <div id="map-slot"></div>
+      <div class="zd-stats">
+        <span class="zd-stat">${zdIcon('user')}<b>${allPeople.length}</b> people</span>
+        <span class="zd-stat">${zdIcon('tree')}<b>${rels.length}</b> relationships</span>
+        <span class="zd-stat pink">${zdIcon('heart')}<b>${couples}</b> couple${couples === 1 ? '' : 's'}</span>
+        <span class="zd-stat">${zdIcon('list')}<b>${kids}</b> parent–child link${kids === 1 ? '' : 's'}</span>
+      </div>
+      <div class="panel zd-view-panel">
+        <div class="row between wrap" style="gap:8px">
+          <span class="section-label">${VIEW_TITLE[view]}</span>
+        </div>
+        <div id="map-slot" class="zd-view-body"></div>
+      </div>
       <div class="grid-2">
         <div class="panel">
-          <div class="panel-title">Repeating numbers — life path across this case</div>
+          <div class="row between wrap" style="gap:8px">
+            <span class="section-label">Repeating numbers — life path across this case</span>
+          </div>
           <div id="repeat-slot"></div>
         </div>
         <div class="panel">
-          <div class="row between wrap" style="gap:8px;align-items:flex-start;margin-bottom:var(--sp-3)">
-            <div class="panel-title" style="margin:0">Life path grid</div>
+          <div class="row between wrap" style="gap:8px;align-items:center">
+            <span class="section-label">Life path grid</span>
             <div id="grid-ctl"></div>
           </div>
           <div id="grid-slot"></div>
@@ -107,7 +127,7 @@ export async function render(root, ctx, focusId = null) {
   // people still work, just as small text, not buttons competing for the
   // same attention
   const addMoreSlot = root.querySelector('#add-more-slot');
-  addMoreSlot.innerHTML = `<button class="linkish" id="add-quick-btn" title="One drawer: name them, how they connect, and when — saved together">+ add & link</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-type-btn">or pick from People</button><span style="color:var(--text-3);font-size:11px">·</span><button class="linkish" id="add-rel-btn">link two people</button>`;
+  addMoreSlot.innerHTML = `<button class="btn btn-ghost btn-sm" id="add-quick-btn" title="One drawer: name them, how they connect, and when — saved together">${zdIcon('plus')}Add &amp; link</button><button class="btn btn-ghost btn-sm" id="add-type-btn" title="Someone already in People">${zdIcon('user')}From People</button><button class="btn btn-ghost btn-sm" id="add-rel-btn" title="Join two people already here">${zdIcon('heart')}Link two</button>`; // chips, not text links (2026-10-23 Zanda redesign)
   // her ask, 2026-09-28 ("make it easier to add family... progressive
   // animated process" — a real relative landed backwards on the tree from
   // this exact button's plain "parent" option): the same upgrade as
@@ -716,7 +736,7 @@ function openFullTree(ctx, people, rels, focus, rerenderPage) {
   if (document.querySelector('.tree-full')) return;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const overlay = document.createElement('div');
-  overlay.className = 'tree-full';
+  overlay.className = 'tree-full zd'; // zd: the full-screen toolbar matches the page (2026-10-23)
   document.body.appendChild(overlay);
   const prevOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';

@@ -1893,3 +1893,67 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .zd-rel .zd-box .lm-v:nth-child(3) { animation-delay: .16s; }
 .zd-enter.zd-rel .zd-pair .zd-face.b { animation-delay: .22s; }
 .zd-rel .subject-main .panel > .row.between:first-child .dim { color: var(--text-3); }
+
+/* ==== Family tree page in the same Zanda style (2026-10-23) ==== */
+.zd-treepage { gap: var(--sp-4); }
+.zd-subbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* the view switch: one squared, outlined group, the chosen view filled */
+.zd-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--ink-2); }
+.zd-seg button { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--text-2); font: 700 11.5px var(--font-body); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; transition: background .2s ease, color .2s ease; }
+.zd-seg button:last-child { border-right: 0; }
+.zd-seg button:hover { background: color-mix(in srgb, var(--brass) 8%, var(--ink-2)); color: var(--brass); }
+.zd-seg button.active { background: var(--brass); color: var(--on-brass); }
+.zd-seg button.active .zd-cnt { background: var(--on-brass); color: var(--brass); }
+.zd-seg .zd-cnt { min-width: 18px; height: 18px; font-size: 10.5px; }
+/* count pills, like Zanda's badges */
+.zd-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.zd-stat { display: inline-flex; align-items: center; gap: 6px; background: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; color: var(--text-2); }
+.zd-stat b { color: var(--text); font-weight: 700; }
+.zd-stat.pink { color: var(--zc-pink); }
+.zd-stat.pink b { color: var(--zc-pink); }
+.zd-enter .zd-stat { animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) both; }
+.zd-enter .zd-stat:nth-child(2) { animation-delay: .06s; }
+.zd-enter .zd-stat:nth-child(3) { animation-delay: .12s; }
+.zd-enter .zd-stat:nth-child(4) { animation-delay: .18s; }
+.zd-enter.zd-treepage > .zd-subbar { animation: zd-rise .4s cubic-bezier(.2,.8,.2,1) both; }
+.zd-enter.zd-treepage > .panel, .zd-enter.zd-treepage > .grid-2 { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) .15s both; }
+.zd-enter.zd-treepage > .grid-2 { animation-delay: .28s; }
+/* the panels on this page get the same title row as the profile's */
+.zd-treepage .panel { border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); box-shadow: none; transition: box-shadow .25s ease; }
+.zd-treepage .panel:hover { box-shadow: var(--lift-1); }
+.zd-treepage .panel > .row.between:first-child { margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-3); padding: 10px var(--sp-4); border-bottom: 1px solid var(--line); }
+.zd-treepage .panel .section-label, .zd-treepage .panel .panel-title { font: 700 15px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text); }
+/* a view that brings its own panel (Lifeline) sits flat inside this one */
+.zd-view-body > .panel { border: 0; padding: 0; background: none; box-shadow: none; }
+.zd-view-body > .panel > .panel-title:first-child { display: none; }
+.zd-view-body { animation: zd-fade .35s ease both; }
+@keyframes zd-fade { from { opacity: 0; transform: translateY(6px); } }
+/* the tree's own toolbar, squared and uppercase */
+.zd .tree-count { display: inline-flex; align-items: center; background: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font: 600 12px var(--font-body); color: var(--text-2); }
+.zd .tree-grp { background: var(--ink-2); border: 1px solid var(--line); border-radius: 4px; padding: 0; gap: 0; overflow: hidden; }
+.zd .tree-grp button { border-radius: 0; border-right: 1px solid var(--line); padding: 0 12px; height: 30px; font: 700 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.zd .tree-grp button:last-child { border-right: 0; }
+.zd .tree-grp button:hover:not(:disabled) { background: color-mix(in srgb, var(--brass) 8%, var(--ink-2)); color: var(--brass); }
+.zd .tree-grp button.active { background: var(--brass); color: var(--on-brass); }
+.zd .tree-switch { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--ink-2); font: 700 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.zd .tree-switch:hover { background: color-mix(in srgb, var(--brass) 8%, var(--ink-2)); color: var(--brass); transform: translateY(-1px); }
+.zd .tree-switch.on { background: color-mix(in srgb, var(--brass) 14%, var(--ink-2)); border-color: color-mix(in srgb, var(--brass) 45%, var(--line)); color: var(--brass); }
+.zd .tree-more { border-radius: 4px; font: 700 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; padding: 6px 14px; transition: color .2s ease, border-color .2s ease, transform .15s ease; }
+.zd .tree-more:hover { transform: translateY(-1px); }
+@media (max-width: 720px) {
+  .zd-subbar .zd-sp { display: none; }
+  .zd-seg { width: 100%; overflow-x: auto; }
+  .zd-seg button { flex: 1 0 auto; justify-content: center; padding: 0 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zd-treepage, .zd-treepage * { animation: none !important; }
+}
+.zd-subbar #add-more-slot { display: contents; }
+@media (max-width: 720px) {
+  .zd-subbar { gap: 6px; }
+  .zd-subbar .btn { height: 30px; min-height: 30px; padding: 0 9px; font-size: 10.5px; gap: 5px; }
+  .zd .tree-bar-groups { gap: 6px; }
+  .zd .tree-grp button, .zd .tree-switch { height: 28px; padding: 0 9px; font-size: 10.5px; }
+  .zd-stats { gap: 6px; }
+  .zd-stat { padding: 3px 10px; font-size: 12px; }
+}

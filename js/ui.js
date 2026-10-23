@@ -493,6 +493,7 @@ export function videoPosterTile(url, { size = 64, onRemove } = {}) {
 // line icons for the Zanda-style header and buttons (2026-10-23) — drawn in
 // currentColor so each takes its button's colour on both themes
 const ZD_ICONS = {
+  star: '<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',
   back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.5-7 8-7s7 2.5 8 7"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
