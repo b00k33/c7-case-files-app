@@ -1,5 +1,5 @@
 import { emptyState, verificationLabel } from '../indicators.js';
-import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, openShotViewer } from '../ui.js';
+import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, openShotViewer, zdIcon } from '../ui.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads, preloadImage } from '../assets.js';
 import { INBOX_TAG, PURPOSES } from '../store.js';
 import { youtubeThumb } from '../media.js';
@@ -122,20 +122,30 @@ export async function render(root, ctx) {
   if (sharedIn) currentView = 'inbox';
   const inboxCount = await store.countInbox(ctx.caseId);
 
+  // the Zanda-style header card + a lively inbox (her ask, 2026-10-23: "make the
+  // inbox page more lively with animations")
+  const inboxView = currentView === 'inbox';
   root.innerHTML = `
-    <div class="stack">
-      <div class="row between wrap" style="gap:12px">
-        <div class="tabs" id="view-tabs">
-          <button data-v="grid" class="${currentView === 'grid' ? 'active' : ''}">Grid</button>
-          <button data-v="inbox" class="${currentView === 'inbox' ? 'active' : ''}">Inbox${inboxCount ? ` <span style="color:var(--brass)">${inboxCount}</span>` : ''}</button>
+    <div class="stack zd-inbox">
+      <div class="zd-head">
+        <div class="zd-top">
+          <span class="zd-since">${zdIcon('img')}<span><b>${inboxCount}</b> waiting in the inbox</span></span>
+          <div class="tabs" id="view-tabs">
+            <button data-v="grid" class="${currentView === 'grid' ? 'active' : ''}">Grid</button>
+            <button data-v="inbox" class="${inboxView ? 'active' : ''}">Inbox${inboxCount ? ` <span class="zd-cnt pink">${inboxCount}</span>` : ''}</button>
+          </div>
         </div>
-        <div class="row" style="gap:8px">
-          <button class="btn btn-ghost" id="add-images-btn">+ Add images</button>
+        <div class="zd-who"><div class="zd-id">
+          <div class="zd-name">${inboxView ? 'Inbox' : 'Evidence'}</div>
+          <div class="zd-meta"><span>${zdIcon('list')}${inboxView ? 'Give each image a title and a person — then it leaves for the collection' : 'Everything collected for this case'}</span></div>
+        </div></div>
+        <div class="zd-btns">
+          <button class="btn btn-ghost" id="add-images-btn">${zdIcon('img')}Add images</button>
           <input type="file" id="add-images-input" accept="image/*" multiple style="display:none">
-          <button class="btn btn-primary" id="add-evidence-btn">+ Add evidence</button>
+          <button class="btn btn-primary" id="add-evidence-btn">${zdIcon('plus')}Add evidence</button>
         </div>
       </div>
-      <div class="dropzone" id="dropzone">Drop images here, or paste one with Ctrl+V — or on your phone, share them to Case Files from the gallery</div>
+      <div class="dropzone" id="dropzone"><span class="dz-ic">${zdIcon('img')}</span><span>Drop images here, or paste one with Ctrl+V — or on your phone, share them to Case Files from the gallery</span></div>
       <div class="row wrap" style="gap:8px">
         <select id="f-type"><option value="">All types</option>${TYPES.map((t) => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <select id="f-verify"><option value="">All verification</option>${VERIFICATIONS.map((v) => `<option value="${v}" ${filters.verification === v ? 'selected' : ''}>${VERIFICATION_LABEL[v]}</option>`).join('')}</select>
@@ -404,6 +414,21 @@ async function drainSharedImages(ctx) {
   }
 }
 
+/**
+ * Send inbox cards off before the redraw (2026-10-23, the lively Inbox): a
+ * FILED stamp then up and away for saved ones, a shrink for a deleted one.
+ * Instant with reduced motion.
+ */
+function flyOut(cardEls, how) {
+  if (!cardEls.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  cardEls.forEach((c, k) => {
+    if (how === 'filed') c.insertAdjacentHTML('beforeend', '<span class="ib-filed">Filed</span>');
+    c.style.setProperty('--k', String(k));
+    c.classList.add(`ib-out-${how}`);
+  });
+  return new Promise((res) => setTimeout(res, how === 'filed' ? 650 + Math.min(cardEls.length, 8) * 60 : 320));
+}
+
 async function renderInbox(el, ctx, inbox, people, root) {
   const { store } = ctx;
   el.style.display = 'block';
@@ -450,6 +475,7 @@ async function renderInbox(el, ctx, inbox, people, root) {
     const untitled = tags.includes('untitled'); // filename stand-in: shown as a hint, not a value
     const card = document.createElement('div');
     card.className = 'inbox-card';
+    card.style.setProperty('--i', String(Math.min(cards.length, 24)));
     card.innerHTML = `
       <div class="inbox-thumb"><span class="mono" style="font-size:10px;color:var(--text-3)">${it.type} · ${it.dated || ''}</span></div>
       <div class="inbox-fields">
@@ -472,6 +498,7 @@ async function renderInbox(el, ctx, inbox, people, root) {
       if (!url) return;
       const img = document.createElement('img');
       img.src = url; img.alt = it.title || '';
+      img.addEventListener('load', () => img.classList.add('in')); // the picture fades and settles in once it has decoded
       img.addEventListener('click', () => ctx.openDrawer((body) => renderDetail(body, ctx, it.id)));
       card.querySelector('.inbox-thumb').prepend(img);
     });
@@ -480,13 +507,18 @@ async function renderInbox(el, ctx, inbox, people, root) {
       const st = card.querySelector('.ib-status');
       st.textContent = ready ? '✓ ready — leaves the inbox on save' : (!card.querySelector('.ib-title').value.trim() ? 'needs a title' : 'needs a person');
       st.style.color = ready ? 'var(--green)' : 'var(--red)';
+      // the card turns green with a pop the moment it becomes ready
+      if (!!ready !== card.classList.contains('ready')) {
+        card.classList.toggle('ready', !!ready);
+        if (ready) { card.classList.remove('just-ready'); void card.offsetWidth; card.classList.add('just-ready'); }
+      }
       updateSummary();
     };
     card.querySelector('.ib-title').addEventListener('input', refresh);
     card.querySelector('.ib-person').addEventListener('change', refresh);
     twoTapConfirm(card.querySelector('.ib-del'), {
       confirmLabel: 'Really delete?',
-      onConfirm: async () => { await store.softDeleteEvidence(it.id); render(root, ctx); },
+      onConfirm: async () => { await store.softDeleteEvidence(it.id); await flyOut([card], 'gone'); render(root, ctx); },
     });
     entry.refresh = refresh;
   }
@@ -503,6 +535,7 @@ async function renderInbox(el, ctx, inbox, people, root) {
       if (p) c.card.querySelector('.ib-person').value = p;
       if (pu) c.card.querySelector('.ib-purpose').value = pu;
       c.refresh();
+      c.card.classList.remove('flash'); void c.card.offsetWidth; c.card.classList.add('flash'); // a ripple across every card it touched
     }
   });
 
@@ -525,9 +558,11 @@ async function renderInbox(el, ctx, inbox, people, root) {
       const tags = await store.evidenceTagNames(c.item.id);
       for (const t of tags) if (t.startsWith('purpose:') && t !== `purpose:${purpose}`) await store.untagEvidence(c.item.id, t);
       if (purpose && !tags.includes(`purpose:${purpose}`)) await store.tagEvidence(c.item.id, `purpose:${purpose}`);
-      if (title && (personId || c.existingLink)) await store.untagEvidence(c.item.id, INBOX_TAG);
+      if (title && (personId || c.existingLink)) { await store.untagEvidence(c.item.id, INBOX_TAG); c.filed = true; }
     }
     ctx.refreshBadges?.();
+    // the filed cards get a FILED stamp and fly up out of the inbox; the rest stay
+    await flyOut(cards.filter((c) => c.filed).map((c) => c.card), 'filed');
     render(root, ctx);
   });
 }
@@ -540,6 +575,7 @@ function renderGrid(el, ctx, items) {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.cursor = 'pointer';
+    card.style.setProperty('--i', String(Math.min(el.children.length, 24)));
     card.innerHTML = `
       <div class="card-thumb"></div>
       <div class="mono" style="font-size:10px;color:var(--text-3);text-transform:uppercase">${it.type}</div>

@@ -2183,3 +2183,66 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .zd-review *, .zd-review *::before, .zd-review *::after, .rv-confetti i { animation: none !important; transition: none !important; }
 }
 .zd-review .review-card > .rv-stamp { animation: rv-stamp .28s cubic-bezier(.3,1.6,.5,1) both; }
+
+/* ==== Inbox (and Evidence grid), lively (2026-10-23, her ask: "make the
+   inbox page more lively with animations"). evidence.js: --i staggers the
+   cards, .ready/.just-ready when a card can leave, .flash after Apply to
+   all, flyOut() for FILED / deleted cards. ==== */
+.zd-inbox .zd-head .zd-top .tabs { margin-left: auto; }
+.zd-inbox .zd-since b { font-variant-numeric: tabular-nums; }
+/* the drop zone: marching dashes, a bobbing picture icon, and it swells when an image is dragged over */
+.zd-inbox .dropzone { position: relative; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 18px 16px; border: 0; border-radius: 6px; font: 600 12.5px var(--font-body); color: var(--text-2); background: var(--ink-2);
+  background-image: linear-gradient(90deg, var(--line) 50%, transparent 50%), linear-gradient(90deg, var(--line) 50%, transparent 50%), linear-gradient(0deg, var(--line) 50%, transparent 50%), linear-gradient(0deg, var(--line) 50%, transparent 50%);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y; background-size: 14px 2px, 14px 2px, 2px 14px, 2px 14px; background-position: 0 0, 0 100%, 0 0, 100% 0;
+  animation: dz-march 1.2s linear infinite; transition: transform .25s cubic-bezier(.3,1.4,.5,1), box-shadow .25s ease, color .2s ease; }
+@keyframes dz-march { to { background-position: 14px 0, -14px 100%, 0 -14px, 100% 14px; } }
+.zd-inbox .dropzone .dz-ic { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; flex: none; background: color-mix(in srgb, var(--brass) 12%, var(--ink-2)); color: var(--brass); animation: dz-bob 2.6s ease-in-out infinite; }
+.zd-inbox .dropzone .dz-ic .zd-ic { width: 20px; height: 20px; }
+@keyframes dz-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.zd-inbox .dropzone.over { transform: scale(1.02); color: var(--brass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 25%, transparent), var(--lift-2);
+  background-color: color-mix(in srgb, var(--brass) 6%, var(--ink-2));
+  background-image: linear-gradient(90deg, var(--brass) 50%, transparent 50%), linear-gradient(90deg, var(--brass) 50%, transparent 50%), linear-gradient(0deg, var(--brass) 50%, transparent 50%), linear-gradient(0deg, var(--brass) 50%, transparent 50%); animation-duration: .5s; }
+.zd-inbox .dropzone.over .dz-ic { animation: dz-jump .6s ease-in-out infinite; }
+@keyframes dz-jump { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-8px) scale(1.12); } }
+/* the apply-to-all bar */
+.zd-inbox .batch-bar { border: 1px solid var(--line); border-left: 4px solid var(--brass); border-radius: 6px; background: var(--ink-2); padding: 10px 14px; }
+.zd-inbox .batch-bar .section-label { font: 700 13px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text); }
+/* the inbox cards: rise in one after another, the picture settles in */
+.zd-inbox .inbox-card { position: relative; border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); overflow: hidden; animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms); transition: border-color .3s ease, box-shadow .3s ease, transform .2s ease; }
+.zd-inbox .inbox-card:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
+.zd-inbox .inbox-thumb { height: 150px; overflow: hidden; }
+.zd-inbox .inbox-thumb img { opacity: 0; transform: scale(1.08); transition: opacity .45s ease, transform .8s cubic-bezier(.2,.8,.2,1); }
+.zd-inbox .inbox-thumb img.in { opacity: 1; transform: scale(1); }
+.zd-inbox .inbox-card:hover .inbox-thumb img.in { transform: scale(1.05); }
+.zd-inbox .inbox-fields { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.zd-inbox .ib-status { font: 600 11px var(--font-body) !important; transition: color .3s ease; }
+/* ready to leave: a green edge and a little pop */
+.zd-inbox .inbox-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--green); transform: scaleY(0); transform-origin: bottom; transition: transform .35s cubic-bezier(.3,1.4,.5,1); z-index: 2; }
+.zd-inbox .inbox-card.ready { border-color: color-mix(in srgb, var(--green) 45%, var(--line)); }
+.zd-inbox .inbox-card.ready::before { transform: scaleY(1); }
+.zd-inbox .inbox-card.just-ready { animation: ib-ready .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes ib-ready { 40% { transform: scale(1.03); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 25%, transparent); } }
+/* Apply to all: a ripple across every card it touched */
+.zd-inbox .inbox-card.flash { animation: ib-flash .6s ease both; animation-delay: calc(var(--i, 0) * 45ms); }
+@keyframes ib-flash { 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 35%, transparent); background: color-mix(in srgb, var(--brass) 6%, var(--ink-2)); } }
+/* the save button lifts when something is ready */
+.zd-inbox #inbox-save { transition: transform .2s cubic-bezier(.3,1.6,.5,1), filter .2s ease; }
+.zd-inbox:has(.inbox-card.ready) #inbox-save { animation: ib-save 2.4s ease-in-out infinite; }
+@keyframes ib-save { 0%, 80%, 100% { transform: none; } 88% { transform: translateY(-3px); } 94% { transform: translateY(0); } }
+/* the way out: FILED, then up and away; a deleted card shrinks */
+.ib-filed { position: absolute; top: 46px; left: 50%; z-index: 3; padding: 5px 14px; border: 3px solid var(--green); border-radius: 6px; color: var(--green); background: color-mix(in srgb, var(--ink-2) 85%, transparent); font: 800 17px var(--font-body); letter-spacing: .14em; text-transform: uppercase; transform: translateX(-50%) rotate(-10deg); animation: ib-stamp .3s cubic-bezier(.3,1.6,.5,1) calc(var(--k, 0) * 60ms) both; pointer-events: none; }
+@keyframes ib-stamp { from { opacity: 0; transform: translateX(-50%) rotate(-10deg) scale(2.2); } }
+.zd-inbox .inbox-card.ib-out-filed { animation: ib-up .4s ease-in calc(.3s + var(--k, 0) * 60ms) both !important; pointer-events: none; }
+.zd-inbox .inbox-card.ib-out-gone { animation: ib-gone .3s ease-in both !important; pointer-events: none; }
+@keyframes ib-up { to { opacity: 0; transform: translateY(-50px) scale(.92); } }
+@keyframes ib-gone { to { opacity: 0; transform: scale(.85); } }
+/* the Evidence grid: cards rise in, lift, and the picture zooms */
+.zd-inbox #evidence-body > .card { border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); box-shadow: none; animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); transition: transform .2s ease, box-shadow .25s ease, border-color .25s ease; }
+.zd-inbox #evidence-body > .card:hover { transform: translateY(-3px); box-shadow: var(--lift-2-hover); border-color: color-mix(in srgb, var(--brass) 40%, var(--line)); }
+.zd-inbox #evidence-body > .card .card-thumb { border-radius: 5px 5px 0 0; }
+.zd-inbox #evidence-body > .card .card-thumb img { transition: transform .5s ease; animation: zd-fade .4s ease both; }
+.zd-inbox #evidence-body > .card:hover .card-thumb img { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) {
+  .zd-inbox *, .zd-inbox *::before, .zd-inbox .dropzone { animation: none !important; transition: none !important; }
+  .zd-inbox .inbox-thumb img { opacity: 1; transform: none; }
+}
