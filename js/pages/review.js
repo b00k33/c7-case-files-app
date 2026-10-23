@@ -1,10 +1,25 @@
 import { emptyState, verificationLabel } from '../indicators.js';
-import { inlineNameForm, twoTapConfirm, stampMoment } from '../ui.js';
+import { inlineNameForm, twoTapConfirm, stampMoment, zdIcon } from '../ui.js';
 
 let cursor = 0;
 let keyHandler = null;
 let decidedThisSession = 0; // fills the progress bar as she clears the queue
 let sessionCounts = { accepted: 0, rejected: 0, question: 0 }; // for the finish stamp's tally
+// the lively Review (her ask, 2026-10-23: "make the review page more lively with
+// animations"): the bar grows from where it was, and the next card comes in
+// from the side the last one left
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let lastPct = 0;
+let arrivedFrom = null; // 'accept' | 'reject' | 'skip' | 'question' — set as a card leaves
+const LEAVE_STAMP = { accept: 'Accepted', reject: 'Rejected', skip: 'Skipped', question: 'Question' };
+/** Play the card's way out (a stamp, then off to one side) and wait for it; instant with reduced motion. */
+function leave(card, how) {
+  arrivedFrom = how;
+  if (!card || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  card.insertAdjacentHTML('beforeend', `<span class="rv-stamp rv-${how}">${LEAVE_STAMP[how]}</span>`);
+  card.classList.add(`rv-leave-${how}`);
+  return new Promise((res) => setTimeout(res, how === 'skip' ? 300 : 520));
+}
 
 // Each claim announces what it is — colour + glyph by kind, so a death
 // never reads the same as a wedding at a glance.
@@ -162,16 +177,26 @@ export async function render(root, ctx, personId) {
   const queueLabel = [
     claims.length ? `${claims.length} drafted claim${claims.length === 1 ? '' : 's'}` : null,
     rels.length ? `${rels.length} unconfirmed relationship${rels.length === 1 ? '' : 's'}` : null,
-  ].filter(Boolean).join(' · ') || 'Nothing';
+  ].filter(Boolean).join(' · ') || 'Nothing waiting';
 
+  // the Zanda-style header card (2026-10-23), with the queue and this sitting's tally
+  const who = person ? person.display_name.split(/\s+/)[0] : null;
   root.innerHTML = `
-    <div class="stack">
-      <div class="row between">
-        <span class="section-label">${queueLabel}${person ? ` for ${person.display_name.split(/\s+/)[0]}` : ''} in the queue</span>
-        <div class="row" style="gap:8px">
-          ${queue.length ? `<button class="btn btn-ghost btn-sm" id="bulk-accept">Accept all</button>
+    <div class="stack zd-review">
+      <div class="zd-head">
+        <div class="zd-top"><span class="zd-since">${zdIcon('check')}<span><b>${queue.length}</b> in the queue</span></span></div>
+        <div class="zd-who"><div class="zd-id">
+          <div class="zd-name">Review${who ? ` · ${esc(who)}` : ''}</div>
+          <div class="zd-meta">
+            <span>${zdIcon('list')}${queueLabel}</span>
+            ${decidedThisSession ? `<span>${zdIcon('check')}${decidedThisSession} decided this sitting</span>` : ''}
+          </div>
+        </div></div>
+        <div class="zd-btns">
+          ${queue.length ? `<button class="btn btn-ghost btn-sm" id="bulk-accept">${zdIcon('check')}Accept all</button>
           <button class="btn btn-ghost btn-sm" id="bulk-reject">Reject all</button>` : ''}
-          ${elsewhere ? `<a class="chip" href="#/review" title="Everything pending in this case, not just ${person ? person.display_name.split(/\s+/)[0] : 'this person'}">${elsewhere} more elsewhere in this case →</a>` : ''}
+          <span class="zd-sp"></span>
+          ${elsewhere ? `<a class="btn btn-ghost btn-sm" href="#/review" title="Everything pending in this case, not just ${who || 'this person'}">${elsewhere} more in this case</a>` : ''}
         </div>
       </div>
       ${dups.total ? `<div class="inline-note row between wrap" style="border-left-color:var(--brass);gap:8px;margin:0">
@@ -205,6 +230,14 @@ export async function render(root, ctx, personId) {
         actionLabel: 'See it on the Board',
         onAction: () => ctx.navigate('#/board'),
       }));
+      // a small burst of confetti around the stamp (2026-10-23, the lively Review)
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const burst = document.createElement('div');
+        burst.className = 'rv-confetti';
+        burst.innerHTML = Array.from({ length: 18 }, (_, i) => `<i style="--a:${i * 20}deg;--d:${70 + (i % 3) * 28}px;--c:${['var(--brass)', 'var(--zc-pink)', 'var(--gold)'][i % 3]}"></i>`).join('');
+        slot.querySelector('.stamp-moment')?.prepend(burst);
+      }
+      lastPct = 0;
     } else if (personId) {
       slot.appendChild(emptyState({
         missing: `Nothing waiting on ${person ? person.display_name.split(/\s+/)[0] : 'this person'}.`,
@@ -224,10 +257,18 @@ export async function render(root, ctx, personId) {
   const progress = document.createElement('div');
   progress.className = 'review-progress';
   progress.innerHTML = `
-    <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+    <div class="track"><div class="fill" style="width:${lastPct}%"></div></div>
     <div class="counts"><span class="done">${decidedThisSession} decided</span><span>${queue.length} to go</span></div>
   `;
   slot.appendChild(progress);
+  // the bar grows from where it last stood to where it is now
+  requestAnimationFrame(() => requestAnimationFrame(() => { progress.querySelector('.fill').style.width = `${pct}%`; }));
+  setTimeout(() => { progress.querySelector('.fill').style.width = `${pct}%`; }, 400);
+  lastPct = pct;
+  // the cards still waiting show as a little deck behind this one
+  const deck = Math.min(queue.length - 1, 2);
+  const enterCls = `review-card rv-deck-${deck}${arrivedFrom ? ` rv-in-${arrivedFrom}` : ''}`;
+  arrivedFrom = null;
 
   twoTapConfirm(root.querySelector('#bulk-accept'), {
     confirmLabel: `Really accept all ${queue.length}?`,
@@ -258,7 +299,7 @@ export async function render(root, ctx, personId) {
     const [a, b] = await Promise.all([store.getPerson(r.a_id), store.getPerson(r.b_id)]);
     const dir = r.kind === 'parent' ? 'parent of' : r.kind === 'godparent' ? 'godparent of' : r.kind;
     const card = document.createElement('div');
-    card.className = 'review-card';
+    card.className = enterCls;
     card.style.setProperty('--claim-accent', 'var(--teal)');
     card.innerHTML = `
       <div class="section-label">${cursor + 1} of ${queue.length} · relationship${r.notes && /Wikidata/.test(r.notes) ? ' · from lookup' : ''}</div>
@@ -275,17 +316,17 @@ export async function render(root, ctx, personId) {
       </div>
     `;
     slot.appendChild(card);
-    const done = (bucket) => { decidedThisSession++; sessionCounts[bucket]++; render(root, ctx, personId); };
+    const done = async (bucket) => { if (card.dataset.busy) return; card.dataset.busy = '1'; await leave(card, bucket === 'accepted' ? 'accept' : bucket === 'rejected' ? 'reject' : 'question'); decidedThisSession++; sessionCounts[bucket]++; render(root, ctx, personId); };
     card.querySelector('#act-accept').addEventListener('click', async () => { await store.upsertRelationship({ id: r.id, confirmed: 1 }); done('accepted'); });
     twoTapConfirm(card.querySelector('#act-reject'), { confirmLabel: 'Really remove?', onConfirm: async () => { await store.deleteRelationship(r.id); done('rejected'); } });
-    card.querySelector('#act-skip').addEventListener('click', () => { cursor = (cursor + 1) % queue.length; render(root, ctx, personId); });
+    card.querySelector('#act-skip').addEventListener('click', async () => { if (card.dataset.busy) return; card.dataset.busy = '1'; await leave(card, 'skip'); cursor = (cursor + 1) % queue.length; render(root, ctx, personId); });
     card.querySelector('#act-question').addEventListener('click', () => {
       if (card.querySelector('.inline-form')) return;
       card.querySelector('.review-actions').after(inlineNameForm({
         label: "What's the open question?",
         value: `Unclear: ${a?.display_name || '?'} ${dir} ${b?.display_name || '?'}`,
         submitLabel: 'Raise question',
-        onSubmit: async (q) => { await store.createQuestion({ case_id: ctx.caseId, text: q }); cursor = (cursor + 1) % queue.length; sessionCounts.question++; render(root, ctx, personId); },
+        onSubmit: async (q) => { await store.createQuestion({ case_id: ctx.caseId, text: q }); await leave(card, 'question'); cursor = (cursor + 1) % queue.length; sessionCounts.question++; render(root, ctx, personId); },
       }));
     });
     keyHandler = (e) => {
@@ -312,7 +353,7 @@ export async function render(root, ctx, personId) {
   const claimEvidence = await store.listLinksForTarget('claim', claim.id);
 
   const card = document.createElement('div');
-  card.className = 'review-card';
+  card.className = enterCls;
   card.style.setProperty('--claim-accent', style.accent);
   card.innerHTML = `
     <div class="section-label">${cursor + 1} of ${queue.length} · from ${claim.origin}</div>
@@ -343,7 +384,10 @@ export async function render(root, ctx, personId) {
   }
 
   async function decide(decision, rationale) {
+    if (card.dataset.busy) return; // one decision per card, even with a quick double-tap during its way out
+    card.dataset.busy = '1';
     await store.decideClaim(claim.id, decision, rationale);
+    await leave(card, decision === 'accepted' ? 'accept' : decision === 'rejected' ? 'reject' : 'question');
     decidedThisSession++;
     if (decision in sessionCounts) sessionCounts[decision]++;
     render(root, ctx, personId);
@@ -361,7 +405,10 @@ export async function render(root, ctx, personId) {
       onSubmit: (q) => decide('question', q),
     }));
   });
-  card.querySelector('#act-skip').addEventListener('click', () => {
+  card.querySelector('#act-skip').addEventListener('click', async () => {
+    if (card.dataset.busy) return;
+    card.dataset.busy = '1';
+    await leave(card, 'skip');
     cursor = (cursor + 1) % queue.length;
     render(root, ctx, personId);
   });
@@ -388,6 +435,7 @@ export async function render(root, ctx, personId) {
       // old value went in instead (review, 2026-09-03).
       const newId = await store.createClaim({ case_id: claim.case_id, target_type: claim.target_type, target_id: claim.target_id, field: claim.field, value: newValue, origin: claim.origin, rationale: claim.rationale });
       await store.decideClaim(newId, 'accepted');
+      await leave(card, 'accept');
       decidedThisSession++; // one claim resolved, even though it took a reject+re-accept internally
       sessionCounts.accepted++;
       render(root, ctx, personId);

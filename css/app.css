@@ -2111,3 +2111,75 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .zd-dash *, .zd-dash *::before, .zd-dash *::after { animation: none !important; transition: none !important; }
   .zd-dash .tile { transform: none !important; }
 }
+
+/* ==== Review, lively (2026-10-23, her ask: "make the review page more
+   lively with animations"). review.js: leave() stamps the card and sends it
+   off (accept → right, reject → left, skip → to the back, question → up);
+   the next card comes in from the same side; the bar grows from lastPct. ==== */
+.zd-review .zd-since b { font-variant-numeric: tabular-nums; }
+.zd-review .review-progress { max-width: 620px; }
+.zd-review .review-progress .track { height: 8px; border-radius: 4px; background: var(--ink-3); position: relative; }
+.zd-review .review-progress .fill { position: relative; border-radius: 4px; transition: width .7s cubic-bezier(.2,.8,.2,1); background: linear-gradient(90deg, var(--brass), color-mix(in srgb, var(--brass) 70%, var(--zc-pink))); overflow: hidden; }
+.zd-review .review-progress .fill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.45) 50%, transparent 80%); transform: translateX(-100%); animation: rv-shine 2.4s ease-in-out .6s infinite; }
+@keyframes rv-shine { 60%, 100% { transform: translateX(100%); } }
+.zd-review .review-progress .counts { font: 600 12px var(--font-body); }
+.zd-review .review-progress .counts .done { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; }
+/* the card: a deck behind it while more are waiting */
+.zd-review .review-card { position: relative; max-width: 620px; background: var(--ink-2); border: 1px solid var(--line); border-left: 5px solid var(--claim-accent, var(--brass)); border-radius: 6px; box-shadow: var(--lift-2); animation: rv-in-right .45s cubic-bezier(.2,.8,.2,1) both; }
+.zd-review .review-card.rv-deck-1::before, .zd-review .review-card.rv-deck-2::before, .zd-review .review-card.rv-deck-2::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -7px; height: 12px; z-index: -1; background: var(--ink-2); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 6px 6px; box-shadow: var(--lift-1); }
+.zd-review .review-card.rv-deck-2::after { left: 20px; right: 20px; bottom: -13px; opacity: .7; }
+.zd-review .review-card .field-name { font: 700 12px var(--font-body); letter-spacing: .06em; }
+.zd-review .review-card .claim-title { font: 700 18px/1.35 var(--font-body); }
+/* the card's own pieces arrive one after another */
+.zd-review .review-card > * { animation: zd-rise .4s cubic-bezier(.2,.8,.2,1) both; }
+.zd-review .review-card > *:nth-child(2) { animation-delay: .08s; }
+.zd-review .review-card > *:nth-child(3) { animation-delay: .13s; }
+.zd-review .review-card > *:nth-child(4) { animation-delay: .18s; }
+.zd-review .review-card > *:nth-child(n+5) { animation-delay: .23s; }
+.zd-review .review-card .claim-meta .meta-item, .zd-review .review-card .claim-fields .row-item { animation: zd-pop .35s cubic-bezier(.3,1.5,.5,1) both; }
+.zd-review .review-card .claim-fields .row-item:nth-child(2), .zd-review .review-card .claim-meta .meta-item:nth-child(2) { animation-delay: .25s; }
+.zd-review .review-card .claim-fields .row-item:nth-child(n+3), .zd-review .review-card .claim-meta .meta-item:nth-child(n+3) { animation-delay: .3s; }
+/* the next card comes in from where the last one went */
+.zd-review .review-card.rv-in-accept { animation-name: rv-in-right; }
+.zd-review .review-card.rv-in-reject { animation-name: rv-in-left; }
+.zd-review .review-card.rv-in-skip { animation-name: rv-in-deck; }
+.zd-review .review-card.rv-in-question { animation-name: rv-in-up; }
+@keyframes rv-in-right { from { opacity: 0; transform: translateX(40px) rotate(1.5deg); } }
+@keyframes rv-in-left { from { opacity: 0; transform: translateX(-40px) rotate(-1.5deg); } }
+@keyframes rv-in-deck { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes rv-in-up { from { opacity: 0; transform: translateY(24px); } }
+/* the way out: a stamp lands, then the card goes */
+.rv-stamp { position: absolute; top: 22px; right: 22px; z-index: 3; padding: 6px 14px; border: 3px solid currentColor; border-radius: 6px; font: 800 18px var(--font-body); letter-spacing: .12em; text-transform: uppercase; background: color-mix(in srgb, var(--ink-2) 85%, transparent); transform: rotate(-12deg); animation: rv-stamp .28s cubic-bezier(.3,1.6,.5,1) both; pointer-events: none; }
+.rv-stamp.rv-accept { color: var(--green); }
+.rv-stamp.rv-reject { color: var(--red); }
+.rv-stamp.rv-question { color: var(--violet); }
+.rv-stamp.rv-skip { color: var(--text-3); font-size: 14px; }
+@keyframes rv-stamp { from { opacity: 0; transform: rotate(-12deg) scale(2.2); } }
+.review-card.rv-leave-accept { animation: rv-out-right .32s ease-in .2s both !important; }
+.review-card.rv-leave-reject { animation: rv-out-left .32s ease-in .2s both !important; }
+.review-card.rv-leave-skip { animation: rv-out-deck .28s ease-in both !important; }
+.review-card.rv-leave-question { animation: rv-out-up .32s ease-in .2s both !important; }
+.review-card[class*="rv-leave-"] { pointer-events: none; }
+.review-card.rv-leave-accept { box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 40%, transparent), var(--lift-2); }
+.review-card.rv-leave-reject { box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 40%, transparent), var(--lift-2); }
+@keyframes rv-out-right { to { opacity: 0; transform: translateX(90px) rotate(6deg); } }
+@keyframes rv-out-left { to { opacity: 0; transform: translateX(-90px) rotate(-6deg); } }
+@keyframes rv-out-deck { to { opacity: 0; transform: translateY(12px) scale(.94); } }
+@keyframes rv-out-up { to { opacity: 0; transform: translateY(-40px) scale(.97); } }
+/* the action buttons: the key hint lifts with the button */
+.zd-review .review-actions .btn .kbd { transition: transform .2s ease, background .2s ease; }
+.zd-review .review-actions .btn:hover .kbd { transform: translateY(-2px); }
+/* the finish: confetti around the CASE REVIEWED stamp */
+.stamp-moment { position: relative; }
+.rv-confetti { position: absolute; left: 50%; top: 70px; width: 0; height: 0; pointer-events: none; }
+.rv-confetti i { position: absolute; width: 8px; height: 12px; border-radius: 2px; background: var(--c); opacity: 0; animation: rv-pop 1.1s cubic-bezier(.15,.7,.3,1) .35s both; }
+.rv-confetti i:nth-child(odd) { width: 10px; height: 6px; animation-duration: 1.3s; }
+@keyframes rv-pop {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0) rotate(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) rotate(320deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zd-review *, .zd-review *::before, .zd-review *::after, .rv-confetti i { animation: none !important; transition: none !important; }
+}
+.zd-review .review-card > .rv-stamp { animation: rv-stamp .28s cubic-bezier(.3,1.6,.5,1) both; }
