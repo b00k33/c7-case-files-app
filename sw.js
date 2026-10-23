@@ -16,7 +16,7 @@
 // time — it looked like the update mechanism worked because it happens
 // to also fire whenever a deploy happens to touch the SHELL array below
 // (a new page file), which masked how dead it otherwise was.
-// build: c7-v208
+// build: c7-v209
 importScripts('js/version.js'); // the single version number; bump it there
 const CACHE_VERSION = self.C7_VERSION;
 
@@ -38,6 +38,7 @@ const SHELL = [
   'js/wiki-lookup.js',
   'js/names.js',
   'js/lifemap.js',
+  'js/story-art.js',
   'js/life-events.js',
   'js/media.js',
   'js/version.js',

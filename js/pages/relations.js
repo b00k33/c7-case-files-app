@@ -1,5 +1,5 @@
 import { lifePath } from '../numerology.js';
-import { signFor, ANIMALS } from '../chinese.js';
+import { signFor, ANIMALS, animalIndex } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
 import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapConfirm, zdIcon } from '../ui.js';
@@ -8,7 +8,8 @@ import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { layoutTree, yearsText } from '../tree.js';
 import { exactBirth } from '../person-dates.js';
-import { buildRelationshipLine } from '../lifemap.js';
+import { buildRelationshipLine, coupleChildIds } from '../lifemap.js';
+import { miniSvg, zodiacSvg, sceneKind } from '../story-art.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
@@ -907,11 +908,12 @@ async function renderRelationshipsLifeline(slot, ctx, people, rels) {
   for (const r of couples) {
     const a = byId.get(r.a_id), b = byId.get(r.b_id);
     if (!a || !b) continue;
-    const { marks } = buildRelationshipLine({ relationship: r, events: eventsByRel.get(r.id) || [] });
+    const children = coupleChildIds(rels, a.id, b.id).map((id) => byId.get(id)).filter(Boolean);
+    const { marks } = buildRelationshipLine({ relationship: r, events: eventsByRel.get(r.id) || [], children, people: [a, b] });
     const row = document.createElement('div');
-    row.className = 'list-row';
+    row.className = 'list-row st-ll';
     const preview = marks.length
-      ? marks.map((m) => `<span class="mono" style="color:var(--text-2)">${m.glyph} ${m.year}</span>`).join(' <span style="color:var(--text-3)">→</span> ')
+      ? marks.map((m) => `<span class="st-ll-mk" title="${esc(m.title)} · ${ANIMALS[animalIndex(m.year)]} year">${miniSvg(sceneKind(m))}<span class="mono">${m.year}</span>${zodiacSvg(ANIMALS[animalIndex(m.year)])}</span>`).join('<span class="st-ll-arrow">→</span>')
       : '<span class="dim">No story yet — tap to start</span>';
     row.innerHTML = `<div class="main"><div class="title" style="font-size:13px">${a.display_name} &amp; ${b.display_name}</div><div class="sub" style="margin-top:2px">${preview}</div></div>${!r.confirmed ? '<span class="chip" title="Unconfirmed on the tree">unconfirmed</span>' : ''}`;
     row.addEventListener('click', () => ctx.navigate(`#/relationship/${r.id}`));

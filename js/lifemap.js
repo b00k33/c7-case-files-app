@@ -14,6 +14,7 @@ import { relationGlyph, animalLabel, animalIcon, animalChipHtml, signChipHtml, s
 import { resolveAssetUrl, preloadImage } from './assets.js';
 import { fetchItemPhoto, saveEventPhotoFromUrl, searchPeople } from './lookup.js';
 import { twoTapConfirm, videoPosterTile } from './ui.js';
+import { sceneSvg, miniSvg, zodiacSvg, sceneKind, playOnArrival } from './story-art.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -532,7 +533,7 @@ export async function renderLifeLine(el, data, { onPick, onAdd = null, store = n
       </div>
       <div class="lm-poster-py${isSpecial ? ' special' : ''}">
         ${py != null ? `<span class="lm-poster-py-frac"><span class="lm-poster-py-raw">${y.total}</span><span class="lm-poster-py-sep">/</span><span class="lm-poster-py-reduced">${py}</span></span>` : ''}
-        ${animalGlyph ? `<span class="lm-poster-py-zodiac" aria-label="${esc(animalLabel(yearAnimal))}">${animalGlyph}</span>` : ''}
+        ${animalGlyph ? `<span class="lm-poster-py-zodiac st-zodline" aria-label="${esc(animalLabel(yearAnimal))}">${zodiacSvg(yearAnimal) || animalGlyph}</span>` : ''}
         ${py != null && y.master ? '<span class="lm-poster-py-star">★</span>' : ''}
       </div>`;
     card.title = `${m.title} · ${m.year}${m.outcome ? ' · ' + m.outcome : ''}`
@@ -586,8 +587,24 @@ const REL_GLYPH = Object.fromEntries(REL_KINDS.map(([k, , g]) => [k, g]));
  * instead, so a brief relationship's own start date is never presented as
  * a wedding it never had.
  */
-export function buildRelationshipLine({ relationship, events }) {
+/** Ids of the children both partners are parents of on the tree ("A is the parent of B"). */
+export function coupleChildIds(rels, aId, bId) {
+  const kidsOf = (pid) => new Set((rels || []).filter((r) => r.kind === 'parent' && r.a_id === pid && !r.theory_id).map((r) => r.b_id));
+  const ka = kidsOf(aId), kb = kidsOf(bId);
+  return [...ka].filter((id) => kb.has(id));
+}
+
+export function buildRelationshipLine({ relationship, events, children = [], people = [] }) {
   const marks = [];
+  // a child of BOTH partners on the tree is part of their story (her pick,
+  // 2026-10-23, "Yes, from the tree") — derived on read, never stored, so
+  // it follows the tree; a child with no birth year has no place on a line
+  for (const c of children) {
+    const y = yearOf(c.birth_date) || c.birth_year_min || null;
+    if (!y) continue;
+    const first = String(c.display_name || '').split(/\s+/)[0] || 'A child';
+    marks.push({ id: `child:${c.id}`, year: +y, kind: 'child', glyph: '✿', title: `${first} is born`, date: c.birth_date || null, precision: c.birth_date ? (c.birth_precision || 'day') : 'year', event: null, child: c });
+  }
   for (const ev of events || []) {
     if (ev.theory_id) continue;
     const y = eventYear(ev);
@@ -600,9 +617,13 @@ export function buildRelationshipLine({ relationship, events }) {
   const startTitle = isSpouse ? 'Married' : 'Together';
   const sy = yearOf(relationship.start_date), ey = yearOf(relationship.end_date);
   if (sy && !marks.some((m) => m.kind === startKind && m.year === sy)) marks.push({ id: `rel:${relationship.id}:start`, year: sy, kind: startKind, glyph: REL_GLYPH[startKind], title: startTitle, date: relationship.start_date, precision: 'year', event: null });
-  if (ey && !marks.some((m) => m.kind === 'separated' && m.year === ey)) marks.push({ id: `rel:${relationship.id}:end`, year: ey, kind: 'separated', glyph: REL_GLYPH.separated, title: isSpouse ? 'Separated' : 'Ended', date: relationship.end_date, precision: 'year', event: null });
-  marks.sort((a, b) => a.year - b.year || String(a.date || '').localeCompare(String(b.date || '')));
-  return { marks };
+  // an ending in the year one of the two died is an ending by a death (her
+  // pick "Two kinds": a quiet candle, never the broken heart)
+  const deathYears = new Set(people.map((p) => yearOf(p?.death_date)).filter(Boolean));
+  if (ey && !marks.some((m) => m.kind === 'separated' && m.year === ey)) marks.push({ id: `rel:${relationship.id}:end`, year: ey, kind: 'separated', glyph: REL_GLYPH.separated, title: deathYears.has(ey) ? 'Ended by a death' : (isSpouse ? 'Separated' : 'Ended'), date: relationship.end_date, precision: 'year', event: null });
+  for (const m of marks) if (m.kind === 'separated' && deathYears.has(m.year)) m.byDeath = true;
+  marks.sort((a, b) => a.year - b.year || (!a.date - !b.date) || String(a.date || '').localeCompare(String(b.date || ''))); // within a year, an undated mark (a child known by year only) comes after the dated ones
+  return { marks, relId: relationship.id };
 }
 
 async function resolveRelMarkPicture(m) {
@@ -620,7 +641,13 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
   }
   await Promise.all(data.marks.map(async (m) => { m._pic = await resolveRelMarkPicture(m); }));
   const poster = document.createElement('div');
-  poster.className = 'lm-poster';
+  // the moving story (her ask, 2026-10-23, mock their-story-animated-mock):
+  // a scene per milestone, the year's cartoon animal, the line drawing in
+  // with a small heart travelling along it — arrival plays once per visit
+  const arriving = !relLineSeen.has(relKeyOf(data));
+  relLineSeen.add(relKeyOf(data));
+  poster.className = `lm-poster st-poster${arriving ? ' st-arrive' : ''}`;
+  poster.insertAdjacentHTML('beforeend', '<span class="st-thread" aria-hidden="true"><svg viewBox="0 0 24 22"><path d="M12 21 C 4 15, 0 10, 3 5 C 5.6 1, 10 2, 12 6 C 14 2, 18.4 1, 21 5 C 24 10, 20 15, 12 21 Z" fill="url(#st-heart)"/></svg></span>');
   data.marks.forEach((m, i) => {
     const row = document.createElement('div');
     row.className = `lm-poster-row ${i % 2 ? 'side-b' : 'side-a'}`;
@@ -635,22 +662,24 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
     node.className = 'lm-poster-node';
     node.innerHTML = '<span class="lm-poster-dot lm-t-none"></span>';
     const yearAnimal = ANIMALS[animalIndex(m.year)];
-    const animalGlyph = animalIcon(yearAnimal) || '';
+    const sk = sceneKind(m);
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'lm-mark tone-none';
+    card.className = `lm-mark tone-none st-card st-k-${sk}`;
     card.dataset.id = m.id;
+    card.dataset.stKey = `${relKeyOf(data)}|${m.id}`;
+    card.style.setProperty('--i', String(i));
+    // her pick "Photo, small scene corner": a photo stays the picture, the
+    // scene plays small in its corner; no photo = the full scene
     card.innerHTML = `
-      <div class="lm-poster-piczone">
-        <div class="lm-poster-picwrap">
-          <div class="lm-poster-pic${m._pic ? '' : ' glyph'}">${m._pic ? `<img alt="" src="${m._pic.src}">` : `<span class="g">${m.glyph}</span>`}</div>
-        </div>
+      <div class="st-picture">
+        ${m._pic ? `<div class="st-photo"><img alt="" src="${m._pic.src}"><span class="st-corner">${miniSvg(sk)}</span></div>` : sceneSvg(sk)}
+        ${yearAnimal ? `<span class="st-zbadge" title="${esc(animalLabel(yearAnimal))} year">${zodiacSvg(yearAnimal)}<b>${esc(animalLabel(yearAnimal).replace(' (Cat)', ''))}</b></span>` : ''}
       </div>
       <div class="lm-poster-body">
         <div class="lm-poster-title">${esc(m.title)}</div>
         <div class="lm-poster-date mono">${fmtWhen(m)}</div>
-      </div>
-      ${animalGlyph ? `<div class="lm-poster-py"><span class="lm-poster-py-zodiac" aria-label="${esc(animalLabel(yearAnimal))}">${animalGlyph}</span></div>` : ''}`;
+      </div>`;
     card.title = `${m.title} · ${m.year}` + (yearAnimal ? ` · ${animalLabel(yearAnimal)}` : '');
     card.addEventListener('click', () => {
       poster.querySelectorAll('.lm-mark.on').forEach((x) => x.classList.remove('on'));
@@ -661,7 +690,19 @@ export async function renderRelationshipLine(el, data, { onPick, onAdd = null } 
     poster.appendChild(row);
   });
   el.appendChild(poster);
+  // the travelling heart goes the line's whole length (across on a computer, down on a phone)
+  const across = window.matchMedia('(min-width: 641px)').matches;
+  poster.style.setProperty('--st-len', `${Math.max(0, (across ? poster.scrollWidth : poster.scrollHeight) - 18)}px`);
+  const dot = poster.querySelector('.lm-poster-dot');
+  if (dot) { const pr = poster.getBoundingClientRect(), dr = dot.getBoundingClientRect(); poster.style.setProperty('--st-y', `${Math.round(dr.top - pr.top + dr.height / 2)}px`); poster.style.setProperty('--st-x', `${Math.round(dr.left - pr.left + dr.width / 2)}px`); }
+  playOnArrival([...poster.querySelectorAll('.st-card')], relCardSeen);
 }
+// once per visit: the line's arrival and each card's first play (a redraw
+// after adding a milestone plays only the new card)
+const relLineSeen = new Set();
+const relCardSeen = new Set();
+const relKeyOf = (data) => data.relId || 'rel';
+if (typeof window !== 'undefined') window.addEventListener('hashchange', () => { if (!/^#\/relationship\//.test(location.hash)) { relLineSeen.clear(); relCardSeen.clear(); } });
 
 /** The verdict chips for a pair: animals (STYLE §5 glyph + word), her GG33 life-path tier, the Western elements (lighter). */
 export function verdictChips(a, b) {

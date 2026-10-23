@@ -5,7 +5,7 @@
 // the Tree's marriage-year marker and from a spouse card on either
 // person's own profile. Not woven into either person's own life line: the
 // couple's story lives once, in one place, not scattered across two posters.
-import { verdictChips, buildRelationshipLine, renderRelationshipLine, REL_KINDS } from '../lifemap.js';
+import { verdictChips, buildRelationshipLine, renderRelationshipLine, REL_KINDS, coupleChildIds } from '../lifemap.js';
 import { resolveAssetUrl, preloadImage, compressImage, queueUpload, flushUploads } from '../assets.js';
 import { parseDate } from '../profile-parse.js';
 import { inlineNote, clearInlineNote, openShotViewer, videoPosterTile, zdIcon } from '../ui.js';
@@ -29,11 +29,11 @@ function imagesFromClipboard(dt) {
 let msPasteHandler = null; // the milestone form's own paste listener — one at a time, see renderMilestoneForm
 let relLast = null; // the page rises in once per relationship, not on every redraw (a new milestone)
 
-function relLabel(rel) {
+function relLabel(rel, byDeath = false) {
   const sy = rel.start_date ? rel.start_date.slice(0, 4) : null;
   const ey = rel.end_date ? rel.end_date.slice(0, 4) : null;
   if (rel.kind === 'spouse') {
-    if (ey) return `Married ${sy || ''}${sy ? ' · ' : ''}separated ${ey}`;
+    if (ey) return `Married ${sy || ''}${sy ? ' · ' : ''}${byDeath ? 'until a death' : 'separated'} ${ey}`;
     if (sy) return `Married ${sy}`;
     return 'Spouse';
   }
@@ -71,6 +71,9 @@ export async function render(root, ctx, relationshipId) {
   }
   if (rel.case_id !== ctx.caseId) await ctx.setCaseId(rel.case_id);
   ctx.setTitle(`${firstName(a.display_name)} & ${firstName(b.display_name)}`);
+  // their children, read off the tree (her pick 2026-10-23, "Yes, from the tree")
+  const familyRels = (await Promise.all([a.id, b.id].map((id) => store.listRelationshipsForPerson(id)))).flat();
+  const children = (await Promise.all(coupleChildIds(familyRels, a.id, b.id).map((id) => store.getPerson(id)))).filter((c) => c && !c.deleted_at);
 
   // Zanda-style redesign (her ask, 2026-10-23: "redesign the relationship
   // page the same way" as the v200 profile): one header card with a pink
@@ -80,6 +83,7 @@ export async function render(root, ctx, relationshipId) {
   const yearOf = (d) => (d ? +String(d).slice(0, 4) : null);
   const sy = yearOf(rel.start_date), ey = yearOf(rel.end_date);
   const deaths = [a, b].map((p) => yearOf(p.death_date)).filter(Boolean);
+  const endedByDeath = !!ey && deaths.includes(ey); // an ending in a death year is a death, not a separation (2026-10-23)
   const untilY = ey || (deaths.length ? Math.min(...deaths) : new Date().getFullYear());
   const yrs = sy ? untilY - sy : null;
   const yrsText = yrs != null && yrs >= 0 && yrs <= 90 ? `${yrs} yr${yrs === 1 ? '' : 's'}${!ey && !deaths.length ? ' so far' : ''}` : null; // over 90 = a death date is missing
@@ -93,7 +97,7 @@ export async function render(root, ctx, relationshipId) {
     <div class="subject-layout zd zd-rel${enter ? ' zd-enter' : ''}">
       <div class="zd-head">
         <div class="zd-top">
-          <span class="zd-since">${zdIcon('heart')}${esc(relLabel(rel))}${yrsText ? ` · ${yrsText}` : ''}</span>
+          <span class="zd-since">${zdIcon('heart')}${esc(relLabel(rel, endedByDeath))}${yrsText ? ` · ${yrsText}` : ''}</span>
           <a class="zb" href="#/subject/${a.id}/relations">${zdIcon('tree')}Tree</a>
         </div>
         <div class="zd-who">
@@ -105,7 +109,7 @@ export async function render(root, ctx, relationshipId) {
             <div class="zd-name">${esc(a.display_name)} <span class="zd-amp">&amp;</span> ${esc(b.display_name)}</div>
             <div class="zd-meta">
               ${sy ? `<span>${zdIcon('cal')}${spouse ? 'Married' : 'Together from'} ${sy}</span>` : ''}
-              ${ey ? `<span>${zdIcon('hourglass')}${spouse ? 'Separated' : 'Ended'} ${ey}</span>` : ''}
+              ${ey ? `<span>${zdIcon('hourglass')}${endedByDeath ? 'Until a death' : spouse ? 'Separated' : 'Ended'} ${ey}</span>` : ''}
               ${ages[0] != null && ages[1] != null ? `<span>${zdIcon('user')}Aged ${ages[0]} &amp; ${ages[1]}</span>` : ''}
               <span>${zdIcon('list')}${events.length} milestone${events.length === 1 ? '' : 's'}</span>
             </div>
@@ -123,7 +127,7 @@ export async function render(root, ctx, relationshipId) {
             <h4>Together</h4>
             <div class="profile-grid">
               ${kv(spouse ? 'Married' : 'Together from', sy ? String(sy) : null)}
-              ${ey ? kv(spouse ? 'Separated' : 'Ended', String(ey)) : deaths.length ? kv('Until', `${Math.min(...deaths)}, a death`) : kv('Now', 'still together')}
+              ${ey ? kv(endedByDeath ? 'Until' : spouse ? 'Separated' : 'Ended', endedByDeath ? `${ey}, a death` : String(ey)) : deaths.length ? kv('Until', `${Math.min(...deaths)}, a death`) : kv('Now', 'still together')}
               ${kv('Years', yrsText)}
               ${kv('Ages then', ages[0] != null && ages[1] != null ? `${firstName(a.display_name)} ${ages[0]} · ${firstName(b.display_name)} ${ages[1]}` : null)}
             </div>
@@ -198,7 +202,7 @@ export async function render(root, ctx, relationshipId) {
       onEditYear: () => ctx.openDrawer((body) => renderEditYear(body, ctx, rel, m.kind, () => { ctx.closeDrawer(); redraw(); })),
     });
   };
-  const data = buildRelationshipLine({ relationship: rel, events });
+  const data = buildRelationshipLine({ relationship: rel, events, children, people: [a, b] });
   await renderRelationshipLine(lineEl, data, { onPick: showDetail, onAdd: openAdd });
 
   await renderCoupleGallery(root.querySelector('#rel-gallery'), ctx, a, b, events);
@@ -273,6 +277,19 @@ function renderMilestoneDetail(el, m, extraPhotos, videos = [], { onEdit, onDele
   el.innerHTML = '';
   const card = document.createElement('div');
   card.className = 'lm-why';
+  if (m.child) {
+    // a child read off the tree — it edits from its own profile, not here
+    card.innerHTML = `
+      <span class="k">what</span>
+      <span class="line"><b>${m.glyph} ${esc(m.title)}</b><span class="mono dim">${fmtWhenLoose(m)}</span></span>
+      <span class="k">from</span>
+      <span class="line dim">The family tree</span>
+      <span class="k"></span>
+      <span class="line"><a class="btn btn-ghost btn-sm" href="#/subject/${m.child.id}">Open ${esc(String(m.child.display_name || '').split(/\s+/)[0])}</a></span>
+    `;
+    el.appendChild(card);
+    return;
+  }
   if (!m.event) {
     // synthesized straight from the relationship's own start/end date — the
     // same field the tree's "m. 2005" marker reads; editing it here edits that

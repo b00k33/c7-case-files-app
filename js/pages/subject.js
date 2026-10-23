@@ -1,5 +1,5 @@
 import { lifePath, birthdayNumber } from '../numerology.js';
-import { signFor } from '../chinese.js';
+import { signFor, ANIMALS as ZOD_ANIMALS, animalIndex as zodIndex } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
 import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, animalLabel, signHtml } from '../indicators.js';
@@ -12,7 +12,8 @@ import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, openVideoViewer, videoPosterTile, renderWikiFeed, zdIcon } from '../ui.js';
-import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures, buildRelationshipLine } from '../lifemap.js';
+import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures, buildRelationshipLine, coupleChildIds } from '../lifemap.js';
+import { miniSvg, zodiacSvg, sceneKind } from '../story-art.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree, renderAddFamilyMember } from './relations.js';
 import { subjectOf } from './cases.js';
@@ -629,7 +630,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
-  renderStoryRows(root.querySelector('#story-rows'), ctx, person, couples, relEvents);
+  // each couple's children, read off the tree, for the story box's line (2026-10-23)
+  const kidsByRel = new Map(await Promise.all(couples.map(async ({ rel, other }) => {
+    const ids = coupleChildIds([...rels, ...(await store.listRelationshipsForPerson(other.id))], person.id, other.id);
+    return [rel.id, (await Promise.all(ids.map((id) => store.getPerson(id)))).filter((c) => c && !c.deleted_at)];
+  })));
+  renderStoryRows(root.querySelector('#story-rows'), ctx, person, couples, relEvents, kidsByRel);
 
   // ---- the life map: the ribbon, the why of a mark, the family tree, compare ----
   const peopleInCase = await store.listPeople(ctx.caseId);
@@ -1529,12 +1535,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
  * spaced, oldest first — a glance, not a scale), and Open →. The whole row
  * opens Their Story; that page is still the one place milestones are added.
  */
-function renderStoryRows(slot, ctx, person, couples, relEvents) {
+function renderStoryRows(slot, ctx, person, couples, relEvents, kidsByRel = new Map()) {
   if (!slot || !couples.length) return;
   const nowY = new Date().getFullYear();
   const face = (p) => `<span class="story-face" data-pid="${p.id}">${esc(p.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>`;
   slot.innerHTML = couples.map(({ rel, other }) => {
-    const { marks } = buildRelationshipLine({ relationship: rel, events: relEvents.filter((ev) => ev.relationship_id === rel.id) });
+    const { marks } = buildRelationshipLine({ relationship: rel, events: relEvents.filter((ev) => ev.relationship_id === rel.id), children: kidsByRel.get(rel.id) || [], people: [person, other] });
     const sy = rel.start_date ? +rel.start_date.slice(0, 4) : null;
     const ey = rel.end_date ? +rel.end_date.slice(0, 4) : null;
     // the years together stop at a separation, or at the first of the two deaths
@@ -1543,11 +1549,11 @@ function renderStoryRows(slot, ctx, person, couples, relEvents) {
     const spouse = rel.kind === 'spouse';
     const yrs = untilY - sy; // over 90 means a death date is missing (a historical couple), so say nothing
     const sub = sy
-      ? `${spouse ? 'Married' : 'Together from'} ${sy}${ey ? ` · ${spouse ? 'separated' : 'ended'} ${ey}` : ''}${yrs >= 0 && yrs <= 90 ? ` · ${yrs} yrs` : ''}`
+      ? `${spouse ? 'Married' : 'Together from'} ${sy}${ey ? ` · ${deaths.includes(ey) ? 'until a death' : spouse ? 'separated' : 'ended'} ${ey}` : ''}${yrs >= 0 && yrs <= 90 ? ` · ${yrs} yrs` : ''}`
       : (spouse ? 'Married' : 'Partners');
     const shown = marks.slice(0, 5);
     const mini = shown.length
-      ? `<div class="story-mini">${shown.map((m, i) => `<span class="story-mk" style="left:${shown.length === 1 ? 50 : 10 + (i * 80) / (shown.length - 1)}%"><i>${m.glyph}</i>${esc(m.title)} ’${String(m.year).slice(-2)}</span>`).join('')}</div>`
+      ? `<div class="story-mini">${shown.map((m, i) => `<span class="story-mk" style="left:${shown.length === 1 ? 50 : 10 + (i * 80) / (shown.length - 1)}%" title="${esc(ZOD_ANIMALS[zodIndex(m.year)])} year"><i>${miniSvg(sceneKind(m))}<span class="st-mk-zod">${zodiacSvg(ZOD_ANIMALS[zodIndex(m.year)])}</span></i>${esc(m.title)} ’${String(m.year).slice(-2)}</span>`).join('')}</div>`
       : '<div class="story-empty">No story yet — tap to start</div>';
     return `<button type="button" class="story-row" data-rel="${rel.id}">
       <span class="story-pair">${face(person)}${face(other)}</span>

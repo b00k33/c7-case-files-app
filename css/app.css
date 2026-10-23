@@ -2297,3 +2297,153 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .zd-people .tile { transform: none !important; }
 }
 @keyframes pp-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+/* ==== The moving story (2026-10-23, her ask: "make the relationship
+   timeline animated with animations relevant to timeline e.g. wedding,
+   children, and make animated cartoon chinese zodiac"; mock
+   their-story-animated-mock.html, her 8 picks). Drawings: js/story-art.js.
+   A scene's `a-*` parts move only while its card plays (.st-run once on
+   arrival, or the mouse over it) — "play once, loop on hover". The cartoon
+   animals always bob and blink. Reduced motion: all still. ==== */
+/* the card */
+.st-card { max-width: 250px; }
+.st-picture { position: relative; background: var(--ink-1); }
+.st-scene { display: block; width: 100%; height: 112px; background: linear-gradient(180deg, color-mix(in srgb, var(--st-tint, var(--brass)) 13%, var(--ink-2)), var(--ink-2)); }
+.st-photo { position: relative; height: 112px; overflow: hidden; }
+.st-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-corner { position: absolute; left: 6px; bottom: 6px; width: 34px; height: 34px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(20,24,32,.25); display: grid; place-items: center; }
+.st-corner .st-mini { width: 28px; height: 28px; }
+.st-zbadge { position: absolute; right: 6px; top: 6px; display: grid; justify-items: center; gap: 2px; pointer-events: none; }
+.st-zbadge .st-zod { width: 44px; height: 44px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(20,24,32,.22); padding: 2px; overflow: visible; }
+.st-zbadge b { font: 700 9px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: #3f4652; background: rgba(255,255,255,.9); border-radius: 3px; padding: 0 4px; line-height: 14px; }
+.st-card .lm-poster-body { border-top: 0; }
+/* the line: draws down on arrival, a small heart travels along it */
+.st-poster { position: relative; }
+/* phone: the line runs down the middle; computer: across (lifemap.js sets --st-len to the line's full length) */
+.st-thread { position: absolute; left: var(--st-x, 50%); top: 0; width: 18px; height: 16px; margin-left: -9px; z-index: 2; pointer-events: none; animation: st-travel 11s ease-in-out 1.8s infinite; filter: drop-shadow(0 1px 2px rgba(180,58,120,.35)); }
+.st-thread svg { width: 100%; height: 100%; display: block; }
+@keyframes@keyframes st-travel { 0% { transform: translateY(0); opacity: 0; } 6% { opacity: 1; } 50% { transform: translateY(var(--st-len, 300px)); } 94% { opacity: 1; } 100% { transform: translateY(0); opacity: 0; } }
+.st-poster .lm-spine-seg { background: linear-gradient(var(--zc-pink), var(--brass)); }
+.st-arrive .lm-spine-seg { transform-origin: top; animation: st-draw .45s ease-out both; animation-delay: calc(var(--i, 0) * 180ms); }
+@keyframes st-draw { from { transform: translateX(-50%) scaleY(0); } to { transform: translateX(-50%) scaleY(1); } }
+.st-arrive .lm-poster-row.side-a .st-card { animation: st-in-l .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.15s + var(--i, 0) * 180ms); }
+.st-arrive .lm-poster-row.side-b .st-card { animation: st-in-r .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.15s + var(--i, 0) * 180ms); }
+@keyframes st-in-l { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes st-in-r { from { opacity: 0; transform: translateX(28px); } }
+.st-arrive .lm-poster-dot { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.3s + var(--i, 0) * 180ms); }
+.st-poster .lm-poster-dot { background: var(--ink-2); border: 2px solid var(--zc-pink); width: 11px; height: 11px; }
+.st-card { transition: transform .2s ease, box-shadow .25s ease; }
+.st-card:hover { transform: translateY(-3px); box-shadow: var(--lift-2-hover); }
+@media (min-width: 641px) {
+  .lm-poster .lm-poster-row > .lm-spine-seg { grid-column: 1; grid-row: 1 / -1; top: 50%; } /* the line through the dots, on every poster (it sat a card-height low) */
+  .st-thread { left: 0; top: var(--st-y, 50%); margin: -8px 0 0 0; animation-name: st-travel-x; }
+  @keyframes st-travel-x { 0% { transform: translateX(0); opacity: 0; } 6% { opacity: 1; } 50% { transform: translateX(var(--st-len, 300px)); } 94% { opacity: 1; } 100% { transform: translateX(0); opacity: 0; } }
+  .st-arrive .lm-spine-seg { transform-origin: left; animation-name: st-draw-x; }
+  @keyframes st-draw-x { from { transform: translateY(-50%) scaleX(0); } to { transform: translateY(-50%) scaleX(1); } }
+  .st-arrive .lm-poster-row.side-a .st-card { animation-name: st-in-t; }
+  .st-arrive .lm-poster-row.side-b .st-card { animation-name: st-in-b; }
+  @keyframes st-in-t { from { opacity: 0; transform: translateY(-24px); } }
+  @keyframes st-in-b { from { opacity: 0; transform: translateY(24px); } }
+  .st-card { max-width: 190px; }
+}
+@media (max-width: 640px) {
+  .lm-poster .lm-poster-row > .lm-spine-seg { grid-column: 1 / -1; grid-row: 1; left: 50%; } /* down through the dots */
+  .lm-poster .lm-poster-row > .lm-poster-node, .lm-poster .lm-poster-row > .lm-mark { grid-row: 1; } /* a left-hand card no longer drops to a second row under its dot */
+  .st-card { max-width: 200px; }
+  .st-scene, .st-photo { height: 92px; }
+  .st-zbadge .st-zod { width: 36px; height: 36px; }
+}
+/* the profile's Their story box and the tree's Lifeline list */
+.story-mk i { position: relative; width: 26px; height: 26px; border-width: 1.5px; background: #fff; display: grid; place-items: center; overflow: visible; }
+.story-mk i .st-mini { width: 22px; height: 22px; }
+.story-mini::before { top: 15px; }
+.story-mini { height: 46px; }
+.st-mk-zod { position: absolute; right: -11px; top: -9px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(20,24,32,.2); }
+.st-mk-zod .st-zod { width: 18px; height: 18px; display: block; }
+.st-ll-mk { display: inline-flex; align-items: center; gap: 3px; color: var(--text-2); font-size: 12px; vertical-align: middle; }
+.st-ll-mk .st-mini { width: 22px; height: 22px; }
+.st-ll-mk .st-zod { width: 20px; height: 20px; }
+.st-ll-arrow { color: var(--text-3); margin: 0 6px; vertical-align: middle; }
+/* the person's own life line: the cartoon animal in place of the emoji */
+.st-zodline { display: inline-grid; place-items: center; filter: none; }
+.st-zodline .st-zod { width: 26px; height: 26px; display: block; }
+
+/* ---- the cartoon zodiac: always a gentle bob and blink, each its own move ---- */
+.st-zod { overflow: visible; }
+.st-zod .z-bob { transform-box: view-box; transform-origin: 20px 34px; animation: z-bob 2.6s ease-in-out infinite; }
+@keyframes z-bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-1.4px) rotate(-3deg); } }
+.st-zod .z-eye { transform-box: fill-box; transform-origin: center; animation: z-blink 3.8s infinite; }
+@keyframes z-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+.st-zod .z-ear-l, .st-zod .z-ear-r { transform-box: fill-box; transform-origin: 50% 100%; animation: z-ear 2.6s ease-in-out infinite; }
+.st-zod .z-ear-r { animation-delay: .3s; }
+@keyframes z-ear { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(-12deg); } 90% { transform: rotate(8deg); } }
+.st-zod .z-tongue { transform-box: fill-box; transform-origin: 50% 0%; animation: z-flick 2s ease-in-out infinite; }
+@keyframes z-flick { 0%, 60%, 100% { transform: scaleY(0); } 70%, 85% { transform: scaleY(1); } }
+.st-zod .z-whisk { transform-box: fill-box; transform-origin: 50% 50%; animation: z-whisk 1.3s ease-in-out infinite alternate; }
+@keyframes z-whisk { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+.st-zod .z-comb { transform-box: fill-box; transform-origin: 50% 100%; animation: z-comb 1s ease-in-out infinite alternate; }
+@keyframes z-comb { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+.st-zod .z-shadow { transform-box: fill-box; transform-origin: center; animation: z-shadow 2.6s ease-in-out infinite; }
+@keyframes z-shadow { 50% { transform: scaleX(.85); opacity: .08; } }
+
+/* ---- the scenes: still at rest, playing while .st-run or the mouse is over ---- */
+.st-scene .a-glow, .st-mini .a-glow { opacity: .4; }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) :is(.a-step, .a-beat, .a-twinkle, .a-pop, .a-bell, .a-flap, .a-zz, .a-glow, .a-flame, .a-halo, .a-spin-slow) { transform-box: fill-box; transform-origin: center; }
+:is(.st-run, .st-card:hover) .a-walk-l { animation: st-walk-l 4s ease-in-out infinite; }
+:is(.st-run, .st-card:hover) .a-walk-r { animation: st-walk-r 4s ease-in-out infinite; }
+@keyframes st-walk-l { 0%, 8% { transform: translateX(-34px); } 45%, 100% { transform: translateX(0); } }
+@keyframes st-walk-r { 0%, 8% { transform: translateX(34px); } 45%, 100% { transform: translateX(0); } }
+:is(.st-run, .st-card:hover) .a-step { animation: st-step .5s ease-in-out infinite alternate; }
+@keyframes st-step { to { transform: translateY(-2px); } }
+:is(.st-run, .st-card:hover) .a-pop { transform-box: fill-box; transform-origin: center; animation: st-pop 4s ease infinite; }
+@keyframes st-pop { 0%, 45% { opacity: 0; transform: scale(0); } 55% { opacity: 1; transform: scale(1.3); } 62%, 88% { transform: scale(1) translateY(-4px); } 100% { transform: scale(1); } }
+:is(.st-run, .st-card:hover) .a-orbit { transform-box: view-box; transform-origin: 80px 50px; animation: st-spin 3.2s linear infinite; }
+:is(.st-run, .story-row:hover, .st-ll:hover, .st-card:hover) .a-orbit-mini { transform-box: view-box; transform-origin: 20px 20px; animation: st-spin 3.2s linear infinite; }
+@keyframes st-spin { to { transform: rotate(360deg); } }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-beat { animation: st-beat 1s ease-in-out infinite; }
+@keyframes st-beat { 0%, 100% { transform: scale(1); } 20% { transform: scale(1.2); } 40% { transform: scale(.95); } }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-twinkle { animation: st-twinkle 1.4s ease-in-out infinite; }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-twinkle.d2 { animation-delay: .5s; }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-twinkle.d3 { animation-delay: .9s; }
+@keyframes st-twinkle { 0%, 100% { transform: scale(.3) rotate(0); opacity: .3; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
+:is(.st-run, .st-card:hover) .a-lid { transform-box: fill-box; transform-origin: 0% 100%; animation: st-lid 4s ease infinite; }
+@keyframes st-lid { 0%, 15% { transform: rotate(0); } 35%, 85% { transform: rotate(-115deg); } 100% { transform: rotate(0); } }
+:is(.st-run, .st-card:hover) .a-ring { animation: st-ring 4s ease infinite; }
+@keyframes st-ring { 0%, 25% { transform: translateY(8px); opacity: 0; } 40%, 100% { transform: translateY(0); opacity: 1; } }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-bell { transform-box: fill-box; transform-origin: 50% 0%; animation: st-swing 1.2s ease-in-out infinite alternate; }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-bell.b2 { animation-direction: alternate-reverse; }
+@keyframes st-swing { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+:is(.st-run, .st-card:hover) .a-fall { animation: st-fall 2.6s linear infinite; }
+@keyframes st-fall { from { transform: translateY(0) rotate(0); opacity: 1; } to { transform: translateY(104px) rotate(320deg); opacity: 0; } }
+:is(.st-run, .st-card:hover) .a-fly { animation: st-fly 4s ease-in-out infinite; }
+@keyframes st-fly { 0% { transform: translateX(-80px); } 45%, 60% { transform: translateX(0) translateY(2px); } 100% { transform: translateX(0); } }
+:is(.st-run, .st-card:hover) .a-flap { transform-origin: 30% 100%; animation: st-flap .35s ease-in-out infinite alternate; }
+@keyframes st-flap { to { transform: scaleY(-.6); } }
+:is(.st-run, .st-card:hover) .a-rock { transform-box: view-box; transform-origin: 80px 74px; animation: st-rock 1.6s ease-in-out infinite alternate; }
+:is(.st-run, .story-row:hover, .st-ll:hover, .st-card:hover) .a-rock-mini { transform-box: view-box; transform-origin: 20px 26px; animation: st-rock 1.6s ease-in-out infinite alternate; }
+@keyframes st-rock { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+:is(.st-run, .st-card:hover) .a-zz { animation: st-zz 2.4s ease-in infinite; }
+:is(.st-run, .st-card:hover) .a-zz.d2 { animation-delay: 1.2s; }
+@keyframes st-zz { from { opacity: 0; transform: translate(0, 0); } 30% { opacity: 1; } to { opacity: 0; transform: translate(12px, -18px); } }
+:is(.st-run, .st-card:hover) .st-scene .a-drift-l, :is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .st-mini .a-drift-l { transform-box: view-box; transform-origin: 80px 70px; animation: st-drift-l 4s ease infinite; }
+:is(.st-run, .st-card:hover) .st-scene .a-drift-r, :is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .st-mini .a-drift-r { transform-box: view-box; transform-origin: 80px 70px; animation: st-drift-r 4s ease infinite; }
+@keyframes st-drift-l { 0%, 30% { transform: none; } 70%, 90% { transform: translateX(-16px) rotate(-14deg); opacity: .6; } 100% { transform: none; } }
+@keyframes st-drift-r { 0%, 30% { transform: none; } 70%, 90% { transform: translateX(16px) rotate(14deg); opacity: .6; } 100% { transform: none; } }
+:is(.st-run, .st-card:hover) .a-crack { stroke-dasharray: 60; animation: st-crack 4s ease infinite; }
+@keyframes st-crack { 0%, 12% { stroke-dashoffset: 60; } 30%, 100% { stroke-dashoffset: 0; } }
+:is(.st-run, .st-card:hover) .a-join-l { transform-box: view-box; transform-origin: 80px 70px; animation: st-join-l 4s ease infinite; }
+:is(.st-run, .st-card:hover) .a-join-r { transform-box: view-box; transform-origin: 80px 70px; animation: st-join-r 4s ease infinite; }
+@keyframes st-join-l { 0%, 10% { transform: translateX(-18px) rotate(-14deg); } 45%, 100% { transform: none; } }
+@keyframes st-join-r { 0%, 10% { transform: translateX(18px) rotate(14deg); } 45%, 100% { transform: none; } }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-glow { animation: st-glow 4s ease infinite; }
+@keyframes st-glow { 0%, 40% { opacity: .25; transform: scale(.7); } 60% { opacity: .6; transform: scale(1.2); } 100% { opacity: .4; transform: scale(1); } }
+/* the candle flickers even at rest (a quiet, steady light — never "plays") */
+.a-flame { transform-box: fill-box; transform-origin: 50% 100%; animation: st-flicker 1.6s ease-in-out infinite alternate; }
+@keyframes st-flicker { 0% { transform: scale(1, 1) rotate(-2deg); } 50% { transform: scale(.94, 1.06) rotate(2deg); } 100% { transform: scale(1.03, .96) rotate(-1deg); } }
+.a-halo { transform-box: fill-box; transform-origin: center; animation: st-halo 2.4s ease-in-out infinite alternate; }
+@keyframes st-halo { from { opacity: .25; transform: scale(.92); } to { opacity: .45; transform: scale(1.06); } }
+:is(.st-run, .st-card:hover, .story-row:hover, .st-ll:hover) .a-spin-slow { animation: st-spin 6s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .st-poster *, .st-zod *, .st-mini *, .st-scene *, .st-thread { animation: none !important; }
+  .st-thread { display: none; }
+}
