@@ -516,3 +516,22 @@ const ZD_ICONS = {
 export function zdIcon(name) {
   return `<svg class="zd-ic" viewBox="0 0 24 24" aria-hidden="true">${ZD_ICONS[name] || ''}</svg>`;
 }
+
+// every <b data-count="N"> under `scope` counts up from 0 once (People page,
+// family tree page); the real number always lands, even in a hidden tab
+export function countUp(scope) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  scope.querySelectorAll('[data-count]').forEach((el, k) => {
+    const to = +el.dataset.count;
+    if (!to) return;
+    const t0 = performance.now() + k * 90, dur = 700 + Math.min(to, 60) * 10;
+    el.textContent = '0';
+    const step = (now) => {
+      const p = Math.min(1, Math.max(0, (now - t0) / dur));
+      el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => { el.textContent = String(to); }, dur + k * 90 + 600);
+  });
+}

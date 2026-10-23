@@ -9,7 +9,7 @@
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
-import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock, zdIcon } from '../ui.js';
+import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock, zdIcon, countUp as countUpIn } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
 import { armNewPersonFlow } from '../new-person-flow.js';
@@ -439,20 +439,8 @@ export async function render(root, ctx) {
 // toward a mouse with a light over the photo (same as the dashboard's tiles).
 const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function countUp(root) {
-  if (calm()) return;
-  root.querySelectorAll('.zd-people [data-count]').forEach((el, k) => {
-    const to = +el.dataset.count;
-    if (!to) return;
-    const t0 = performance.now() + k * 90, dur = 700 + Math.min(to, 60) * 10;
-    el.textContent = '0';
-    const step = (now) => {
-      const p = Math.min(1, Math.max(0, (now - t0) / dur));
-      el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-    setTimeout(() => { el.textContent = String(to); }, dur + k * 90 + 600); // the real number always lands, even in a hidden tab
-  });
+  const page = root.querySelector('.zd-people');
+  if (page) countUpIn(page);
 }
 function tiltTiles(list) {
   if (calm() || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;

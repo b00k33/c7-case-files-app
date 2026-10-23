@@ -2,7 +2,7 @@ import { lifePath } from '../numerology.js';
 import { signFor, ANIMALS, animalIndex } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { numberIcons, relationGlyph, barRow, emptyState, animalChipHtml, signChipHtml, animalPicHtml, animalLabel, zodiacGroup, signElement, signGlyph } from '../indicators.js';
-import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapConfirm, zdIcon } from '../ui.js';
+import { inlineNote, clearInlineNote, stampMoment, renderUnplacedPicker, twoTapConfirm, zdIcon, countUp } from '../ui.js';
 import { searchPeople, addPeopleFromWikidata, fillFromWikidata, insertFamily } from '../lookup.js';
 import { parseDate } from '../profile-parse.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
@@ -41,6 +41,8 @@ const WESTERN_ELEMENTS = [
 // per render: how far the tree is opened either side of the focus person, and the zoom
 const treeState = { up: 1, down: 1, scale: 1 };
 let treePageLast = null; // the page rises in once per case/person, not on every redraw
+let treeViewLast = null; // the view last drawn, so only a real switch of view plays its arrival
+const calmMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Fit never shrinks below four-fifths — names stay readable on the phone;
 // a wider tree scrolls sideways instead (her pick, 2026-09-03: "stop
 // shrinking at a readable size")
@@ -77,8 +79,14 @@ export async function render(root, ctx, focusId = null) {
   const VIEW_TITLE = { tree: 'Family tree', map: 'Zodiac map', lifeline: 'Every couple’s story', table: 'Family table' };
   const enter = treePageLast !== `${ctx.caseId}:${focus}`;
   treePageLast = `${ctx.caseId}:${focus}`;
+  // lively page (her ask, 2026-10-24: "make the family tree page more lively
+  // with animations"): a view's own arrival (zodiac map, lifeline, the number
+  // panels) plays when the page is new or she switched view, never on a zoom
+  // or an Up/Down redraw of the same view
+  const fresh = enter || treeViewLast !== view;
+  treeViewLast = view;
   root.innerHTML = `
-    <div class="stack zd zd-treepage${enter ? ' zd-enter' : ''}">
+    <div class="stack zd zd-treepage${enter ? ' zd-enter' : ''}${fresh ? ' zd-fresh' : ''}">
       <div class="zd-subbar">
         <div class="zd-seg" id="rel-view" role="tablist">
           <button class="${view === 'tree' ? 'active' : ''}" data-view="tree">${zdIcon('tree')}Tree</button>
@@ -92,10 +100,10 @@ export async function render(root, ctx, focusId = null) {
         <button class="btn btn-ghost btn-sm" id="questions-btn" title="The case's questions and the theories answering them">${zdIcon('check')}Questions</button>
       </div>
       <div class="zd-stats">
-        <span class="zd-stat">${zdIcon('user')}<b>${allPeople.length}</b> people</span>
-        <span class="zd-stat">${zdIcon('tree')}<b>${rels.length}</b> relationships</span>
-        <span class="zd-stat pink">${zdIcon('heart')}<b>${couples}</b> couple${couples === 1 ? '' : 's'}</span>
-        <span class="zd-stat">${zdIcon('list')}<b>${kids}</b> parent–child link${kids === 1 ? '' : 's'}</span>
+        <span class="zd-stat">${zdIcon('user')}<b data-count="${allPeople.length}">${allPeople.length}</b> people</span>
+        <span class="zd-stat">${zdIcon('tree')}<b data-count="${rels.length}">${rels.length}</b> relationships</span>
+        <span class="zd-stat pink">${zdIcon('heart')}<b data-count="${couples}">${couples}</b> couple${couples === 1 ? '' : 's'}</span>
+        <span class="zd-stat">${zdIcon('list')}<b data-count="${kids}">${kids}</b> parent–child link${kids === 1 ? '' : 's'}</span>
       </div>
       <div class="panel zd-view-panel">
         <div class="row between wrap" style="gap:8px">
@@ -121,6 +129,11 @@ export async function render(root, ctx, focusId = null) {
     </div>
   `;
 
+  const pageEl = root.querySelector('.zd-treepage');
+  if (enter) countUp(pageEl.querySelector('.zd-stats'));
+  // arrival-only: off again once it has played, so a later redraw inside the
+  // same view (the zodiac map's clash lines re-draw on a resize) plays nothing
+  if (fresh) setTimeout(() => pageEl.classList.remove('zd-fresh'), 2600);
   root.querySelector('#add-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => renderAddPerson(body, ctx, 'lookup')));
   root.querySelector('#questions-btn').addEventListener('click', () => ctx.navigate('#/questions'));
   // the fast path is Wikipedia, full stop (her ask, 2026-09-14: "i only add
@@ -299,11 +312,13 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
     if (e.kind === 'couple' && e.nth) {
       const g = svgEl('g', { class: 'tree-bead', transform: `translate(${e.badgeX},${e.y})` });
       g.dataset.ids = (e.ids || []).join(',');
-      g.appendChild(svgEl('circle', { r: 8 }));
+      const gi = svgEl('g', { class: 'tree-pop' }); // pops in on its own group (see the story pill)
+      g.appendChild(gi);
+      gi.appendChild(svgEl('circle', { r: 8 }));
       const bt = svgEl('text', { y: 3.5, 'text-anchor': 'middle' }); bt.textContent = String(e.nth);
       const btt = svgEl('title'); btt.textContent = `Marriage ${e.nth} · ${(e.label || '').replace(' · spouse', '')} — tap for their story`;
       if (e.relId) g.addEventListener('click', (ev) => { ev.stopPropagation(); if (scrollBox.dataset.dragged) return; ctx.navigate(`#/relationship/${e.relId}`); });
-      g.appendChild(bt); g.appendChild(btt);
+      gi.appendChild(bt); g.appendChild(btt);
       svg.appendChild(g);
     }
     // a recorded-but-unconfirmed link gets a small brass dot at its midpoint: one tap confirms it
@@ -356,9 +371,14 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
           const w = 16 + label.length * 6.2;
           const g = svgEl('g', { class: 'tree-story-pill', transform: `translate(${mx},${lineY})` });
           g.dataset.ids = (e.ids || []).join(',');
-          g.appendChild(svgEl('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 9 }));
+          // the pill's own pop / heartbeat runs on this inner group: a CSS
+          // transform on the outer one would replace its translate()
+          const gi = svgEl('g', { class: 'tree-pop' });
+          gi.appendChild(svgEl('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 9 }));
           const pt = svgEl('text', { y: 3.5, 'text-anchor': 'middle' }); pt.textContent = label;
-          g.appendChild(pt);
+          gi.appendChild(pt);
+          const hf = svgEl('text', { class: 'tree-heart-float', y: -12, 'text-anchor': 'middle' }); hf.textContent = '♥';
+          g.appendChild(gi); g.appendChild(hf);
           let tip = null;
           g.addEventListener('mouseenter', async () => {
             tip?.remove();
@@ -575,11 +595,47 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       n.classList.toggle('sel', !!selectedId && n.dataset.id === selectedId);
     });
     tree.querySelectorAll('.tree-group').forEach((g) => g.classList.toggle('dim', !!kin && !g.dataset.ids.split(',').some((x) => kin.has(x))));
-    svg.querySelectorAll('.tree-edge, .tree-bead').forEach((e) => {
+    svg.querySelectorAll('.tree-edge, .tree-bead, .tree-story-pill').forEach((e) => {
       const ids = (e.dataset.ids || '').split(',').filter(Boolean);
       const hot = !!kin && ids.length > 0 && ids.every((x) => kin.has(x));
       e.classList.toggle('hot', hot);
-      e.classList.toggle('dim', !!kin && !hot);
+      if (!e.classList.contains('tree-story-pill')) e.classList.toggle('dim', !!kin && !hot);
+    });
+    // a soft light runs along the lit family line, parents down to children
+    // (each drop path is drawn top to bottom); a copy of each lit line, so the
+    // real lines keep their solid / broken look underneath
+    flow.replaceChildren();
+    if (kin && !calmMotion()) {
+      svg.querySelectorAll('.tree-edge.hot').forEach((e) => {
+        const c = e.cloneNode(false);
+        c.removeAttribute('class'); c.removeAttribute('stroke-dasharray'); c.removeAttribute('style');
+        c.setAttribute('class', 'tree-flow-line');
+        flow.appendChild(c);
+      });
+    }
+  }
+  const flow = svgEl('g', { class: 'tree-flow' });
+  svg.appendChild(flow);
+  // above the lines, below the beads, pills, labels and confirm dots
+  [...svg.children].forEach((n) => { if (n !== flow && !n.classList.contains('tree-edge')) svg.appendChild(n); });
+  // a tap ripples a ring out of the face, and their family answers with a
+  // small wave, nearest first (only on a tap, never on a hover)
+  function greet(id) {
+    if (calmMotion()) return;
+    const kin = kinOf(id), c0 = nodeCentre(id);
+    tree.querySelectorAll('.tree-node, .mini').forEach((n) => {
+      if (n.dataset.id === id) {
+        const f = n.querySelector('.face');
+        f?.classList.remove('ping'); void f?.offsetWidth; f?.classList.add('ping');
+        setTimeout(() => f?.classList.remove('ping'), 900);
+        return;
+      }
+      if (!kin.has(n.dataset.id)) return;
+      const c = nodeCentre(n.dataset.id);
+      const far = c && c0 ? Math.hypot(c.x - c0.x, c.y - c0.y) : 0;
+      n.style.setProperty('--w', `${Math.min(0.6, far / 900).toFixed(2)}s`);
+      n.classList.remove('wave'); void n.offsetWidth; n.classList.add('wave');
+      setTimeout(() => n.classList.remove('wave'), 1300);
     });
   }
   function nodeCentre(id) {
@@ -619,7 +675,7 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
       ev.stopPropagation();
       if (scrollBox.dataset.dragged) return;
       if (selectedId === p.id) { deselect(); return; }
-      selectedId = p.id; light(p.id); showPeek(p);
+      selectedId = p.id; light(p.id); showPeek(p); greet(p.id);
       const c = nodeCentre(p.id), s = parseFloat(wrap.dataset.scale) || 1;
       if (c) scrollBox.scrollTo({ left: Math.max(0, c.x * s - scrollBox.clientWidth / 2), top: Math.max(0, c.y * s - scrollBox.clientHeight / 2), behavior: 'smooth' });
     });
@@ -912,6 +968,7 @@ async function renderRelationshipsLifeline(slot, ctx, people, rels) {
     const { marks } = buildRelationshipLine({ relationship: r, events: eventsByRel.get(r.id) || [], children, people: [a, b] });
     const row = document.createElement('div');
     row.className = 'list-row st-ll';
+    row.style.setProperty('--i', Math.min(list.children.length, 20)); // arrival order (CSS, .zd-fresh)
     const preview = marks.length
       ? marks.map((m) => `<span class="st-ll-mk" title="${esc(m.title)} · ${ANIMALS[animalIndex(m.year)]} year">${miniSvg(sceneKind(m))}<span class="mono">${m.year}</span>${zodiacSvg(ANIMALS[animalIndex(m.year)])}</span>`).join('<span class="st-ll-arrow">→</span>')
       : '<span class="dim">No story yet — tap to start</span>';
@@ -995,6 +1052,8 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
     wrap.appendChild(tray);
   }
   mapSlot.appendChild(wrap);
+  wrap.querySelectorAll('.zmap-zone, .zmap-tray').forEach((z, i) => z.style.setProperty('--i', i)); // arrival order (CSS, .zd-fresh)
+  wrap.querySelectorAll('.zmap-person').forEach((n, i) => n.style.setProperty('--i', Math.min(i, 40)));
   // the clash lines follow the layout (2×2 on the desktop, bands on the phone)
   new ResizeObserver(() => drawClashLines(wrap, facts, rels)).observe(wrap);
   const key = document.createElement('div');
@@ -1034,7 +1093,7 @@ function drawClashLines(wrap, facts, rels) {
     const fb = wrap.querySelector(`.zmap-person[data-id="${r.b_id}"] .zmap-face`);
     if (!fa || !fb) continue;
     const [x1, y1] = centre(fa), [x2, y2] = centre(fb);
-    svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7 }));
+    svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7, pathLength: 1 }));
     const g = document.createElement('div');
     g.className = 'zmap-clash';
     g.style.left = `${(x1 + x2) / 2}px`;
@@ -1058,7 +1117,9 @@ function renderNumberPanels(root, people) {
     const values = Object.keys(counts).map(Number).sort((a, b) => b - a);
     const maxCount = Math.max(...Object.values(counts), 1);
     for (const v of values) {
-      repeatSlot.appendChild(barRow({ label: `Life path ${v}`, value: counts[v], max: maxCount }));
+      const br = barRow({ label: `Life path ${v}`, value: counts[v], max: maxCount });
+      br.style.setProperty('--i', Math.min(repeatSlot.children.length, 12)); // the bars grow in, in turn (CSS, .zd-fresh)
+      repeatSlot.appendChild(br);
     }
   }
 
@@ -1075,7 +1136,7 @@ function renderNumberPanels(root, people) {
  * bigger run first, then the one-offs together after them). The choice
  * sticks, like the tree's own toggles. Her ask, 2026-09-03.
  */
-function renderGrid(gridSlot, ctlSlot, people) {
+function renderGrid(gridSlot, ctlSlot, people, swap = false) {
   gridSlot.innerHTML = '';
   ctlSlot.innerHTML = '';
   if (!people.length) {
@@ -1096,7 +1157,7 @@ function renderGrid(gridSlot, ctlSlot, people) {
       </span>
       ${primary === 'name' ? '' : `<span class="ctl-sub"><button data-s="exact" class="${grouped ? '' : 'active'}">exact</button> · <button data-s="group" class="${grouped ? 'active' : ''}">${primary === 'animal' ? 'trine' : 'element'}</button></span>`}
     </div>`;
-  const setMode = (m) => { localStorage.setItem(GRID_SORT_KEY, m); renderGrid(gridSlot, ctlSlot, people); };
+  const setMode = (m) => { localStorage.setItem(GRID_SORT_KEY, m); renderGrid(gridSlot, ctlSlot, people, true); };
   ctlSlot.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.p)));
   ctlSlot.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.s === 'exact' ? primary : (primary === 'animal' ? 'trine' : 'element'))));
 
@@ -1159,7 +1220,7 @@ function renderGrid(gridSlot, ctlSlot, people) {
   }
 
   const table = document.createElement('table');
-  table.className = 'dense';
+  table.className = swap ? 'dense lp-swap' : 'dense'; // a new sort shuffles the rows in
   table.innerHTML = `<thead><tr><th>Person</th><th>Life path</th><th>Sun sign</th><th>Animal</th></tr></thead>${body}`;
   gridSlot.appendChild(table);
   const key = document.createElement('div');
