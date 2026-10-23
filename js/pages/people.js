@@ -9,11 +9,15 @@
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { tokensHtml } from '../lifemap.js';
-import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock } from '../ui.js';
+import { twoTapConfirm, inlineNameForm, inlineNote, clearInlineNote, duplicateNameBlock, zdIcon } from '../ui.js';
 import { markOpened } from './cases.js';
 import { createCaseOfKind } from './dashboard.js';
 import { armNewPersonFlow } from '../new-person-flow.js';
 import { searchPeople, fillFromWikidata, fetchItemPhoto, savePhotoFromUrl } from '../lookup.js';
+
+const FILTER_KEY = 'c7-people-filter'; // the People filter tab she last picked
+let peopleSeen = false; // the page rises in when she arrives, not on a redraw after an edit
+window.addEventListener('hashchange', () => { if (!location.hash.startsWith('#/people')) peopleSeen = false; });
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -334,19 +338,43 @@ export async function render(root, ctx) {
   const people = await store.listAllPeople();
   const missingPhotoCount = people.filter((p) => !p.photo_path && !p.photo_url).length;
 
+  // Zanda-style redesign (her ask, 2026-10-23: "redesign the people page the
+  // same way" as the profile / Their Story / tree pages): a header card with
+  // a teal edge, count pills, squared uppercase buttons, and filter tabs with
+  // count badges (Zanda's "Appointments 13 | Tasks 0") over the tiles.
+  const caseCount = new Set(people.filter((p) => p.case_id).map((p) => p.case_id)).size;
+  const placelessCount = people.filter((p) => !p.case_id).length;
+  const enter = !peopleSeen;
+  peopleSeen = true;
   root.innerHTML = `
-    <div class="stack">
-      <div class="row between wrap" style="gap:12px">
-        <span class="mono" style="font-size:11px;color:var(--text-3)">${people.length} ${people.length === 1 ? 'person' : 'people'} · every case</span>
-        <div class="row" style="gap:8px">
-          <a class="btn btn-ghost btn-sm" href="#/fashion">Fashion →</a>
-          ${missingPhotoCount ? `<button class="btn btn-ghost btn-sm" id="find-photos-btn" title="Look up a picture on Wikipedia for everyone who doesn't have one">Find photos (${missingPhotoCount})</button>` : ''}
-          <button class="btn btn-primary btn-sm" id="new-person-btn">+ Person</button>
+    <div class="stack zd zd-people${enter ? ' zd-enter' : ''}">
+      <div class="zd-head">
+        <div class="zd-top">
+          <span class="zd-since">${zdIcon('user')}${people.length} ${people.length === 1 ? 'person' : 'people'} · every case</span>
+        </div>
+        <div class="zd-who">
+          <div class="zd-id">
+            <div class="zd-name">People</div>
+            <div class="zd-meta">
+              <span>${zdIcon('brief')}${caseCount} case${caseCount === 1 ? '' : 's'}</span>
+              <span>${zdIcon('img')}${people.length - missingPhotoCount} with a photo</span>
+              ${placelessCount ? `<span>${zdIcon('pin')}${placelessCount} not in a case yet</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="zd-btns">
+          <button class="zb zb-fill" id="new-person-btn">${zdIcon('plus')}Person</button>
+          ${missingPhotoCount ? `<button class="zb" id="find-photos-btn" title="Look up a picture on Wikipedia for everyone who doesn't have one">${zdIcon('img')}Find photos <span class="zd-cnt">${missingPhotoCount}</span></button>` : ''}
+          <span class="zd-sp"></span>
+          <a class="zb" href="#/fashion">${zdIcon('star')}Fashion</a>
         </div>
       </div>
       <div id="find-photos-slot"></div>
       <div id="new-person-slot"></div>
-      <div id="people-body"></div>
+      <div class="zd-card">
+        <div class="tab-strip zd-tabs" id="people-filter"></div>
+        <div class="zd-people-body" id="people-body"></div>
+      </div>
     </div>
   `;
 
@@ -365,11 +393,35 @@ export async function render(root, ctx) {
     if (store.arePeopleMarkedDistinct(dupId, info.keepPerson.id)) dupOf.delete(dupId);
   }));
   const onChanged = () => render(root, ctx);
-  const shown = [...people].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || '', undefined, { sensitivity: 'base' }));
-  // every tile is built (faces decoded) before any of them is shown
-  const list = document.createElement('div');
-  list.className = 'tile-grid';
-  const rows = await Promise.all(shown.map((p) => buildPicRow(p, ctx, dupOf.get(p.id), onChanged)));
-  for (const r of rows) list.appendChild(r);
-  body.appendChild(list);
+  const sorted = [...people].sort((a, b) => (a.display_name || '').localeCompare(b.display_name || '', undefined, { sensitivity: 'base' }));
+  // the filter tabs — each with its count; a filter with nobody in it is not shown
+  const FILTERS = [
+    ['all', 'All', () => true],
+    ['dups', 'Possible duplicates', (p) => dupOf.has(p.id)],
+    ['nophoto', 'No photo', (p) => !p.photo_path && !p.photo_url],
+    ['nocase', 'Not in a case', (p) => !p.case_id],
+  ].map(([k, l, fn]) => ({ k, l, fn, n: sorted.filter(fn).length })).filter((f) => f.k === 'all' || f.n);
+  let filter = 'all';
+  try { filter = localStorage.getItem(FILTER_KEY) || 'all'; } catch { /* private window */ }
+  if (!FILTERS.some((f) => f.k === filter)) filter = 'all';
+  const tabs = root.querySelector('#people-filter');
+  const paint = async (animate) => {
+    tabs.innerHTML = FILTERS.map((f) => `<a href="#/people" data-f="${f.k}" class="${f.k === filter ? 'active' : ''}">${f.l} <span class="zd-cnt${f.k === 'dups' ? ' pink' : ''}">${f.n}</span></a>`).join('');
+    const shown = sorted.filter(FILTERS.find((f) => f.k === filter).fn);
+    // every tile is built (faces decoded) before any of them is shown
+    const list = document.createElement('div');
+    list.className = `tile-grid${animate ? ' zd-tiles-in' : ''}`;
+    const rows = await Promise.all(shown.map((p) => buildPicRow(p, ctx, dupOf.get(p.id), onChanged)));
+    rows.forEach((r, i) => { r.style.setProperty('--i', String(Math.min(i, 24))); list.appendChild(r); });
+    body.replaceChildren(list);
+  };
+  tabs.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-f]');
+    if (!a) return;
+    e.preventDefault();
+    filter = a.dataset.f;
+    try { localStorage.setItem(FILTER_KEY, filter); } catch { /* private window */ }
+    paint(true);
+  });
+  await paint(enter);
 }

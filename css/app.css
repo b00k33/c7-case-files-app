@@ -1957,3 +1957,23 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .zd-stats { gap: 6px; }
   .zd-stat { padding: 3px 10px; font-size: 12px; }
 }
+/* ==== People page in the same Zanda style (2026-10-23) ==== */
+.zd-people { gap: var(--sp-4); }
+.zd-people .zd-head .zd-name { font-size: 22px; }
+.zd-people .zd-head .zd-who { margin-top: 10px; }
+.zd-people-body { padding: 16px 20px 20px; }
+.zd-people .tile { border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); box-shadow: none; overflow: hidden; transition: transform .2s ease, box-shadow .25s ease, border-color .25s ease; }
+.zd-people .tile:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--brass) 40%, var(--line)); box-shadow: var(--lift-2-hover); }
+.zd-people .tile .pic { border-radius: 0; }
+.zd-people .tile .pic .seg img { transition: transform .4s ease; }
+.zd-people .tile:hover .pic .seg img { transform: scale(1.04); }
+.zd-people .tile .main { border-top: 3px solid var(--brass); }
+.zd-people .tile .title { font: 700 14px/1.3 var(--font-body); }
+.zd-people .tile .where { font: 600 11px var(--font-body); color: var(--text-3); }
+.zd-people .tile .dup-flag { border-radius: 4px; text-transform: uppercase; letter-spacing: .05em; font-size: 10.5px; font-weight: 700; }
+.zd-tiles-in .tile { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 30ms); }
+.zd-enter.zd-people > .zd-head { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+.zd-enter.zd-people > .zd-card { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) .12s both; }
+@media (max-width: 720px) { .zd-people-body { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .zd-tiles-in .tile, .zd-people .tile, .zd-people .tile img { animation: none !important; transition: none !important; } }
+.zd-people > div:empty { display: none; }
