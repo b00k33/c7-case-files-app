@@ -66,8 +66,8 @@
 
   /* type — declared per STYLE.md, with honest system fallbacks so the app
      needs no internet connection to render correctly */
-  --font-body: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-title: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Open Sans', 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-title: 'Open Sans', 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   --font-hand: 'Caveat', 'Segoe Script', cursive;
 

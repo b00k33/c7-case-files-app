@@ -1762,3 +1762,120 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .story-mini { flex-basis: 100%; order: 3; }
 }
 @media (prefers-reduced-motion: reduce) { .tree-story-tip { animation: none; } .story-row, .story-chip { transition: none; } }
+
+/* ==== Profile, Zanda style (2026-10-23, her ask: "use zanda as inspiration
+   for chip shapes and font and redesign the profile view" + "include
+   animations where relevant to make the app lively"). One header card with
+   a coloured left edge, squared outlined UPPERCASE buttons with an icon,
+   pills for status, tabs with count badges. Teal stays the accent. ==== */
+.subject-layout.zd { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-4); }
+.zd-head { position: relative; background: var(--ink-2); border-radius: 6px; box-shadow: var(--lift-1); border-left: 6px solid var(--brass); padding: 16px 20px 18px; }
+.zd-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.zd-since { display: inline-flex; align-items: center; gap: 6px; background: var(--ink-3); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+.zd-status { display: inline-flex; align-items: center; gap: 8px; background: var(--ink-3); border-radius: 999px; padding: 2px 6px 2px 14px; cursor: pointer; transition: box-shadow .2s ease; }
+.zd-status:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 30%, transparent); }
+.zd-status select { background: transparent; border: 0; color: var(--text); font: 600 12.5px var(--font-body); padding: 4px; min-width: 110px; cursor: pointer; min-height: 0; box-shadow: none; }
+.zd-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
+.zd-dot.s-active { background: var(--green); animation: zd-pulse 2.4s ease-out infinite; }
+.zd-dot.s-watch { background: var(--amber); }
+.zd-dot.s-cold { background: var(--zc-blue); }
+.zd-dot.s-archived { background: var(--text-3); }
+@keyframes zd-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+.zd-who { display: flex; align-items: center; gap: 16px; margin-top: 14px; }
+.zd .avatar.zd-face { width: 72px; height: 72px; border-radius: 50%; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 18%, transparent), var(--lift-face); transition: box-shadow .25s ease, transform .25s ease; }
+.zd .avatar.zd-face:hover { transform: scale(1.04); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 35%, transparent), var(--lift-face); }
+.zd .avatar.zd-face .initials { font-size: 24px; }
+.zd .avatar.zd-face .hint { font-size: 10px; }
+.zd-id { min-width: 0; }
+.zd-name { font: 700 20px/1.25 var(--font-title); color: var(--text); }
+.zd-name small { font: 400 12px var(--font-mono); color: var(--text-3); }
+.zd-meta { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 4px; font-size: 13px; color: var(--text-2); }
+.zd-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.zd-ic { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.zd-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.zd-sp { flex: 1; }
+/* the Zanda button: squared, outlined, uppercase, icon first */
+.zb, .zd .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; min-height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--ink-2); color: var(--brass); font: 700 12px var(--font-body); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; white-space: nowrap; cursor: pointer; box-shadow: none; transition: transform .15s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease; }
+.zd .btn-sm { height: 30px; min-height: 30px; padding: 0 11px; font-size: 11px; }
+.zb:hover, .zd .btn:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--brass) 45%, var(--line)); background: color-mix(in srgb, var(--brass) 7%, var(--ink-2)); box-shadow: var(--lift-2); color: var(--brass); }
+.zb:active, .zd .btn:active { transform: translateY(0) scale(.97); box-shadow: var(--press); }
+.zb:focus-visible, .zd .btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.zb-fill, .zd .btn-primary { background: var(--brass); border-color: var(--brass); color: var(--on-brass); }
+.zb-fill:hover, .zd .btn-primary:hover { background: var(--brass); color: var(--on-brass); filter: brightness(1.08); }
+.zd .btn-danger { color: var(--red); }
+.zb-story, .zb-pink { color: var(--zc-pink); border-color: color-mix(in srgb, var(--zc-pink) 35%, var(--line)); }
+.zb-story:hover, .zb-pink:hover { color: var(--zc-pink); border-color: var(--zc-pink); background: color-mix(in srgb, var(--zc-pink) 8%, var(--ink-2)); }
+.zb-story:hover .zd-ic { animation: zd-beat .9s ease-in-out infinite; }
+@keyframes zd-beat { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.25); } 50% { transform: scale(.95); } }
+.zb-car { margin-left: 2px; opacity: .8; transition: transform .2s ease; }
+[aria-expanded="true"] .zb-car { transform: rotate(180deg); }
+.zd-menu { position: relative; }
+.zd-menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 220px; background: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column; animation: zd-drop .18s ease; }
+.zd-menu-list[hidden] { display: none; }
+.zd-menu-list a { padding: 8px 10px; border-radius: 4px; color: var(--text); text-decoration: none; font-size: 13px; font-weight: 600; }
+.zd-menu-list a:hover { background: color-mix(in srgb, var(--zc-pink) 10%, var(--ink-2)); color: var(--zc-pink); }
+.zd-menu-list small { color: var(--text-3); font-weight: 400; margin-left: 6px; }
+@keyframes zd-drop { from { opacity: 0; transform: translateY(-6px); } }
+.zd-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.zd-box { border: 1px solid var(--line); border-radius: 4px; background: var(--ink-1); padding: 12px 16px; min-width: 0; transition: border-color .2s ease, box-shadow .2s ease; }
+.zd-box:hover { border-color: color-mix(in srgb, var(--brass) 30%, var(--line)); box-shadow: var(--lift-1); }
+.zd-box h4 { margin: 0 0 8px; font: 600 13.5px var(--font-body); color: var(--text); }
+.zd-box .profile-grid { margin-top: 0; }
+.zd-box .lm-tokens { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-3); margin-top: 0; }
+.zd .sh-notes { margin-top: 12px; }
+/* tabs with count badges and a sliding underline */
+.zd-card { background: var(--ink-2); border-radius: 6px; box-shadow: var(--lift-1); min-width: 0; }
+.zd .zd-tabs { display: flex; align-items: center; gap: 24px; padding: 0 20px; margin: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.zd .zd-tabs a { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 13px 2px 11px; border: 0; color: var(--text-3); font: 600 14px var(--font-body); transition: color .2s ease; }
+.zd .zd-tabs a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brass); transform: scaleX(0); transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .2s ease; }
+.zd .zd-tabs a:hover { color: var(--text); }
+.zd .zd-tabs a:hover::after { transform: scaleX(.35); opacity: .5; }
+.zd .zd-tabs a.active { color: var(--brass); }
+.zd .zd-tabs a.active::after { transform: scaleX(1); opacity: 1; }
+.zd .zd-tabs .tab-more { font: 600 14px var(--font-body); color: var(--text-3); padding: 13px 2px 11px; border: 0; }
+.zd-arrange { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--text-3); font: 600 13px var(--font-body); cursor: pointer; padding: 10px 0; white-space: nowrap; }
+.zd-arrange:hover { color: var(--brass); }
+.zd-arrange .zd-ic { transition: transform .35s ease; }
+.zd-arrange:hover .zd-ic { transform: rotate(60deg); }
+.zd-cnt { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--brass); color: var(--on-brass); font: 700 11.5px var(--font-body); display: inline-grid; place-items: center; animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; }
+.zd-cnt.pink { background: var(--zc-pink); color: var(--on-code); }
+.zd .zd-tabs a:not(.active) .zd-cnt:not(.pink) { background: var(--ink-3); color: var(--text-2); }
+@keyframes zd-pop { from { transform: scale(0); } }
+.zd .subject-main { padding: 16px 20px 20px; min-width: 0; }
+/* the panels inside: a title row with a hairline under it, like Zanda's sections */
+.zd .subject-main .panel { border: 1px solid var(--line); border-radius: 6px; background: var(--ink-2); box-shadow: none; transition: box-shadow .25s ease; }
+.zd .subject-main .panel:hover { box-shadow: var(--lift-1); }
+.zd .subject-main .panel > .row.between:first-child { margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-3); padding: 10px var(--sp-4); border-bottom: 1px solid var(--line); }
+.zd .subject-main .panel .section-label, .zd .subject-main .panel .panel-title { font: 700 15px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text); }
+.zd .story-open { border-radius: 4px; text-transform: uppercase; letter-spacing: .06em; font-size: 11.5px; background: var(--ink-2); color: var(--zc-pink); border: 1px solid color-mix(in srgb, var(--zc-pink) 40%, var(--line)); transition: background .2s ease, color .2s ease; }
+.zd .story-row:hover .story-open { background: var(--zc-pink); color: var(--on-code); }
+.zd .story-row { border-left: 5px solid var(--zc-pink); border-radius: 4px; }
+.zd .story-mk i { transition: transform .25s ease; }
+.zd .story-row:hover .story-mk i { transform: scale(1.12); }
+/* the entrance — once per person (zd-enter), never on an in-place re-render */
+.zd-enter .zd-head, .zd-enter .zd-who, .zd-enter .zd-btns, .zd-enter .zd-two { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+.zd-enter .zd-who { animation-delay: .06s; }
+.zd-enter .zd-btns { animation-delay: .12s; }
+.zd-enter .zd-two { animation-delay: .18s; }
+.zd-enter .zd-card { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) .2s both; }
+.zd-enter #widget-slots > div:not([hidden]) { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) .3s both; }
+.zd-enter #widget-slots > div:nth-child(2) { animation-delay: .38s; }
+.zd-enter #widget-slots > div:nth-child(3) { animation-delay: .46s; }
+.zd-enter #widget-slots > div:nth-child(n+4) { animation-delay: .54s; }
+.zd-enter .avatar.zd-face { animation: zd-face-in .6s cubic-bezier(.3,1.4,.5,1) .1s both; }
+@keyframes zd-rise { from { opacity: 0; transform: translateY(12px); } }
+@keyframes zd-face-in { from { opacity: 0; transform: scale(.6); } }
+@media (max-width: 720px) {
+  .zd-head { padding: 14px 14px 16px; border-left-width: 5px; }
+  .zd-two { grid-template-columns: 1fr; }
+  .zd-sp { display: none; }
+  .zd-btns { gap: 8px; }
+  .zd .zd-tabs { gap: 18px; padding: 0 14px; }
+  .zd .subject-main { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zd *, .zd *::after, .zd-head, .zd-card { animation: none !important; transition: none !important; }
+}
+.zd-box .profile-grid .k { font: 400 13px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text-3); }
+.zd-box .profile-grid .v { font-size: 13px; font-weight: 600; color: var(--text); }
+.zd-box .profile-grid .v.missing { font-weight: 400; color: var(--text-3); }

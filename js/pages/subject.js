@@ -294,53 +294,71 @@ export async function render(root, ctx, personId, tab = 'profile') {
     .map(async (r) => ({ rel: r, other: await store.getPerson(r.a_id === person.id ? r.b_id : r.a_id) }))))
     .filter((c) => c.other)
     .sort((x, y) => String(x.rel.start_date || '9999').localeCompare(String(y.rel.start_date || '9999')));
+  // the Zanda-style header (her ask, 2026-10-23: "use zanda as inspiration
+  // for chip shapes and font and redesign the profile view"): a grey "since"
+  // pill on top (Zanda's "Ended 4h ago"), an icon meta line under the name,
+  // and count badges on the tabs (Zanda's "Appointments 13")
+  const ageNow = ageText(person);
+  const sincePill = person.death_date
+    ? `Died ${preciseText({ precision: person.death_precision || 'day', date: person.death_date })}${ageNow !== 'unknown' ? ` · aged ${ageNow.replace('died at ', '')}` : ''}`
+    : (ageNow !== 'unknown' && parseInt(ageNow.replace(/\D/g, ''), 10) <= 120 ? `Age ${ageNow}` : null); // over 120 = a death date is missing
+  const bornNow = bornText(person);
+  const metaBits = [
+    bornNow ? `<span>${zdIcon('clock')}Born ${esc(bornNow)}</span>` : '',
+    person.birth_place ? `<span>${zdIcon('pin')}${esc(person.birth_place)}</span>` : '',
+    person.nationality || person.gender ? `<span>${zdIcon('flag')}${esc([person.nationality, person.gender].filter(Boolean).join(' · '))}</span>` : '',
+    person.occupation ? `<span>${zdIcon('brief')}${esc(person.occupation)}</span>` : '',
+  ].filter(Boolean);
+  // the page rises in once per person, not on every in-place re-render (an edit, a toggle)
+  const zdEnter = zdLastPerson !== person.id;
+  zdLastPerson = person.id;
+  const tabCounts = { relations: casePeople.length > 1 ? casePeople.length : 0, evidence: links.length, review: toReview };
   const storyChip = (c, withName, arrow = true) => `<a class="story-chip" href="#/relationship/${c.rel.id}" title="Their milestones, timeline and photos together">♥ Their story${withName ? ` · ${esc(c.other.display_name.split(/\s+/)[0])}` : ''}${arrow ? ' →' : ''}</a>`;
 
   root.innerHTML = `
-    <div class="subject-layout">
-      <div class="subject-rail">
-      <div class="subject-head">
-        <div class="sh-main">
-          <div class="avatar" id="avatar" title="${person.photo_path || person.photo_url ? 'Change picture' : 'Add a picture'}">
+    <div class="subject-layout zd${zdEnter ? ' zd-enter' : ''}">
+      <div class="zd-head">
+        <div class="zd-top">
+          ${sincePill ? `<span class="zd-since">${zdIcon('clock')}${esc(sincePill)}</span>` : '<span></span>'}
+          <label class="zd-status" title="Case status"><i class="zd-dot s-${esc(person.status || 'active')}"></i><select id="status-select">${['active', 'watch', 'cold', 'archived'].map((s) => `<option value="${s}" ${s === (person.status || 'active') ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></label>
+        </div>
+        <div class="zd-who">
+          <div class="avatar zd-face" id="avatar" title="${person.photo_path || person.photo_url ? 'Change picture' : 'Add a picture'}">
             <span class="initials">${person.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
             <span class="hint">${person.photo_path || person.photo_url ? 'change' : '+ picture'}</span>
           </div>
-          <div class="sh-content">
-            <div class="sh-toprow">
-              <div class="sh-identity">
-                <div class="sh-meta">
-                  ${person.ref_code || ''} ${person.kind !== 'person' ? '· ' + person.kind : ''} · <span class="chip brass">${person.status}</span>
-                  ${person.occupation ? ` · <span class="occ">${person.occupation}</span>` : ''}
-                </div>
-                ${aliases.length ? `<div class="row wrap" style="margin-top:6px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
-              </div>
-              <div class="sh-actions">
-                ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
-                ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="btn btn-ghost btn-sm" id="unmove-person-btn">Move back to Cases</button>' : ''}
-                ${couples.map((c) => storyChip(c, true)).join('')}
-                ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
-                ${tab === 'profile' ? '<button class="btn btn-ghost btn-sm" id="paste-btn" title="Straight to the paste box — no lookup, no forms">Paste</button>' : ''}
-                <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
-              </div>
-            </div>
-            <div class="sh-lowerrow">
-              <div class="sh-zone2">
-                <p class="zone-label">Demographics</p>
-                <div class="profile-grid" id="basics-strip"></div>
-              </div>
-              <div class="sh-zonedivider"></div>
-              <div class="sh-zone3">
-                <p class="zone-label">Numerology &amp; Zodiac</p>
-                <div class="lm-tokens sh-numerology" id="lm-tokens">${tokensHtml(person)}</div>
-              </div>
-            </div>
+          <div class="zd-id">
+            <div class="zd-name">${esc(person.display_name)}${person.ref_code ? ` <small>${esc(person.ref_code)}</small>` : ''}${person.kind !== 'person' ? ` <small>· ${esc(person.kind)}</small>` : ''}</div>
+            <div class="zd-meta">${metaBits.join('')}</div>
+            ${aliases.length ? `<div class="row wrap" style="margin-top:6px;gap:6px">${aliases.map((a) => `<span class="chip">${a.alias} · ${a.kind}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        <div class="zd-btns">
+          ${tab === 'profile' ? `<button class="zb zb-fill" id="add-btn" title="Paste facts, look them up, insert family, add works">${zdIcon('plus')}Add</button>` : ''}
+          ${tab === 'profile' ? `<button class="zb" id="paste-btn" title="Straight to the paste box — no lookup, no forms">${zdIcon('clip')}Paste</button>` : ''}
+          <button class="zb" id="edit-person-btn">${zdIcon('pen')}Edit</button>
+          <span class="zd-sp"></span>
+          ${toReview && tab !== 'review' ? `<a class="zb zb-pink" href="#/subject/${person.id}/review" title="Facts waiting for your accept or reject">${zdIcon('check')}${toReview} to review</a>` : ''}
+          ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="zb" id="unmove-person-btn">Move back to Cases</button>' : ''}
+          ${couples.length === 1 ? `<a class="zb zb-story" href="#/relationship/${couples[0].rel.id}" title="Their milestones, timeline and photos together">${zdIcon('heart')}Their story · ${esc(couples[0].other.display_name.split(/\s+/)[0])}</a>` : ''}
+          ${couples.length > 1 ? `<span class="zd-menu"><button type="button" class="zb zb-story" id="story-menu-btn" aria-expanded="false">${zdIcon('heart')}Their story <span class="zb-car">▾</span></button><span class="zd-menu-list" id="story-menu" hidden>${couples.map((c) => `<a href="#/relationship/${c.rel.id}">♥ ${esc(c.other.display_name)}${c.rel.start_date ? ` <small>${c.rel.start_date.slice(0, 4)}</small>` : ''}</a>`).join('')}</span></span>` : ''}
+          ${person.wikidata_id ? `<a class="zb" href="https://www.wikidata.org/wiki/${esc(person.wikidata_id)}" target="_blank" rel="noopener" title="This person's Wikidata record">${zdIcon('ext')}Wikidata</a>` : ''}
+        </div>
+        <div class="zd-two">
+          <div class="zd-box">
+            <h4>Demographics</h4>
+            <div class="profile-grid" id="basics-strip"></div>
+          </div>
+          <div class="zd-box">
+            <h4>Numerology &amp; zodiac</h4>
+            <div class="lm-tokens sh-numerology" id="lm-tokens">${tokensHtml(person)}</div>
           </div>
         </div>
         ${person.notes ? `<p class="sh-notes">${person.notes}</p>` : ''}
       </div>
 
-      <div class="tab-strip" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="${k === 'fashion' ? '#/fashion' : '#/subject/' + person.id + (k === 'profile' ? '' : '/' + k)}" ${k === 'fashion' ? 'id="tab-fashion"' : ''} class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹' : '⋯'}</button></div>
-      </div>
+      <div class="zd-card">
+      <div class="tab-strip zd-tabs" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="${k === 'fashion' ? '#/fashion' : '#/subject/' + person.id + (k === 'profile' ? '' : '/' + k)}" ${k === 'fashion' ? 'id="tab-fashion"' : ''} class="${k === tab ? 'active' : ''}">${l}${tabCounts[k] ? ` <span class="zd-cnt${k === 'review' ? ' pink' : ''}">${tabCounts[k]}</span>` : ''}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹ Less' : 'More ▾'}</button>${tab === 'profile' ? `<button type="button" class="zd-arrange" id="arrange-btn" title="Reorder or hide the panels on this page">${zdIcon('cog')}Arrange</button>` : ''}</div>
 
       <div class="subject-main stack">
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
@@ -350,10 +368,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
            widgets", same ⚙ Arrange pattern as Book33's Day page): every
            panel below is drag-to-reorder and on/off from one drawer, order
            and visibility remembered across every person. -->
-      <div class="row" style="gap:8px;justify-content:flex-end">
-        <button type="button" class="btn btn-ghost btn-sm" id="arrange-btn" title="Reorder or hide the panels on this page">⚙ Arrange</button>
-      </div>
-
       <div id="widget-slots" class="stack"></div>
 
       <!-- everything that puts information ON a person lives behind "+ Add"
@@ -403,6 +417,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       </div>
       `}
       </div>
+      </div>
     </div>
   `;
 
@@ -414,11 +429,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
       if (id === 'life-line') return `
         <div class="panel">
           <div class="row between wrap" style="gap:8px">
-            <span class="section-label">Life line · tap a mark</span>
+            <span class="section-label">Life line</span>
             <span class="row" style="gap:6px">
-              <button type="button" class="btn btn-ghost btn-sm" id="ll-pictures-btn">+ Collect pictures</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="ll-add-btn">+ Add event</button>
-              <button type="button" class="linklike" id="year-list-btn">year list ▸</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="ll-pictures-btn">${zdIcon('img')}Collect pictures</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="ll-add-btn">${zdIcon('plus')}Add event</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="year-list-btn">${zdIcon('list')}Year list</button>
             </span>
           </div>
           <div id="life-line"></div>
@@ -427,7 +442,10 @@ export async function render(root, ctx, personId, tab = 'profile') {
         </div>`;
       if (id === 'their-story') return `
         <div class="panel">
-          <span class="section-label">Their story · one line per partner</span>
+        <div class="row between wrap" style="gap:8px">
+            <span class="section-label">Their story</span>
+          ${couples.length === 1 ? `<a class="btn btn-ghost btn-sm" href="#/relationship/${couples[0].rel.id}" style="text-decoration:none" title="Add a milestone on their story page">${zdIcon('plus')}Milestone</a>` : ''}
+        </div>
           <div class="story-rows" id="story-rows"></div>
         </div>`;
       if (id === 'family') return `
@@ -435,9 +453,9 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div class="row between wrap" style="gap:8px">
             <span class="section-label">Family</span>
             <span class="row" style="gap:6px">
-              <button type="button" class="btn btn-ghost btn-sm" id="fam-quick-btn" title="For someone private — type their name, skip the lookup">+ add & link</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="fam-add-btn" title="Look ${esc(person.display_name.split(' ')[0])} up on Wikipedia — their family comes with them, if they're public">+ From Wikipedia</button>
-              <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">Full tree →</a>
+              <button type="button" class="btn btn-ghost btn-sm" id="fam-quick-btn" title="For someone private — type their name, skip the lookup">${zdIcon('plus')}Add &amp; link</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="fam-add-btn" title="Look ${esc(person.display_name.split(' ')[0])} up on Wikipedia — their family comes with them, if they're public">From Wikipedia</button>
+              <a class="btn btn-ghost btn-sm" href="#/subject/${person.id}/relations" style="text-decoration:none">${zdIcon('tree')}Full tree</a>
             </span>
           </div>
           <div id="family-tree"></div>
@@ -544,6 +562,22 @@ export async function render(root, ctx, personId, tab = 'profile') {
     ctx.openDrawer((body) => renderEditForm(body, ctx, person, tags));
   };
   root.querySelector('#edit-person-btn').addEventListener('click', openEdit);
+  // the "● Active ▾" pill (Zanda's "● Completed ▾") changes status in place
+  root.querySelector('#status-select').addEventListener('change', async (e) => {
+    await store.updatePerson(person.id, { status: e.target.value });
+    root.querySelector('.zd-dot').className = `zd-dot s-${e.target.value}`;
+  });
+  // several partners: one Their story button opens a small list of them
+  const storyBtn = root.querySelector('#story-menu-btn');
+  if (storyBtn) {
+    const menu = root.querySelector('#story-menu');
+    const close = (ev) => { if (!ev || !storyBtn.parentElement.contains(ev.target)) { menu.hidden = true; storyBtn.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', close); } };
+    storyBtn.addEventListener('click', () => {
+      menu.hidden = !menu.hidden;
+      storyBtn.setAttribute('aria-expanded', String(!menu.hidden));
+      if (!menu.hidden) setTimeout(() => document.addEventListener('click', close));
+    });
+  }
   root.querySelector('#unmove-person-btn')?.addEventListener('click', async () => {
     await store.updateCase(kase.id, { hidden: 0 });
     render(root, ctx, personId, tab);
@@ -687,7 +721,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   root.querySelector('#year-list-btn')?.addEventListener('click', () => {
     const yl = root.querySelector('#year-list');
     yl.hidden = !yl.hidden;
-    root.querySelector('#year-list-btn').textContent = yl.hidden ? 'year list ▸' : 'year list ▾';
+    root.querySelector('#year-list-btn').innerHTML = `${zdIcon('list')}${yl.hidden ? 'Year list' : 'Hide year list'}`;
   });
 
   // ---- "+ Add": everything that puts information on this person lives in
@@ -1536,6 +1570,29 @@ function renderStoryRows(slot, ctx, person, couples, relEvents) {
       });
     });
   }
+}
+
+// line icons for the Zanda-style header and buttons (2026-10-23) — drawn in
+// currentColor so each takes its button's colour on both themes
+let zdLastPerson = null;
+const ZD_ICONS = {
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin: '<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  flag: '<path d="M5 21V4h11l-2 4 2 4H5"/>',
+  brief: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  clip: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/>',
+  pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  heart: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
+  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
+  check: '<path d="M5 12l5 5L20 7"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
+  img: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-6-6-9 8"/>',
+  tree: '<circle cx="12" cy="5" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M12 7.5V12M6 15.5V12h12v3.5"/>',
+  list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+};
+function zdIcon(name) {
+  return `<svg class="zd-ic" viewBox="0 0 24 24" aria-hidden="true">${ZD_ICONS[name] || ''}</svg>`;
 }
 
 function esc(s) {
