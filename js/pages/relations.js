@@ -323,6 +323,54 @@ export async function renderTree(slot, ctx, people, rels, focus, rerender, opts 
           if (scrollBox.dataset.dragged) return;
           ctx.openDrawer((body) => renderEditMarriageYear(body, ctx, rel, e.label.replace(' · spouse', ''), rerender));
         };
+        // Their Story pill (her pick C, 2026-10-23: "make it easier to see the
+        // relationship timeline"): a one-marriage couple's quiet year label or
+        // empty dot becomes a pink "♥ 1988" pill ON the rail — tap opens Their
+        // Story, hover lists its milestones. Sized to sit in the ~74px between
+        // two faces, so the words "Their story" live in the hover tip, not the
+        // pill. Numbered beads (several marriages) already open it, so they keep
+        // their own look. The year itself is still edited from Their Story.
+        if (!e.nth) {
+          const label = year ? `♥ ${year}` : '♥ story';
+          const w = 16 + label.length * 6.2;
+          const g = svgEl('g', { class: 'tree-story-pill', transform: `translate(${mx},${lineY})` });
+          g.dataset.ids = (e.ids || []).join(',');
+          g.appendChild(svgEl('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 9 }));
+          const pt = svgEl('text', { y: 3.5, 'text-anchor': 'middle' }); pt.textContent = label;
+          g.appendChild(pt);
+          let tip = null;
+          g.addEventListener('mouseenter', async () => {
+            tip?.remove();
+            tip = document.createElement('div');
+            tip.className = 'tree-story-tip';
+            tip.style.left = `${mx}px`; tip.style.top = `${lineY + 58}px`; // below the names and years under the two faces
+            tip.innerHTML = '<b>Their story</b> · tap to open';
+            tree.appendChild(tip);
+            const evs = await ctx.store.listEventsForRelationship(rel.id);
+            const { marks } = buildRelationshipLine({ relationship: rel, events: evs });
+            if (tip && marks.length) tip.innerHTML = `<b>Their story</b> · ${marks.slice(0, 6).map((m) => `${esc(m.title)} ’${String(m.year).slice(-2)}`).join(' → ')}${marks.length > 6 ? ` → +${marks.length - 6}` : ''}`;
+          });
+          g.addEventListener('mouseleave', () => { tip?.remove(); tip = null; });
+          g.addEventListener('click', (ev) => { ev.stopPropagation(); if (scrollBox.dataset.dragged) return; if (full && opts.onClose) opts.onClose({ skipRerender: true }); ctx.navigate(`#/relationship/${rel.id}`); });
+          svg.appendChild(g);
+          if (year && !endYear) {
+            const aBy = birthYearOf(peopleById.get(rel.a_id));
+            const bBy = birthYearOf(peopleById.get(rel.b_id));
+            if (aBy && bBy) {
+              const yearNum = parseInt(year, 10);
+              const at = svgEl('text', { x: mx, y: lineY + 21, class: 'tree-marriage-age', 'text-anchor': 'middle' });
+              at.textContent = `${yearNum - aBy} & ${yearNum - bBy}`;
+              const title = svgEl('title'); title.textContent = `Married at ${yearNum - aBy} and ${yearNum - bBy}`; at.appendChild(title);
+              svg.appendChild(at);
+            }
+          }
+          if (year && endYear) {
+            const et = svgEl('text', { x: mx, y: lineY + 21, class: 'tree-marriage-year tree-divorce-year', 'text-anchor': 'middle' });
+            et.textContent = `d. ${endYear}`;
+            svg.appendChild(et);
+          }
+          continue;
+        }
         if (year) {
           const t = svgEl('text', { x: mx, y: my, class: 'tree-marriage-year', 'text-anchor': 'middle' });
           t.textContent = `m. ${year}`;

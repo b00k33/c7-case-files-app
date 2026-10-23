@@ -1725,3 +1725,40 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .tree-animate .tree-node, .tree-animate .tree-group, .tree-animate .tree-group .mini, .tree-animate .tree-lines > :not([data-draw]) { animation: none; }
   .tree-node, .tree-group .mini, .tree-edge, .tree-peek, .tree-switch { transition: none; }
 }
+
+/* ---- Their Story, easier to find (2026-10-23, her picks A + B + C) ---- */
+/* C: the pink pill on a one-marriage rail, and its hover tip */
+.tree-story-pill { cursor: pointer; pointer-events: all; }
+.tree-story-pill rect { fill: var(--zc-pink); transition: filter .2s ease; }
+.tree-story-pill text { fill: var(--on-code); font-size: 10.5px; font-weight: 600; }
+.tree-story-pill:hover rect { filter: brightness(1.08) drop-shadow(0 3px 6px color-mix(in srgb, var(--zc-pink) 45%, transparent)); }
+.tree-story-pill.dim { opacity: .2; }
+.tree-story-tip { position: absolute; transform: translateX(-50%); z-index: 6; background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--r-md, 8px); padding: 6px 10px; font-size: 11.5px; color: var(--text-2); box-shadow: var(--lift-2-hover); white-space: nowrap; pointer-events: none; animation: story-tip-in .18s ease; }
+.tree-story-tip b { color: var(--zc-pink); }
+@keyframes story-tip-in { from { opacity: 0; transform: translate(-50%, -4px); } }
+/* A: the chip under Marital and beside + Add */
+.story-chip { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border-radius: 999px; padding: 3px 10px; min-height: 26px; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--zc-pink); background: color-mix(in srgb, var(--zc-pink) 12%, var(--ink-2)); border: 1px solid color-mix(in srgb, var(--zc-pink) 35%, transparent); transition: background .2s ease, transform .15s ease; }
+.story-chip:hover { background: color-mix(in srgb, var(--zc-pink) 20%, var(--ink-2)); transform: translateY(-1px); }
+.story-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* B: the Their story box — one row per partner */
+.story-rows { display: flex; flex-direction: column; gap: 8px; margin-top: var(--sp-3); }
+.story-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-lg, 10px); background: var(--ink-1); color: var(--text); text-align: left; cursor: pointer; font: inherit; box-shadow: var(--lift-1); transition: box-shadow .2s ease, transform .15s ease; }
+.story-row:hover { box-shadow: var(--lift-2-hover); transform: translateY(-1px); }
+.story-pair { display: flex; flex: none; }
+.story-face { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: var(--ink-3); color: var(--brass); display: grid; place-items: center; font-size: 12px; font-weight: 600; box-shadow: var(--lift-face); }
+.story-face img { width: 100%; height: 100%; object-fit: cover; }
+.story-face + .story-face { margin-left: -10px; box-shadow: 0 0 0 2px var(--ink-1), var(--lift-face); }
+.story-who { min-width: 140px; }
+.story-who b { display: block; font-size: 14px; }
+.story-who small { color: var(--text-3); font-size: 12px; }
+.story-mini { flex: 1; position: relative; height: 42px; min-width: 120px; }
+.story-mini::before { content: ""; position: absolute; left: 0; right: 0; top: 13px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--brass), var(--zc-pink)); }
+.story-mk { position: absolute; top: 3px; transform: translateX(-50%); text-align: center; font-size: 10.5px; color: var(--text-2); white-space: nowrap; }
+.story-mk i { display: block; width: 22px; height: 22px; margin: 0 auto 2px; border-radius: 50%; background: var(--ink-2); border: 2px solid var(--zc-pink); font-style: normal; font-size: 11px; line-height: 18px; }
+.story-empty { flex: 1; color: var(--text-3); font-size: 12.5px; }
+.story-open { flex: none; background: var(--zc-pink); color: var(--on-code); border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .story-row { flex-wrap: wrap; }
+  .story-mini { flex-basis: 100%; order: 3; }
+}
+@media (prefers-reduced-motion: reduce) { .tree-story-tip { animation: none; } .story-row, .story-chip { transition: none; } }

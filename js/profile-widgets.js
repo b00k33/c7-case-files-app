@@ -7,6 +7,7 @@
 
 export const WIDGET_DEFS = [
   { id: 'life-line', label: 'Life line' },
+  { id: 'their-story', label: 'Their story' }, // 2026-10-23, her pick B: between Life line and Family
   { id: 'family', label: 'Family' },
   { id: 'chart', label: 'Chart' },
   { id: 'profile-grid', label: 'Profile details' },
@@ -18,7 +19,7 @@ export const WIDGET_DEFS = [
 ];
 // matches what was actually on screen before widgets existed: life line +
 // family visible, everything that used to live behind "Details ▸" starts off
-const DEFAULT_ON = new Set(['life-line', 'family']);
+const DEFAULT_ON = new Set(['life-line', 'their-story', 'family']);
 const PREFS_KEY = 'c7-profile-widgets';
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -28,10 +29,16 @@ export function loadWidgetPrefs() {
   try { saved = JSON.parse(localStorage.getItem(PREFS_KEY) || '[]'); } catch { saved = []; }
   const byId = new Map(saved.filter((w) => w && w.id).map((w) => [w.id, w]));
   // her saved order first, then any widget this version of the app knows
-  // about that her save predates — forward-compat, never silently dropped
+  // about that her save predates — forward-compat, never silently dropped.
+  // A new one slots in right after the widget it follows in WIDGET_DEFS (so
+  // Their story lands under Life line, where it was mocked), not at the end.
   const knownIds = new Set(WIDGET_DEFS.map((d) => d.id));
   const order = saved.map((w) => w.id).filter((id) => knownIds.has(id));
-  for (const d of WIDGET_DEFS) if (!order.includes(d.id)) order.push(d.id);
+  WIDGET_DEFS.forEach((d, i) => {
+    if (order.includes(d.id)) return;
+    const after = i ? order.indexOf(WIDGET_DEFS[i - 1].id) : -1;
+    order.splice(after + 1, 0, d.id);
+  });
   return order.map((id) => ({ id, on: byId.has(id) ? !!byId.get(id).on : DEFAULT_ON.has(id) }));
 }
 

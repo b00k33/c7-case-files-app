@@ -12,7 +12,7 @@ import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, openVideoViewer, videoPosterTile, renderWikiFeed } from '../ui.js';
-import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures } from '../lifemap.js';
+import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures, buildRelationshipLine } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree, renderAddFamilyMember } from './relations.js';
 import { subjectOf } from './cases.js';
@@ -285,10 +285,16 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // and only for spouse/partner, the two kinds Their Story is written for
   // (relLabel() above); a parent or sibling relationship has no "met,
   // engaged, married" story to tell.
-  const caseSubject = kase ? subjectOf(kase, casePeople) : null;
-  const theirRel = caseSubject && caseSubject.id !== person.id
-    ? rels.find((r) => (r.kind === 'spouse' || r.kind === 'partner') && (r.a_id === caseSubject.id || r.b_id === caseSubject.id))
-    : null;
+  // since 2026-10-23 (her "make it easier to see the relationship timeline",
+  // picks A + B + C): EVERY spouse/partner of this person gets a door to
+  // Their Story, not only the case's own subject — a chip in the header and
+  // under Marital (A) and a row in the Their story box (B). Oldest first.
+  const couples = (await Promise.all(rels
+    .filter((r) => (r.kind === 'spouse' || r.kind === 'partner') && !r.theory_id)
+    .map(async (r) => ({ rel: r, other: await store.getPerson(r.a_id === person.id ? r.b_id : r.a_id) }))))
+    .filter((c) => c.other)
+    .sort((x, y) => String(x.rel.start_date || '9999').localeCompare(String(y.rel.start_date || '9999')));
+  const storyChip = (c, withName, arrow = true) => `<a class="story-chip" href="#/relationship/${c.rel.id}" title="Their milestones, timeline and photos together">♥ Their story${withName ? ` · ${esc(c.other.display_name.split(/\s+/)[0])}` : ''}${arrow ? ' →' : ''}</a>`;
 
   root.innerHTML = `
     <div class="subject-layout">
@@ -311,7 +317,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
               <div class="sh-actions">
                 ${toReview && tab !== 'review' ? `<a class="chip brass" href="#/subject/${person.id}/review" style="text-decoration:none;min-height:28px" title="Facts waiting for your accept or reject">${toReview} to review →</a>` : ''}
                 ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="btn btn-ghost btn-sm" id="unmove-person-btn">Move back to Cases</button>' : ''}
-                ${theirRel ? `<a class="btn btn-ghost btn-sm" href="#/relationship/${theirRel.id}" style="text-decoration:none" title="Their milestones, timeline and photos together">Their Story →</a>` : ''}
+                ${couples.map((c) => storyChip(c, true)).join('')}
                 ${tab === 'profile' ? '<button class="btn btn-primary btn-sm" id="add-btn" title="Paste facts, look them up, insert family, add works">+ Add</button>' : ''}
                 ${tab === 'profile' ? '<button class="btn btn-ghost btn-sm" id="paste-btn" title="Straight to the paste box — no lookup, no forms">Paste</button>' : ''}
                 <button class="btn btn-ghost btn-sm" id="edit-person-btn">Edit</button>
@@ -419,6 +425,11 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div id="why-slot"></div>
           <div id="year-list" hidden><div id="timeline-list" class="stack" style="gap:10px;margin-top:12px"></div></div>
         </div>`;
+      if (id === 'their-story') return `
+        <div class="panel">
+          <span class="section-label">Their story · one line per partner</span>
+          <div class="story-rows" id="story-rows"></div>
+        </div>`;
       if (id === 'family') return `
         <div class="panel">
           <div class="row between wrap" style="gap:8px">
@@ -478,7 +489,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
     };
     const widgetPrefs = loadWidgetPrefs();
     root.querySelector('#widget-slots').innerHTML = widgetPrefs
-      .map((w) => `<div data-widget="${w.id}" ${w.on ? '' : 'hidden'}>${widgetHtml(w.id)}</div>`)
+      // the Their story box has nothing to say for someone with no partner on the tree
+      .map((w) => `<div data-widget="${w.id}" ${w.on && (w.id !== 'their-story' || couples.length) ? '' : 'hidden'}>${widgetHtml(w.id)}</div>`)
       .join('');
     root.querySelector('#arrange-btn').addEventListener('click', () => {
       ctx.openDrawer((body) => renderArrangeDrawer(body, widgetPrefs, () => render(root, ctx, personId, tab)));
@@ -547,7 +559,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
   const marital = person.marital_status
     ? person.marital_status + (spouseName ? ` · ${spouseName}` : '')
-    : (spouseName ? `Married · ${spouseName}` : null);
+    : (spouseName ? `Married · ${spouseName}` : (couples.length ? `Partner · ${couples[couples.length - 1].other.display_name}` : null));
   const bornDate = bornText(person);
   const born = bornDate && person.birth_time ? `${bornDate} · ${person.birth_time_precision === 'approx' ? '~' : ''}${fmtTime12h(person.birth_time)}` : bornDate;
   const age = ageText(person);
@@ -566,6 +578,12 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const strip = root.querySelector('#basics-strip');
   strip.innerHTML = basics.map((b) => `<div class="k">${b.k}</div><div class="v${b.text ? '' : ' missing'}" ${b.text ? '' : 'title="Tap to fill in"'}>${b.text || `— <span style="font-size:10px">${b.missing}</span>`}</div>`).join('');
   strip.querySelectorAll('.v.missing').forEach((el) => el.addEventListener('click', openEdit));
+  // A: a Their story chip under the Marital row — one per partner, named
+  // only when there's more than one to tell apart
+  if (couples.length) {
+    const maritalV = [...strip.querySelectorAll('.k')].find((k) => k.textContent === 'Marital')?.nextElementSibling;
+    maritalV?.insertAdjacentHTML('beforeend', `<div class="story-chips">${couples.map((c) => storyChip(c, couples.length > 1, false)).join('')}</div>`);
+  }
 
   // any other tab: mount that page under the header and stop here
   if (tab !== 'profile') {
@@ -577,6 +595,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   }
 
   root.querySelector('#chart-slot').appendChild(chartPanel(person, status));
+  renderStoryRows(root.querySelector('#story-rows'), ctx, person, couples, relEvents);
 
   // ---- the life map: the ribbon, the why of a mark, the family tree, compare ----
   const peopleInCase = await store.listPeople(ctx.caseId);
@@ -1470,6 +1489,55 @@ export async function render(root, ctx, personId, tab = 'profile') {
 // a name may hold a quote, an ampersand or an angle bracket — O'Brien is
 // fine, but `Ann "Nan" Parton` closed the value attribute and swallowed the
 // rest of the field (review, 2026-09-03)
+/**
+ * B: the Their story box (her pick, 2026-10-23) — one row per spouse/partner:
+ * both faces, how long together, the milestones as a small line (evenly
+ * spaced, oldest first — a glance, not a scale), and Open →. The whole row
+ * opens Their Story; that page is still the one place milestones are added.
+ */
+function renderStoryRows(slot, ctx, person, couples, relEvents) {
+  if (!slot || !couples.length) return;
+  const nowY = new Date().getFullYear();
+  const face = (p) => `<span class="story-face" data-pid="${p.id}">${esc(p.display_name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>`;
+  slot.innerHTML = couples.map(({ rel, other }) => {
+    const { marks } = buildRelationshipLine({ relationship: rel, events: relEvents.filter((ev) => ev.relationship_id === rel.id) });
+    const sy = rel.start_date ? +rel.start_date.slice(0, 4) : null;
+    const ey = rel.end_date ? +rel.end_date.slice(0, 4) : null;
+    // the years together stop at a separation, or at the first of the two deaths
+    const deaths = [person, other].map((p) => (p.death_date ? +p.death_date.slice(0, 4) : null)).filter(Boolean);
+    const untilY = ey || (deaths.length ? Math.min(...deaths) : nowY);
+    const spouse = rel.kind === 'spouse';
+    const yrs = untilY - sy; // over 90 means a death date is missing (a historical couple), so say nothing
+    const sub = sy
+      ? `${spouse ? 'Married' : 'Together from'} ${sy}${ey ? ` · ${spouse ? 'separated' : 'ended'} ${ey}` : ''}${yrs >= 0 && yrs <= 90 ? ` · ${yrs} yrs` : ''}`
+      : (spouse ? 'Married' : 'Partners');
+    const shown = marks.slice(0, 5);
+    const mini = shown.length
+      ? `<div class="story-mini">${shown.map((m, i) => `<span class="story-mk" style="left:${shown.length === 1 ? 50 : 10 + (i * 80) / (shown.length - 1)}%"><i>${m.glyph}</i>${esc(m.title)} ’${String(m.year).slice(-2)}</span>`).join('')}</div>`
+      : '<div class="story-empty">No story yet — tap to start</div>';
+    return `<button type="button" class="story-row" data-rel="${rel.id}">
+      <span class="story-pair">${face(person)}${face(other)}</span>
+      <span class="story-who"><b>${esc(person.display_name.split(/\s+/)[0])} &amp; ${esc(other.display_name.split(/\s+/)[0])}</b><small>${esc(sub)}${marks.length > shown.length ? ` · ${marks.length} milestones` : ''}</small></span>
+      ${mini}
+      <span class="story-open">Open →</span>
+    </button>`;
+  }).join('');
+  slot.querySelectorAll('.story-row').forEach((b) => b.addEventListener('click', () => ctx.navigate(`#/relationship/${b.dataset.rel}`)));
+  // faces: the stored photo first, the Wikipedia one as fallback — initials stay if neither loads
+  for (const p of [person, ...couples.map((c) => c.other)]) {
+    const src = p.photo_path ? resolveAssetUrl(p.photo_path, 'image/jpeg').then((u) => u || p.photo_url) : Promise.resolve(p.photo_url);
+    src.then((u) => {
+      if (!u) return;
+      slot.querySelectorAll(`.story-face[data-pid="${p.id}"]`).forEach((el) => {
+        const img = document.createElement('img');
+        img.alt = '';
+        img.addEventListener('load', () => { el.textContent = ''; el.appendChild(img); });
+        img.src = u;
+      });
+    });
+  }
+}
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
