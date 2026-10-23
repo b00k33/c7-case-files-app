@@ -8,7 +8,7 @@
 import { verdictChips, buildRelationshipLine, renderRelationshipLine, REL_KINDS } from '../lifemap.js';
 import { resolveAssetUrl, preloadImage, compressImage, queueUpload, flushUploads } from '../assets.js';
 import { parseDate } from '../profile-parse.js';
-import { inlineNote, clearInlineNote, openShotViewer, videoPosterTile } from '../ui.js';
+import { inlineNote, clearInlineNote, openShotViewer, videoPosterTile, zdIcon } from '../ui.js';
 import { emptyState } from '../indicators.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -27,6 +27,7 @@ function imagesFromClipboard(dt) {
   return files;
 }
 let msPasteHandler = null; // the milestone form's own paste listener — one at a time, see renderMilestoneForm
+let relLast = null; // the page rises in once per relationship, not on every redraw (a new milestone)
 
 function relLabel(rel) {
   const sy = rel.start_date ? rel.start_date.slice(0, 4) : null;
@@ -71,38 +72,87 @@ export async function render(root, ctx, relationshipId) {
   if (rel.case_id !== ctx.caseId) await ctx.setCaseId(rel.case_id);
   ctx.setTitle(`${firstName(a.display_name)} & ${firstName(b.display_name)}`);
 
+  // Zanda-style redesign (her ask, 2026-10-23: "redesign the relationship
+  // page the same way" as the v200 profile): one header card with a pink
+  // left edge — a "since" pill, both faces, the pair's name and an icon meta
+  // line, squared uppercase buttons, then two boxes (Together · Compatibility);
+  // the story and the pictures sit in a second card as titled panels.
+  const yearOf = (d) => (d ? +String(d).slice(0, 4) : null);
+  const sy = yearOf(rel.start_date), ey = yearOf(rel.end_date);
+  const deaths = [a, b].map((p) => yearOf(p.death_date)).filter(Boolean);
+  const untilY = ey || (deaths.length ? Math.min(...deaths) : new Date().getFullYear());
+  const yrs = sy ? untilY - sy : null;
+  const yrsText = yrs != null && yrs >= 0 && yrs <= 90 ? `${yrs} yr${yrs === 1 ? '' : 's'}${!ey && !deaths.length ? ' so far' : ''}` : null; // over 90 = a death date is missing
+  const ageAtStart = (p) => { const by = yearOf(p.birth_date) || p.birth_year_min; return sy && by ? sy - by : null; };
+  const ages = [ageAtStart(a), ageAtStart(b)];
+  const spouse = rel.kind === 'spouse';
+  const enter = relLast !== rel.id;
+  relLast = rel.id;
+  const kv = (k, v) => `<div class="k">${k}</div><div class="v${v ? '' : ' missing'}">${v || '—'}</div>`;
   root.innerHTML = `
-    <div class="stack">
-      <div class="panel">
-        <a class="btn btn-ghost btn-sm" href="#/subject/${a.id}/relations" style="text-decoration:none;align-self:flex-start">← Tree</a>
-        <div class="rel-pair-head">
-          <div class="rel-pair-pics">
-            <div class="avatar rel-pair-avatar" id="a-avatar"><span class="initials">${initials(a.display_name)}</span></div>
-            <div class="avatar rel-pair-avatar b" id="b-avatar"><span class="initials">${initials(b.display_name)}</span></div>
+    <div class="subject-layout zd zd-rel${enter ? ' zd-enter' : ''}">
+      <div class="zd-head">
+        <div class="zd-top">
+          <span class="zd-since">${zdIcon('heart')}${esc(relLabel(rel))}${yrsText ? ` · ${yrsText}` : ''}</span>
+          <a class="zb" href="#/subject/${a.id}/relations">${zdIcon('tree')}Tree</a>
+        </div>
+        <div class="zd-who">
+          <div class="zd-pair">
+            <a class="avatar zd-face" id="a-avatar" href="#/subject/${a.id}" title="Open ${esc(a.display_name)}"><span class="initials">${initials(a.display_name)}</span></a>
+            <a class="avatar zd-face b" id="b-avatar" href="#/subject/${b.id}" title="Open ${esc(b.display_name)}"><span class="initials">${initials(b.display_name)}</span></a>
           </div>
-          <div class="rel-pair-names">
-            <div class="title">${esc(a.display_name)} &amp; ${esc(b.display_name)}</div>
-            <div class="mono rel-pair-sub">${esc(relLabel(rel))}</div>
+          <div class="zd-id">
+            <div class="zd-name">${esc(a.display_name)} <span class="zd-amp">&amp;</span> ${esc(b.display_name)}</div>
+            <div class="zd-meta">
+              ${sy ? `<span>${zdIcon('cal')}${spouse ? 'Married' : 'Together from'} ${sy}</span>` : ''}
+              ${ey ? `<span>${zdIcon('hourglass')}${spouse ? 'Separated' : 'Ended'} ${ey}</span>` : ''}
+              ${ages[0] != null && ages[1] != null ? `<span>${zdIcon('user')}Aged ${ages[0]} &amp; ${ages[1]}</span>` : ''}
+              <span>${zdIcon('list')}${events.length} milestone${events.length === 1 ? '' : 's'}</span>
+            </div>
           </div>
         </div>
-        <div class="lm-verdicts" id="rel-verdicts" style="justify-content:center;margin-top:var(--sp-3)"></div>
-      </div>
-
-      <div class="panel">
-        <div class="row between wrap" style="gap:8px">
-          <span class="section-label">Their story · tap a mark</span>
-          <div class="row" style="gap:8px">
-            <button type="button" class="btn btn-ghost btn-sm" id="add-milestones-batch-btn" title="Paste a whole timeline at once — one milestone per line">Paste many</button>
-            <button type="button" class="btn btn-primary btn-sm" id="add-milestone-btn">+ Milestone</button>
+        <div class="zd-btns">
+          <button type="button" class="zb zb-fill" id="add-milestone-btn">${zdIcon('plus')}Milestone</button>
+          <button type="button" class="zb" id="add-milestones-batch-btn" title="Paste a whole timeline at once — one milestone per line">${zdIcon('clip')}Paste many</button>
+          <span class="zd-sp"></span>
+          <a class="zb" href="#/subject/${a.id}">${zdIcon('user')}${esc(firstName(a.display_name))}</a>
+          <a class="zb" href="#/subject/${b.id}">${zdIcon('user')}${esc(firstName(b.display_name))}</a>
+        </div>
+        <div class="zd-two">
+          <div class="zd-box">
+            <h4>Together</h4>
+            <div class="profile-grid">
+              ${kv(spouse ? 'Married' : 'Together from', sy ? String(sy) : null)}
+              ${ey ? kv(spouse ? 'Separated' : 'Ended', String(ey)) : deaths.length ? kv('Until', `${Math.min(...deaths)}, a death`) : kv('Now', 'still together')}
+              ${kv('Years', yrsText)}
+              ${kv('Ages then', ages[0] != null && ages[1] != null ? `${firstName(a.display_name)} ${ages[0]} · ${firstName(b.display_name)} ${ages[1]}` : null)}
+            </div>
+          </div>
+          <div class="zd-box">
+            <h4>Compatibility</h4>
+            <div class="lm-verdicts" id="rel-verdicts"></div>
           </div>
         </div>
-        <div id="rel-line"></div>
-        <div id="rel-why"></div>
       </div>
 
-      <div class="panel">
-        <span class="section-label">Pictures together, in order</span>
-        <div id="rel-gallery"></div>
+      <div class="zd-card">
+        <div class="subject-main stack">
+          <div class="panel">
+            <div class="row between wrap" style="gap:8px">
+              <span class="section-label">Their story</span>
+              <span class="dim" style="font-size:12px">tap a mark to see its story</span>
+            </div>
+            <div id="rel-line"></div>
+            <div id="rel-why"></div>
+          </div>
+
+          <div class="panel">
+            <div class="row between wrap" style="gap:8px">
+              <span class="section-label">Pictures together, in order</span>
+            </div>
+            <div id="rel-gallery"></div>
+          </div>
+        </div>
       </div>
     </div>
   `;

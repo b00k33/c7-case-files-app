@@ -11,7 +11,7 @@ import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, openVideoViewer, videoPosterTile, renderWikiFeed } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, openVideoViewer, videoPosterTile, renderWikiFeed, zdIcon } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures, buildRelationshipLine } from '../lifemap.js';
 import { autoCaseName, looksHurried } from '../names.js';
 import { renderTree, renderAddFamilyMember } from './relations.js';
@@ -1572,28 +1572,7 @@ function renderStoryRows(slot, ctx, person, couples, relEvents) {
   }
 }
 
-// line icons for the Zanda-style header and buttons (2026-10-23) — drawn in
-// currentColor so each takes its button's colour on both themes
-let zdLastPerson = null;
-const ZD_ICONS = {
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  pin: '<path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
-  flag: '<path d="M5 21V4h11l-2 4 2 4H5"/>',
-  brief: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  clip: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/>',
-  pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
-  heart: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
-  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
-  check: '<path d="M5 12l5 5L20 7"/>',
-  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
-  img: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-6-6-9 8"/>',
-  tree: '<circle cx="12" cy="5" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M12 7.5V12M6 15.5V12h12v3.5"/>',
-  list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
-};
-function zdIcon(name) {
-  return `<svg class="zd-ic" viewBox="0 0 24 24" aria-hidden="true">${ZD_ICONS[name] || ''}</svg>`;
-}
+let zdLastPerson = null; // the profile rises in once per person (see zdEnter)
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

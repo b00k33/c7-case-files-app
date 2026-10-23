@@ -1879,3 +1879,17 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .zd-box .profile-grid .k { font: 400 13px var(--font-body); letter-spacing: 0; text-transform: none; color: var(--text-3); }
 .zd-box .profile-grid .v { font-size: 13px; font-weight: 600; color: var(--text); }
 .zd-box .profile-grid .v.missing { font-weight: 400; color: var(--text-3); }
+/* Their Story in the same Zanda style (2026-10-23) — pink edge, two faces */
+.zd-rel .zd-head { border-left-color: var(--zc-pink); }
+.zd-rel .zd-since { color: var(--zc-pink); }
+.zd-pair { display: flex; flex: none; }
+.zd-pair .avatar.zd-face { text-decoration: none; }
+.zd-pair .avatar.zd-face.b { margin-left: -18px; }
+.zd-pair .avatar.zd-face:hover { z-index: 2; }
+.zd-amp { color: var(--zc-pink); font-weight: 600; }
+.zd-rel .zd-box .lm-verdicts { margin-top: 0; gap: 6px; }
+.zd-rel .zd-box .lm-v { animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) both; }
+.zd-rel .zd-box .lm-v:nth-child(2) { animation-delay: .08s; }
+.zd-rel .zd-box .lm-v:nth-child(3) { animation-delay: .16s; }
+.zd-enter.zd-rel .zd-pair .zd-face.b { animation-delay: .22s; }
+.zd-rel .subject-main .panel > .row.between:first-child .dim { color: var(--text-3); }
