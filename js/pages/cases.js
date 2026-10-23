@@ -471,6 +471,48 @@ async function buildPicRow(c, sum, ctx, store, onChanged, dupInfo) {
   return row;
 }
 
+/**
+ * The dashboard's movement (her ask, 2026-10-23: "make the dashboard more
+ * lively with animations"): the numbers count up from 0 as she arrives
+ * (once per visit — `dashSeen`, reset when she leaves — never on a redraw),
+ * and each tile tilts a little toward the pointer on a mouse or pen. A
+ * reduced-motion setting turns both off.
+ */
+let dashSeen = false;
+window.addEventListener('hashchange', () => { if (!/^#\/?(cases)?$/.test(location.hash)) dashSeen = false; });
+function liveliness(root) {
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const arriving = !dashSeen;
+  dashSeen = true;
+  const dash = root.querySelector('.zd-dash');
+  if (dash && arriving && !calm) { dash.classList.add('dash-in'); setTimeout(() => dash.classList.remove('dash-in'), 2600); } // one-shot: off again so the tilt and hover own the tiles
+  if (arriving && !calm) {
+    root.querySelectorAll('[data-count]').forEach((el, k) => {
+      const to = +el.dataset.count;
+      if (!to) return;
+      const t0 = performance.now() + k * 90, dur = 700 + Math.min(to, 40) * 12;
+      el.textContent = '0';
+      const step = (now) => {
+        const p = Math.min(1, Math.max(0, (now - t0) / dur));
+        el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+      setTimeout(() => { el.textContent = String(to); }, dur + k * 90 + 600); // the real number always lands, even if the tab was hidden mid-count
+    });
+  }
+  if (calm || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  root.querySelectorAll('.zd-dash .tile').forEach((tile) => {
+    tile.addEventListener('pointermove', (e) => {
+      const r = tile.getBoundingClientRect();
+      tile.style.setProperty('--ry', `${((e.clientX - r.left) / r.width - 0.5) * 7}deg`);
+      tile.style.setProperty('--rx', `${(0.5 - (e.clientY - r.top) / r.height) * 7}deg`);
+      tile.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+    });
+    tile.addEventListener('pointerleave', () => { tile.style.removeProperty('--rx'); tile.style.removeProperty('--ry'); });
+  });
+}
+
 export async function render(root, ctx) {
   const { store } = ctx;
   const opened = openedMap();
@@ -491,10 +533,13 @@ export async function render(root, ctx) {
   // the Zanda-style header card (2026-10-23, "do it for all pages"): the same
   // teal-edged card as People, with the count pill and squared buttons
   const kindCount = (k) => withSums.filter(({ c }) => c.kind === k).length;
+  // what is waiting on her across every case (2026-10-23, "make the dashboard more
+  // lively") — three pills whose numbers count up as the page opens
+  const waiting = withSums.reduce((t, { sum }) => ({ review: t.review + (sum.toReview || 0), inbox: t.inbox + (sum.inbox || 0), questions: t.questions + (sum.questions || 0) }), { review: 0, inbox: 0, questions: 0 });
   root.innerHTML = `
-    <div class="stack">
+    <div class="stack zd-dash">
       <div class="zd-head">
-        <div class="zd-top"><span class="zd-since">${zdIcon('brief')}${cases.length} case${cases.length === 1 ? '' : 's'}</span></div>
+        <div class="zd-top"><span class="zd-since">${zdIcon('brief')}<span><b data-count="${cases.length}">${cases.length}</b> case${cases.length === 1 ? '' : 's'}</span></span></div>
         <div class="zd-who"><div class="zd-id">
           <div class="zd-name">Cases</div>
           <div class="zd-meta">
@@ -505,6 +550,11 @@ export async function render(root, ctx) {
             ${personCases.length ? `<span>${zdIcon('user')}${personCases.length} about one person</span>` : ''}
           </div>
         </div></div>
+        <div class="zd-stats dash-waiting">
+          <span class="zd-stat${waiting.review ? ' hot' : ''}">${zdIcon('check')}<span><b data-count="${waiting.review}">${waiting.review}</b> to review</span></span>
+          <span class="zd-stat${waiting.inbox ? ' hot' : ''}">${zdIcon('img')}<span><b data-count="${waiting.inbox}">${waiting.inbox}</b> image${waiting.inbox === 1 ? '' : 's'} waiting</span></span>
+          <span class="zd-stat pink${waiting.questions ? ' hot' : ''}">${zdIcon('star')}<span><b data-count="${waiting.questions}">${waiting.questions}</b> open question${waiting.questions === 1 ? '' : 's'}</span></span>
+        </div>
         <div class="zd-btns">
           <button class="btn btn-primary" id="new-case-btn">${zdIcon('plus')}New</button>
           <span class="zd-sp"></span>
@@ -579,8 +629,11 @@ export async function render(root, ctx) {
   list.className = 'tile-grid';
   const onChanged = () => render(root, ctx);
   const rows = await Promise.all(withSums.map(({ c, sum }) => buildPicRow(c, sum, ctx, store, onChanged, dupOf.get(c.id))));
-  for (const r of rows) list.appendChild(r);
+  rows.forEach((r, i) => { r.style.setProperty('--i', String(Math.min(i, 24))); list.appendChild(r); });
+  // the case she was last in carries a small "Last opened" tag
+  if (rows[0] && opened[withSums[0].c.id]) rows[0].querySelector('.pic')?.insertAdjacentHTML('beforeend', '<span class="dash-last">Last opened</span>');
   body.appendChild(list);
+  liveliness(root);
 
   // (the page's own "Search everything" box left on 2026-09-07 — the one
   // search box at the top of every page, in main.js, replaced it)

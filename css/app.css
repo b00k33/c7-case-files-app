@@ -2066,3 +2066,48 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .zd .tabs button.active, .zd .tabs button.on, .zd .tabs button[aria-selected="true"] { background: var(--brass); color: var(--on-brass); }
 .zd .empty-action { border-radius: 4px; text-transform: uppercase; letter-spacing: .06em; font: 700 12px var(--font-body); transition: transform .15s ease, filter .2s ease; }
 .zd .empty-action:hover { transform: translateY(-1px); filter: brightness(1.08); }
+/* ==== The dashboard (Cases), lively (2026-10-23, her ask: "make the
+   dashboard more lively with animations"). cases.js liveliness() adds
+   .dash-in on arrival and drives the count-up and the tile tilt. ==== */
+.zd-dash .zd-head { overflow: hidden; }
+.zd-dash .zd-since b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.dash-waiting { margin-top: 12px; }
+.dash-waiting .zd-stat b { font-variant-numeric: tabular-nums; min-width: 1ch; text-align: right; }
+.dash-waiting .zd-stat:not(.hot) { opacity: .6; }
+.dash-waiting .zd-stat.hot { border-color: color-mix(in srgb, var(--brass) 35%, var(--line)); }
+.dash-waiting .zd-stat.pink.hot { border-color: color-mix(in srgb, var(--zc-pink) 35%, var(--line)); }
+/* arrival: the teal edge draws down, a sheen sweeps the card once, the pills pop */
+.dash-in .zd-head::before { content: ""; position: absolute; left: -6px; top: 0; bottom: 0; width: 6px; background: var(--brass); transform-origin: top; animation: dash-edge .6s cubic-bezier(.2,.8,.2,1) both; }
+.dash-in .zd-head::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--brass) 14%, transparent) 50%, transparent 70%); transform: translateX(-100%); animation: dash-sheen 1.3s ease .35s both; pointer-events: none; }
+.dash-in .dash-waiting .zd-stat { animation: zd-pop .5s cubic-bezier(.3,1.6,.5,1) both; }
+.dash-in .dash-waiting .zd-stat:nth-child(1) { animation-delay: .25s; }
+.dash-in .dash-waiting .zd-stat:nth-child(2) { animation-delay: .33s; }
+.dash-in .dash-waiting .zd-stat:nth-child(3) { animation-delay: .41s; }
+@keyframes dash-edge { from { transform: scaleY(0); } }
+@keyframes dash-sheen { to { transform: translateX(100%); } }
+/* something is waiting: its pill breathes gently every few seconds */
+.dash-waiting .zd-stat.hot .zd-ic { animation: dash-nudge 3.2s ease-in-out 1.2s infinite; }
+@keyframes dash-nudge { 0%, 84%, 100% { transform: none; } 90% { transform: scale(1.3) rotate(-8deg); } 95% { transform: scale(.95); } }
+/* the NEW button's plus turns on hover */
+.zd-dash #new-case-btn .zd-ic { transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+.zd-dash #new-case-btn:hover .zd-ic { transform: rotate(90deg) scale(1.15); }
+/* tiles: rise in one after another, tilt toward the pointer, a light glides over the photo */
+.dash-in .tile-grid > .tile { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.2s + var(--i, 0) * 45ms); }
+.zd-dash .tile-grid { perspective: 900px; }
+.zd-dash .tile { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; will-change: transform; }
+.zd-dash .tile:hover { transform: translateY(-4px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.zd-dash .tile .pic::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at var(--mx, 50%) 20%, rgba(255,255,255,.28), transparent 55%); opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.zd-dash .tile:hover .pic::after { opacity: 1; }
+/* attention chips on a tile breathe so they're noticed */
+.zd-dash .tile .chip.rv-open, .zd-dash .tile .chip.inbox-open, .zd-dash .tile .chip.q-open { animation: dash-breathe 2.8s ease-in-out infinite; }
+.zd-dash .tile .chip:hover { animation: none; }
+@keyframes dash-breathe { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brass) 0%, transparent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 18%, transparent); } }
+/* the case she was last in */
+.dash-last { position: absolute; left: 8px; top: 8px; z-index: 2; background: var(--brass); color: var(--on-brass); font: 700 10px var(--font-body); letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; box-shadow: var(--lift-2); animation: dash-tag .5s cubic-bezier(.3,1.5,.5,1) .6s both; }
+@keyframes dash-tag { from { opacity: 0; transform: translateX(-14px); } }
+/* the ⋯ menu pops open */
+.zd-dash .tile .menu-slot:not(:empty) { animation: zd-pop .25s cubic-bezier(.3,1.4,.5,1) both; transform-origin: top right; }
+@media (prefers-reduced-motion: reduce) {
+  .zd-dash *, .zd-dash *::before, .zd-dash *::after { animation: none !important; transition: none !important; }
+  .zd-dash .tile { transform: none !important; }
+}
