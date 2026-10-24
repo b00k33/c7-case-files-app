@@ -1109,11 +1109,18 @@ function drawClashLines(wrap, facts, rels) {
   const W = wrap.clientWidth, H = wrap.clientHeight;
   if (!W || !H) return;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  const r0 = wrap.getBoundingClientRect();
-  const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left - r0.left + r.width / 2, r.top - r0.top + r.height / 2]; };
+  // measured from the layout (offsets), not the screen, so a zone still rising in or a face still
+  // popping in does not pull the lines and ✕ off their places
+  const boxIn = (el) => {
+    let l = 0, t = 0, n = el;
+    while (n && n !== wrap) { l += n.offsetLeft; t += n.offsetTop; n = n.offsetParent; }
+    return { l, t, r: l + el.offsetWidth, b: t + el.offsetHeight };
+  };
+  const centre = (el) => { const b = boxIn(el); return [(b.l + b.r) / 2, (b.t + b.b) / 2]; };
   const animalOf = new Map(facts.map((f) => [f.p.id, f.animal]));
   const nameOf = new Map(facts.map((f) => [f.p.id, f.p.display_name]));
   const seen = new Set();
+  const blocked = [...wrap.querySelectorAll('.zmap-zone-title, .zmap-animal-head, .zmap-person')].map((el) => ({ ...boxIn(el), head: el.classList.contains('zmap-animal-head') }));
   for (const r of rels || []) {
     if (r.theory_id || !['parent', 'spouse', 'sibling'].includes(r.kind)) continue; // the record only — a theory link draws no clash line
     const a = animalOf.get(r.a_id), b = animalOf.get(r.b_id);
@@ -1126,11 +1133,23 @@ function drawClashLines(wrap, facts, rels) {
     if (!fa || !fb) continue;
     const [x1, y1] = centre(fa), [x2, y2] = centre(fb);
     svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7, pathLength: 1, 'data-a': r.a_id, 'data-b': r.b_id, 'data-pair': key }));
+    // the ✕ sits on the line where it covers no title, animal, face or another ✕ — the middle when that is free
+    let [cx, cy] = [(x1 + x2) / 2, (y1 + y2) / 2];
+    const steps = [0.5]; for (let d = 0.04; d <= 0.34; d += 0.04) steps.push(0.5 - d, 0.5 + d);
+    const free = (list, px, py) => !list.some((b) => px + 10 > b.l && px - 10 < b.r && py + 10 > b.t && py - 10 < b.b);
+    // first everything, then only titles, faces and other ✕ (an animal row is the one thing it may sit beside)
+    found: for (const list of [blocked, blocked.filter((b) => !b.head)]) {
+      for (const t of steps) {
+        const px = x1 + (x2 - x1) * t, py = y1 + (y2 - y1) * t;
+        if (free(list, px, py)) { [cx, cy] = [px, py]; break found; }
+      }
+    }
+    blocked.push({ l: cx - 10, r: cx + 10, t: cy - 10, b: cy + 10 });
     const g = document.createElement('div');
     g.className = 'zmap-clash';
     g.dataset.pair = key;
-    g.style.left = `${(x1 + x2) / 2}px`;
-    g.style.top = `${(y1 + y2) / 2}px`;
+    g.style.left = `${cx}px`;
+    g.style.top = `${cy}px`;
     g.title = `${nameOf.get(r.a_id)} (${animalLabel(a)}) × ${nameOf.get(r.b_id)} (${animalLabel(b)}) — ${r.kind}, clash`;
     g.appendChild(relationGlyph('clash'));
     wrap.appendChild(g);
