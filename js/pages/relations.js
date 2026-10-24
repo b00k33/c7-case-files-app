@@ -1030,14 +1030,15 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
     const zone = document.createElement('div');
     zone.className = 'zmap-zone';
     zone.dataset.zone = z;
-    zone.innerHTML = `<div class="zmap-zone-title">${t.name} · ${t.members} <span class="n">· ${members.length}</span></div><div class="zmap-animals"></div>`;
+    zone.innerHTML = `<div class="zmap-zone-title">${t.name} · ${t.members} <span class="n">· <b data-count="${members.length}">${members.length}</b></span></div><div class="zmap-animals"></div>`;
     const cols = zone.querySelector('.zmap-animals');
-    for (const a of ANIMALS.filter((x) => zodiacGroup(x) === z)) {
+    for (const [j, a] of ANIMALS.filter((x) => zodiacGroup(x) === z).entries()) {
       const mem = members.filter((f) => f.animal === a).sort(byName);
       const col = document.createElement('div');
-      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}" data-animal="${a}">${animalPicHtml(a)}${animalLabel(a)}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
+      // the living cartoon face (story-art), one per animal; an empty animal stays still and faded
+      col.innerHTML = `<div class="zmap-animal-head ${mem.length ? '' : 'empty'}" data-animal="${a}" style="--j:${j}">${zodiacSvg(a, 'zmap-zod') || animalPicHtml(a)}${animalLabel(a)}${mem.length ? `<span class="n">· ${mem.length}</span>` : ''}</div><div class="zmap-people"></div>`;
       const list = col.querySelector('.zmap-people');
-      for (const f of mem) list.appendChild(mapPersonNode(f.p, ctx));
+      for (const f of mem) { const n = mapPersonNode(f.p, ctx); n.dataset.zone = z; n.dataset.animal = a; list.appendChild(n); }
       cols.appendChild(col);
     }
     wrap.appendChild(zone);
@@ -1055,7 +1056,38 @@ async function renderZodiacMap(mapSlot, ctx, people, rels) {
   wrap.querySelectorAll('.zmap-zone, .zmap-tray').forEach((z, i) => z.style.setProperty('--i', i)); // arrival order (CSS, .zd-fresh)
   wrap.querySelectorAll('.zmap-person').forEach((n, i) => n.style.setProperty('--i', Math.min(i, 40)));
   // the clash lines follow the layout (2×2 on the desktop, bands on the phone)
+  drawClashLines(wrap, facts, rels);
   new ResizeObserver(() => drawClashLines(wrap, facts, rels)).observe(wrap);
+  if (mapSlot.closest('.zd-fresh')) countUp(wrap);
+  // point at a face: their zone (harmony) stays lit, their clash partners ring red,
+  // a spark runs along each clash line and their animal hops; everyone else steps back
+  const lightMap = (node) => {
+    wrap.querySelectorAll('.zm-on, .zm-kin, .zm-foe, .zm-hot, .zm-hop').forEach((e) => e.classList.remove('zm-on', 'zm-kin', 'zm-foe', 'zm-hot', 'zm-hop'));
+    wrap.querySelectorAll('.zm-spark').forEach((e) => e.remove());
+    wrap.classList.toggle('zm-focus', !!node);
+    if (!node) return;
+    const id = node.dataset.id;
+    node.classList.add('zm-on');
+    if (node.dataset.zone) wrap.querySelectorAll(`.zmap-person[data-zone="${node.dataset.zone}"]`).forEach((n) => n !== node && n.classList.add('zm-kin'));
+    if (node.dataset.animal) wrap.querySelector(`.zmap-animal-head[data-animal="${node.dataset.animal}"]`)?.classList.add('zm-hop');
+    const svg = wrap.querySelector('.zmap-lines');
+    wrap.querySelectorAll(`.zmap-lines line[data-a="${id}"], .zmap-lines line[data-b="${id}"]`).forEach((ln) => {
+      ln.classList.add('zm-hot');
+      const other = ln.dataset.a === id ? ln.dataset.b : ln.dataset.a;
+      wrap.querySelector(`.zmap-person[data-id="${other}"]`)?.classList.add('zm-foe');
+      wrap.querySelector(`.zmap-clash[data-pair="${ln.dataset.pair}"]`)?.classList.add('zm-hot');
+      if (calmMotion() || !svg) return;
+      const sp = ln.cloneNode(false);
+      sp.removeAttribute('opacity');
+      sp.setAttribute('class', 'zm-spark');
+      if (ln.dataset.b === id) { sp.setAttribute('x1', ln.getAttribute('x2')); sp.setAttribute('y1', ln.getAttribute('y2')); sp.setAttribute('x2', ln.getAttribute('x1')); sp.setAttribute('y2', ln.getAttribute('y1')); }
+      svg.appendChild(sp); // the spark leaves the face being pointed at
+    });
+  };
+  wrap.querySelectorAll('.zmap-person').forEach((n) => {
+    n.addEventListener('mouseenter', () => lightMap(n));
+    n.addEventListener('mouseleave', () => lightMap(null));
+  });
   const key = document.createElement('div');
   key.className = 'zmap-key';
   key.textContent = 'Inside a zone everyone is in harmony with each other · a red ✕ line joins two people in a direct family relationship whose animals clash — a Pig married to a Snake, a Rat with a Horse child · tap a face to open the profile';
@@ -1093,9 +1125,10 @@ function drawClashLines(wrap, facts, rels) {
     const fb = wrap.querySelector(`.zmap-person[data-id="${r.b_id}"] .zmap-face`);
     if (!fa || !fb) continue;
     const [x1, y1] = centre(fa), [x2, y2] = centre(fb);
-    svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7, pathLength: 1 }));
+    svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: 'var(--red)', 'stroke-width': 1.5, opacity: 0.7, pathLength: 1, 'data-a': r.a_id, 'data-b': r.b_id, 'data-pair': key }));
     const g = document.createElement('div');
     g.className = 'zmap-clash';
+    g.dataset.pair = key;
     g.style.left = `${(x1 + x2) / 2}px`;
     g.style.top = `${(y1 + y2) / 2}px`;
     g.title = `${nameOf.get(r.a_id)} (${animalLabel(a)}) × ${nameOf.get(r.b_id)} (${animalLabel(b)}) — ${r.kind}, clash`;
