@@ -2539,3 +2539,16 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .tree-wrap *, .tree-full *, .zd-treepage * { animation: none !important; }
   .tree-heart-float, .tree-flow, .zm-spark { display: none; }
 }
+/* Fun & Zodiac: every Their Story scene in one gallery (2026-10-25). The scenes are the
+   timeline's own drawings (story-art.js); they play once as they come into view and again
+   while pointed at (.st-run). */
+.fz-scenes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+@media (max-width: 640px) { .fz-scenes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); } }
+.fz-scene { border-radius: var(--r-lg); overflow: hidden; background: var(--ink-2); transition: transform .2s ease, box-shadow .25s ease; }
+.fz-scene:hover { transform: translateY(-3px); box-shadow: var(--lift-2-hover); }
+.fz-scene .st-scene { height: 112px; }
+.fz-scene-txt { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+.fz-scene-txt b { font-size: 13px; color: var(--text); }
+.fz-scene-txt span { font-size: 11px; color: var(--text-3); line-height: 1.35; }
+@media (max-width: 640px) { .fz-scene .st-scene { height: 92px; } }
+@media (prefers-reduced-motion: reduce) { .fz-scene, .fz-scene:hover { transition: none; transform: none; } }

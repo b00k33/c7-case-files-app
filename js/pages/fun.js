@@ -3,6 +3,22 @@ import { emptyState, animalHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { clearInlineNote } from '../ui.js';
 import { autoCaseName, looksHurried } from '../names.js';
+import { sceneSvg, playOnArrival } from '../story-art.js';
+
+// her 2026-10-25 "add the scene gallery to the Fun & Zodiac page": every
+// Their Story milestone scene in one place, the same drawings the timeline uses
+const SCENE_GALLERY = [
+  ['met', 'Met', 'two people walk together, a heart pops up'],
+  ['dating', 'Started dating', 'two hearts circle each other'],
+  ['engaged', 'Engaged', 'the ring box opens, the diamond sparkles'],
+  ['married', 'Married', 'bells swing under the arch, confetti falls'],
+  ['child', 'A child is born', 'the stork flies in, the cradle rocks'],
+  ['separated', 'Ended', 'the heart cracks and drifts apart'],
+  ['death', 'Ended by a death', 'a quiet candle flickers'],
+  ['reunited', 'Back together', 'the two halves join, the heart glows'],
+  ['other', 'Anything else', 'a gold star turns'],
+];
+const scenesSeen = new Set(); // each scene plays once a session as it scrolls into view, not on every redraw
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -73,8 +89,26 @@ export async function render(root, ctx) {
       </div>
 
       <div id="sign-groups" class="stack" style="gap:16px"></div>
+
+      <div class="panel">
+        <div class="panel-title">Every milestone scene</div>
+        <div class="fz-scenes" id="fz-scenes"></div>
+      </div>
     </div>
   `;
+
+  const sceneGrid = root.querySelector('#fz-scenes');
+  sceneGrid.innerHTML = SCENE_GALLERY.map(([kind, title, what], i) => `
+    <div class="fz-scene" data-st-key="fz-${kind}" style="--i:${i}">${sceneSvg(kind)}
+      <div class="fz-scene-txt"><b>${title}</b><span>${what}</span></div>
+    </div>`).join('');
+  const sceneCards = [...sceneGrid.querySelectorAll('.fz-scene')];
+  playOnArrival(sceneCards, scenesSeen);
+  // pointing at a scene plays it again (the scene CSS moves under .st-run)
+  for (const c of sceneCards) {
+    c.addEventListener('mouseenter', () => c.classList.add('st-run'));
+    c.addEventListener('mouseleave', () => c.classList.remove('st-run'));
+  }
 
   if (mergedCount && !lastNote) lastNote = `Folded ${mergedCount} duplicate ${mergedCount === 1 ? 'entry' : 'entries'} into the existing ${mergedCount === 1 ? 'one' : 'ones'} — nothing lost, just tidied.`;
 
