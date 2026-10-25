@@ -208,6 +208,7 @@ const TAB_MODULES = {
   questions: () => import('./questions.js'),
   board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
   commercial: () => import('./commercial.js'),
+  fashion: () => import('./fashion.js'), // their own style page, inside their file (her 2026-10-25 ask)
 };
 
 export async function render(root, ctx, personId, tab = 'profile') {
@@ -313,7 +314,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
   // the page rises in once per person, not on every in-place re-render (an edit, a toggle)
   const zdEnter = zdLastPerson !== person.id;
   zdLastPerson = person.id;
-  const tabCounts = { relations: casePeople.length > 1 ? casePeople.length : 0, evidence: links.length, review: toReview };
+  const tabCounts = { relations: casePeople.length > 1 ? casePeople.length : 0, evidence: links.length, review: toReview, fashion: (await store.listStyleImagesForPerson(person.id)).length };
   const storyChip = (c, withName, arrow = true) => `<a class="story-chip" href="#/relationship/${c.rel.id}" title="Their milestones, timeline and photos together">♥ Their story${withName ? ` · ${esc(c.other.display_name.split(/\s+/)[0])}` : ''}${arrow ? ' →' : ''}</a>`;
 
   root.innerHTML = `
@@ -359,7 +360,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
       </div>
 
       <div class="zd-card">
-      <div class="tab-strip zd-tabs" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="${k === 'fashion' ? '#/fashion' : '#/subject/' + person.id + (k === 'profile' ? '' : '/' + k)}" ${k === 'fashion' ? 'id="tab-fashion"' : ''} class="${k === tab ? 'active' : ''}">${l}${tabCounts[k] ? ` <span class="zd-cnt${k === 'review' ? ' pink' : ''}">${tabCounts[k]}</span>` : ''}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹ Less' : 'More ▾'}</button>${tab === 'profile' ? `<button type="button" class="zd-arrange" id="arrange-btn" title="Reorder or hide the panels on this page">${zdIcon('cog')}Arrange</button>` : ''}</div>
+      <div class="tab-strip zd-tabs" id="tab-strip">${[...tabs, ...(moreOpen ? tabsMore : [])].map(([k, l]) => `<a href="${'#/subject/' + person.id + (k === 'profile' ? '' : '/' + k)}" class="${k === tab ? 'active' : ''}">${l}${tabCounts[k] ? ` <span class="zd-cnt${k === 'review' ? ' pink' : ''}">${tabCounts[k]}</span>` : ''}</a>`).join('')}<button type="button" class="tab-more" id="tab-more" title="${moreOpen ? 'Fewer tabs' : tabsMore.map(([, l]) => l).join(' · ')}">${moreOpen ? '‹ Less' : 'More ▾'}</button>${tab === 'profile' ? `<button type="button" class="zd-arrange" id="arrange-btn" title="Reorder or hide the panels on this page">${zdIcon('cog')}Arrange</button>` : ''}</div>
 
       <div class="subject-main stack">
       ${tab !== 'profile' ? '<div id="tab-body"></div>' : `
@@ -499,7 +500,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
         <div class="panel">
           <div class="row between wrap" style="gap:8px">
             <span class="section-label">Fashion</span>
-            <a class="btn btn-ghost btn-sm" id="fashion-all-btn" href="#/fashion" style="text-decoration:none">All →</a>
+            <a class="btn btn-ghost btn-sm" id="fashion-all-btn" href="#/subject/${person.id}/fashion" style="text-decoration:none">All →</a>
           </div>
           <div class="row wrap" id="fashion-strip" style="gap:8px"></div>
           <div class="inline-note" style="border-left-color:var(--text-3);margin-top:6px">Paste a picture with Ctrl+V while this tab is open to add one here.</div>
@@ -520,15 +521,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
   root.querySelector('#tab-more').addEventListener('click', () => {
     sessionStorage.setItem('c7-tabs-more', moreOpen ? '0' : '1');
     render(root, ctx, personId, tab);
-  });
-
-  // Fashion isn't a case-level tab like the others here — it's the same
-  // global gallery page the Profile widget's "All →" link opens, filtered
-  // to this person (her ask, 2026-09-28: "show fashion here" on the ⋯ menu)
-  root.querySelector('#tab-fashion')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    localStorage.setItem('c7-fashion-filter', person.id);
-    ctx.navigate('#/fashion');
   });
 
   // profile picture: stored asset first, remote Wikipedia URL as fallback; tap to replace
@@ -1504,8 +1496,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
 
     root.querySelector('#fashion-all-btn')?.addEventListener('click', (e) => {
       e.preventDefault();
-      localStorage.setItem('c7-fashion-filter', person.id);
-      ctx.navigate('#/fashion');
+      ctx.navigate(`#/subject/${person.id}/fashion`); // their own Fashion tab (2026-10-25), not the all-people gallery
     });
 
     if (fashionPasteHandler) document.removeEventListener('paste', fashionPasteHandler);

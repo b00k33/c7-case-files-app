@@ -35,7 +35,105 @@ function imagesFromClipboard(dt) {
 const FILTER_KEY = 'c7-fashion-filter'; // 'all' | 'inspo' | a person id
 let pasteHandler = null;
 
-export async function render(root, ctx) {
+/**
+ * One person's own Fashion page — the Fashion tab inside their file (her ask, 2026-10-25:
+ * "when i click fashion on ivanka trump, takes me to fashion page. i want a specific fashion
+ * page for each person"). Only their pictures, newest first, in year bands — the timeline of
+ * their style. + Add, a bare paste and the Wikimedia pull all land on them; the viewer still
+ * retags a picture to someone else. The all-people gallery (#/fashion) is unchanged.
+ */
+async function renderPerson(root, ctx, personId) {
+  const { store } = ctx;
+  const [person, images, allPeople] = await Promise.all([
+    store.getPerson(personId), store.listStyleImagesForPerson(personId), store.listAllPeople(),
+  ]);
+  const again = () => renderPerson(root, ctx, personId);
+  root.innerHTML = `
+    <div class="stack">
+      <div class="row between wrap" style="gap:12px">
+        <span class="mono" style="font-size:11px;color:var(--text-3)">${images.length} ${images.length === 1 ? 'picture' : 'pictures'} of ${esc(person?.display_name || '')}</span>
+        <div class="row wrap" style="gap:8px">
+          ${person?.wikidata_id ? '<button class="btn btn-ghost btn-sm" id="pf-pull">Pull from Wikimedia</button>' : ''}
+          <button class="btn btn-primary btn-sm" id="add-style-btn">+ Add</button>
+        </div>
+      </div>
+      <div id="pf-pull-slot"></div>
+      <div id="add-style-slot"></div>
+      <div id="fash-body"></div>
+    </div>
+  `;
+  const addSlot = root.querySelector('#add-style-slot');
+  root.querySelector('#add-style-btn').addEventListener('click', () => renderAddForm(addSlot, ctx, allPeople, again, person));
+  const pullBtn = root.querySelector('#pf-pull');
+  if (pullBtn) {
+    pullBtn.addEventListener('click', () => {
+      const slot = root.querySelector('#pf-pull-slot');
+      slot.innerHTML = '<button type="button" class="btn btn-ghost btn-sm" id="fa-pull-btn" hidden></button><div id="fa-pull-progress"></div>';
+      pullBtn.disabled = true;
+      runAutoPull(slot, ctx, person, again);
+    });
+  }
+
+  // a paste anywhere on their page is theirs
+  if (pasteHandler) document.removeEventListener('paste', pasteHandler);
+  pasteHandler = async (e) => {
+    if (!document.getElementById('fash-body') || !root.isConnected) return;
+    if (addSlot.children.length) return;
+    if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+    const files = imagesFromClipboard(e.clipboardData);
+    if (!files.length) return;
+    e.preventDefault();
+    await saveStyleFiles(ctx, files, { personId, date: null, caption: null, source: null });
+    again();
+  };
+  document.addEventListener('paste', pasteHandler);
+
+  const body = root.querySelector('#fash-body');
+  if (!images.length) {
+    body.appendChild(emptyState({
+      missing: 'No fashion pictures yet.',
+      why: `Add one by hand, paste one with Ctrl+V on this page${person?.wikidata_id ? ', or pull what Wikimedia has' : ''}.`,
+      action: '+ Add',
+      onAction: () => renderAddForm(addSlot, ctx, allPeople, again, person),
+    }));
+    return;
+  }
+  const resolved = (await Promise.all(images.map(async (img) => ({ ...img, url: await resolveAssetUrl(img.file_path, img.mime) })))).filter((img) => img.url);
+  const years = [];
+  for (const img of resolved) {
+    const y = img.dated ? img.dated.slice(0, 4) : 'Undated';
+    let band = years.find((b) => b.y === y);
+    if (!band) years.push(band = { y, imgs: [] });
+    band.imgs.push(img);
+  }
+  resolved.forEach((img, idx) => { img.idx = idx; });
+  for (const band of years) {
+    const sec = document.createElement('div');
+    sec.innerHTML = `<div class="section-label" style="margin:8px 0">${esc(band.y)} · ${band.imgs.length}</div>`;
+    const wall = document.createElement('div');
+    wall.className = 'fashion-wall';
+    for (const img of band.imgs) {
+      const card = document.createElement('div');
+      card.className = 'fashion-card';
+      card.innerHTML = `<img src="${img.url}" alt="" loading="lazy">${img.caption ? `<span class="tag">${esc(img.caption)}</span>` : ''}`;
+      card.addEventListener('click', () => openShotViewer({
+        pictures: resolved.map((r) => ({ url: r.url, caption: r.caption, id: r.id, personName: person?.display_name || '' })),
+        index: img.idx,
+        onCaption: async (p, text) => { await store.updateStyleImage(p.id, { caption: text }); },
+        onRemove: async (p) => { await store.softDeleteStyleImage(p.id); },
+        onReassignPerson: async (p, pid) => { await store.updateStyleImage(p.id, { person_id: pid }); },
+        people: allPeople,
+        onClosed: again,
+      }));
+      wall.appendChild(card);
+    }
+    sec.appendChild(wall);
+    body.appendChild(sec);
+  }
+}
+
+export async function render(root, ctx, personId) {
+  if (personId) return renderPerson(root, ctx, personId);
   const { store } = ctx;
   const [images, chipPeople, allPeople] = await Promise.all([
     store.listStyleImages(), store.listStylePeople(), store.listAllPeople(),
@@ -146,7 +244,7 @@ export async function saveStyleFiles(ctx, files, { personId, date, caption, sour
   flushUploads();
 }
 
-function renderAddForm(slot, ctx, allPeople, onDone) {
+function renderAddForm(slot, ctx, allPeople, onDone, preset = null) {
   const { store } = ctx;
   if (slot.children.length) { slot.innerHTML = ''; return; }
   const sortedPeople = [...allPeople].sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
@@ -176,7 +274,14 @@ function renderAddForm(slot, ctx, allPeople, onDone) {
 
   const personField = slot.querySelector('#fa-person');
   const pullSlot = slot.querySelector('#fa-pull-slot');
+  // on a person's own Fashion page the form is already theirs: the name is filled in and the
+  // "Who is this?" field is hidden (their page has its own Wikimedia button)
+  if (preset) {
+    personField.value = preset.display_name;
+    personField.closest('.field').style.display = 'none';
+  }
   const matchPerson = () => {
+    if (preset) return preset; // never a same-named someone else
     const typed = personField.value.trim().toLowerCase();
     return typed ? allPeople.find((p) => p.display_name.trim().toLowerCase() === typed) : null;
   };
