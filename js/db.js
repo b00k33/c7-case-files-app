@@ -457,10 +457,60 @@ function backupName() {
   return `c7-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.db`;
 }
 
+// A backup is kept only when the data really changed, and at most one per
+// BACKUP_GAP_MS (2026-10-25: every minute's sync marked the db dirty and the
+// save copied the identical file again, so 30 backups held ~30 minutes of the
+// same bytes and real history was pruned away).
+const BACKUP_GAP_MS = 10 * 60 * 1000;
+let lastBackupHash = null; // sha256 of the newest backup (read once, then kept)
+let lastBackupAt = 0;      // when the newest backup was made
+let backupScanned = false;
+
+async function newestBackupInfo() {
+  if (backupScanned) return;
+  backupScanned = true;
+  try {
+    if (mode === 'idb') {
+      const names = (await idbKeys('backups')).filter((n) => String(n).startsWith('c7-')).sort();
+      for (let i = names.length - 1; i >= 0; i--) {
+        const bytes = await idbGet('backups', names[i]);
+        if (bytes && bytes.byteLength) { lastBackupHash = await sha256(bytes); lastBackupAt = backupTime(names[i]); break; }
+      }
+    } else {
+      const files = [];
+      for await (const [name, h] of backupsHandle.entries()) {
+        if (name.startsWith('c7-') && name.endsWith('.db')) files.push([name, h]);
+      }
+      files.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+      for (let i = files.length - 1; i >= 0; i--) {
+        const f = await files[i][1].getFile();
+        if (f.size > 0) { lastBackupHash = await sha256(await f.arrayBuffer()); lastBackupAt = f.lastModified || backupTime(files[i][0]); break; }
+      }
+    }
+  } catch (_) { /* no backups yet */ }
+}
+function backupTime(name) {
+  const m = /^c7-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(name);
+  return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : 0;
+}
+/** Back up `existing` (the bytes about to be overwritten) unless it is the same as the newest backup, or one was made in the last 10 minutes. */
+async function wantBackup(existingHash) {
+  await newestBackupInfo();
+  if (existingHash === lastBackupHash) return false;
+  return Date.now() - lastBackupAt >= BACKUP_GAP_MS;
+}
+function noteBackup(hash) { lastBackupHash = hash; lastBackupAt = Date.now(); }
+
 async function pruneBackups() {
   const names = [];
-  for await (const [name] of backupsHandle.entries()) {
-    if (name.startsWith('c7-') && name.endsWith('.db')) names.push(name);
+  for await (const [name, h] of backupsHandle.entries()) {
+    if (!(name.startsWith('c7-') && name.endsWith('.db'))) continue;
+    // a 0-byte file is a save that was cut off before it wrote anything: it
+    // holds nothing, so it is cleared away and never counts as a backup
+    try {
+      if ((await h.getFile()).size === 0) { await backupsHandle.removeEntry(name); continue; }
+    } catch (_) { /* unreadable: leave it */ }
+    names.push(name);
   }
   names.sort();
   const excess = names.length - BACKUPS_TO_KEEP;
@@ -485,34 +535,50 @@ export async function persist() {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   setState({ saveState: 'saving' });
   try {
+    const bytes = db.export();
+    const newHash = await sha256(bytes);
     if (mode === 'idb') {
       // back up what's currently stored BEFORE overwriting it — same law
       // as the folder mode, browser-storage edition
-      try {
-        const existing = await idbGet('files', 'c7.db');
-        if (existing && existing.byteLength) {
-          await idbSet('backups', backupName(), existing);
-          await pruneIdbBackups();
+      let existing = null;
+      try { existing = await idbGet('files', 'c7.db'); } catch (_) { /* first-ever save */ }
+      const existingHash = existing && existing.byteLength ? await sha256(existing) : null;
+      if (existingHash !== newHash) { // nothing changed: no write, no backup
+        if (existingHash && await wantBackup(existingHash)) {
+          try {
+            await idbSet('backups', backupName(), existing);
+            noteBackup(existingHash);
+            await pruneIdbBackups();
+          } catch (_) { /* a failed backup never blocks the save */ }
         }
-      } catch (_) { /* first-ever save, nothing to back up yet */ }
-      await idbSet('files', 'c7.db', db.export());
+        await idbSet('files', 'c7.db', bytes);
+      }
     } else {
       // back up whatever is currently on disk BEFORE overwriting it
+      let existingBuf = null;
       try {
         const existing = await dbFileHandle.getFile();
-        if (existing.size > 0) {
-          const backupHandle = await backupsHandle.getFileHandle(backupName(), { create: true });
-          const w = await backupHandle.createWritable();
-          await w.write(await existing.arrayBuffer());
-          await w.close();
-          await pruneBackups();
-        }
+        if (existing.size > 0) existingBuf = await existing.arrayBuffer();
       } catch (_) { /* first-ever save, nothing to back up yet */ }
-
-      const bytes = db.export();
-      const writable = await dbFileHandle.createWritable();
-      await writable.write(bytes);
-      await writable.close();
+      const existingHash = existingBuf ? await sha256(existingBuf) : null;
+      if (existingHash !== newHash) { // nothing changed: no write, no backup
+        if (existingHash && await wantBackup(existingHash)) {
+          const name = backupName();
+          try {
+            const backupHandle = await backupsHandle.getFileHandle(name, { create: true });
+            const w = await backupHandle.createWritable();
+            await w.write(existingBuf);
+            await w.close();
+            noteBackup(existingHash);
+          } catch (_) {
+            try { await backupsHandle.removeEntry(name); } catch (__) { /* nothing was made */ }
+          }
+          try { await pruneBackups(); } catch (_) { /* ignore */ }
+        }
+        const writable = await dbFileHandle.createWritable();
+        await writable.write(bytes);
+        await writable.close();
+      }
     }
 
     dirty = false;
