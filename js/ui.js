@@ -535,3 +535,79 @@ export function countUp(scope) {
     setTimeout(() => { el.textContent = String(to); }, dur + k * 90 + 600);
   });
 }
+
+// every date box in the app (her 2026-10-25 "let me type in the date and pick date"): the
+// native <input type="date"> stays in place, unseen, and keeps its id and ISO value (so every
+// page reads it as before); beside it sits a text box she types into as dd/mm/yyyy (also
+// 25.10.26, 25102026, 2026-10-25, 25 Oct 2026) and a calendar button that opens the picker.
+const DT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const dtPad = (n, w = 2) => String(n).padStart(w, '0');
+export function dtShow(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+export function dtParse(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return '';
+  let d, mo, y, m;
+  if ((m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(s))) [, y, mo, d] = m;
+  else if ((m = /^(\d{1,2})[-/. ]+(\d{1,2})[-/. ]+(\d{2}|\d{4})$/.exec(s))) [, d, mo, y] = m;
+  else if ((m = /^(\d{2})(\d{2})(\d{4}|\d{2})$/.exec(s))) [, d, mo, y] = m;
+  else if ((m = /^(\d{1,2})[ -/.]*([a-z]{3})[a-z]*\.?[ -/.,]*(\d{2}|\d{4})$/.exec(s))) { d = m[1]; mo = DT_MONTHS.indexOf(m[2]) + 1; y = m[3]; }
+  else if ((m = /^([a-z]{3})[a-z]*\.?[ -/.]*(\d{1,2})(?:st|nd|rd|th)?[ ,/.-]*(\d{2}|\d{4})$/.exec(s))) { mo = DT_MONTHS.indexOf(m[1]) + 1; d = m[2]; y = m[3]; }
+  else return null;
+  const short = String(y).length <= 2;
+  d = +d; mo = +mo; y = +y;
+  if (short) { const now = new Date().getFullYear() % 100; y += y > now ? 1900 : 2000; }
+  const t = new Date(y, mo - 1, d);
+  if (!mo || t.getFullYear() !== y || t.getMonth() !== mo - 1 || t.getDate() !== d) return null;
+  return `${dtPad(y, 4)}-${dtPad(mo)}-${dtPad(d)}`;
+}
+function enhanceDate(native) {
+  if (native.dataset.dt) return;
+  native.dataset.dt = '1';
+  const wrap = document.createElement('span');
+  wrap.className = 'dt-field';
+  native.replaceWith(wrap);
+  wrap.innerHTML = `<input type="text" class="dt-text" inputmode="numeric" autocomplete="off" placeholder="dd/mm/yyyy" aria-label="Date, dd/mm/yyyy"><button type="button" class="dt-pick" title="Pick from a calendar" aria-label="Pick from a calendar">${zdIcon('cal')}</button>`;
+  wrap.appendChild(native);
+  native.tabIndex = -1;
+  native.setAttribute('aria-hidden', 'true');
+  const text = wrap.querySelector('.dt-text');
+  text.value = dtShow(native.value);
+  let selfPush = false;
+  const push = (iso) => {
+    if (native.value === iso) return;
+    native.value = iso;
+    selfPush = true; // her typing stays as typed; only a calendar pick rewrites the box
+    native.dispatchEvent(new Event('input', { bubbles: true }));
+    native.dispatchEvent(new Event('change', { bubbles: true }));
+    selfPush = false;
+  };
+  text.addEventListener('input', (e) => {
+    // digits only: the slashes come by themselves (25 → 25/, 2510 → 25/10/)
+    if (e.inputType === 'insertText' && /^\d{2}$|^\d{2}\/\d{2}$/.test(text.value)) text.value += '/';
+    wrap.classList.remove('dt-bad');
+    const iso = dtParse(text.value);
+    push(iso || '');
+  });
+  text.addEventListener('blur', () => {
+    const iso = dtParse(text.value);
+    if (iso) text.value = dtShow(iso);
+    wrap.classList.toggle('dt-bad', iso === null);
+  });
+  text.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' && e.altKey) { e.preventDefault(); openPick(); } });
+  const openPick = () => {
+    try { native.showPicker(); } catch (_) { native.focus(); native.click(); }
+  };
+  wrap.querySelector('.dt-pick').addEventListener('click', openPick);
+  native.addEventListener('change', () => { if (selfPush) return; text.value = dtShow(native.value); wrap.classList.remove('dt-bad'); });
+}
+export function enhanceDateInputs(scope = document) {
+  scope.querySelectorAll('input[type="date"]:not([data-dt])').forEach(enhanceDate);
+}
+// one watcher for the whole app, so every page's date box (now and later) gets the same field
+export function watchDateInputs() {
+  enhanceDateInputs();
+  new MutationObserver(() => enhanceDateInputs()).observe(document.body, { childList: true, subtree: true });
+}

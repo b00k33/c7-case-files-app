@@ -2,7 +2,7 @@ import * as db from './db.js';
 import * as store from './store.js';
 import * as sync from './sync.js';
 import { seedExampleCase } from './store.js';
-import { inlineNote, clearInlineNote } from './ui.js';
+import { inlineNote, clearInlineNote, watchDateInputs } from './ui.js';
 import { isPersonKind } from './pages/dashboard.js';
 
 const ROUTES = {
@@ -612,6 +612,7 @@ function appendBackupButton(body) {
   body.appendChild(wrap);
 }
 
+watchDateInputs();
 boot();
 
 // ---- installable app: service worker + her chosen update flow ----

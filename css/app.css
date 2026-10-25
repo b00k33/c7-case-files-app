@@ -2689,3 +2689,13 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .fashion-card, .fashion-card img, .fashion-card .tag, .fs-chip { transition: none; }
   .fashion-card:hover, .fashion-card:hover img.in, .fashion-card:hover .tag, .fs-chip:hover { transform: none; }
 }
+
+/* date boxes (ui.js enhanceDateInputs): type dd/mm/yyyy or tap the calendar; the native date
+   input sits under the button, unseen, so its picker opens there and the page still reads it */
+.dt-field { position: relative; display: flex; align-items: stretch; min-width: 0; }
+.dt-field .dt-text { flex: 1; min-width: 0; width: 100%; padding-right: 40px; font-variant-numeric: tabular-nums; }
+.dt-field .dt-pick { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; min-height: 0; padding: 0; display: grid; place-items: center; border: 0; border-radius: 4px; background: transparent; color: var(--text-3); cursor: pointer; transition: color .15s ease, background .15s ease; }
+.dt-field .dt-pick:hover, .dt-field .dt-pick:focus-visible { color: var(--brass); background: color-mix(in srgb, var(--brass) 10%, transparent); }
+.dt-field .dt-pick .zd-ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dt-field input[type="date"] { position: absolute; right: 4px; bottom: 0; width: 32px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.dt-field.dt-bad .dt-text, .zd .dt-field.dt-bad .dt-text { border-color: var(--red, #c0392b); box-shadow: 0 0 0 2px color-mix(in srgb, var(--red, #c0392b) 18%, transparent); }
