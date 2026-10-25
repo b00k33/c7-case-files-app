@@ -41,7 +41,7 @@ const TITLES = {
 };
 // routes that live "inside" a case: show the back arrow, light up Cases in the nav
 const INSIDE_CASE = new Set(['subject', 'relationship', 'family', 'event', 'series', 'company', 'evidence', 'board', 'relations', 'import', 'patterns', 'questions']);
-const HOME_ROUTE = 'cases';
+const HOME_ROUTE = 'people'; // her 2026-10-25 "make people the primary tab"
 
 const connectRoot = document.getElementById('connect-root');
 const appShell = document.getElementById('app-shell');
@@ -331,7 +331,7 @@ async function boot() {
         else if (cases.length) currentCaseId = cases[0].id;
       }
       refreshCaseContext();
-      if (!location.hash) location.hash = localStorage.getItem('c7-last-hash') || `#/${HOME_ROUTE}`;
+      if (!location.hash) { const last = localStorage.getItem('c7-last-hash'); location.hash = last && last !== '#/cases' ? last : `#/${HOME_ROUTE}`; } // a launch left on the Cases list opens on People, the home tab
       else renderRoute();
       sync.initSync(); // fire-and-forget — the app never waits on the network
       // the quiet name tidy (2026-09-13): a device that syncs gets tidied by
