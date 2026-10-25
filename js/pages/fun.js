@@ -1,9 +1,9 @@
-import { signFor } from '../chinese.js';
-import { emptyState, animalHtml } from '../indicators.js';
+import { signFor, ANIMALS, animalIndex } from '../chinese.js';
+import { emptyState, animalHtml, animalLabel, zodiacGroup } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { clearInlineNote } from '../ui.js';
 import { autoCaseName, looksHurried } from '../names.js';
-import { sceneSvg, playOnArrival } from '../story-art.js';
+import { sceneSvg, playOnArrival, zodiacSvg } from '../story-art.js';
 
 // her 2026-10-25 "add the scene gallery to the Fun & Zodiac page": every
 // Their Story milestone scene in one place, the same drawings the timeline uses
@@ -19,6 +19,7 @@ const SCENE_GALLERY = [
   ['other', 'Anything else', 'a gold star turns'],
 ];
 const scenesSeen = new Set(); // each scene plays once a session as it scrolls into view, not on every redraw
+let zooSeen = false; // the twelve animals pop in once a session
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -89,6 +90,11 @@ export async function render(root, ctx) {
       </div>
 
       <div id="sign-groups" class="stack" style="gap:16px"></div>
+
+      <div class="panel">
+        <div class="panel-title">The twelve animals</div>
+        <div class="fz-zoo" id="fz-zoo"></div>
+      </div>
 
       <div class="panel">
         <div class="panel-title">Every milestone scene</div>
@@ -174,6 +180,25 @@ export async function render(root, ctx) {
     const sign = signFor(exactBirth(p)); // never p.birth_date — see js/person-dates.js
     if (!sign.ok || sign.boundary) { unresolved.push(p); continue; }
     (groups[sign.animal] = groups[sign.animal] || []).push({ person: p, sign });
+  }
+
+  // the twelve animals (her 2026-10-25 ask): the same living cartoon faces as Their Story and
+  // the zodiac map, in zodiac order, each with its latest year and how many people here share it
+  const thisYear = new Date().getFullYear();
+  const zoo = root.querySelector('#fz-zoo');
+  zoo.innerHTML = ANIMALS.map((a, i) => {
+    const year = thisYear - ((animalIndex(thisYear) - i + 12) % 12);
+    const n = (groups[a] || []).length;
+    return `<div class="fz-animal${year === thisYear ? ' now' : ''}" style="--i:${i};--zone:var(--zc-${zodiacGroup(a)})" title="${animalLabel(a)} · ${year === thisYear ? 'this year' : `last ${year}`}">
+      ${zodiacSvg(a, 'fz-zod')}
+      <b>${animalLabel(a)}</b>
+      <span class="mono">${year}${n ? ` · ${n} here` : ''}</span>
+    </div>`;
+  }).join('');
+  if (!zooSeen) {
+    zooSeen = true;
+    zoo.classList.add('fz-zoo-in');
+    setTimeout(() => zoo.classList.remove('fz-zoo-in'), 2400);
   }
 
   const tagsByPerson = {};

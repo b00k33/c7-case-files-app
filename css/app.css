@@ -2552,3 +2552,19 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .fz-scene-txt span { font-size: 11px; color: var(--text-3); line-height: 1.35; }
 @media (max-width: 640px) { .fz-scene .st-scene { height: 92px; } }
 @media (prefers-reduced-motion: reduce) { .fz-scene, .fz-scene:hover { transition: none; transform: none; } }
+/* Fun & Zodiac: the twelve cartoon animals (2026-10-25), story-art's own faces (they bob and
+   blink by themselves). Trine colour along the bottom edge; this year's animal is ringed.
+   They pop in once a session (.fz-zoo-in); pointing at one makes it hop. */
+.fz-zoo { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp-2); }
+@media (max-width: 640px) { .fz-zoo { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.fz-animal { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--sp-2) 4px var(--sp-2); border-radius: var(--r-lg); text-align: center;
+  background: color-mix(in srgb, var(--zone) 8%, var(--ink-2)); box-shadow: inset 0 -3px 0 var(--zone); transition: transform .2s ease, box-shadow .25s ease; }
+.fz-animal.now { box-shadow: inset 0 -3px 0 var(--zone), 0 0 0 2px var(--zone); }
+.fz-animal:hover { transform: translateY(-3px); }
+.fz-animal .fz-zod { width: 52px; height: 52px; display: block; }
+.fz-animal:hover .fz-zod { animation: zm-hop .6s cubic-bezier(.3,1.5,.5,1); }
+.fz-animal b { font-size: 12px; color: var(--text); line-height: 1.2; }
+.fz-animal span { font-size: 10px; color: var(--text-3); }
+.fz-zoo-in .fz-animal { animation: tree-face .5s cubic-bezier(.3,1.5,.5,1) both; animation-delay: calc(.1s + var(--i, 0) * 70ms); }
+@media (max-width: 640px) { .fz-animal .fz-zod { width: 44px; height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .fz-animal, .fz-animal:hover { transition: none; transform: none; } .fz-zoo-in .fz-animal, .fz-animal:hover .fz-zod { animation: none; } }
