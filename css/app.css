@@ -2598,3 +2598,34 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .fz-spark, .fz-pv, .fz-animal.pick .fz-zod, .fz-group:has(.list-row:hover) .fz-gzod, .list-row.fz-hello, .list-row.fz-hello .chip, .fz-group.fz-hello .fz-gzod, .fz-animal.fz-hello .fz-zod { animation: none; }
   .fz-animal.pick { transform: none; }
 }
+/* Patterns made lively (2026-10-25): trait chips pop in once (.pt-chips-in) and a picked one
+   pops; the results swap (.pt-out fades the old, the new groups rise); each group's gold 9
+   spins on, its people slide in one after another, "★ both" shines; + Tag people fills a bar
+   and ticks each name into the app's live feed. */
+.pt-chip { transition: transform .15s ease, box-shadow .2s ease; }
+.pt-chip:hover { transform: translateY(-2px); box-shadow: var(--lift-btn); }
+.pt-chips-in .pt-chip { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.15s + var(--i, 0) * 45ms); }
+.pt-chip.pop { animation: pt-pick .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes pt-pick { 0% { transform: scale(.85); } 60% { transform: scale(1.12); } 100% { transform: none; } }
+.pt-out { opacity: 0; transform: translateY(6px); transition: opacity .15s ease, transform .15s ease; }
+.pt-group { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--g, 0) * 120ms); }
+.pt-head { display: flex; align-items: center; gap: 6px; }
+.pt-nine { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gold, var(--brass)); color: var(--ink-1); font-family: var(--font-disp, var(--font-title)); font-weight: 700; font-size: 12px; letter-spacing: 0;
+  animation: pt-spin .7s cubic-bezier(.3,1.4,.5,1) both; animation-delay: calc(.15s + var(--g, 0) * 120ms); }
+.pt-day .pt-nine { border-radius: 5px; }
+@keyframes pt-spin { from { transform: rotate(-200deg) scale(0); } }
+.pt-row { animation: pt-slide .4s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.25s + var(--g, 0) * 120ms + var(--i, 0) * 45ms); }
+@keyframes pt-slide { from { opacity: 0; transform: translateX(-12px); } }
+.pt-both { position: relative; overflow: hidden; }
+.pt-both i { display: inline-block; font-style: normal; animation: fz-twinkle 2.4s ease-in-out infinite; }
+.pt-both::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.55) 50%, transparent 65%); transform: translateX(-120%); animation: pt-sheen 3.2s ease-in-out 1s infinite; }
+@keyframes pt-sheen { 0% { transform: translateX(-120%); } 40%, 100% { transform: translateX(120%); } }
+.pt-now { font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+.pt-bar { height: 4px; border-radius: 999px; background: var(--ink-2); overflow: hidden; margin-bottom: 6px; }
+.pt-bar i { display: block; height: 100%; width: 0; background: var(--brass); transition: width .35s ease; }
+.pt-done { animation: zd-rise .4s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .pt-chips-in .pt-chip, .pt-chip.pop, .pt-group, .pt-nine, .pt-row, .pt-both i, .pt-both::after, .pt-done { animation: none; }
+  .pt-both::after { display: none; }
+  .pt-chip, .pt-chip:hover, .pt-bar i, .pt-out { transition: none; transform: none; }
+}

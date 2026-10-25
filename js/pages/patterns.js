@@ -2,6 +2,9 @@ import { lifePath } from '../numerology.js';
 import { emptyState } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { searchPeople, fillFromWikidata } from '../lookup.js';
+import { renderWikiFeed, countUp } from '../ui.js';
+
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -45,13 +48,21 @@ function wireBatchTag(btn, slot, ctx) {
       const existing = await store.listAllPeople(); // checked fresh each run, so a name added earlier in THIS same batch is found too
       let created = 0, matched = 0;
       const failed = [];
+      // lively (2026-10-25): a bar that fills and the app's live feed, one ticked line per person
+      prog.innerHTML = '<div class="pt-now mono"></div><div class="pt-bar"><i></i></div><div class="pt-feed"></div>';
+      const nowEl = prog.querySelector('.pt-now');
+      const barEl = prog.querySelector('.pt-bar i');
+      const feed = renderWikiFeed(prog.querySelector('.pt-feed'));
+      const step = (i) => { barEl.style.width = `${Math.round((i / names.length) * 100)}%`; };
       for (let i = 0; i < names.length; i++) {
         const name = names[i];
-        prog.textContent = `${i + 1} of ${names.length} — ${name}`;
+        nowEl.textContent = `${i + 1} of ${names.length} — ${name}`;
+        step(i);
         const already = existing.find((p) => p.display_name.trim().toLowerCase() === name.toLowerCase());
         if (already) {
           await store.tagTarget(tagId, 'person', already.id);
           matched++;
+          feed.addLine(`${already.display_name} — tagged`);
           continue;
         }
         try {
@@ -64,13 +75,16 @@ function wireBatchTag(btn, slot, ctx) {
           await store.tagTarget(tagId, 'person', person.id);
           existing.push(person);
           created++;
+          feed.addLine(`${m.label} — added from Wikidata and tagged`);
         } catch (e) { failed.push(name); }
       }
+      step(names.length);
+      nowEl.textContent = '';
       // the gallery below needs a full page re-render to pick up new people
       // and tags — deferred to her own tap on "Done" rather than firing it
       // immediately, so the summary doesn't vanish the instant it appears
       // (same reasoning as the life-events sheet's own "Done" step)
-      prog.innerHTML = `<div class="inline-note" style="border-left-color:var(--green)">Done — ${created} added, ${matched} already here, all tagged “${esc(trait)}.”${failed.length ? ` Couldn't find: ${failed.map(esc).join(', ')}.` : ''}</div>`;
+      prog.insertAdjacentHTML('beforeend', `<div class="inline-note pt-done" style="border-left-color:var(--green)">Done — ${created} added, ${matched} already here, all tagged “${esc(trait)}.”${failed.length ? ` Couldn't find: ${failed.map(esc).join(', ')}.` : ''}</div>`);
       slot.querySelector('#tp-actions').innerHTML = '<button class="btn btn-primary btn-sm" id="tp-done">Done</button>';
       slot.querySelector('#tp-done').addEventListener('click', () => ctx.rerender());
     });
@@ -133,13 +147,21 @@ async function traitsGalleryPanel(ctx) {
   panel.appendChild(chipRow);
   panel.appendChild(resultsEl);
 
-  const paintChips = () => {
-    chipRow.innerHTML = traitNames.map((name) => `<button type="button" class="chip" data-name="${esc(name)}" style="border:0;cursor:pointer${name === current ? ';background:var(--brass);color:var(--on-brass)' : ''}">${esc(name)} · ${traitCount.get(name)}</button>`).join('');
+  // lively (2026-10-25): the chips pop in once when the gallery is drawn; picking one pops it
+  // and the results swap (the old ones fade out, the new ones rise in)
+  let chipsArrived = false;
+  const paintChips = (picked) => {
+    chipRow.classList.toggle('pt-chips-in', !chipsArrived);
+    chipsArrived = true;
+    chipRow.innerHTML = traitNames.map((name, i) => `<button type="button" class="chip pt-chip${name === current ? ' on' : ''}${name === picked ? ' pop' : ''}" data-name="${esc(name)}" style="--i:${Math.min(i, 20)};border:0;cursor:pointer${name === current ? ';background:var(--brass);color:var(--on-brass)' : ''}">${esc(name)} · ${traitCount.get(name)}</button>`).join('');
     chipRow.querySelectorAll('[data-name]').forEach((btn) => btn.addEventListener('click', () => {
+      if (btn.dataset.name === current) return;
       current = btn.dataset.name;
       localStorage.setItem(TRAIT_PICK_KEY, current);
-      paintChips();
-      paintResults();
+      paintChips(current);
+      if (calm()) { paintResults(); return; }
+      resultsEl.classList.add('pt-out');
+      setTimeout(() => { resultsEl.classList.remove('pt-out'); paintResults(); }, 160);
     }));
   };
 
@@ -158,25 +180,31 @@ async function traitsGalleryPanel(ctx) {
       }));
       return;
     }
-    const group = (title, rows) => {
+    // each result group rises in with its gold 9 spinning on, its count counting up and its
+    // people sliding in one after another; "★ both" shines (painted only on arrival or a new pick)
+    let k = 0;
+    const group = (title, rows, kind) => {
       const box = document.createElement('div');
-      box.style.cssText = 'background:var(--ink-2);border-radius:var(--r-lg);padding:var(--sp-3);margin-top:8px';
-      box.innerHTML = `<div class="section-label" style="margin-bottom:8px">${title} · ${rows.length}</div>`;
+      box.className = `pt-group pt-${kind}`;
+      box.style.cssText = `--g:${k++};background:var(--ink-2);border-radius:var(--r-lg);padding:var(--sp-3);margin-top:8px`;
+      box.innerHTML = `<div class="section-label pt-head" style="margin-bottom:8px"><span class="pt-nine" aria-hidden="true">9</span>${title} · <span data-count="${rows.length}">${rows.length}</span></div>`;
       const list = document.createElement('div');
       list.className = 'stack';
       list.style.gap = '2px';
-      for (const r of rows) {
+      for (const [i, r] of rows.entries()) {
         const row = document.createElement('div');
-        row.className = 'list-row';
-        row.innerHTML = `<div class="main"><div class="title">${esc(r.p.display_name)}</div></div>${bothIds.has(r.p.id) ? '<span class="chip brass" style="border:0">★ both</span>' : ''}`;
+        row.className = 'list-row pt-row';
+        row.style.setProperty('--i', Math.min(i, 24));
+        row.innerHTML = `<div class="main"><div class="title">${esc(r.p.display_name)}</div></div>${bothIds.has(r.p.id) ? '<span class="chip brass pt-both" style="border:0"><i aria-hidden="true">★</i> both</span>' : ''}`;
         row.addEventListener('click', () => ctx.navigate(`#/subject/${r.p.id}`));
         list.appendChild(row);
       }
       box.appendChild(list);
       return box;
     };
-    if (life9.length) resultsEl.appendChild(group('Life path 9', life9));
-    if (day9.length) resultsEl.appendChild(group('Born on the 9th', day9));
+    if (life9.length) resultsEl.appendChild(group('Life path 9', life9, 'life'));
+    if (day9.length) resultsEl.appendChild(group('Born on the 9th', day9, 'day'));
+    countUp(resultsEl);
   };
 
   paintChips();
