@@ -20,6 +20,7 @@ const SCENE_GALLERY = [
 ];
 const scenesSeen = new Set(); // each scene plays once a session as it scrolls into view, not on every redraw
 let zooSeen = false; // the twelve animals pop in once a session
+let justAdded = null; // the person just added: their row, their group and their animal greet them after the redraw
 
 const FUN_CASE_NAME = 'Fun & Zodiac';
 
@@ -74,14 +75,14 @@ export async function render(root, ctx) {
     <div class="stack">
       <div class="panel" style="background:var(--ink-2)">
         <p style="margin:0;color:var(--text-2);font-size:12px">
-          ✦ Just for fun — nothing on this page goes through Review. Add someone, note a trait, and see whether it clusters by sign.
+          <span class="fz-spark" aria-hidden="true">✦</span> Just for fun — nothing on this page goes through Review. Add someone, note a trait, and see whether it clusters by sign.
         </p>
       </div>
 
       <div class="panel">
         <div class="panel-title">Add someone</div>
         <div class="field"><label>Name</label><input type="text" id="f-name" placeholder="Salma Hayek"></div>
-        <div class="field"><label>Birth date</label><input type="date" id="f-bdate"></div>
+        <div class="field"><label>Birth date</label><div class="fz-bdate"><input type="date" id="f-bdate"><div class="fz-preview" id="f-preview" aria-live="polite"></div></div></div>
         <div class="field"><label>Trait(s) you noticed — comma separated</label><input type="text" id="f-traits" placeholder="loves dogs, outspoken"></div>
         <div class="field"><label>Clip link (optional)</label><input type="text" id="f-link" placeholder="https://..."></div>
         <div class="field"><label>Quote (optional)</label><input type="text" id="f-quote" placeholder="What they said"></div>
@@ -102,6 +103,25 @@ export async function render(root, ctx) {
       </div>
     </div>
   `;
+
+  // the sign shows itself as the birth date is typed: the animal's face pops in beside the
+  // field and its tile in "The twelve animals" lights up
+  const bdateEl = root.querySelector('#f-bdate');
+  const preview = root.querySelector('#f-preview');
+  let previewAnimal = null;
+  const showSign = () => {
+    const s = bdateEl.value ? signFor(bdateEl.value) : { ok: false };
+    const animal = s.ok && !s.boundary ? s.animal : null;
+    root.querySelectorAll('.fz-animal.pick').forEach((t) => t.classList.remove('pick'));
+    if (animal) root.querySelector(`.fz-animal[data-animal="${animal}"]`)?.classList.add('pick');
+    if (animal === previewAnimal && preview.childElementCount) return;
+    previewAnimal = animal;
+    preview.innerHTML = animal
+      ? `<div class="fz-pv">${zodiacSvg(animal, 'fz-pv-zod')}<span><b>${animalLabel(animal)}</b>${s.element ? ` · ${s.element}` : ''}</span></div>`
+      : s.ok && s.boundary ? '<div class="fz-pv"><span>Near Lunar New Year — sign unsure</span></div>' : '';
+  };
+  bdateEl.addEventListener('input', showSign);
+  bdateEl.addEventListener('change', showSign);
 
   const sceneGrid = root.querySelector('#fz-scenes');
   sceneGrid.innerHTML = SCENE_GALLERY.map(([kind, title, what], i) => `
@@ -170,6 +190,8 @@ export async function render(root, ctx) {
     }
 
     if (existing) lastNote = `${name} was already here — added this to their existing entry instead of making a new one.`;
+    const sign = signFor(bdate || person.birth_date);
+    justAdded = { id: person.id, animal: sign.ok && !sign.boundary ? sign.animal : null };
     render(root, ctx);
   });
 
@@ -189,7 +211,7 @@ export async function render(root, ctx) {
   zoo.innerHTML = ANIMALS.map((a, i) => {
     const year = thisYear - ((animalIndex(thisYear) - i + 12) % 12);
     const n = (groups[a] || []).length;
-    return `<div class="fz-animal${year === thisYear ? ' now' : ''}" style="--i:${i};--zone:var(--zc-${zodiacGroup(a)})" title="${animalLabel(a)} · ${year === thisYear ? 'this year' : `last ${year}`}">
+    return `<div class="fz-animal${year === thisYear ? ' now' : ''}" data-animal="${a}" style="--i:${i};--zone:var(--zc-${zodiacGroup(a)})" title="${animalLabel(a)} · ${year === thisYear ? 'this year' : `last ${year}`}">
       ${zodiacSvg(a, 'fz-zod')}
       <b>${animalLabel(a)}</b>
       <span class="mono">${year}${n ? ` · ${n} here` : ''}</span>
@@ -217,8 +239,10 @@ export async function render(root, ctx) {
   for (const sign of signNames) {
     const entries = groups[sign];
     const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.innerHTML = `<div class="panel-title">${animalHtml(sign)} <span class="mono" style="color:var(--text-3);font-size:11px">· ${entries.length} ${entries.length === 1 ? 'person' : 'people'}</span></div>`;
+    panel.className = 'panel fz-group';
+    panel.dataset.animal = sign;
+    panel.style.setProperty('--zone', `var(--zc-${zodiacGroup(sign)})`);
+    panel.innerHTML = `<div class="panel-title"><span class="fz-gface" aria-hidden="true">${zodiacSvg(sign, 'fz-gzod')}</span>${animalHtml(sign)} <span class="mono" style="color:var(--text-3);font-size:11px">· ${entries.length} ${entries.length === 1 ? 'person' : 'people'}</span></div>`;
     const list = document.createElement('div');
     list.className = 'stack';
     list.style.gap = '2px';
@@ -226,12 +250,13 @@ export async function render(root, ctx) {
       const tags = tagsByPerson[person.id] || [];
       const row = document.createElement('div');
       row.className = 'list-row';
+      row.dataset.id = person.id;
       row.innerHTML = `
         <div class="main">
           <div class="title">${person.display_name}</div>
           <div class="sub mono">${s.element} ${animalHtml(s.animal)}</div>
         </div>
-        ${tags.length ? `<div class="row wrap" style="gap:4px;max-width:220px;justify-content:flex-end">${tags.map((t) => `<span class="chip brass">${t.name}</span>`).join('')}</div>` : ''}
+        ${tags.length ? `<div class="row wrap" style="gap:4px;max-width:220px;justify-content:flex-end">${tags.map((t, k) => `<span class="chip brass" style="--k:${k}">${t.name}</span>`).join('')}</div>` : ''}
       `;
       row.addEventListener('click', () => ctx.navigate(`#/subject/${person.id}`));
       list.appendChild(row);
@@ -250,11 +275,24 @@ export async function render(root, ctx) {
     for (const p of unresolved) {
       const row = document.createElement('div');
       row.className = 'list-row';
+      row.dataset.id = p.id;
       row.innerHTML = `<div class="main"><div class="title">${p.display_name}</div><div class="sub">Add a birth date to calculate their sign</div></div>`;
       row.addEventListener('click', () => ctx.navigate(`#/subject/${p.id}`));
       list.appendChild(row);
     }
     panel.appendChild(list);
     groupsEl.appendChild(panel);
+  }
+
+  // the one just added is greeted: their row slides in with a glow and their traits pop,
+  // their group's animal and its tile in the twelve hop. Only on this redraw.
+  if (justAdded) {
+    const { id, animal } = justAdded;
+    justAdded = null;
+    const row = root.querySelector(`#sign-groups .list-row[data-id="${id}"]`);
+    const lit = [row, animal && root.querySelector(`.fz-group[data-animal="${animal}"]`), animal && root.querySelector(`.fz-animal[data-animal="${animal}"]`)].filter(Boolean);
+    lit.forEach((el) => el.classList.add('fz-hello'));
+    if (row) row.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    setTimeout(() => lit.forEach((el) => el.classList.remove('fz-hello')), 2200);
   }
 }

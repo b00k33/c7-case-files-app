@@ -2568,3 +2568,33 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .fz-zoo-in .fz-animal { animation: tree-face .5s cubic-bezier(.3,1.5,.5,1) both; animation-delay: calc(.1s + var(--i, 0) * 70ms); }
 @media (max-width: 640px) { .fz-animal .fz-zod { width: 44px; height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .fz-animal, .fz-animal:hover { transition: none; transform: none; } .fz-zoo-in .fz-animal, .fz-animal:hover .fz-zod { animation: none; } }
+/* Fun & Zodiac made lively (2026-10-25): the ✦ twinkles; typing a birth date pops that
+   animal's face in beside the field and lights its tile in the twelve (.pick); each sign group
+   carries its living face, which hops when a row in it is pointed at; the person just added is
+   greeted (.fz-hello: row slides in with a glow, traits pop, their group's face and tile hop). */
+.fz-spark { display: inline-block; color: var(--brass); animation: fz-twinkle 2.8s ease-in-out infinite; }
+@keyframes fz-twinkle { 0%, 100% { transform: scale(1) rotate(0); opacity: 1; } 50% { transform: scale(1.35) rotate(40deg); opacity: .6; } }
+.fz-bdate { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.fz-bdate input { flex: 0 1 220px; }
+.fz-preview:empty { display: none; }
+.fz-pv { display: flex; align-items: center; gap: var(--sp-2); font-size: 12px; color: var(--text-2); animation: fz-pv-in .45s cubic-bezier(.3,1.5,.5,1) both; }
+.fz-pv b { color: var(--text); }
+.fz-pv-zod { width: 36px; height: 36px; display: block; }
+@keyframes fz-pv-in { from { opacity: 0; transform: scale(.5) translateY(6px); } }
+.fz-animal.pick { transform: translateY(-4px); box-shadow: inset 0 -3px 0 var(--zone), 0 0 0 2px var(--zone), 0 6px 14px color-mix(in srgb, var(--zone) 35%, transparent); }
+.fz-animal.pick .fz-zod { animation: zm-hop .6s cubic-bezier(.3,1.5,.5,1) 2; }
+.fz-gface { display: inline-flex; margin-right: 4px; vertical-align: middle; }
+.fz-gzod { width: 28px; height: 28px; display: block; }
+.fz-group:has(.list-row:hover) .fz-gzod { animation: zm-hop .6s cubic-bezier(.3,1.5,.5,1); }
+.fz-group .list-row { transition: background .2s ease, box-shadow .2s ease; }
+.fz-group .list-row:hover { box-shadow: inset 3px 0 0 var(--zone); }
+.list-row.fz-hello { animation: fz-row-in .55s cubic-bezier(.2,.8,.2,1) both, fz-glow 1.6s ease .2s; }
+@keyframes fz-row-in { from { opacity: 0; transform: translateX(-18px); } }
+@keyframes fz-glow { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 2px var(--brass), 0 0 18px color-mix(in srgb, var(--brass) 45%, transparent); } }
+.list-row.fz-hello .chip { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.35s + var(--k, 0) * 80ms); }
+.fz-group.fz-hello .fz-gzod, .fz-animal.fz-hello .fz-zod { animation: zm-hop .6s cubic-bezier(.3,1.5,.5,1) 2; }
+.fz-animal.fz-hello { box-shadow: inset 0 -3px 0 var(--zone), 0 0 0 2px var(--zone); }
+@media (prefers-reduced-motion: reduce) {
+  .fz-spark, .fz-pv, .fz-animal.pick .fz-zod, .fz-group:has(.list-row:hover) .fz-gzod, .list-row.fz-hello, .list-row.fz-hello .chip, .fz-group.fz-hello .fz-gzod, .fz-animal.fz-hello .fz-zod { animation: none; }
+  .fz-animal.pick { transform: none; }
+}
