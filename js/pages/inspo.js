@@ -12,6 +12,17 @@
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl, compressImage } from '../assets.js';
 import { searchPeople, fetchItemPhoto } from '../lookup.js';
+import { countUp } from '../ui.js';
+
+// lively (her 2026-10-25 "make the inspo page more lively with animations"): motion only on a
+// real change. The header shines and counts once a session; a brass marker glides between theme
+// tabs; cards rise in turn only when the theme or the view changes; photos develop over the
+// initial; a person just saved pops with a glow and a ✦; feed quotes rise as they scroll in.
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+let inspoSeen = false;
+let lastShown = null;  // theme + view last drawn, so a plain repaint plays no entrance
+let lastInk = null;    // where the tab marker sat, so it glides from there
+let freshId = null;    // the person just added or saved
 
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 const lines = (t) => String(t || '').split('\n').map((l) => l.trim()).filter(Boolean);
@@ -52,7 +63,7 @@ export async function render(root, ctx) {
       if (!src) return;
       const img = new Image();
       img.alt = ''; img.className = 'inspo-photo';
-      img.onload = () => el.appendChild(img);
+      img.onload = () => { el.appendChild(img); if (!calm()) img.classList.add('in'); };
       img.src = src;
     });
   }
@@ -83,7 +94,7 @@ export async function render(root, ctx) {
           <div>
             <p class="shelf-eyebrow">Who lifts me up</p>
             <h1 class="shelf-h1">Inspo Board</h1>
-            <p class="shelf-stat">${theme ? `${people.length} ${people.length === 1 ? 'person' : 'people'} in ${esc(theme.name)}` : 'Start with a theme'}</p>
+            <p class="shelf-stat">${theme ? `<span data-count="${people.length}">${people.length}</span> ${people.length === 1 ? 'person' : 'people'} in ${esc(theme.name)}` : 'Start with a theme'}</p>
           </div>
           ${theme ? `<div class="shelf-segctrl" id="inspo-seg" role="group" aria-label="View">
             <span class="shelf-seg-thumb" style="transform:translateX(${view === 'quotes' ? '100%' : '0%'})"></span>
@@ -92,6 +103,7 @@ export async function render(root, ctx) {
           </div>` : ''}
         </div>
         <div class="inspo-themes">
+          <span class="inspo-ink" aria-hidden="true"></span>
           ${themes.map((t) => `<button type="button" class="inspo-theme-tab ${t.id === themeId ? 'active' : ''}" data-t="${esc(t.id)}">${esc(t.name)}</button>`).join('')}
           <button type="button" class="inspo-theme-tab inspo-theme-add" id="inspo-add-theme">+ New theme</button>
         </div>
@@ -104,6 +116,14 @@ export async function render(root, ctx) {
       paint();
     }));
     root.querySelector('#inspo-add-theme').addEventListener('click', () => themeForm());
+    moveInk();
+    if (!inspoSeen) {
+      inspoSeen = true;
+      const top = root.querySelector('.shelf-topbar');
+      top.classList.add('shelf-shine');
+      countUp(top);
+      setTimeout(() => top.classList.remove('shelf-shine'), 1800);
+    }
     root.querySelectorAll('#inspo-seg .shelf-seg-btn').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.v === view) return;
       view = b.dataset.v;
@@ -121,6 +141,23 @@ export async function render(root, ctx) {
       return;
     }
     paintBody(body, theme, people);
+  }
+
+  /** The brass marker behind the open theme tab glides from where it last sat. */
+  function moveInk() {
+    const ink = root.querySelector('.inspo-ink');
+    const tab = root.querySelector('.inspo-theme-tab.active');
+    if (!ink || !tab) { lastInk = null; return; }
+    const at = { x: tab.offsetLeft, y: tab.offsetTop, w: tab.offsetWidth, h: tab.offsetHeight };
+    const place = (r) => { ink.style.transform = `translate(${r.x}px, ${r.y}px)`; ink.style.width = `${r.w}px`; ink.style.height = `${r.h}px`; };
+    if (lastInk && !calm()) {
+      ink.classList.add('still'); place(lastInk);
+      void ink.offsetWidth; // lay out the old spot before gliding
+      ink.classList.remove('still');
+    }
+    place(at);
+    ink.classList.add('on');
+    lastInk = at;
   }
 
   function themeForm() {
@@ -152,7 +189,7 @@ export async function render(root, ctx) {
     const card = (p, i) => {
       const q = lines(p.quotes); const a = lines(p.accomplishments);
       return `
-      <article class="inspo-card card" style="animation-delay:${(i * 0.05).toFixed(2)}s">
+      <article class="inspo-card card${p.id === freshId ? ' fresh' : ''}" style="--i:${Math.min(i, 16)}">${p.id === freshId ? '<span class="fs-new" aria-hidden="true">✦</span>' : ''}
         <div class="inspo-head">
           <span class="inspo-avatar cat-${tint(i)}" data-pid="${esc(p.id)}">${esc((p.name || "?")[0].toUpperCase())}</span>
           <div class="inspo-who"><h3>${esc(p.name)}</h3>${p.tagline ? `<p>${esc(p.tagline)}</p>` : ''}</div>
@@ -161,7 +198,7 @@ export async function render(root, ctx) {
         </div>
         ${q[0] ? `<blockquote class="inspo-quote">“${esc(q[0])}”</blockquote>` : ''}
         ${q.length > 1 ? `<details class="inspo-more"><summary>${q.length - 1} more quote${q.length === 2 ? '' : 's'}</summary>${q.slice(1).map((x) => `<blockquote class="inspo-quote small">“${esc(x)}”</blockquote>`).join('')}</details>` : ''}
-        ${a.length ? `<ul class="inspo-wins">${a.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+        ${a.length ? `<ul class="inspo-wins">${a.map((x, j) => `<li style="--j:${Math.min(j, 10)}">${esc(x)}</li>`).join('')}</ul>` : ''}
       </article>`;
     };
     const quoteFeed = () => {
@@ -169,7 +206,7 @@ export async function render(root, ctx) {
       people.forEach((p, i) => lines(p.quotes).forEach((q) => all.push({ q, p, i })));
       if (!all.length) return '<p class="shelf-stat">No quotes yet — add some to a person.</p>';
       return `<div class="inspo-feed">${all.map((x, n) => `
-        <figure class="inspo-feed-item" style="animation-delay:${Math.min(n, 12) * 0.04}s">
+        <figure class="inspo-feed-item${x.p.id === freshId ? ' fresh' : ''}" style="--i:${Math.min(n, 6)}">
           <blockquote class="inspo-quote big">“${esc(x.q)}”</blockquote>
           <figcaption><span class="inspo-avatar sm cat-${tint(x.i)}" data-pid="${esc(x.p.id)}">${esc(x.p.name[0].toUpperCase())}</span>${esc(x.p.name)}${x.p.tagline ? ` <span class="inspo-tag">· ${esc(x.p.tagline)}</span>` : ''}</figcaption>
         </figure>`).join('')}</div>`;
@@ -202,6 +239,34 @@ export async function render(root, ctx) {
       if (c7) ctx.setCaseId(c7.case_id).then(() => ctx.navigate(`#/subject/${c7.id}`));
     }));
     hydratePhotos(body, people);
+
+    // entrances only when the theme or the view changed (or on first sight), never on a repaint
+    const shown = `${theme.id}|${view}`;
+    const entering = shown !== lastShown && !calm();
+    if (entering) body.classList.add('inspo-enter');
+    lastShown = shown;
+    if (freshId) {
+      freshId = null;
+      setTimeout(() => {
+        body.querySelectorAll('.fresh').forEach((el) => el.classList.remove('fresh'));
+        body.querySelectorAll('.fs-new').forEach((el) => el.remove());
+      }, 3500);
+    }
+    // the quote feed: quotes below the first screen rise as they scroll into view, once
+    const items = [...body.querySelectorAll('.inspo-feed-item')];
+    if (items.length && entering && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((es) => es.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('seen'); io.unobserve(e.target);
+      }), { rootMargin: '0px 0px -8% 0px' });
+      items.forEach((it) => { it.classList.add('wait'); io.observe(it); });
+      setTimeout(() => { items.forEach((it) => it.classList.add('seen')); io.disconnect(); }, 6000); // a hidden tab still shows them
+    }
+    // "n more quotes" opens with its quotes sliding in
+    body.querySelectorAll('.inspo-more').forEach((d) => d.addEventListener('toggle', () => {
+      if (!d.open || calm()) return;
+      d.classList.remove('opening'); void d.offsetWidth; d.classList.add('opening');
+    }));
   }
 
   function personForm(body, p) {
@@ -279,7 +344,7 @@ export async function render(root, ctx) {
         name, tagline: $('#ip-tag').value.trim() || null, quotes: $('#ip-quotes').value.trim() || null, accomplishments: $('#ip-wins').value.trim() || null,
         photo_path: photo_path || null, photo_url: photo_url || null, wikidata_id: pend.wikidata_id, person_id: pend.person_id,
       };
-      if (p) await store.updateInspoPerson(p.id, data); else await store.createInspoPerson({ ...data, theme_id: themeId });
+      if (p) { await store.updateInspoPerson(p.id, data); freshId = p.id; } else freshId = await store.createInspoPerson({ ...data, theme_id: themeId });
       paint();
     });
     if (p) $('#ip-del').addEventListener('click', async () => {

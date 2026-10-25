@@ -842,7 +842,7 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .inspo-del { margin-left: auto; color: var(--red); }
 .inspo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-4); }
 @keyframes inspo-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.inspo-card { animation: inspo-in .5s cubic-bezier(.16,.84,.44,1) both; transition: transform .22s ease, box-shadow .22s ease; }
+.inspo-card { transition: transform .22s ease, box-shadow .22s ease; }
 .inspo-card:hover { transform: translateY(-3px); box-shadow: var(--lift-2-hover); }
 .inspo-head { display: flex; align-items: center; gap: var(--sp-3); }
 .inspo-who { flex: 1; min-width: 0; }
@@ -861,7 +861,7 @@ table.matrix td.diag { background: transparent; cursor: default; }
 .inspo-more summary { cursor: pointer; }
 .inspo-wins { margin: var(--sp-3) 0 0; padding-left: 18px; font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
 .inspo-feed { display: flex; flex-direction: column; gap: var(--sp-5); max-width: 680px; }
-.inspo-feed-item { margin: 0; animation: inspo-in .5s cubic-bezier(.16,.84,.44,1) both; }
+.inspo-feed-item { margin: 0; }
 .inspo-feed-item figcaption { display: flex; align-items: center; gap: 8px; margin-top: var(--sp-2); padding-left: var(--sp-3); font-size: 12px; font-weight: 600; color: var(--text-2); }
 .inspo-tag { font-weight: 400; color: var(--text-3); }
 @media (prefers-reduced-motion: reduce) {
@@ -2699,3 +2699,43 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .dt-field .dt-pick .zd-ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .dt-field input[type="date"] { position: absolute; right: 4px; bottom: 0; width: 32px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; }
 .dt-field.dt-bad .dt-text, .zd .dt-field.dt-bad .dt-text { border-color: var(--red, #c0392b); box-shadow: 0 0 0 2px color-mix(in srgb, var(--red, #c0392b) 18%, transparent); }
+
+/* Inspo made lively (inspo.js): entrances only on a real change (.inspo-enter = a new theme or
+   view), a brass-edged marker gliding between theme tabs, photos developing over the initial, a
+   person just saved popping with a glow and a ✦, feed quotes rising as they scroll in */
+.inspo-themes { position: relative; }
+.inspo-theme-tab { position: relative; z-index: 1; }
+.inspo-ink { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 999px; background: var(--ink-3); box-shadow: var(--lift-2), inset 0 -2px 0 var(--brass); opacity: 0; pointer-events: none; transition: transform .45s cubic-bezier(.3,1.25,.5,1), width .45s cubic-bezier(.3,1.25,.5,1), height .3s ease; }
+.inspo-ink.on { opacity: 1; }
+.inspo-ink.still { transition: none; }
+.inspo-themes:has(.inspo-ink.on) .inspo-theme-tab.active { background: transparent; box-shadow: none; }
+.inspo-theme-tab:active { transform: scale(.95); }
+.inspo-enter .inspo-card { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+.inspo-enter .inspo-card .inspo-avatar { animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.15s + var(--i, 0) * 60ms); }
+.inspo-enter .inspo-card .inspo-quote { animation: inspo-quote .6s ease both; animation-delay: calc(.25s + var(--i, 0) * 60ms); }
+.inspo-enter .inspo-card .inspo-wins li { animation: inspo-tick .4s ease both; animation-delay: calc(.35s + var(--i, 0) * 60ms + var(--j, 0) * 70ms); }
+@keyframes inspo-quote { from { opacity: 0; border-left-color: transparent; transform: translateX(-6px); } }
+@keyframes inspo-tick { from { opacity: 0; transform: translateX(-8px); } }
+.inspo-photo.in { animation: pp-develop .7s ease both; }
+.inspo-card .inspo-avatar { transition: transform .3s cubic-bezier(.3,1.6,.5,1), box-shadow .3s ease; }
+.inspo-card:hover .inspo-avatar { transform: scale(1.08) rotate(-3deg); box-shadow: 0 0 0 2px var(--brass); }
+.inspo-quote { transition: border-left-width .25s ease, padding-left .25s ease; }
+.inspo-card:hover > .inspo-quote, .inspo-feed-item:hover .inspo-quote { border-left-width: 4px; padding-left: calc(var(--sp-3) + 2px); }
+.inspo-wins li::marker { color: var(--brass); }
+.inspo-card { position: relative; }
+.inspo-card.fresh, .inspo-feed-item.fresh { animation: fs-pop .6s cubic-bezier(.3,1.6,.5,1) both, fs-glow 1.8s ease .3s; }
+.inspo-feed-item.fresh { border-radius: var(--r-sm); }
+.inspo-card .fs-new { top: -8px; right: -8px; z-index: 2; }
+.inspo-feed-item.wait { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1); transition-delay: calc(var(--i, 0) * 70ms); }
+.inspo-feed-item.wait.seen { opacity: 1; transform: none; }
+.inspo-more.opening .inspo-quote { animation: inspo-quote .45s ease both; }
+.inspo-more.opening .inspo-quote:nth-of-type(2) { animation-delay: .07s; }
+.inspo-more.opening .inspo-quote:nth-of-type(3) { animation-delay: .14s; }
+.inspo-more.opening .inspo-quote:nth-of-type(n+4) { animation-delay: .21s; }
+@media (prefers-reduced-motion: reduce) {
+  .inspo-ink, .inspo-card .inspo-avatar, .inspo-quote, .inspo-feed-item.wait { transition: none; }
+  .inspo-enter .inspo-card, .inspo-enter .inspo-card .inspo-avatar, .inspo-enter .inspo-card .inspo-quote, .inspo-enter .inspo-card .inspo-wins li,
+  .inspo-photo.in, .inspo-card.fresh, .inspo-feed-item.fresh, .inspo-more.opening .inspo-quote { animation: none; }
+  .inspo-feed-item.wait { opacity: 1; transform: none; }
+  .inspo-card:hover .inspo-avatar, .inspo-theme-tab:active { transform: none; }
+}
