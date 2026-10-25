@@ -2629,3 +2629,37 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .pt-both::after { display: none; }
   .pt-chip, .pt-chip:hover, .pt-bar i, .pt-out { transition: none; transform: none; }
 }
+/* My Shelf made lively (2026-10-25): a shine crosses the header once and its counts count up;
+   each card's swatch is a drawing of its category that acts out on hover (.s-lid lifts,
+   .s-bullet winds up, .s-mist puffs, .s-star turns) with a sheen over the swatch; By zodiac
+   puts each animal's living face on its group; switching grouping glides every card to its
+   new place (.flip, FLIP in shelf.js) with the rise-in held off (.shelf-swap). */
+.shelf-topbar { position: relative; overflow: hidden; }
+.shelf-shine::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--brass) 18%, transparent) 50%, transparent 70%); animation: shelf-sheen 1.4s ease .2s both; }
+@keyframes shelf-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.shelf-stat span { font-variant-numeric: tabular-nums; }
+.shelf-swatch { position: relative; overflow: hidden; }
+.shelf-art { width: 40px; height: 40px; display: block; overflow: visible; }
+.shelf-art .s-lid, .shelf-art .s-bullet, .shelf-art .s-mist, .shelf-art .s-star { transform-box: fill-box; transition: transform .35s cubic-bezier(.3,1.5,.5,1), opacity .3s ease; }
+.shelf-art .s-lid { transform-origin: 0% 100%; }
+.shelf-art .s-mist { opacity: 0; transform-origin: 0% 100%; transform: scale(.4); }
+.shelf-art .s-star { transform-origin: center; }
+.shelf-card:hover .s-lid { transform: translateY(-3px) rotate(-14deg); }
+.shelf-card:hover .s-bullet { transform: translateY(-3px); }
+.shelf-card:hover .s-mist { opacity: .8; transform: none; animation: shelf-mist 1.1s ease-out infinite; }
+@keyframes shelf-mist { 0% { opacity: 0; transform: translate(-3px, 3px) scale(.4); } 40% { opacity: .85; } 100% { opacity: 0; transform: translate(3px, -3px) scale(1.2); } }
+.shelf-card:hover .s-star { transform: rotate(90deg) scale(1.1); }
+.shelf-swatch::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.45) 50%, transparent 65%); transform: translateX(-120%); }
+.shelf-card:hover .shelf-swatch::after { transition: transform .7s ease; transform: translateX(120%); }
+.shelf-group-face { display: inline-flex; align-self: center; }
+.shelf-gzod { width: 28px; height: 28px; display: block; }
+.shelf-group:hover .shelf-gzod { animation: zm-hop .6s cubic-bezier(.3,1.5,.5,1); }
+.shelf-group-dot { animation: shelf-dot 2.4s ease-in-out infinite; }
+@keyframes shelf-dot { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gc) 45%, transparent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--gc) 0%, transparent); } }
+.shelf-swap .shelf-group, .shelf-card.flip { animation: none; }
+.shelf-card.flip { position: relative; z-index: 2; }
+@media (prefers-reduced-motion: reduce) {
+  .shelf-shine::after, .shelf-card:hover .s-mist, .shelf-group:hover .shelf-gzod, .shelf-group-dot { animation: none; }
+  .shelf-art .s-lid, .shelf-art .s-bullet, .shelf-art .s-mist, .shelf-art .s-star, .shelf-card:hover .shelf-swatch::after { transition: none; }
+  .shelf-card:hover .s-lid, .shelf-card:hover .s-bullet, .shelf-card:hover .s-star { transform: none; }
+}

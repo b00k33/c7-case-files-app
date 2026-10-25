@@ -26,6 +26,21 @@
 // subject header, the life-path grid) — rather than inventing a new look.
 import { emptyState, animalChipHtml, animalLabel, zodiacColor } from '../indicators.js';
 import { animalIndex, ANIMALS } from '../chinese.js';
+import { countUp } from '../ui.js';
+import { zodiacSvg } from '../story-art.js';
+
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+let shelfSeen = false; // the header counts up and shines once a session
+
+// lively (her 2026-10-25 "make the my shelf page more lively"): each card's swatch is a little
+// drawing of its category, and the hovered one acts it out (the jar lid lifts, the lipstick
+// winds up, the perfume puffs a mist, the star turns). currentColor = the category colour.
+const SWATCH_ART = {
+  Skincare: '<rect class="s-lid" x="12" y="9" width="16" height="6" rx="2" fill="currentColor"/><rect x="10" y="15" width="20" height="16" rx="4" fill="currentColor" opacity=".55"/><rect x="14" y="21" width="12" height="4" rx="1.5" fill="#fff" opacity=".7"/>',
+  Makeup: '<g class="s-bullet"><path d="M17 15 L17 9 Q 20 4 23 7 L23 15 Z" fill="currentColor"/></g><rect x="15" y="14" width="10" height="5" rx="1" fill="currentColor" opacity=".75"/><rect x="14" y="19" width="12" height="13" rx="2" fill="currentColor" opacity=".45"/>',
+  Perfume: '<g class="s-mist"><circle cx="29" cy="9" r="1.4" fill="currentColor"/><circle cx="32" cy="12" r="1.1" fill="currentColor"/><circle cx="31" cy="6.5" r=".9" fill="currentColor"/></g><rect x="18" y="8" width="5" height="4" rx="1" fill="currentColor"/><rect x="19" y="12" width="3" height="3" fill="currentColor" opacity=".8"/><rect x="12" y="15" width="17" height="17" rx="5" fill="currentColor" opacity=".55"/><ellipse cx="17" cy="21" rx="2" ry="3.5" fill="#fff" opacity=".45"/>',
+  Other: '<g class="s-star"><path d="M20 6 L23 17 L34 20 L23 23 L20 34 L17 23 L6 20 L17 17 Z" fill="currentColor"/></g>',
+};
 
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
@@ -58,7 +73,7 @@ export async function render(root, ctx) {
         <div>
           <p class="shelf-eyebrow">The Vanity</p>
           <h1 class="shelf-h1">My Shelf</h1>
-          <p class="shelf-stat">${products.length} product${products.length === 1 ? '' : 's'} &middot; ${brandCount} brand${brandCount === 1 ? '' : 's'}</p>
+          <p class="shelf-stat"><span data-count="${products.length}">${products.length}</span> product${products.length === 1 ? '' : 's'} &middot; <span data-count="${brandCount}">${brandCount}</span> brand${brandCount === 1 ? '' : 's'}</p>
         </div>
         <div class="shelf-segctrl" id="shelf-segctrl" role="group" aria-label="Group products by">
           <span class="shelf-seg-thumb" id="shelf-seg-thumb"></span>
@@ -78,7 +93,7 @@ export async function render(root, ctx) {
       groupBy = btn.dataset.g;
       localStorage.setItem(GROUP_KEY, groupBy);
       paintToggle();
-      renderSections();
+      renderSections(true);
     });
   });
   function paintToggle() {
@@ -86,8 +101,12 @@ export async function render(root, ctx) {
     thumb.style.transform = `translateX(${groupBy === 'zodiac' ? '100%' : '0%'})`;
   }
 
-  function renderSections() {
+  function renderSections(swap = false) {
     const sectionsEl = root.querySelector('#shelf-sections');
+    // a switch between By category / By zodiac rearranges the shelf: every card glides from
+    // where it was to its new place (FLIP), instead of the whole shelf being swapped
+    const before = new Map();
+    if (swap && !calm()) sectionsEl.querySelectorAll('.shelf-card').forEach((c) => before.set(c.dataset.id, c.getBoundingClientRect()));
     if (!products.length) {
       sectionsEl.innerHTML = '';
       sectionsEl.appendChild(emptyState({
@@ -105,17 +124,17 @@ export async function render(root, ctx) {
     const unknown = groupBy === 'zodiac' ? (byKey[null] || []) : [];
     const keys = order.filter((k) => byKey[k] && byKey[k].length);
 
-    const sectionHtml = (label, color, items) => `
+    const sectionHtml = (label, color, items, face = '') => `
       <section class="shelf-group">
         <div class="shelf-group-header">
-          <span class="shelf-group-dot" style="--gc:${color}"></span>
+          ${face ? `<span class="shelf-group-face" aria-hidden="true">${face}</span>` : `<span class="shelf-group-dot" style="--gc:${color}"></span>`}
           <h2>${esc(label)}</h2>
           <span class="shelf-group-count">${items.length} item${items.length === 1 ? '' : 's'}</span>
         </div>
         <div class="shelf-grid">
           ${items.map((p, i) => `
-            <article class="shelf-card card" data-case="${esc(p.case_id)}" style="animation-delay:${(i * 0.05).toFixed(2)}s">
-              <div class="shelf-swatch cat-${CATEGORY_CHIP[p.category]}"><span class="ic">${esc(p.category[0])}</span></div>
+            <article class="shelf-card card" data-case="${esc(p.case_id)}" data-id="${esc(p.id)}" style="animation-delay:${(i * 0.05).toFixed(2)}s">
+              <div class="shelf-swatch cat-${CATEGORY_CHIP[p.category]}"><svg class="shelf-art" viewBox="0 0 40 40" aria-hidden="true">${SWATCH_ART[p.category]}</svg></div>
               <div class="shelf-brand">${esc(p.brand)}</div>
               <h3 class="shelf-pname">${esc(p.name)}</h3>
               ${p.notes ? `<p class="shelf-note">${esc(p.notes)}</p>` : ''}
@@ -130,14 +149,43 @@ export async function render(root, ctx) {
     const groupLabel = (k) => (groupBy === 'zodiac' ? animalLabel(k) : k);
     const groupColor = (k) => (groupBy === 'zodiac' ? (zodiacColor(k) || 'var(--text-3)') : `var(--${CATEGORY_CHIP[k]})`);
 
-    sectionsEl.innerHTML = keys.map((k) => sectionHtml(groupLabel(k), groupColor(k), byKey[k])).join('')
+    sectionsEl.innerHTML = keys.map((k) => sectionHtml(groupLabel(k), groupColor(k), byKey[k], groupBy === 'zodiac' ? zodiacSvg(k, 'shelf-gzod') : '')).join('')
       + (unknown.length ? sectionHtml('Zodiac not set yet', 'var(--text-3)', unknown) : '');
 
     sectionsEl.querySelectorAll('.shelf-card').forEach((card) => {
       card.addEventListener('click', () => { ctx.setCaseId(card.dataset.case).then(() => ctx.navigate('#/company')); });
     });
+
+    if (before.size) {
+      sectionsEl.classList.add('shelf-swap'); // no rise-in while the cards glide
+      const moved = [];
+      sectionsEl.querySelectorAll('.shelf-card').forEach((c) => {
+        const was = before.get(c.dataset.id);
+        if (!was) return;
+        const now = c.getBoundingClientRect();
+        c.classList.add('flip');
+        c.style.transform = `translate(${was.left - now.left}px, ${was.top - now.top}px)`;
+        moved.push(c);
+      });
+      void sectionsEl.offsetWidth; // lay out the start positions before gliding
+      moved.forEach((c, i) => {
+        c.style.transition = `transform .55s cubic-bezier(.2,.8,.2,1) ${Math.min(i, 20) * 18}ms`;
+        c.style.transform = '';
+      });
+      setTimeout(() => {
+        moved.forEach((c) => { c.classList.remove('flip'); c.style.transition = ''; });
+        sectionsEl.classList.remove('shelf-swap');
+      }, 1000);
+    }
   }
 
   paintToggle();
   renderSections();
+  if (!shelfSeen) {
+    shelfSeen = true;
+    const top = root.querySelector('.shelf-topbar');
+    top.classList.add('shelf-shine');
+    countUp(top);
+    setTimeout(() => top.classList.remove('shelf-shine'), 1800);
+  }
 }
