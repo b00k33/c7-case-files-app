@@ -2663,3 +2663,29 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .shelf-art .s-lid, .shelf-art .s-bullet, .shelf-art .s-mist, .shelf-art .s-star, .shelf-card:hover .shelf-swatch::after { transition: none; }
   .shelf-card:hover .s-lid, .shelf-card:hover .s-bullet, .shelf-card:hover .s-star { transform: none; }
 }
+/* Fashion made lively (2026-10-25), both the shared gallery and a person's own Fashion tab:
+   pictures rise in turn and develop from soft to sharp once loaded (img.in), a just-added one
+   pops with a gold glow and a ✦ (.fresh, .fs-new), a pointed-at one zooms with its tag sliding
+   up; the chips pop in once a session (.fs-chips-in); each year band's line draws across. */
+.fashion-card { animation: zd-rise .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); transition: transform .25s cubic-bezier(.3,1.4,.5,1), box-shadow .25s ease; }
+.fashion-card:hover { transform: translateY(-4px); }
+.fashion-card.fs-live img { opacity: 0; transition: transform .5s ease; }
+.fashion-card.fs-live img.in { opacity: 1; animation: pp-develop .7s ease both; }
+.fashion-card:hover img.in { transform: scale(1.05); }
+.fashion-card .tag { transition: transform .25s ease, background .25s ease; }
+.fashion-card:hover .tag { transform: translateY(-3px); background: rgba(0, 0, 0, .72); }
+.fashion-card.fresh { animation: fs-pop .6s cubic-bezier(.3,1.6,.5,1) both, fs-glow 1.8s ease .3s; }
+@keyframes fs-pop { from { opacity: 0; transform: scale(.6); } }
+@keyframes fs-glow { 0%, 100% { box-shadow: var(--lift-2); } 35% { box-shadow: 0 0 0 3px var(--brass), 0 0 22px color-mix(in srgb, var(--brass) 50%, transparent); } }
+.fs-new { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brass); color: var(--on-brass); font-size: 12px; animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) .4s both, fz-twinkle 2.4s ease-in-out 1s 3; }
+.fs-chips-in .fs-chip { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.1s + var(--i, 0) * 40ms); }
+.fs-chip { transition: transform .15s ease; }
+.fs-chip:hover { transform: translateY(-2px); }
+.fs-year { display: flex; align-items: center; gap: 8px; }
+.fs-year::after { content: ''; flex: 1; height: 1px; background: var(--line); transform-origin: left; animation: fs-line .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.15s + var(--b, 0) * 120ms); }
+@keyframes fs-line { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .fashion-card, .fashion-card.fresh, .fashion-card img.in, .fs-new, .fs-chips-in .fs-chip, .fs-year::after { animation: none; }
+  .fashion-card, .fashion-card img, .fashion-card .tag, .fs-chip { transition: none; }
+  .fashion-card:hover, .fashion-card:hover img.in, .fashion-card:hover .tag, .fs-chip:hover { transform: none; }
+}

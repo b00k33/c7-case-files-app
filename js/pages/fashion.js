@@ -14,7 +14,7 @@
 // (js/lookup.js's fetchStylePhotos) — real and free, but only really
 // populated for royals/A-listers, so it is offered, never assumed.
 import { emptyState } from '../indicators.js';
-import { openShotViewer } from '../ui.js';
+import { openShotViewer, countUp } from '../ui.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
 import { fetchStylePhotos } from '../lookup.js';
 
@@ -31,6 +31,27 @@ function imagesFromClipboard(dt) {
   }
   return files;
 }
+
+// lively (her 2026-10-25 "make the fashion page more lively"): every picture rises in turn and
+// develops from soft to sharp once it has loaded, one just added pops with a gold glow and a ✦,
+// a pointed-at picture zooms with its tag sliding up. Used by both the all-people gallery and
+// a person's own Fashion tab.
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function liven(card, img, i) {
+  card.classList.add('fs-live');
+  card.style.setProperty('--i', Math.min(i, 24));
+  const created = Date.parse(img.created_at || '');
+  if (created && Date.now() - created < 10000) {
+    card.classList.add('fresh');
+    card.insertAdjacentHTML('beforeend', '<span class="fs-new" aria-hidden="true">✦</span>');
+  }
+  const pic = card.querySelector('img');
+  const show = () => pic.classList.add('in');
+  if (calm() || pic.complete) show(); else { pic.addEventListener('load', show, { once: true }); pic.addEventListener('error', show, { once: true }); setTimeout(show, 4000); }
+}
+
+let gallerySeen = false; // the shared gallery's chips + count arrive once a session
+const personSeen = new Set(); // a person's tab counts up once a session per person
 
 const FILTER_KEY = 'c7-fashion-filter'; // 'all' | 'inspo' | a person id
 let pasteHandler = null;
@@ -51,7 +72,7 @@ async function renderPerson(root, ctx, personId) {
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
-        <span class="mono" style="font-size:11px;color:var(--text-3)">${images.length} ${images.length === 1 ? 'picture' : 'pictures'} of ${esc(person?.display_name || '')}</span>
+        <span class="mono fs-count" style="font-size:11px;color:var(--text-3)"><span data-count="${images.length}">${images.length}</span> ${images.length === 1 ? 'picture' : 'pictures'} of ${esc(person?.display_name || '')}</span>
         <div class="row wrap" style="gap:8px">
           ${person?.wikidata_id ? '<button class="btn btn-ghost btn-sm" id="pf-pull">Pull from Wikimedia</button>' : ''}
           <button class="btn btn-primary btn-sm" id="add-style-btn">+ Add</button>
@@ -63,6 +84,7 @@ async function renderPerson(root, ctx, personId) {
     </div>
   `;
   const addSlot = root.querySelector('#add-style-slot');
+  if (!personSeen.has(personId)) { personSeen.add(personId); countUp(root.querySelector('.fs-count')); }
   root.querySelector('#add-style-btn').addEventListener('click', () => renderAddForm(addSlot, ctx, allPeople, again, person));
   const pullBtn = root.querySelector('#pf-pull');
   if (pullBtn) {
@@ -109,13 +131,14 @@ async function renderPerson(root, ctx, personId) {
   resolved.forEach((img, idx) => { img.idx = idx; });
   for (const band of years) {
     const sec = document.createElement('div');
-    sec.innerHTML = `<div class="section-label" style="margin:8px 0">${esc(band.y)} · ${band.imgs.length}</div>`;
+    sec.innerHTML = `<div class="section-label fs-year" style="margin:8px 0;--b:${years.indexOf(band)}">${esc(band.y)} · ${band.imgs.length}</div>`;
     const wall = document.createElement('div');
     wall.className = 'fashion-wall';
     for (const img of band.imgs) {
       const card = document.createElement('div');
       card.className = 'fashion-card';
       card.innerHTML = `<img src="${img.url}" alt="" loading="lazy">${img.caption ? `<span class="tag">${esc(img.caption)}</span>` : ''}`;
+      liven(card, img, img.idx);
       card.addEventListener('click', () => openShotViewer({
         pictures: resolved.map((r) => ({ url: r.url, caption: r.caption, id: r.id, personName: person?.display_name || '' })),
         index: img.idx,
@@ -144,7 +167,7 @@ export async function render(root, ctx, personId) {
   root.innerHTML = `
     <div class="stack">
       <div class="row between wrap" style="gap:12px">
-        <span class="mono" style="font-size:11px;color:var(--text-3)">${images.length} ${images.length === 1 ? 'image' : 'images'}</span>
+        <span class="mono fs-count" style="font-size:11px;color:var(--text-3)"><span data-count="${images.length}">${images.length}</span> ${images.length === 1 ? 'image' : 'images'}</span>
         <button class="btn btn-primary btn-sm" id="add-style-btn">+ Add</button>
       </div>
       <div class="row wrap" id="fash-chips" style="gap:6px"></div>
@@ -155,11 +178,17 @@ export async function render(root, ctx, personId) {
 
   const chipRow = root.querySelector('#fash-chips');
   const chipDefs = [{ id: 'all', label: 'All' }, { id: 'inspo', label: 'Inspiration' }, ...chipPeople.map((p) => ({ id: p.id, label: `${p.display_name} · ${p.n}` }))];
-  chipRow.innerHTML = chipDefs.map((c) => `<button type="button" class="chip" data-id="${esc(c.id)}" style="border:0;cursor:pointer${filter === c.id ? ';background:var(--brass);color:var(--on-brass)' : ''}">${esc(c.label)}</button>`).join('');
+  chipRow.innerHTML = chipDefs.map((c, i) => `<button type="button" class="chip fs-chip${filter === c.id ? ' on' : ''}" data-id="${esc(c.id)}" style="--i:${Math.min(i, 20)};border:0;cursor:pointer${filter === c.id ? ';background:var(--brass);color:var(--on-brass)' : ''}">${esc(c.label)}</button>`).join('');
   chipRow.querySelectorAll('[data-id]').forEach((btn) => btn.addEventListener('click', () => {
     localStorage.setItem(FILTER_KEY, btn.dataset.id);
     render(root, ctx);
   }));
+  // the chips pop in and the count counts up only the first time the gallery opens this session
+  if (!gallerySeen) {
+    gallerySeen = true;
+    chipRow.classList.add('fs-chips-in');
+    countUp(root.querySelector('.fs-count'));
+  }
 
   const addSlot = root.querySelector('#add-style-slot');
   root.querySelector('#add-style-btn').addEventListener('click', () => renderAddForm(addSlot, ctx, allPeople, () => render(root, ctx)));
@@ -207,6 +236,7 @@ export async function render(root, ctx, personId) {
     card.className = 'fashion-card';
     const tag = [esc(img.person_name), img.dated ? img.dated.slice(0, 4) : null].filter(Boolean).join(' · ');
     card.innerHTML = `<img src="${img.url}" alt="" loading="lazy">${tag ? `<span class="tag">${tag}</span>` : ''}`;
+    liven(card, img, idx);
     card.addEventListener('click', () => {
       openShotViewer({
         pictures: resolved.map((r) => ({ url: r.url, caption: r.caption, id: r.id, personName: r.person_name || '' })),
