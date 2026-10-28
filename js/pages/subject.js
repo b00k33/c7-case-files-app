@@ -2,7 +2,7 @@ import { lifePath, birthdayNumber } from '../numerology.js';
 import { signFor, ANIMALS as ZOD_ANIMALS, animalIndex as zodIndex } from '../chinese.js';
 import { sunSign } from '../western.js';
 import { relation } from '../relations.js';
-import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, confidenceBand, verificationLabel, zodiacColor, signColor, animalHtml, animalLabel, signHtml } from '../indicators.js';
+import { numberIcons, relationGlyph, barRow, emptyState, verificationConfidence, verificationLabel, zodiacColor, signColor, animalHtml, animalLabel, signHtml } from '../indicators.js';
 import { exactBirth } from '../person-dates.js';
 import { parseProfileText, parseDate } from '../profile-parse.js';
 import { searchPeople, fetchProfile, draftFromLookup, insertFamily } from '../lookup.js';
@@ -11,7 +11,7 @@ import { fetchWorks, addWorks, WORK_GROUPS, countByFamily } from '../works.js';
 import { isCommercialRelevant } from '../milestone-kinds.js';
 import { fetchLifeEvents, addLifeEvents, alreadyHere, LIFE_GROUPS, countByGroup } from '../life-events.js';
 import { compressImage, queueUpload, resolveAssetUrl, flushUploads } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, openVideoViewer, videoPosterTile, renderWikiFeed, zdIcon } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, inlineNameForm, openShotViewer, videoPosterTile, renderWikiFeed, zdIcon } from '../ui.js';
 import { buildLifeLine, renderLifeLine, renderWhyCard, tokensHtml, collectEventPictures, buildRelationshipLine, coupleChildIds } from '../lifemap.js';
 import { miniSvg, zodiacSvg, sceneKind } from '../story-art.js';
 import { autoCaseName, looksHurried } from '../names.js';
@@ -634,7 +634,6 @@ export async function render(root, ctx, personId, tab = 'profile') {
   const lifeData = buildLifeLine({ person, events: [...events, ...relEvents], rels, people: peopleInCase, outcomes: await store.listEventOutcomes() });
   const lifeEl = root.querySelector('#life-line');
   const whySlot = root.querySelector('#why-slot');
-  const openPerson = (id) => ctx.navigate(`#/subject/${id}`);
   // one mark's own event edited or deleted (her ask, 2026-09-28: "how to
   // edit" — there was no way to fix a wrong title/date, or remove one,
   // once it was already on the line) — same refresh shape as onOutcome:

@@ -17,7 +17,6 @@ import { twoTapConfirm, videoPosterTile } from './ui.js';
 import { sceneSvg, miniSvg, zodiacSvg, sceneKind, playOnArrival } from './story-art.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const initials = (name) => String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 const yearOf = (iso) => { const y = parseInt(String(iso || '').slice(0, 4), 10); return Number.isFinite(y) && y > 0 ? y : null; };
 
 // ---- personal year: tone and her GG33 gloss (one line each) ----
@@ -776,72 +775,6 @@ export function renderWhyCard(el, m, data, { person, people, onOutcome, onEdit, 
     const delBtn = el.querySelector('#lm-del-btn');
     if (delBtn) twoTapConfirm(delBtn, { confirmLabel: 'Delete — tap again', onConfirm: () => onDelete(m) });
   }
-}
-
-/** The circle: spouse cards first (married → ended, both personal years), then family, each with the verdict chips. */
-export async function renderCircle(el, { person, rels, people, data, onOpen, onAdd = null, onStory = null }) {
-  el.innerHTML = '';
-  const byId = new Map((people || []).map((p) => [p.id, p]));
-  const items = [];
-  for (const r of rels || []) {
-    if (r.theory_id) continue;
-    const otherId = r.a_id === person.id ? r.b_id : r.a_id;
-    const other = byId.get(otherId);
-    if (!other) continue;
-    const rel = r.kind === 'parent' ? (r.a_id === person.id ? 'child' : 'parent')
-      : r.kind === 'godparent' ? (r.a_id === person.id ? 'godchild' : 'godparent')
-      : r.kind;
-    items.push({ other, rel, r });
-  }
-  const order = { spouse: 0, parent: 1, child: 2, sibling: 3, godparent: 4, godchild: 5 };
-  items.sort((a, b) => ((order[a.rel] ?? 9) - (order[b.rel] ?? 9)) || String(a.r.start_date || '').localeCompare(String(b.r.start_date || '')));
-  if (!items.length) {
-    el.appendChild(emptyState({ missing: 'No one in the circle yet.', why: 'Spouses and family come from the tree — or "Insert family" under + Add for a public figure.', action: onAdd ? '+ Add' : null, onAction: onAdd }));
-    return;
-  }
-  const cards = await Promise.all(items.map(async ({ other, rel, r }) => {
-    const card = document.createElement('div');
-    card.className = 'lm-card';
-    const face = document.createElement('div');
-    face.className = 'face';
-    face.style.width = face.style.height = '44px';
-    face.innerHTML = `<span class="initials">${initials(other.display_name)}</span>`;
-    const src = other.photo_path ? await resolveAssetUrl(other.photo_path, 'image/jpeg') : other.photo_url;
-    if (src && await preloadImage(src)) {
-      const img = document.createElement('img');
-      img.alt = ''; img.src = src;
-      face.querySelector('.initials')?.remove();
-      face.appendChild(img);
-    }
-    let line;
-    if (rel === 'spouse') {
-      let sy = yearOf(r.start_date), ey = yearOf(r.end_date);
-      if (!sy) { const mk = data.marks.find((m) => m.kind === 'marriage' && m.spouseId === other.id); if (mk) sy = mk.year; }
-      if (!ey) { const mk = data.marks.find((m) => m.kind === 'divorce' && m.spouseId === other.id); if (mk) ey = mk.year; }
-      const pyS = sy && data.birth ? personalYear(data.birth, sy) : null;
-      const pyE = ey && data.birth ? personalYear(data.birth, ey) : null;
-      line = `♥ ${sy || '—'}${ey ? ` · ✕ ${ey}` : ''}${pyS && pyS.ok ? ` · <span class="mono">PY ${pyS.parts.total}/${pyS.value}${pyE && pyE.ok ? ` → ${pyE.parts.total}/${pyE.value}` : ''}</span>` : ''}`;
-    } else {
-      const s = signFor(exactBirth(other));
-      const lp = lifePath(exactBirth(other));
-      line = `${rel}${s.ok && !s.boundary ? ` · ${s.element} ${animalLabel(s.animal)}` : ''}${lp.ok ? ` · LP ${lp.value}` : ''}`;
-    }
-    card.innerHTML = `<div class="lm-card-body"><div class="who">${esc(other.display_name)}</div><div class="rel">${line}</div><div class="lm-verdicts"></div></div>`;
-    card.prepend(face);
-    card.querySelector('.lm-verdicts').append(...verdictChips(person, other));
-    if (rel === 'spouse' && onStory) {
-      const story = document.createElement('button');
-      story.type = 'button';
-      story.className = 'linklike brass lm-story-link';
-      story.textContent = 'Their Story →';
-      story.addEventListener('click', (e) => { e.stopPropagation(); onStory(r.id); });
-      card.querySelector('.lm-card-body').appendChild(story);
-    }
-    card.title = `${other.display_name} — open`;
-    card.addEventListener('click', () => onOpen(other.id));
-    return card;
-  }));
-  for (const c of cards) el.appendChild(c);
 }
 
 /** The header's three facts with a word each: life path (big number), animal (picture chip), sun (glyph chip). */

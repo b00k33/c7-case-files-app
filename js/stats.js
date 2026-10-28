@@ -17,13 +17,3 @@ export function expectedCounts(nPairs) {
     same: nPairs / 12,
   };
 }
-
-/**
- * Expected count of a specific target digit (1-9, or a master number)
- * turning up among n independently-drawn reduced numbers, assuming a
- * uniform distribution over the given number of possible outcomes
- * (9 for digits 1-9, unless includeMaster widens the pool).
- */
-export function expectedDigitCount(n, possibleOutcomes = 9) {
-  return n / possibleOutcomes;
-}

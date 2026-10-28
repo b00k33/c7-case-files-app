@@ -11,10 +11,6 @@ export const MILESTONE_KIND_LABEL = {
   deal: 'Deal / tour / endorsement',
 };
 
-export function isMilestoneKind(kind) {
-  return MILESTONE_KINDS.includes(kind);
-}
-
 // Commercial-relevance gate (her ask, 2026-09-15): the tab only matters for
 // people with a real commercial footprint — a private family member or a
 // historical royal shouldn't carry an always-empty tab. Two signals, both

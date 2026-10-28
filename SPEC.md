@@ -1495,6 +1495,15 @@ anything the stamp's uppercase, wide-letter-spaced brass box looks more
 like an official rubber stamp in a grotesque sans than it did in a serif.
 44/44 in `tests/browser-tests.html`.
 
+## 115. Dead code out (v224, 2026-10-28)
+
+Her ask: "audit the claude folder and codes to reduce redundant or stale work and codes". Nothing she sees and nothing stored changes: only code that nothing can reach was removed. Found by a transitive dead-function scan over every tracked .html/.js/.css/.mjs file outside `vendor/`, a per-file pass (file-local functions, arrow consts, names defined twice), an unused-import pass, and a whole-repo grep of each name (strings, HTML, SQL, tests, docs).
+
+- **Removed, 18 functions:** `renderCircle` and the `initials` helper only it used (`lifemap.js`; the Profile's circle of cards gave way to the compact tree in §18, and the "still exist, just unused" notes about it below are now history); `statusColor`, `capTokens` (`indicators.js`); `fmtT`, `parseT` (`media.js`; `evidence.js` keeps its own `fmtT`); `isMilestoneKind` (`milestone-kinds.js`); `expectedDigitCount` (`stats.js`); `pendingUploads` (`assets.js`); `getState` (`db.js`; every caller reads `sync.getState()`); `softDeleteContradiction`, `evidenceAssetUrl`, `updateVideoMoment`, `resolveQuestion` (`updateQuestion` covers it), `recentChanges`, `recentChangesForCase`, `searchCase` (`store.js`, with two empty section headers); an unused `openPerson` const in `subject.js`. Also `subject.js`'s unused imports of `confidenceBand` and `openVideoViewer` (both still used elsewhere).
+- **CSS only those used:** `.lm-circle`, `.lm-card*`, `.lm-card-cmp*` (v186's Compare card), `.lm-story-link`. `.lm-verdicts` stays (Their Story uses it). STYLE.md's shadow table no longer lists `.lm-card`.
+- **Kept on purpose, though nothing calls them:** `exactEventDate` (`person-dates.js`), named in §13's "never calculate from a date the file does not hold" rule as the gate for event dates; `_testHook` (`sync.js`), the seam for driving the sync engine against a mock cloud (used once, 1b3c467).
+- **Scan:** 16 dead functions / 149 lines before (20 counting the per-file pass and two hidden by a same-named twin), 2 / 10 after (the two kept). All of it is in git history at 29f70f9 if ever wanted back.
+
 ## 114. Family tree tidy-up (v197, 2026-10-19)
 
 Marriages: a person with 2+ marriages draws ONE straight rail through the face centres; each spouse gets a numbered bead (`nth`, marriage order) on the gap toward the anchor (`badgeX`); marriage year sits above the bead, age above that, divorce year below. Children hang from their own marriage's bead in a single rounded elbow. Far / godparent / theory links are faint (30%) until a family line is lit. Hover or tap a person: kin stay bright, the rest fade (22%), lit lines turn brass. Tap opens a card (parents, spouses, child count, Open profile) and glides to centre; double-tap opens the profile; the profile page's compact tree still opens on one tap. Toolbar: Up/Down/Expand-all group, Numbers and Godparents switches, Fit/−/+ group (Ctrl/⌘+scroll zooms), Expand.
@@ -3610,7 +3619,7 @@ object the widget owns instead of the module-level `treeState` singleton,
 so panning or zooming the mini-tree can never move the real Relations-tab
 tree underneath it. The "Their Story →" link that used to live on a
 `renderCircle` spouse card is gone from the Profile page along with the
-circle itself (still exported from `lifemap.js`, just unused there now);
+circle itself (left in `lifemap.js` unused, then removed in v224, §115);
 reaching it now goes through the tree's own marriage-year marker
 (`renderEditMarriageYear`, unchanged) — already reachable from the
 compact widget, since it's the same function. `+ Add family` opens the
@@ -3758,7 +3767,7 @@ attention anywhere else. Originally also lived on a spouse card in
 family tree, so that copy of the link is gone along with the circle —
 `renderEditMarriageYear`'s link is reachable from the compact tree too
 (same function), so nothing was actually lost. `renderCircle`/`onStory`
-still exist in `lifemap.js`, just unused for now.
+were left in `lifemap.js` unused, then removed in v224 (§115).
 
 ## 16. Wikipedia first, everywhere data comes in (v98, 2026-09-14)
 

@@ -678,12 +678,6 @@ export async function createContradiction(obj) {
   return id;
 }
 
-export async function softDeleteContradiction(id) {
-  const now = nowISO();
-  db.run('UPDATE contradiction SET deleted_at=?, updated_at=? WHERE id=?', [now, now, id]);
-  logChange('contradiction', id, 'update', { deleted_at: now });
-}
-
 // ------------------------------------------------------------- evidence --
 
 export async function listEvidence(caseId) {
@@ -747,10 +741,6 @@ export async function softDeleteEvidence(id) {
 export async function storeEvidenceFile(file) {
   const r = await db.storeAsset(file);
   return { file_path: r.filePath, sha256: r.sha256, bytes: r.bytes, mime: r.mime };
-}
-
-export async function evidenceAssetUrl(filePath) {
-  return db.assetUrl(filePath);
 }
 
 // ---------------------------------------------- fashion gallery ------------------
@@ -893,13 +883,6 @@ export async function createVideoMoment(obj) {
   );
   logChange('video_moment', id, 'insert', obj);
   return id;
-}
-
-export async function updateVideoMoment(id, patch) {
-  const fields = Object.keys(patch);
-  if (!fields.length) return;
-  db.run(`UPDATE video_moment SET ${fields.map((f) => `${f}=?`).join(',')} WHERE id=?`, [...fields.map((f) => patch[f]), id]);
-  logChange('video_moment', id, 'update', patch);
 }
 
 export async function listLinksForEvidence(evidenceId) {
@@ -1462,11 +1445,6 @@ export async function createQuestion(obj) {
   return id;
 }
 
-export async function resolveQuestion(id, resolved = true) {
-  db.run('UPDATE question SET resolved=? WHERE id=?', [resolved ? 1 : 0, id]);
-  logChange('question', id, 'update', { resolved });
-}
-
 /** Any of text, notes, resolved, pick, answer_id, person_id on a question or a theory. */
 export async function updateQuestion(id, patch) {
   const fields = ['text', 'notes', 'resolved', 'pick', 'answer_id', 'person_id'].filter((f) => f in patch);
@@ -1487,21 +1465,6 @@ export async function deleteQuestion(id) {
     logChange('question', tid, 'delete', {});
   }
 }
-
-// ---------------------------------------------------------- change log ---
-
-export async function recentChanges(limit = 20) {
-  return db.exec('SELECT * FROM change_log ORDER BY at DESC LIMIT ?', [limit]);
-}
-
-export async function recentChangesForCase(caseId, limit = 20) {
-  // change_log has no case_id column by design (it's entity-agnostic);
-  // filter by joining against known case-scoped entities we can resolve cheaply.
-  const rows = db.exec('SELECT * FROM change_log ORDER BY at DESC LIMIT ?', [limit * 4]);
-  return rows.slice(0, limit);
-}
-
-// --------------------------------------------------------------- search --
 
 // ------------------------------------------------------------------ seed --
 // Runs exactly once, the moment a brand-new database is created, so the
@@ -1618,19 +1581,4 @@ export async function seedExampleCase() {
   await createQuestion({ case_id: kase.id, text: 'Which birth-year record for R. Voss is correct — the 1889 civil register or the 1891 church register?' });
 
   return kase;
-}
-
-export async function searchCase(caseId, query) {
-  const q = `%${query.toLowerCase()}%`;
-  const people = db.exec(
-    `SELECT id, display_name as label, 'person' as type FROM person
-     WHERE case_id=? AND deleted_at IS NULL AND lower(display_name) LIKE ? LIMIT 20`,
-    [caseId, q]
-  );
-  const evidence = db.exec(
-    `SELECT id, title as label, 'evidence' as type FROM evidence
-     WHERE case_id=? AND deleted_at IS NULL AND lower(title) LIKE ? LIMIT 20`,
-    [caseId, q]
-  );
-  return [...people, ...evidence];
 }

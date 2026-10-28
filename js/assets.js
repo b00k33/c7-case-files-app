@@ -42,13 +42,6 @@ export function queueUpload(filePath, mime) {
   db.run('INSERT OR REPLACE INTO c7_asset_queue (file_path, mime, queued_at) VALUES (?,?,?)', [filePath, mime || null, new Date().toISOString()]);
 }
 
-export function pendingUploads() {
-  if (!db.isReady()) return 0;
-  ensureQueue();
-  const r = db.exec('SELECT COUNT(*) AS n FROM c7_asset_queue');
-  return r.length ? r[0].n : 0;
-}
-
 let flushing = false;
 /** Upload queued files to the cloud. Stops at the first failure and retries next cycle. */
 export async function flushUploads() {

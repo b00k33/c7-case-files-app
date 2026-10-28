@@ -22,20 +22,3 @@ export function youtubeThumb(url) {
   const id = youtubeId(url);
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
-
-export function fmtT(ms) {
-  const s = Math.floor((ms || 0) / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
-/** "12:34" / "1:02:03" / "754" (seconds) → milliseconds, or null. */
-export function parseT(str) {
-  const s = String(str || '').trim();
-  if (!s) return null;
-  if (/^\d+$/.test(s)) return parseInt(s, 10) * 1000;
-  const parts = s.split(':').map((p) => parseInt(p, 10));
-  if (parts.some((n) => Number.isNaN(n))) return null;
-  let secs = 0;
-  for (const p of parts) secs = secs * 60 + p;
-  return secs * 1000;
-}

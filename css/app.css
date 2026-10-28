@@ -1102,16 +1102,7 @@ table.dense tbody:first-of-type tr.grp-head td { padding-top: var(--sp-1); }
 button.lm-tag { cursor: pointer; opacity: .6; }
 button.lm-tag.on, button.lm-tag:hover { opacity: 1; }
 button.lm-tag.on { box-shadow: 0 0 0 1px currentColor; }
-.lm-circle { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--sp-2); margin-top: var(--sp-3); }
-.lm-card { display: flex; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border-radius: var(--r-lg); background: var(--ink-2); cursor: pointer; min-width: 0; }
-.lm-card:hover { background: var(--ink-3); }
-.lm-card-body { min-width: 0; flex: 1; }
-.lm-card .who { font-family: var(--font-title); font-size: 15px; line-height: 1.15; }
-.lm-card .rel { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 .lm-verdicts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.lm-card-cmp { margin-top: var(--sp-2); cursor: default; }
-.lm-card-cmp .who { cursor: pointer; }
-.lm-card-cmp .who:hover { color: var(--brass); }
 
 /* ------------------------------------------------ family tree */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
@@ -1266,7 +1257,6 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .rel-pair-names { text-align: center; margin-top: var(--sp-2); }
 .rel-pair-names .title { font-size: 17px; }
 .rel-pair-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
-.lm-story-link { margin-top: 6px; display: inline-block; }
 
 /* ---------------------------------------------------- profile basics */
 .profile-grid { display: grid; grid-template-columns: 110px 1fr; gap: var(--sp-2) var(--sp-3); font-size: 12px; margin-top: var(--sp-3); }
@@ -1420,10 +1410,9 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 #tab-bar { background: var(--ink-rail); box-shadow: 0 -1px 0 var(--rail-edge); }
 .nav-link.active { box-shadow: var(--lift-2); }
 .panel, .empty-state, .stat-tile, .tabs { box-shadow: var(--lift-1); }
-.card, .lm-card, .lm-mark, .tabs button.active { box-shadow: var(--lift-2); }
-.lm-card, .lm-mark, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
-.lm-card:hover, .lm-mark:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
-.lm-card-cmp:hover { transform: none; box-shadow: var(--lift-2); }
+.card, .lm-mark, .tabs button.active { box-shadow: var(--lift-2); }
+.lm-mark, .face-card .face { transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
+.lm-mark:hover { transform: translateY(-2px); box-shadow: var(--lift-2-hover); }
 .face-card:hover .face { transform: translateY(-2px); }
 .face { box-shadow: var(--lift-face); }
 .btn { box-shadow: var(--lift-2); transition: transform 80ms ease-out, box-shadow 80ms ease-out; }
@@ -1435,7 +1424,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
    size tiers bring depth back on purpose (a bigger card should feel like it
    sits higher), graduated by tier rather than flat "no shadow" — still
    scoped to .lm-poster so it wins on specificity without touching
-   .lm-card/.lm-mark's own lift everywhere else on the page. The picture
+   .lm-mark's own lift everywhere else on the page. The picture
    and spine stay flat regardless of tier; only the card itself lifts. */
 .lm-poster .lm-poster-pic, .lm-poster .lm-spine-seg { box-shadow: none; }
 .lm-poster .lm-mark { box-shadow: none; transition: transform 120ms ease-out, box-shadow 120ms ease-out; }
@@ -1452,8 +1441,8 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 /* the closed drawer sits just off the right edge — a shadow on it bled a dark band into the page (seen 2026-09-08) */
 #drawer.open { box-shadow: var(--shadow); }
 @media (prefers-reduced-motion: reduce) {
-  .lm-card, .cork-theory, .cork-evidence, .tile, .btn, .face-card .face { transition: none; }
-  .lm-card:hover, .cork-theory:hover, .cork-evidence:hover, .tile:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
+  .cork-theory, .cork-evidence, .tile, .btn, .face-card .face { transition: none; }
+  .cork-theory:hover, .cork-evidence:hover, .tile:hover, .face-card:hover .face, .btn:active:not(:disabled) { transform: none; }
 }
 
 /* ---------------------------------------------------------- day palette

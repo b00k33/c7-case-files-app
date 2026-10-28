@@ -119,8 +119,8 @@ token; app.css never writes an rgba shadow of its own.
 --ground         vignette (lighter centre)           body::before, fixed
 --rail-edge      the hairline where rail meets page  #nav-rail, #tab-bar
 --lift-1         calm: 1px top light + 2px shadow    .panel .empty-state .stat-tile .board-wrap .tabs
---lift-2         tappable: 1px top light + 4px shadow .card .lm-card .board-card .btn .nav-link.active
---lift-2-hover   under her finger, raised 2px        .lm-card:hover .board-card:hover
+--lift-2         tappable: 1px top light + 4px shadow .card .board-card .btn .nav-link.active
+--lift-2-hover   under her finger, raised 2px        .board-card:hover
 --lift-btn       the brass button                    .btn-primary
 --press          a button pressed (1px down)         .btn:active
 --lift-face      ring + shadow                       .face

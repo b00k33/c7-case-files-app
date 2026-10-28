@@ -36,10 +36,6 @@ export function subscribe(cb) {
   return () => listeners.delete(cb);
 }
 
-export function getState() {
-  return state;
-}
-
 // --- tiny IndexedDB helper. Originally just remembered the directory
 // handle; since the phone build (Stage 1, 2026-09-01) it is also the whole
 // data home on browsers without the File System Access API: 'files' holds

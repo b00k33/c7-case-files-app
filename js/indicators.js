@@ -9,18 +9,6 @@ function svg(tag, attrs = {}) {
   return el;
 }
 
-// --- status -> colour --------------------------------------------------
-
-/** status: 'sourced' | 'drafted' | 'unknown' | 'contradicted' */
-export function statusColor(status) {
-  switch (status) {
-    case 'sourced': return 'var(--brass)';
-    case 'drafted': return 'var(--text-3)';
-    case 'contradicted': return 'var(--red)';
-    case 'unknown':
-    default: return 'transparent';
-  }
-}
 // --- confidence, from evidence.verification -----------------------------
 // Drafted facts never raise a confidence figure — 'drafted' always maps to 0.
 
@@ -221,11 +209,6 @@ export function numberIcons({ lifePath, chinese, sun }, { size = 'sm' } = {}) {
 
 function ring(cx, cy, r, color, extra = {}) {
   return svg('circle', { cx, cy, r, fill: 'none', stroke: color, 'stroke-width': 1.6, ...extra });
-}
-
-/** Cap a list of tokens at a ceiling, per STYLE.md (3 on a card, 4 on a node, 2 bands on a timeline). */
-export function capTokens(list, max) {
-  return list.slice(0, max);
 }
 
 // --- relation glyphs, drawn ON the connecting line ----------------------
