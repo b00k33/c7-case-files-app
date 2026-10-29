@@ -200,19 +200,22 @@ const TABS = [
   ['profile', 'Profile'], ['relations', 'Relations'], ['evidence', 'Evidence'],
 ];
 const TABS_MORE = [
-  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['questions', 'Questions'], ['import', 'Import'], ['fashion', 'Fashion'],
+  ['board', 'Board'], ['commercial', 'Commercial'], ['review', 'Review'], ['questions', 'Questions'], ['fashion', 'Fashion'],
 ];
 const TAB_MODULES = {
   review: () => import('./review.js'),
   evidence: () => import('./evidence.js'),
   questions: () => import('./questions.js'),
-  board: () => import('./board.js'), relations: () => import('./relations.js'), import: () => import('./import.js'),
+  board: () => import('./board.js'), relations: () => import('./relations.js'),
   commercial: () => import('./commercial.js'),
   fashion: () => import('./fashion.js'), // their own style page, inside their file (her 2026-10-25 ask)
 };
 
 export async function render(root, ctx, personId, tab = 'profile') {
   const { store } = ctx;
+  // the Import tab folded into the profile's own Paste (her pick, 2026-10-29):
+  // an old #/subject/<id>/import link opens the profile with the paste box
+  if (tab === 'import') sessionStorage.setItem('c7-open-add', 'paste');
   if (!TAB_MODULES[tab]) tab = 'profile';
 
   if (!personId || !ctx.caseId) {
@@ -339,6 +342,7 @@ export async function render(root, ctx, personId, tab = 'profile') {
           ${tab === 'profile' ? `<button class="zb zb-fill" id="add-btn" title="Paste facts, look them up, insert family, add works">${zdIcon('plus')}Add</button>` : ''}
           ${tab === 'profile' ? `<button class="zb" id="paste-btn" title="Straight to the paste box — no lookup, no forms">${zdIcon('clip')}Paste</button>` : ''}
           <button class="zb" id="edit-person-btn">${zdIcon('pen')}Edit</button>
+          <button class="zb zb-inspo" id="inspo-btn" title="Put them on your Inspo board">${zdIcon('star')}Inspo</button>
           <span class="zd-sp"></span>
           ${toReview && tab !== 'review' ? `<a class="zb zb-pink" href="#/subject/${person.id}/review" title="Facts waiting for your accept or reject">${zdIcon('check')}${toReview} to review</a>` : ''}
           ${movedToPeople ? '<span class="chip" title="This case no longer shows on the Cases grid">In People</span><button class="zb" id="unmove-person-btn">Move back to Cases</button>' : ''}
@@ -346,6 +350,8 @@ export async function render(root, ctx, personId, tab = 'profile') {
           ${couples.length > 1 ? `<span class="zd-menu"><button type="button" class="zb zb-story" id="story-menu-btn" aria-expanded="false">${zdIcon('heart')}Their story <span class="zb-car">▾</span></button><span class="zd-menu-list" id="story-menu" hidden>${couples.map((c) => `<a href="#/relationship/${c.rel.id}">♥ ${esc(c.other.display_name)}${c.rel.start_date ? ` <small>${c.rel.start_date.slice(0, 4)}</small>` : ''}</a>`).join('')}</span></span>` : ''}
           ${person.wikidata_id ? `<a class="zb" href="https://www.wikidata.org/wiki/${esc(person.wikidata_id)}" target="_blank" rel="noopener" title="This person's Wikidata record">${zdIcon('ext')}Wikidata</a>` : ''}
         </div>
+        <div id="inspo-slot"></div>
+        <div class="zd-pickrow" id="traits-row"></div>
         <div class="zd-two">
           <div class="zd-box">
             <h4>Demographics</h4>
@@ -387,13 +393,13 @@ export async function render(root, ctx, personId, tab = 'profile') {
           <div id="lk-results" class="stack" style="gap:4px"></div>
         </div>
         <details id="add-import" style="margin-top:16px">
-          <summary style="cursor:pointer;font-size:13px;color:var(--text-2);list-style:none">Import information ▸ paste anything, it saves what it recognises</summary>
+          <summary style="cursor:pointer;font-size:13px;color:var(--text-2);list-style:none">Import information ▸ paste facts, or a dated list for Review</summary>
           <div class="field" style="margin-top:8px">
-            <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
+            <textarea id="pi-text" placeholder="dob 15th sept 2024&#10;Russian&#10;female, married, born in Moscow&#10;aka Masha&#10;&#10;— or a dated list —&#10;1509 — becomes king&#10;1533 — marries Anne" style="min-height:64px;font-family:var(--font-mono);font-size:12px"></textarea>
           </div>
           <div class="row" style="gap:8px;align-items:center">
             <button class="btn btn-primary btn-sm" id="pi-save">Save what's recognised</button>
-            <span class="mono" style="font-size:11px;color:var(--text-3)">dates · nationality · gender · marital · birthplace · death · occupation · aka</span>
+            <span class="mono" style="font-size:11px;color:var(--text-3)">facts save now · two or more dated lines go to Review</span>
           </div>
         </details>
         <div id="add-byhand">
@@ -836,11 +842,80 @@ export async function render(root, ctx, personId, tab = 'profile') {
     ctx.closeDrawer();
     render(root, ctx, personId, tab);
   });
+  // ---- ★ Inspo and traits, from the person's own page (her picks,
+  // 2026-10-29: the Inspo board and Patterns sat almost unused, because a
+  // person had to be retyped there). Chips toggle; "+" makes a new one.
+  const inspoSlot = root.querySelector('#inspo-slot');
+  root.querySelector('#inspo-btn').addEventListener('click', () => {
+    if (inspoSlot.childElementCount) { inspoSlot.innerHTML = ''; return; }
+    paintInspo();
+  });
+  async function paintInspo() {
+    const themes = await store.listInspoThemes();
+    const inTheme = new Map();
+    for (const t of themes) {
+      const hit = (await store.listInspoPeople(t.id)).find((x) => x.person_id === person.id);
+      if (hit) inTheme.set(t.id, hit.id);
+    }
+    inspoSlot.innerHTML = `<div class="zd-pickrow">
+      <span class="zd-pick-label">Inspo</span>
+      ${themes.map((t) => `<button type="button" class="chip zd-pick${inTheme.has(t.id) ? ' on' : ''}" data-t="${esc(t.id)}">${inTheme.has(t.id) ? '✓ ' : ''}${esc(t.name)}</button>`).join('')}
+      <button type="button" class="chip zd-pick-new">+ theme</button>
+      <span class="zd-pick-form" hidden><input class="input" placeholder="Theme name" autocomplete="off"><button type="button" class="btn btn-ghost btn-sm">Add</button></span>
+      ${inTheme.size ? '<a class="chip zd-pick-go" href="#/inspo">Open Inspo →</a>' : ''}
+    </div>`;
+    const addTo = async (themeId) => {
+      await store.createInspoPerson({
+        theme_id: themeId, name: person.display_name, tagline: person.occupation || null,
+        photo_path: person.photo_path || null, photo_url: person.photo_url || null,
+        wikidata_id: person.wikidata_id || null, person_id: person.id,
+      });
+      try { localStorage.setItem('c7-inspo-theme', themeId); } catch (_) { /* private mode */ }
+    };
+    inspoSlot.querySelectorAll('.zd-pick[data-t]').forEach((b) => b.addEventListener('click', async () => {
+      const t = b.dataset.t;
+      if (inTheme.has(t)) await store.deleteInspoPerson(inTheme.get(t)); else await addTo(t);
+      paintInspo();
+    }));
+    wirePickNew(inspoSlot, async (name) => { await addTo(await store.createInspoTheme(name)); paintInspo(); });
+  }
+  const traitsRow = root.querySelector('#traits-row');
+  async function paintTraits() {
+    const all = await store.listTraitTags();
+    const mine = new Set((await store.listTagsForTarget('person', person.id)).map((t) => t.id));
+    traitsRow.innerHTML = `
+      <span class="zd-pick-label">Traits</span>
+      ${all.map((t) => `<button type="button" class="chip zd-pick${mine.has(t.id) ? ' on' : ''}" data-t="${esc(t.id)}">${esc(t.name)}</button>`).join('')}
+      <button type="button" class="chip zd-pick-new">+ trait</button>
+      <span class="zd-pick-form" hidden><input class="input" placeholder="Trait name" autocomplete="off"><button type="button" class="btn btn-ghost btn-sm">Add</button></span>`;
+    traitsRow.querySelectorAll('.zd-pick[data-t]').forEach((b) => b.addEventListener('click', async () => {
+      if (mine.has(b.dataset.t)) await store.untagTarget(b.dataset.t, 'person', person.id);
+      else await store.tagTarget(b.dataset.t, 'person', person.id);
+      paintTraits();
+    }));
+    wirePickNew(traitsRow, async (name) => { await store.tagTarget(await store.ensureTag(name), 'person', person.id); paintTraits(); });
+  }
+  /** "+ theme" / "+ trait": opens a one-field form beside the chips; Enter or Add saves. */
+  function wirePickNew(scope, onSave) {
+    const form = scope.querySelector('.zd-pick-form'), input = form.querySelector('input');
+    scope.querySelector('.zd-pick-new').addEventListener('click', () => { form.hidden = !form.hidden; if (!form.hidden) input.focus(); });
+    const save = () => { const v = input.value.trim(); if (!v) { input.focus(); return; } onSave(v); };
+    form.querySelector('button').addEventListener('click', save);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+  }
+  paintTraits();
+
   // the Board's (or the life line's) empty state sent her here for the first event
-  if (sessionStorage.getItem('c7-open-add')) {
+  // ('paste' = the Cases row's Import button or an old Import link, since the
+  // Import tab folded into Paste on 2026-10-29)
+  const openFlag = sessionStorage.getItem('c7-open-add');
+  if (openFlag && tab === 'profile') {
     sessionStorage.removeItem('c7-open-add');
-    openAdd();
-    setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80);
+    if (openFlag === 'paste') openAdd({ pasteOnly: true });
+    else {
+      openAdd();
+      setTimeout(() => tools.querySelector('#ev-title')?.focus(), 80);
+    }
   }
   // a brand-new person, just created from a cold start — her ask, 2026-09-28:
   // "when i add a person, make an animated workflow - i usually add their
@@ -952,6 +1027,19 @@ export async function render(root, ctx, personId, tab = 'profile') {
     const btn = tools.querySelector('#pi-save');
     const text = tools.querySelector('#pi-text').value;
     clearInlineNote(btn);
+    // a dated list (two or more "1509 — …" lines, a table, full dates) is a
+    // timeline: it drafts to Review exactly as the old Import tab did (her
+    // 2026-10-29 pick folded that tab in here); anything else is facts
+    const { parseTimelinePaste, draftTimelineClaims } = await import('./import.js');
+    const timeline = parseTimelinePaste(text);
+    if (timeline.events.length >= 2) {
+      btn.disabled = true; btn.textContent = 'Adding…';
+      await draftTimelineClaims(store, person.case_id || ctx.caseId, person.id, person.display_name, timeline.events, timeline.facts);
+      sessionStorage.setItem('c7-pi-result', `${timeline.events.length} dated event${timeline.events.length === 1 ? '' : 's'} drafted to Review${timeline.facts.length ? `, plus ${timeline.facts.length} undated note${timeline.facts.length === 1 ? '' : 's'}` : ''}. Open the Review tab to accept them.`);
+      ctx.closeDrawer();
+      render(root, ctx, personId);
+      return;
+    }
     const parsed = parseProfileText(text);
     if (!parsed.recognised.length) {
       inlineNote(btn, text.trim() ? `Nothing recognised in that. Try "dob 15 Sept 2024", "Russian", "female", "married", "born in Moscow", "died 2020", "aka …".` : 'Paste something first.');
@@ -1591,7 +1679,7 @@ function renderEditForm(body, ctx, person, tags = []) {
         </div>
       </div>
     </div>
-    <div class="field"><label>Traits you've noticed — physical or personality, comma separated (e.g. dimples, freckles). Feeds the Traits gallery on Patterns.</label><input type="text" id="f-traits" value="${esc(tags.map((t) => t.name).join(', '))}" placeholder="dimples, freckles"></div>
+    <div class="field"><label>Traits you've noticed — physical or personality, comma separated. Feeds the Traits gallery on Patterns.</label><input type="text" id="f-traits" value="${esc(tags.map((t) => t.name).join(', '))}" placeholder="dimples, freckles"></div>
     <div class="field"><label>Birthplace</label><input type="text" id="f-bplace" value="${esc(person.birth_place)}"></div>
     <div class="field"><label>Death date (leave blank if living)</label><input type="date" id="f-ddate" value="${esc(person.death_date)}"></div>
     <div class="row" style="gap:8px">

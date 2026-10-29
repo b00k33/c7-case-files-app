@@ -18,6 +18,7 @@ import { emptyState } from '../indicators.js';
 import { inlineNameForm, inlineNote, clearInlineNote, twoTapConfirm, stampMoment } from '../ui.js';
 import { normTitle } from '../works.js';
 import { autoCaseName, looksHurried } from '../names.js';
+import { dateOptions, unclearDate } from '../date-options.js';
 
 const FILTER_KEY = 'c7-q-filter'; // all | open | leaning | answered
 // lively (2026-10-29, the quiet-pages pass): the question or theory just added pops with a glow
@@ -167,6 +168,39 @@ export async function render(root, ctx, personId = null) {
     `;
     // declared before the theory rows are painted — they hand it to their timelines
     const repaint = async (justAnswered = false) => { data = await load(); const fresh = data.questions.find((x) => x.id === q.id); if (!fresh) { card.remove(); paintCounts(); return; } const next = await paintCard(fresh, card, justAnswered); card.replaceWith(next); paintCounts(); return next; };
+    // one-tap answer (her pick, 2026-10-29): an "Unclear: birth for X" question
+    // that Review raised shows the competing dates as chips; tapping one
+    // answers it and, when it's a date not yet on record, sets it on the person
+    const unclear = unclearDate(q.text);
+    const who = unclear && (q.person_id ? byId.get(q.person_id) : people.find((p) => p.display_name.trim().toLowerCase() === String(unclear.name || '').trim().toLowerCase()));
+    if (unclear && who && !q.resolved) {
+      const opts = await dateOptions(store, who, unclear.field);
+      if (opts.length) {
+        const pick = document.createElement('div');
+        pick.className = 'q-pick';
+        pick.innerHTML = `<div class="section-label">Which is right? Tap it</div>
+          <div class="row wrap" style="gap:6px;margin-top:6px">${opts.map((o, i) => `<button type="button" class="chip q-opt${o.onRecord ? ' teal' : ''}" data-i="${i}">${esc(o.label)}<span class="q-src">${esc(o.source)}</span></button>`).join('')}<button type="button" class="chip q-unsure">Still unsure</button></div>`;
+        pick.querySelectorAll('.q-opt').forEach((b) => b.addEventListener('click', async () => {
+          const o = opts[+b.dataset.i];
+          pick.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+          b.classList.add('chosen');
+          if (!o.onRecord && o.claimId) await store.decideClaim(o.claimId, 'accepted');
+          await store.updateQuestion(q.id, { resolved: 1, person_id: who.id, notes: `Answered: ${o.label}${o.onRecord ? ' (kept the date on record)' : ` (from ${o.source}, now on ${who.display_name}’s profile)`}` });
+          repaint(true);
+        }));
+        pick.querySelector('.q-unsure').addEventListener('click', () => {
+          card.classList.add('collapsed');
+          card.querySelector('.q-caret').textContent = '▸';
+        });
+        card.querySelector('.q-body').prepend(pick);
+      }
+    }
+    if (q.resolved && /^Answered: /.test(q.notes || '')) {
+      const done = document.createElement('div');
+      done.className = 'q-answered';
+      done.textContent = q.notes;
+      card.querySelector('.q-body').prepend(done);
+    }
     const tList = card.querySelector('.theories');
     if (!theories.length) {
       tList.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:2px 2px 6px">No theories yet — add the first, or leave it as a question you are still sitting with.</div>';

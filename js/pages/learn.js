@@ -13,7 +13,6 @@
 // Redraw rule: the video player is an <iframe>, and moving or re-creating it
 // restarts the video. So adding / editing / ticking a moment repaints only
 // that lecture's moment list; the player and the rest of the card stay put.
-import { emptyState } from '../indicators.js';
 import { countUp } from '../ui.js';
 import { resolveAssetUrl, compressImage } from '../assets.js';
 import { searchPeople, fetchItemPhoto } from '../lookup.js';
@@ -159,15 +158,7 @@ export async function render(root, ctx) {
   function paintDetail() {
     const el = root.querySelector('#learn-detail');
     const t = teachers.find((x) => x.id === teacherId);
-    if (!t) {
-      el.innerHTML = '';
-      el.appendChild(emptyState({
-        missing: 'No teachers yet.',
-        why: 'Add someone you learn from, then paste a link to one of their lectures and save the moments worth keeping.',
-        action: 'Add your first teacher', onAction: () => teacherForm(null),
-      }));
-      return;
-    }
+    if (!t) { startBox(el); return; }
     const shown = `${teacherId}|${view}`;
     const entering = shown !== lastLearn;
     lastLearn = shown;
@@ -412,6 +403,44 @@ export async function render(root, ctx) {
       </div>`;
   }
 
+  /**
+   * The empty page is one box (her pick, 2026-10-29: Learn had never been
+   * used): paste a lecture link and the app makes the teacher from the
+   * channel's name and the lecture under them, ready for timestamps.
+   */
+  function startBox(el) {
+    el.innerHTML = `
+      <div class="card learn-start">
+        <h3>Start with a lecture</h3>
+        <p class="shelf-stat">Paste a YouTube or Vimeo link. The teacher comes from the channel's name and the lecture is ready for timestamps.</p>
+        <input class="input" id="ls-url" placeholder="Paste a lecture link…" autocomplete="off">
+        <div class="inspo-form-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="ls-go">Start</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="ls-hand">Add a teacher by name</button>
+          <span class="shelf-stat" id="ls-msg"></span>
+        </div>
+      </div>`;
+    const urlEl = el.querySelector('#ls-url'), msg = el.querySelector('#ls-msg'), go = el.querySelector('#ls-go');
+    el.querySelector('#ls-hand').addEventListener('click', () => teacherForm(null));
+    const start = async () => {
+      const info = parseLectureUrl(urlEl.value.trim());
+      if (!info) { msg.textContent = urlEl.value.trim() ? 'That doesn’t look like a link' : 'Paste a link first'; urlEl.focus(); return; }
+      go.disabled = true; msg.textContent = info.platform === 'link' ? 'Saving…' : 'Reading the video…';
+      const meta = info.platform === 'link' ? null : await fetchOEmbed(info);
+      let host = 'Untitled'; try { host = new URL(info.url).hostname.replace(/^www\./, ''); } catch (_) { /* keep it */ }
+      const name = (meta?.author || host).trim();
+      const same = teachers.find((x) => x.name.trim().toLowerCase() === name.toLowerCase());
+      teacherId = same ? same.id : await store.createLearnTeacher({ name });
+      ls.set(TEACHER_KEY, teacherId); mobileDetail = true;
+      freshLecture = await store.createLearnLecture({ teacher_id: teacherId, title: meta?.title || host, url: info.url });
+      await reloadTeachers(); await paint();
+    };
+    go.addEventListener('click', start);
+    urlEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
+    urlEl.addEventListener('paste', () => setTimeout(start, 0)); // a paste is the whole job
+    urlEl.focus();
+  }
+
   // ----------------------------------------------------------- player ----
   /** Make sure this lecture's player is open, then jump to `secs`. Non-embeddable links open in a new tab at that time. */
   function playAt(lid, secs) {
@@ -450,22 +479,23 @@ export async function render(root, ctx) {
       url = info.url;
       if (!title && info.platform !== 'link') {
         msg.textContent = 'Getting the title…';
-        title = await fetchTitle(info);
+        title = (await fetchOEmbed(info))?.title || null;
       }
       if (!title) { try { title = new URL(info.url).hostname.replace(/^www\./, ''); } catch (_) { title = 'Untitled lecture'; } }
     }
     freshLecture = await store.createLearnLecture({ teacher_id: teacherId, title: title || 'Untitled lecture', url });
     await reloadTeachers(); await paint();
   }
-  /** YouTube and Vimeo both publish a public oEmbed title. Offline or blocked → null (she can type one). */
-  async function fetchTitle(info) {
+  /** YouTube and Vimeo both publish a public oEmbed title and channel name. Offline or blocked → null (she can type one). */
+  async function fetchOEmbed(info) {
     const api = info.platform === 'youtube'
       ? `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(info.url)}`
       : `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(info.url)}`;
     try {
       const res = await fetch(api);
       if (!res.ok) return null;
-      return ((await res.json()).title || '').trim() || null;
+      const j = await res.json();
+      return { title: (j.title || '').trim() || null, author: (j.author_name || '').trim() || null };
     } catch (_) { return null; }
   }
 

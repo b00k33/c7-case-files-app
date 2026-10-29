@@ -137,6 +137,50 @@ function factFromCells(cells) {
   return best.length >= 15 ? best : null;
 }
 
+/**
+ * A parsed timeline → drafted claims on one person, all to Review. Shared by
+ * this page and the profile's own Paste (her 2026-10-29 pick: the Import tab
+ * folds into the profile, so one Paste takes facts and dated lists).
+ */
+export async function draftTimelineClaims(store, caseId, personId, personName, events, facts) {
+  // A timeline about one person often mentions others in the same
+  // row ("Arthur dies. Henry becomes heir.") — detectKind flags that
+  // row as a death, but it isn't THIS person's death. Only draft the
+  // person's own birth/death fields when their name is actually in the
+  // SAME clause as the birth/death word — checking the whole title
+  // isn't enough, since the subject's name can legitimately appear in
+  // a neighbouring clause about someone else's death ("Henry VII dies.
+  // Henry becomes King Henry VIII.").
+  const KIND_KEYWORDS = { birth: /\bborn\b|\bbirth\b/i, death: /\bdies\b|\bdied\b|\bdeath\b/i };
+  const mentionsPerson = (title, kind) => {
+    if (!personName) return false;
+    const re = KIND_KEYWORDS[kind];
+    const clause = re ? title.split(/(?<=[.!?])\s+/).find((s) => re.test(s)) || title : title;
+    return clause.toLowerCase().includes(personName.toLowerCase());
+  };
+  for (const r of events) {
+    await store.createClaim({
+      case_id: caseId,
+      target_type: 'person',
+      target_id: personId,
+      field: 'event',
+      value: { person_id: personId, title: r.title, kind: r.kind, date: r.date, date_precision: r.date_precision, date_year_min: r.date_year_min, date_year_max: r.date_year_max },
+      origin: 'paste',
+      rationale: r.source ? `Source: ${r.source}` : r.notes,
+    });
+    if (!mentionsPerson(r.title, r.kind)) continue;
+    if (r.kind === 'birth') {
+      const value = r.date ? { precision: 'day', date: r.date } : { precision: 'year', year: r.date_year_min };
+      await store.createClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'birth', value, origin: 'paste', rationale: r.notes });
+    } else if (r.kind === 'death' && r.date) {
+      await store.createClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'death', value: { precision: 'day', date: r.date }, origin: 'paste', rationale: r.notes });
+    }
+  }
+  if (facts.length) {
+    await store.createClaim({ case_id: caseId, target_type: 'person', target_id: personId, field: 'notes', value: facts.join('\n\n'), origin: 'paste', rationale: 'from paste: non-dated facts' });
+  }
+}
+
 export function parseTimelinePaste(text) {
   const lines = (text || '').split('\n').map((l) => l.trim()).filter(Boolean);
   const events = [];
@@ -482,43 +526,7 @@ function renderPasteTab(body, ctx, people) {
         personName = people.find((p) => p.id === personId)?.display_name || '';
       }
 
-      // A timeline about one person often mentions others in the same
-      // row ("Arthur dies. Henry becomes heir.") — detectKind flags that
-      // row as a death, but it isn't THIS person's death. Only draft the
-      // person's own birth/death fields when their name is actually in the
-      // SAME clause as the birth/death word — checking the whole title
-      // isn't enough, since the subject's name can legitimately appear in
-      // a neighbouring clause about someone else's death ("Henry VII dies.
-      // Henry becomes King Henry VIII.").
-      const KIND_KEYWORDS = { birth: /\bborn\b|\bbirth\b/i, death: /\bdies\b|\bdied\b|\bdeath\b/i };
-      const mentionsPerson = (title, kind) => {
-        if (!personName) return false;
-        const re = KIND_KEYWORDS[kind];
-        const clause = re ? title.split(/(?<=[.!?])\s+/).find((s) => re.test(s)) || title : title;
-        return clause.toLowerCase().includes(personName.toLowerCase());
-      };
-
-      for (const r of events) {
-        await ctx.store.createClaim({
-          case_id: ctx.caseId,
-          target_type: 'person',
-          target_id: personId,
-          field: 'event',
-          value: { person_id: personId, title: r.title, kind: r.kind, date: r.date, date_precision: r.date_precision, date_year_min: r.date_year_min, date_year_max: r.date_year_max },
-          origin: 'paste',
-          rationale: r.source ? `Source: ${r.source}` : r.notes,
-        });
-        if (!mentionsPerson(r.title, r.kind)) continue;
-        if (r.kind === 'birth') {
-          const value = r.date ? { precision: 'day', date: r.date } : { precision: 'year', year: r.date_year_min };
-          await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'birth', value, origin: 'paste', rationale: r.notes });
-        } else if (r.kind === 'death' && r.date) {
-          await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'death', value: { precision: 'day', date: r.date }, origin: 'paste', rationale: r.notes });
-        }
-      }
-      if (facts.length) {
-        await ctx.store.createClaim({ case_id: ctx.caseId, target_type: 'person', target_id: personId, field: 'notes', value: facts.join('\n\n'), origin: 'paste', rationale: 'from paste: non-dated facts' });
-      }
+      await draftTimelineClaims(ctx.store, ctx.caseId, personId, personName, events, facts);
       ctx.rerender();
     });
     previewEl.appendChild(confirmBtn);

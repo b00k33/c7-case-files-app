@@ -2811,3 +2811,50 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .face-card:hover .face, .tl-entry:hover, .tl-entry:hover::before, .milestone-chip:hover, .theory:hover, .theory .star:hover,
   .q-head:hover .q-caret, .learn-lecture:hover .learn-plat, .learn-teacher:hover .inspo-avatar { transform: none !important; }
 }
+
+/* The least-used pages, made easy to start (2026-10-29, her 8 picks from the usage audit):
+   Questions answer in one tap, the Board pins what's there, Learn starts from a pasted
+   link, My Shelf adds a product in place, ★ Inspo and trait chips on every profile. */
+button.chip { border: 1px solid transparent; font: inherit; font-size: 11.5px; cursor: pointer; transition: transform .15s cubic-bezier(.3,1.6,.5,1), background .2s ease, border-color .2s ease, color .2s ease; }
+button.chip:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--brass); }
+button.chip:active:not(:disabled) { transform: scale(.95); }
+button.chip:disabled { cursor: default; opacity: .55; }
+/* Questions: the competing dates */
+.q-pick { margin-bottom: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: color-mix(in srgb, var(--brass) 6%, var(--ink-2)); }
+.q-opt .q-src { margin-left: 6px; font-weight: 400; font-size: 10.5px; opacity: .7; }
+.q-opt.teal { border-color: color-mix(in srgb, var(--teal) 45%, transparent); }
+.q-opt.chosen { opacity: 1; background: var(--green); color: var(--on-brass); animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1); }
+.q-answered { margin-bottom: var(--sp-3); font-size: 12.5px; color: var(--green); }
+/* Board: pinned people and their dates */
+.cork-note { margin: 0 var(--sp-3) var(--sp-2); font-size: 11.5px; color: #f3e9d2; opacity: .85; }
+.cork-theory.person .cork-text { font-size: 19px; }
+.cork-evidence.alt { background: color-mix(in srgb, var(--red) 10%, var(--paper)); }
+.cork-ev-sub { font-size: 10px; opacity: .65; margin-top: 2px; }
+/* Learn: the one-box start */
+.learn-start { max-width: 560px; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4); border-left: 4px solid var(--brass); }
+.learn-start h3 { font-size: 17px; }
+.learn-start .input { font-size: 14px; }
+/* My Shelf: + Product in place */
+.shelf-add { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); }
+.shelf-add-title { font-weight: 700; font-size: 13px; color: var(--brass); }
+.shelf-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.shelf-add-row[hidden] { display: none; }
+.shelf-add .input { max-width: 420px; }
+.sa-brand.on, .sa-cat.on, .zd-pick.on { background: var(--brass); color: var(--on-brass); }
+.shelf-card.fresh { animation: fs-pop .6s cubic-bezier(.3,1.6,.5,1) both, fs-glow 1.8s ease .3s; }
+/* profile: ★ Inspo themes and traits */
+.zd-pickrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.zd-pickrow:empty { display: none; }
+.zd-pick-label { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-right: 2px; }
+.zd-pick-form { display: inline-flex; gap: 6px; align-items: center; }
+.zd-pick-form[hidden] { display: none; }
+.zd-pick-form .input { height: 28px; width: 170px; font-size: 12px; }
+.zd-pick-go { text-decoration: none; color: var(--brass); }
+.zb-inspo { color: var(--gold, var(--brass)); }
+.zb-inspo .zd-ic { transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+.zb-inspo:hover .zd-ic { transform: rotate(72deg) scale(1.15); }
+@media (prefers-reduced-motion: reduce) {
+  button.chip, .zb-inspo .zd-ic { transition: none; }
+  button.chip:hover:not(:disabled), button.chip:active:not(:disabled), .zb-inspo:hover .zd-ic { transform: none; }
+  .q-opt.chosen, .shelf-card.fresh { animation: none; }
+}

@@ -1009,6 +1009,12 @@ export async function countInbox(caseId) {
   return r.length ? r[0].n : 0;
 }
 
+/** Every tag used as a person's trait (Patterns), never the event outcome tags. */
+export async function listTraitTags() {
+  return db.exec(`SELECT DISTINCT t.* FROM tag t JOIN tagging tg ON tg.tag_id = t.id
+    WHERE tg.target_type='person' AND t.name NOT LIKE 'outcome:%' ORDER BY t.name COLLATE NOCASE`);
+}
+
 export async function listTagsForTarget(targetType, targetId) {
   return db.exec(
     `SELECT t.* FROM tagging tg JOIN tag t ON t.id = tg.tag_id WHERE tg.target_type=? AND tg.target_id=?`,
@@ -1422,6 +1428,8 @@ export async function decideClaim(id, decision, rationale) {
   if (decision === 'question') {
     await createQuestion({
       case_id: claim.case_id,
+      // the person it's about, so Questions can offer the one-tap answer (2026-10-29)
+      person_id: claim.target_type === 'person' ? claim.target_id : null,
       text: rationale || `Unclear: ${claim.field} (${claim.target_type || 'new'}) from a ${claim.origin} claim.`,
     });
   }

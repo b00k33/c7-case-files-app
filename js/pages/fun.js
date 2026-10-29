@@ -29,8 +29,17 @@ const FUN_CASE_NAME = 'Fun & Zodiac';
 // claim/review; it's not evidentiary research, it's noticing patterns.
 async function getOrCreateFunCase(store) {
   const cases = await store.listCases();
-  const existing = cases.find((c) => c.kind === 'fun');
-  if (existing) return existing;
+  const fun = cases.filter((c) => c.kind === 'fun');
+  if (fun.length > 1) {
+    // two Fun & Zodiac cases (found 2026-10-29: one held her 17 people, the
+    // other nothing): keep the fullest; an EMPTY duplicate folds away (soft
+    // delete, restorable — her pick). One that holds anybody is never touched.
+    const counts = await Promise.all(fun.map((c) => store.listPeople(c.id).then((p) => p.length)));
+    const keep = fun[counts.indexOf(Math.max(...counts))];
+    for (let i = 0; i < fun.length; i++) if (fun[i] !== keep && counts[i] === 0) await store.softDeleteCase(fun[i].id);
+    return keep;
+  }
+  if (fun.length) return fun[0];
   return store.createCase({
     name: FUN_CASE_NAME,
     kind: 'fun',

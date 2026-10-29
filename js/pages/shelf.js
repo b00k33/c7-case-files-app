@@ -31,6 +31,8 @@ import { zodiacSvg } from '../story-art.js';
 
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 let shelfSeen = false; // the header counts up and shines once a session
+let freshProduct = null; // the product just added here, glows once on the next draw
+let lastBrand = null;    // the brand chip she used last stays picked
 
 // lively (her 2026-10-25 "make the my shelf page more lively"): each card's swatch is a little
 // drawing of its category, and the hovered one acts it out (the jar lid lifts, the lipstick
@@ -81,9 +83,63 @@ export async function render(root, ctx) {
           <button type="button" class="shelf-seg-btn" data-g="zodiac">By zodiac</button>
         </div>
       </div>
+      <div class="card shelf-add" id="shelf-add"></div>
       <div id="shelf-sections"></div>
     </div>
   `;
+  paintAdd();
+
+  // "+ Product" right here (her pick, 2026-10-29: My Shelf had never been used,
+  // because a product could only be added from inside its brand's case): tap
+  // a brand chip, type the name, tap a category chip, Add.
+  async function paintAdd() {
+    const box = root.querySelector('#shelf-add');
+    const brands = (await store.listCases()).filter((c) => c.kind === 'company').sort((a, b) => a.name.localeCompare(b.name));
+    if (!brands.some((b) => b.id === lastBrand)) lastBrand = brands[0]?.id || null;
+    let cat = 'Skincare';
+    box.innerHTML = `
+      <div class="shelf-add-title">+ Product</div>
+      <div class="shelf-add-row" id="sa-brands">
+        ${brands.map((b) => `<button type="button" class="chip sa-brand${b.id === lastBrand ? ' on' : ''}" data-id="${esc(b.id)}">${esc(b.name)}</button>`).join('')}
+        <button type="button" class="chip sa-newbrand">+ brand</button>
+      </div>
+      <div class="shelf-add-row sa-brandform" hidden><input class="input" id="sa-brandname" placeholder="Brand name" autocomplete="off"><button type="button" class="btn btn-ghost btn-sm" id="sa-brandsave">Add brand</button></div>
+      <input class="input" id="sa-name" placeholder="Product name" autocomplete="off">
+      <div class="shelf-add-row" id="sa-cats">
+        ${CATEGORIES.map((c) => `<button type="button" class="chip sa-cat ${CATEGORY_CHIP[c]}${c === cat ? ' on' : ''}" data-c="${c}">${c}</button>`).join('')}
+        <button type="button" class="btn btn-primary btn-sm" id="sa-go">Add</button>
+        <span class="shelf-stat" id="sa-msg"></span>
+      </div>`;
+    const $ = (s) => box.querySelector(s);
+    box.querySelectorAll('.sa-brand').forEach((b) => b.addEventListener('click', () => {
+      lastBrand = b.dataset.id;
+      box.querySelectorAll('.sa-brand').forEach((x) => x.classList.toggle('on', x === b));
+    }));
+    box.querySelectorAll('.sa-cat').forEach((b) => b.addEventListener('click', () => {
+      cat = b.dataset.c;
+      box.querySelectorAll('.sa-cat').forEach((x) => x.classList.toggle('on', x === b));
+    }));
+    $('.sa-newbrand').addEventListener('click', () => { const f = $('.sa-brandform'); f.hidden = !f.hidden; if (!f.hidden) $('#sa-brandname').focus(); });
+    const addBrand = async () => {
+      const name = $('#sa-brandname').value.trim();
+      if (!name) { $('#sa-brandname').focus(); return; }
+      const same = brands.find((b) => b.name.trim().toLowerCase() === name.toLowerCase());
+      lastBrand = same ? same.id : (await store.createCase({ name, kind: 'company' })).id;
+      await paintAdd();
+      root.querySelector('#sa-name').focus();
+    };
+    $('#sa-brandsave').addEventListener('click', addBrand);
+    $('#sa-brandname').addEventListener('keydown', (e) => { if (e.key === 'Enter') addBrand(); });
+    const add = async () => {
+      const name = $('#sa-name').value.trim();
+      if (!lastBrand) { $('#sa-msg').textContent = 'Add a brand first'; return; }
+      if (!name) { $('#sa-msg').textContent = 'Type the product name'; $('#sa-name').focus(); return; }
+      freshProduct = await store.createEvent({ case_id: lastBrand, kind: 'shelf_item', title: name, place: cat });
+      render(root, ctx);
+    };
+    $('#sa-go').addEventListener('click', add);
+    $('#sa-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+  }
 
   const segctrl = root.querySelector('#shelf-segctrl');
   const thumb = root.querySelector('#shelf-seg-thumb');
@@ -111,8 +167,7 @@ export async function render(root, ctx) {
       sectionsEl.innerHTML = '';
       sectionsEl.appendChild(emptyState({
         missing: 'Nothing on your shelf yet.',
-        why: 'Open a brand’s Business case (or add one from Cases) and add what you own on its Products tab — it shows up here, grouped by that brand’s own zodiac.',
-        action: 'Go to Cases', onAction: () => ctx.navigate('#/cases'),
+        why: 'Add what you own with + Product above. It shows up here, grouped by category or by its brand’s zodiac.',
       }));
       return;
     }
@@ -133,7 +188,7 @@ export async function render(root, ctx) {
         </div>
         <div class="shelf-grid">
           ${items.map((p, i) => `
-            <article class="shelf-card card" data-case="${esc(p.case_id)}" data-id="${esc(p.id)}" style="animation-delay:${(i * 0.05).toFixed(2)}s">
+            <article class="shelf-card card${p.id === freshProduct ? ' fresh' : ''}" data-case="${esc(p.case_id)}" data-id="${esc(p.id)}" style="animation-delay:${(i * 0.05).toFixed(2)}s">
               <div class="shelf-swatch cat-${CATEGORY_CHIP[p.category]}"><svg class="shelf-art" viewBox="0 0 40 40" aria-hidden="true">${SWATCH_ART[p.category]}</svg></div>
               <div class="shelf-brand">${esc(p.brand)}</div>
               <h3 class="shelf-pname">${esc(p.name)}</h3>
@@ -181,6 +236,7 @@ export async function render(root, ctx) {
 
   paintToggle();
   renderSections();
+  freshProduct = null;
   if (!shelfSeen) {
     shelfSeen = true;
     const top = root.querySelector('.shelf-topbar');

@@ -9,6 +9,7 @@
 // opens that tab. No drag, no saved positions: the app places everything.
 import { emptyState } from '../indicators.js';
 import { verificationConfidence } from '../indicators.js';
+import { dateOptions } from '../date-options.js';
 
 const FIT_KEY = 'c7-board-fit';
 const ZOOM_MIN = 0.4, ZOOM_MAX = 1.6, ZOOM_STEP = 0.15, MIN_FIT = 0.8;
@@ -64,17 +65,45 @@ export async function render(root, ctx, personId = null) {
   root.innerHTML = `<div class="stack"><div id="board-slot"></div></div>`;
   const slot = root.querySelector('#board-slot');
 
-  if (!theories.length) {
-    slot.appendChild(emptyState({
-      missing: 'No theories pinned yet.',
-      why: 'The board pins theories from the Questions tab, with their evidence strung beneath — ask a question there first.',
-      action: '+ Question',
-      onAction: () => goToQuestions(null),
-    }));
-    return;
+  // every column is the same shape, whichever source fills it: a head card,
+  // the cards strung beneath it, and (for two dates that disagree) the pairs
+  // of its own cards a red string joins
+  let columns;
+  let pinned = false;
+  if (theories.length) {
+    const theoryLinks = await Promise.all(theories.map((t) => store.listLinksForTarget('question', t.id)));
+    columns = theories.map((t, ci) => {
+      const q = questionsById.get(t.parent_id);
+      const won = !!(q && q.resolved && q.answer_id === t.id);
+      return {
+        id: t.id, cls: `${t.pick ? ' pick' : ''}${won ? ' won' : ''}`,
+        eyebrow: q ? q.text : null, text: t.text, title: q ? `${q.text} — ${t.text}` : t.text,
+        star: won ? '✓' : t.pick ? '★' : null, starTitle: won ? 'The theory that settled it' : 'Her leaning',
+        onClick: () => goToQuestions(q),
+        items: theoryLinks[ci].map((l) => ({
+          id: l.id, evidenceId: l.evidence_id, title: `${EV_GLYPH[l.evidence_type] || '◆ '}${l.evidence_title}`, tip: `${l.evidence_title} · ${l.evidence_type}`,
+          sourced: isSourced(l.evidence_verification), onClick: () => ctx.navigate('#/evidence'),
+        })),
+        strings: [],
+      };
+    });
+  } else {
+    // pin what's there (her pick, 2026-10-29: the Board was empty in every
+    // case, because nothing had ever made a theory): the case's people, each
+    // with the evidence linked to them, and a red string between two birth
+    // dates on record that disagree. A theory, once she adds one, takes over.
+    columns = await pinnedColumns(store, ctx, personId);
+    pinned = true;
+    if (!columns.length) {
+      slot.appendChild(emptyState({
+        missing: 'No one to pin yet.',
+        why: 'The board pins this case’s people and their evidence, or the theories from the Questions tab once there are some.',
+        action: '+ Question',
+        onAction: () => goToQuestions(null),
+      }));
+      return;
+    }
   }
-
-  const theoryLinks = await Promise.all(theories.map((t) => store.listLinksForTarget('question', t.id)));
 
   const wrap = document.createElement('div');
   wrap.className = 'board-wrap';
@@ -83,7 +112,7 @@ export async function render(root, ctx, personId = null) {
       <div class="row wrap" style="gap:10px">
         <span class="row" style="gap:4px"><span style="width:14px;height:2px;background:var(--brass);display:inline-block"></span><span class="mono" style="font-size:11px">supports · sourced</span></span>
         <span class="row" style="gap:4px"><span style="width:14px;height:2px;border-top:1px dashed var(--text-3);display:inline-block"></span><span class="mono" style="font-size:11px">supports · drafted</span></span>
-        <span class="row" style="gap:4px"><span style="width:14px;height:2px;background:var(--red);display:inline-block"></span><span class="mono" style="font-size:11px">contradicts</span></span>
+        <span class="row" style="gap:4px"><span style="width:14px;height:2px;background:var(--red);display:inline-block"></span><span class="mono" style="font-size:11px">${pinned ? 'disagree' : 'contradicts'}</span></span>
       </div>
       <span class="seg">
         <button id="board-fit" title="Shrink the board to fit this box">Fit</button>
@@ -91,6 +120,7 @@ export async function render(root, ctx, personId = null) {
         <button id="board-zoom-in" title="Zoom in">+</button>
       </span>
     </div>
+    ${pinned ? '<p class="cork-note">No theories yet, so the board pins the people and evidence already in this case. A theory from Questions takes their place.</p>' : ''}
     <div class="cork-scroll"><div class="cork-scale"><div class="cork-board"></div></div></div>
   `;
   slot.appendChild(wrap);
@@ -101,74 +131,13 @@ export async function render(root, ctx, personId = null) {
 
   const evidencePos = new Map(); // evidence id -> {x, y} card centre, for the red string
   let maxRows = 1;
-  const contentW = PAD * 2 + theories.length * COL_PITCH;
+  const contentW = PAD * 2 + columns.length * COL_PITCH;
 
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('class', 'string-svg');
-
-  theories.forEach((t, ci) => {
-    const q = questionsById.get(t.parent_id);
-    const cx = PAD + ci * COL_PITCH + COL_PITCH / 2;
-    const won = !!(q && q.resolved && q.answer_id === t.id);
-
-    const tCard = document.createElement('button');
-    tCard.type = 'button';
-    tCard.className = `cork-theory${t.pick ? ' pick' : ''}${won ? ' won' : ''}`;
-    tCard.style.left = `${cx - THEORY_W / 2}px`;
-    tCard.style.top = '0px';
-    tCard.style.setProperty('--tilt', `${tilt(t.id)}deg`);
-    tCard.style.setProperty('--c', ci); // lively (2026-10-29): cards drop onto the board left to right on arrival
-    tCard.innerHTML = `
-      <i class="pin"></i>
-      ${q ? `<div class="cork-eyebrow">${esc(q.text)}</div>` : ''}
-      <div class="cork-text">${esc(t.text)}</div>
-      ${t.pick || won ? `<span class="cork-star" title="${won ? 'The theory that settled it' : 'Her leaning'}">${won ? '✓' : '★'}</span>` : ''}
-    `;
-    tCard.title = q ? `${q.text} — ${t.text}` : t.text;
-    tCard.addEventListener('click', () => { if (scrollBox.dataset.dragged) return; goToQuestions(q); });
-    board.appendChild(tCard);
-
-    const links = theoryLinks[ci];
-    links.forEach((l, ei) => {
-      const y = START_Y + ei * EV_STEP;
-      maxRows = Math.max(maxRows, ei + 1);
-      const sourced = isSourced(l.evidence_verification);
-      if (!evidencePos.has(l.evidence_id)) evidencePos.set(l.evidence_id, { x: cx, y: y + EV_H / 2 });
-
-      const eCard = document.createElement('button');
-      eCard.type = 'button';
-      eCard.className = 'cork-evidence';
-      eCard.style.left = `${cx - EV_W / 2}px`;
-      eCard.style.top = `${y}px`;
-      eCard.style.setProperty('--tilt', `${tilt(l.id, 2)}deg`);
-      eCard.style.setProperty('--c', ci + 1 + ei);
-      eCard.innerHTML = `<i class="pin"></i><div class="cork-ev-title">${EV_GLYPH[l.evidence_type] || '◆ '}${esc(l.evidence_title)}</div>`;
-      eCard.title = `${l.evidence_title} · ${l.evidence_type}`;
-      eCard.addEventListener('click', () => { if (scrollBox.dataset.dragged) return; ctx.navigate('#/evidence'); });
-      board.appendChild(eCard);
-
-      const line = document.createElementNS(NS, 'line');
-      line.setAttribute('x1', cx); line.setAttribute('y1', THEORY_H);
-      line.setAttribute('x2', cx); line.setAttribute('y2', y);
-      line.setAttribute('stroke', sourced ? 'var(--brass)' : 'var(--text-3)');
-      line.setAttribute('stroke-width', '1.5');
-      if (sourced) line.setAttribute('pathLength', '1'); // so the CSS can draw it in on arrival (never on a dashed line: pathLength rescales its dashes)
-      line.style.setProperty('--c', ci + 1 + ei);
-      if (!sourced) line.setAttribute('stroke-dasharray', '3,3');
-      svg.appendChild(line);
-    });
-  });
-
-  // the red string: one curve per contradiction, between its two evidence
-  // cards — only when BOTH sides are actually pinned to a theory somewhere
-  const unplaced = [];
-  for (const c of contradictions) {
-    const a = evidencePos.get(c.a_evidence_id), b = evidencePos.get(c.b_evidence_id);
-    if (!a || !b) { unplaced.push(c); continue; }
-    const midX = (a.x + b.x) / 2;
-    const lift = Math.max(a.y, b.y) + 50;
+  const redString = (a, b, d) => {
     const path = document.createElementNS(NS, 'path');
-    path.setAttribute('d', `M ${a.x} ${a.y} Q ${midX} ${lift} ${b.x} ${b.y}`);
+    path.setAttribute('d', d);
     path.setAttribute('stroke', 'var(--red)'); path.setAttribute('stroke-width', '1.5'); path.setAttribute('fill', 'none');
     path.setAttribute('pathLength', '1');
     svg.appendChild(path);
@@ -177,6 +146,72 @@ export async function render(root, ctx, personId = null) {
       dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y); dot.setAttribute('r', '3'); dot.setAttribute('fill', 'var(--red)');
       svg.appendChild(dot);
     }
+  };
+
+  columns.forEach((col, ci) => {
+    const cx = PAD + ci * COL_PITCH + COL_PITCH / 2;
+
+    const tCard = document.createElement('button');
+    tCard.type = 'button';
+    tCard.className = `cork-theory${col.cls}`;
+    tCard.style.left = `${cx - THEORY_W / 2}px`;
+    tCard.style.top = '0px';
+    tCard.style.setProperty('--tilt', `${tilt(col.id)}deg`);
+    tCard.style.setProperty('--c', ci); // lively (2026-10-29): cards drop onto the board left to right on arrival
+    tCard.innerHTML = `
+      <i class="pin"></i>
+      ${col.eyebrow ? `<div class="cork-eyebrow">${esc(col.eyebrow)}</div>` : ''}
+      <div class="cork-text">${esc(col.text)}</div>
+      ${col.star ? `<span class="cork-star" title="${esc(col.starTitle)}">${col.star}</span>` : ''}
+    `;
+    tCard.title = col.title;
+    tCard.addEventListener('click', () => { if (scrollBox.dataset.dragged) return; col.onClick(); });
+    board.appendChild(tCard);
+
+    const centres = [];
+    col.items.forEach((it, ei) => {
+      const y = START_Y + ei * EV_STEP;
+      maxRows = Math.max(maxRows, ei + 1);
+      centres.push({ x: cx, y: y + EV_H / 2 });
+      if (it.evidenceId && !evidencePos.has(it.evidenceId)) evidencePos.set(it.evidenceId, { x: cx, y: y + EV_H / 2 });
+
+      const eCard = document.createElement('button');
+      eCard.type = 'button';
+      eCard.className = `cork-evidence${it.alt ? ' alt' : ''}`;
+      eCard.style.left = `${cx - EV_W / 2}px`;
+      eCard.style.top = `${y}px`;
+      eCard.style.setProperty('--tilt', `${tilt(it.id, 2)}deg`);
+      eCard.style.setProperty('--c', ci + 1 + ei);
+      eCard.innerHTML = `<i class="pin"></i><div class="cork-ev-title">${esc(it.title)}</div>${it.sub ? `<div class="cork-ev-sub">${esc(it.sub)}</div>` : ''}`;
+      eCard.title = it.tip || it.title;
+      eCard.addEventListener('click', () => { if (scrollBox.dataset.dragged) return; it.onClick(); });
+      board.appendChild(eCard);
+
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', cx); line.setAttribute('y1', THEORY_H);
+      line.setAttribute('x2', cx); line.setAttribute('y2', y);
+      line.setAttribute('stroke', it.sourced ? 'var(--brass)' : 'var(--text-3)');
+      line.setAttribute('stroke-width', '1.5');
+      if (it.sourced) line.setAttribute('pathLength', '1'); // so the CSS can draw it in on arrival (never on a dashed line: pathLength rescales its dashes)
+      line.style.setProperty('--c', ci + 1 + ei);
+      if (!it.sourced) line.setAttribute('stroke-dasharray', '3,3');
+      svg.appendChild(line);
+    });
+    // two dates in one column that disagree: a red string bowed out to the right
+    for (const [i, j] of col.strings) {
+      const a = centres[i], b = centres[j];
+      if (!a || !b) continue;
+      redString(a, b, `M ${a.x + EV_W / 2 - 6} ${a.y} Q ${a.x + EV_W / 2 + 46} ${(a.y + b.y) / 2} ${b.x + EV_W / 2 - 6} ${b.y}`);
+    }
+  });
+
+  // the red string: one curve per contradiction, between its two evidence
+  // cards — only when BOTH sides are actually pinned somewhere
+  const unplaced = [];
+  for (const c of contradictions) {
+    const a = evidencePos.get(c.a_evidence_id), b = evidencePos.get(c.b_evidence_id);
+    if (!a || !b) { unplaced.push(c); continue; }
+    redString(a, b, `M ${a.x} ${a.y} Q ${(a.x + b.x) / 2} ${Math.max(a.y, b.y) + 50} ${b.x} ${b.y}`);
   }
 
   const contentH = START_Y + maxRows * EV_STEP + PAD;
@@ -201,6 +236,33 @@ export async function render(root, ctx, personId = null) {
     }
     slot.appendChild(tray);
   }
+}
+
+const MAX_PINNED = 8, MAX_EVIDENCE = 4;
+
+/** The case's people as board columns: the ones with the most to show first. */
+async function pinnedColumns(store, ctx, personId) {
+  const people = personId ? [await store.getPerson(personId)].filter(Boolean) : await store.listPeople(ctx.caseId);
+  const cols = await Promise.all(people.map(async (p) => {
+    const [links, dates] = await Promise.all([store.listLinksForTarget('person', p.id), dateOptions(store, p, 'birth')]);
+    const items = [];
+    const strings = [];
+    if (dates.length >= 2) {
+      dates.forEach((d, i) => {
+        items.push({ id: `${p.id}-b${i}`, alt: true, title: `Born ${d.label}`, sub: d.source, tip: `Born ${d.label} · ${d.source}`, sourced: d.onRecord, onClick: () => ctx.navigate(`#/subject/${p.id}/questions`) });
+        if (i) strings.push([i - 1, i]);
+      });
+    }
+    for (const l of links.slice(0, MAX_EVIDENCE)) {
+      items.push({ id: l.id, evidenceId: l.evidence_id, title: `${EV_GLYPH[l.evidence_type] || '◆ '}${l.evidence_title}`, tip: `${l.evidence_title} · ${l.evidence_type}`, sourced: isSourced(l.evidence_verification), onClick: () => ctx.navigate('#/evidence') });
+    }
+    return {
+      id: p.id, cls: ' person', eyebrow: dates.length >= 2 ? 'dates disagree' : 'person', text: p.display_name, title: `Open ${p.display_name}`,
+      star: null, onClick: () => ctx.navigate(`#/subject/${p.id}`), items, strings,
+      weight: links.length + (dates.length >= 2 ? 5 : 0),
+    };
+  }));
+  return cols.sort((a, b) => b.weight - a.weight).slice(0, MAX_PINNED);
 }
 
 // pan (drag, mouse or touch) + hand zoom + Fit — the same controls and the

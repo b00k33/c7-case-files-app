@@ -242,8 +242,12 @@ export async function render(root, ctx, personId) {
       slot.appendChild(emptyState({
         missing: `Nothing waiting on ${person ? person.display_name.split(/\s+/)[0] : 'this person'}.`,
         why: elsewhere ? `${elsewhere} item${elsewhere === 1 ? '' : 's'} waiting elsewhere in this case.` : 'Nothing drafted is waiting on a decision for them.',
-        action: elsewhere ? 'See the whole case' : 'Go to Import',
-        onAction: () => ctx.navigate(elsewhere ? '#/review' : '#/import'),
+        action: elsewhere ? 'See the whole case' : 'Paste a timeline',
+        onAction: () => {
+          if (elsewhere) { ctx.navigate('#/review'); return; }
+          sessionStorage.setItem('c7-open-add', 'paste'); // the profile's Paste took over Import (2026-10-29)
+          ctx.navigate(`#/subject/${personId}`);
+        },
       }));
     } else {
       slot.appendChild(emptyState({ missing: 'The review queue is empty.', why: 'Nothing drafted is waiting on a decision.', action: 'Go to Import', onAction: () => ctx.navigate('#/import') }));

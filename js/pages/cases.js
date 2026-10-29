@@ -356,7 +356,9 @@ function wireImportBtn(btn, c, ctx, store) {
     markOpened(c.id); await ctx.setCaseId(c.id);
     const people = await store.listPeople(c.id);
     const subject = c.kind !== 'family' && c.kind !== 'series' ? subjectOf(c, people) : null;
-    ctx.navigate(subject ? `#/subject/${subject.id}/import` : '#/import');
+    // a person's Import is the profile's own Paste now (her 2026-10-29 pick)
+    if (subject) sessionStorage.setItem('c7-open-add', 'paste');
+    ctx.navigate(subject ? `#/subject/${subject.id}` : '#/import');
   });
 }
 
