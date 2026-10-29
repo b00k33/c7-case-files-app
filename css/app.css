@@ -1612,7 +1612,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .learn-head-text { flex: 1; min-width: 160px; }
 .learn-head-text h2 { font-size: 19px; }
 .learn-head-text p { margin: 2px 0 0; font-size: 12px; color: var(--text-3); }
-.learn-lecture { margin-bottom: var(--sp-4); animation: inspo-in .45s cubic-bezier(.16,.84,.44,1) both; }
+.learn-lecture { margin-bottom: var(--sp-4); } /* its entrance is keyed to .learn-enter / .zd-arrive below, never the base class */
 .learn-lec-head { display: flex; align-items: center; gap: var(--sp-3); }
 .learn-plat { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: var(--r-sm); background: var(--ink-1); color: var(--brass); font-size: 13px; }
 .learn-lec-title { flex: 1; min-width: 0; }
@@ -1626,7 +1626,7 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 .learn-player-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-3); }
 .learn-moments { display: flex; flex-direction: column; }
 .learn-moment { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-3); padding: 9px 0; border-top: 1px solid var(--ink-2); }
-.learn-moments.enter .learn-moment, .learn-moment.fresh { animation: inspo-in .35s both; }
+.learn-enter .learn-moments.enter .learn-moment, .learn-moment.fresh { animation: inspo-in .35s both; }
 .learn-moment.editing { align-items: center; }
 .learn-moment-body { flex: 1; min-width: 160px; font-size: 13.5px; line-height: 1.5; }
 .learn-moment-body .inspo-quote { margin: 0; }
@@ -2727,4 +2727,87 @@ select.sel-sm { min-height: 28px; padding: 2px 8px; font-size: 12px; }
   .inspo-photo.in, .inspo-card.fresh, .inspo-feed-item.fresh, .inspo-more.opening .inspo-quote { animation: none; }
   .inspo-feed-item.wait { opacity: 1; transform: none; }
   .inspo-card:hover .inspo-avatar, .inspo-theme-tab:active { transform: none; }
+}
+
+/* The quiet pages made lively (2026-10-29, her "audit the app and find what i least work and
+   improve the ui to make it more interactive"): Event, Series, Company, Family, Questions, Board,
+   Learn, Import and Commercial had the app-wide block rise and nothing else. Same rules as every
+   other page: motion on arrival (.zd-arrive, main.js) or on a real change (.fresh = just saved,
+   .learn-enter = a new teacher or view, .pv-in = rows just read), never on a repaint; hover gives
+   a lift; reduced motion turns it all off. */
+/* faces: Event key figures, Series cast, Company founders, Family members */
+.zd-arrive .faces-row > .face-card { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.1s + var(--i, 0) * 60ms); }
+.zd-arrive .faces-row > .face-card .face { animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.2s + var(--i, 0) * 60ms); }
+.zd-arrive .faces-row .face img { animation: pp-develop .7s ease both; }
+.faces-row > .face-card:nth-child(2) { --i: 1; } .faces-row > .face-card:nth-child(3) { --i: 2; } .faces-row > .face-card:nth-child(4) { --i: 3; }
+.faces-row > .face-card:nth-child(5) { --i: 4; } .faces-row > .face-card:nth-child(6) { --i: 5; } .faces-row > .face-card:nth-child(7) { --i: 6; } .faces-row > .face-card:nth-child(n+8) { --i: 7; }
+.face-card .face { transition: transform .25s cubic-bezier(.3,1.6,.5,1), box-shadow .25s ease; }
+.face-card:hover .face { transform: translateY(-3px) scale(1.06); box-shadow: 0 0 0 2px var(--brass), var(--lift-face); }
+.face-card .name { transition: color .2s ease; }
+/* dated rows: Event timeline, Company locations and products (.tl-entry), Series installments (.ep-row), seasons */
+.zd-arrive .tl-entry, .zd-arrive .ep-row, .zd-arrive .season-block, .zd-arrive .q-card, .zd-arrive .list-row, .pv-in .list-row,
+.zd-arrive .learn-teacher, .zd-arrive .learn-lecture, .learn-enter .learn-lecture { animation: zd-rise .45s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.08s + var(--i, 0) * 55ms); }
+.zd-arrive .tl-entry::before { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.3s + var(--i, 0) * 55ms); }
+.tl-entry:nth-child(2), .ep-row:nth-child(2), .season-block:nth-child(2), .q-card:nth-child(2), .list-row:nth-child(2), .learn-teacher:nth-of-type(2), .learn-lecture:nth-of-type(2) { --i: 1; }
+.tl-entry:nth-child(3), .ep-row:nth-child(3), .season-block:nth-child(3), .q-card:nth-child(3), .list-row:nth-child(3), .learn-teacher:nth-of-type(3), .learn-lecture:nth-of-type(3) { --i: 2; }
+.tl-entry:nth-child(4), .ep-row:nth-child(4), .season-block:nth-child(4), .q-card:nth-child(4), .list-row:nth-child(4), .learn-teacher:nth-of-type(4), .learn-lecture:nth-of-type(4) { --i: 3; }
+.tl-entry:nth-child(5), .ep-row:nth-child(5), .season-block:nth-child(5), .q-card:nth-child(5), .list-row:nth-child(5), .learn-teacher:nth-of-type(5), .learn-lecture:nth-of-type(5) { --i: 4; }
+.tl-entry:nth-child(6), .ep-row:nth-child(6), .season-block:nth-child(6), .q-card:nth-child(6), .list-row:nth-child(6), .learn-teacher:nth-of-type(6), .learn-lecture:nth-of-type(6) { --i: 5; }
+.tl-entry:nth-child(7), .ep-row:nth-child(7), .season-block:nth-child(7), .q-card:nth-child(7), .list-row:nth-child(7), .learn-teacher:nth-of-type(7), .learn-lecture:nth-of-type(7) { --i: 6; }
+.tl-entry:nth-child(n+8), .ep-row:nth-child(n+8), .season-block:nth-child(n+8), .q-card:nth-child(n+8), .list-row:nth-child(n+8), .learn-teacher:nth-of-type(n+8), .learn-lecture:nth-of-type(n+8) { --i: 7; }
+.tl-entry { transition: transform .2s ease, box-shadow .2s ease; }
+.tl-entry:hover { transform: translateX(3px); box-shadow: var(--lift-2); }
+.tl-entry::before { transition: transform .2s cubic-bezier(.3,1.6,.5,1); }
+.tl-entry:hover::before { transform: scale(1.6); }
+.ep-row { transition: background .2s ease, padding-left .2s ease; border-radius: var(--r-sm); }
+.ep-row:hover { background: color-mix(in srgb, var(--brass) 7%, transparent); padding-left: 6px; }
+.ep-row:hover .ep-num { color: var(--brass); }
+.season-label { transition: letter-spacing .2s ease; }
+.season-label:hover { letter-spacing: .1em; }
+.tl-entry.fresh, .ep-row.fresh, .q-card.fresh, .theory.fresh, .learn-lecture.fresh { animation: fs-pop .6s cubic-bezier(.3,1.6,.5,1) both, fs-glow 1.8s ease .3s; }
+/* the opening badge and the era line on Event / Series / Company */
+.zd-arrive .event-badge { animation: zd-pop .45s cubic-bezier(.3,1.6,.5,1) both; animation-delay: .25s; }
+.event-era { transition: color .2s ease; }
+.event-era[title]:hover { color: var(--brass); }
+/* chips: Commercial releases and milestones, Company commercial milestones */
+.zd-arrive .chip-row > .chip { animation: zd-pop .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.15s + var(--i, 0) * 40ms); }
+.chip-row > .chip:nth-child(2) { --i: 1; } .chip-row > .chip:nth-child(3) { --i: 2; } .chip-row > .chip:nth-child(4) { --i: 3; } .chip-row > .chip:nth-child(5) { --i: 4; }
+.chip-row > .chip:nth-child(6) { --i: 5; } .chip-row > .chip:nth-child(7) { --i: 6; } .chip-row > .chip:nth-child(8) { --i: 7; } .chip-row > .chip:nth-child(n+9) { --i: 8; }
+.milestone-chip { transition: transform .2s cubic-bezier(.3,1.6,.5,1), box-shadow .2s ease; }
+.milestone-chip:hover { transform: translateY(-2px); box-shadow: var(--lift-2); }
+/* Questions: theories and timeline rows rise under their card, a star pops when tapped */
+.zd-arrive .theory, .zd-arrive .tl-row { animation: zd-rise .4s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.25s + var(--i, 0) * 55ms); }
+.theory:nth-child(2), .tl-row:nth-child(2) { --i: 1; } .theory:nth-child(3), .tl-row:nth-child(3) { --i: 2; } .theory:nth-child(4), .tl-row:nth-child(4) { --i: 3; } .theory:nth-child(n+5), .tl-row:nth-child(n+5) { --i: 4; }
+.theory { transition: transform .2s ease, background .2s ease; }
+.theory:hover { transform: translateX(2px); }
+.theory .star { transition: transform .2s cubic-bezier(.3,1.6,.5,1), color .2s ease; }
+.theory .star:hover { transform: scale(1.3) rotate(18deg); color: var(--brass); }
+.theory.just .star { animation: zd-pop .5s cubic-bezier(.3,1.6,.5,1) both; }
+.q-head .q-title { transition: color .2s ease; }
+.q-head:hover .q-title { color: var(--brass); }
+.q-caret { transition: transform .2s ease; }
+.q-head:hover .q-caret { transform: translateX(2px); }
+/* Board: the cards drop onto the cork left to right, each pin pushes in, each string draws down */
+@keyframes cork-drop { from { opacity: 0; transform: rotate(var(--tilt, 0deg)) translateY(-26px) scale(1.06); } }
+@keyframes cork-pin { from { transform: translateX(-50%) scale(0); } 60% { transform: translateX(-50%) scale(1.35); } }
+@keyframes cork-string { to { stroke-dashoffset: 0; } }
+.zd-arrive .cork-theory, .zd-arrive .cork-evidence { animation: cork-drop .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.1s + var(--c, 0) * 70ms); }
+.zd-arrive .cork-theory .pin, .zd-arrive .cork-evidence .pin { animation: cork-pin .4s cubic-bezier(.3,1.6,.5,1) both; animation-delay: calc(.45s + var(--c, 0) * 70ms); }
+.zd-arrive .string-svg line:not([stroke-dasharray]) { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cork-string .5s ease both; animation-delay: calc(.5s + var(--c, 0) * 70ms); }
+.zd-arrive .string-svg line[stroke-dasharray], .zd-arrive .string-svg circle { animation: fadein .5s ease both; animation-delay: calc(.5s + var(--c, 0) * 70ms); }
+.zd-arrive .string-svg path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cork-string .9s ease 1s both; }
+.cork-theory:hover .pin, .cork-evidence:hover .pin { animation: cork-pin .4s cubic-bezier(.3,1.6,.5,1); }
+/* Learn: the teacher list and lectures rise on arrival or a real switch; the platform mark turns on hover */
+.learn-plat { transition: transform .25s cubic-bezier(.3,1.6,.5,1), background .2s ease; }
+.learn-lecture:hover .learn-plat { transform: scale(1.12) rotate(-6deg); background: color-mix(in srgb, var(--brass) 18%, var(--ink-1)); }
+.learn-teacher .inspo-avatar { transition: transform .25s cubic-bezier(.3,1.6,.5,1); }
+.learn-teacher:hover .inspo-avatar { transform: scale(1.1) rotate(-4deg); }
+@media (prefers-reduced-motion: reduce) {
+  .pv-in .list-row, .learn-enter .learn-lecture, .learn-enter .learn-moments.enter .learn-moment,
+  .tl-entry.fresh, .ep-row.fresh, .q-card.fresh, .theory.fresh, .learn-lecture.fresh, .learn-moment.fresh,
+  .theory.just .star, .cork-theory:hover .pin, .cork-evidence:hover .pin { animation: none !important; }
+  .face-card .face, .face-card .name, .tl-entry, .tl-entry::before, .ep-row, .season-label, .event-era, .milestone-chip, .theory, .theory .star,
+  .q-head .q-title, .q-caret, .learn-plat, .learn-teacher .inspo-avatar { transition: none !important; }
+  .face-card:hover .face, .tl-entry:hover, .tl-entry:hover::before, .milestone-chip:hover, .theory:hover, .theory .star:hover,
+  .q-head:hover .q-caret, .learn-lecture:hover .learn-plat, .learn-teacher:hover .inspo-avatar { transform: none !important; }
 }

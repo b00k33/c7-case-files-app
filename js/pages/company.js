@@ -20,7 +20,7 @@
 // one of BIZ_MILESTONE_KINDS below.
 import { emptyState, verificationConfidence, confidenceBand, verificationLabel } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker, countUp } from '../ui.js';
 import { searchPeople } from '../lookup.js';
 import { fetchCompanyFacts, applyCompanyFacts, summarizeCompanyFacts } from '../company-facts.js';
 import { parseMilestoneText } from '../milestone-parse.js';
@@ -102,6 +102,11 @@ function fmtEventDate(e) {
 }
 function sortKey(e) { return e.date || (e.date_year_min ? `${e.date_year_min}-01-01` : '9999-99-99'); }
 function dot(confidence) { return `<span class="conf-dot ${confidenceBand(confidence)}" title="Confidence: ${confidence}"></span>`; }
+
+// lively (2026-10-29, the quiet-pages pass): the location or product just added pops with a glow
+// on the one redraw after its save; each tab's count counts up once a session per business.
+let freshEvent = null;
+const counted = new Set();
 
 export async function render(root, ctx, tab = 'overview') {
   const { store } = ctx;
@@ -359,9 +364,13 @@ export async function render(root, ctx, tab = 'overview') {
       if (countEl) countEl.textContent = '';
       listEl.appendChild(emptyState({ missing: 'Nothing from this brand on your shelf yet.', why: 'Add what you own — it shows up grouped by brand zodiac on My Shelf.' }));
     } else {
-      if (countEl) countEl.textContent = `${items.length} product${items.length === 1 ? '' : 's'}`;
+      if (countEl) {
+        countEl.innerHTML = `<span data-count="${items.length}">${items.length}</span> product${items.length === 1 ? '' : 's'}`;
+        if (!counted.has(`${kase.id}|products`)) { counted.add(`${kase.id}|products`); countUp(countEl); }
+      }
       for (const e of items) listEl.appendChild(shelfRow(e));
     }
+    freshEvent = null;
     root.querySelector('#add-shelf-btn').addEventListener('click', () => {
       const slot = root.querySelector('#shelf-form-slot');
       if (slot.children.length) { slot.innerHTML = ''; return; }
@@ -370,7 +379,7 @@ export async function render(root, ctx, tab = 'overview') {
 
     function shelfRow(e) {
       const row = document.createElement('div');
-      row.className = 'card tl-entry';
+      row.className = 'card tl-entry' + (e.id === freshEvent ? ' fresh' : '');
       row.innerHTML = `
         <div class="row between" style="align-items:flex-start">
           <div>
@@ -421,7 +430,7 @@ export async function render(root, ctx, tab = 'overview') {
         if (!title) { inlineNote(saveBtn, 'Give it a name first.'); titleEl.focus(); return; }
         const patch = { title, place: wrap.querySelector('.sf-category').value, notes: wrap.querySelector('.sf-notes').value.trim() || null };
         if (existing) await store.updateEvent(existing.id, patch);
-        else await store.createEvent({ case_id: kase.id, kind: 'shelf_item', ...patch });
+        else freshEvent = await store.createEvent({ case_id: kase.id, kind: 'shelf_item', ...patch });
         wrap.remove();
         render(root, ctx, tab);
       });
@@ -439,9 +448,13 @@ export async function render(root, ctx, tab = 'overview') {
       if (countEl) countEl.textContent = '';
       listEl.appendChild(emptyState({ missing: 'No locations yet.', why: 'Add each store, branch or franchise, where it opened and when.' }));
     } else {
-      if (countEl) countEl.textContent = `${locations.length} location${locations.length === 1 ? '' : 's'}`;
+      if (countEl) {
+        countEl.innerHTML = `<span data-count="${locations.length}">${locations.length}</span> location${locations.length === 1 ? '' : 's'}`;
+        if (!counted.has(`${kase.id}|locations`)) { counted.add(`${kase.id}|locations`); countUp(countEl); }
+      }
       for (const e of locations) listEl.appendChild(locationRow(e));
     }
+    freshEvent = null;
     root.querySelector('#add-loc-btn').addEventListener('click', () => {
       const slot = root.querySelector('#loc-form-slot');
       if (slot.children.length) { slot.innerHTML = ''; return; }
@@ -451,7 +464,7 @@ export async function render(root, ctx, tab = 'overview') {
     function locationRow(e) {
       const place = [e.city, e.country].filter(Boolean).join(', ');
       const row = document.createElement('div');
-      row.className = 'card tl-entry';
+      row.className = 'card tl-entry' + (e.id === freshEvent ? ' fresh' : '');
       row.innerHTML = `
         <div class="row between" style="align-items:flex-start">
           <div>
@@ -510,7 +523,7 @@ export async function render(root, ctx, tab = 'overview') {
           notes: wrap.querySelector('.lf-notes').value.trim() || null, ...parsed,
         };
         if (existing) await store.updateEvent(existing.id, patch);
-        else await store.createEvent({ case_id: kase.id, kind: 'location', ...patch });
+        else freshEvent = await store.createEvent({ case_id: kase.id, kind: 'location', ...patch });
         wrap.remove();
         onLocationSaved();
       });

@@ -117,6 +117,7 @@ export async function render(root, ctx, personId = null) {
     tCard.style.left = `${cx - THEORY_W / 2}px`;
     tCard.style.top = '0px';
     tCard.style.setProperty('--tilt', `${tilt(t.id)}deg`);
+    tCard.style.setProperty('--c', ci); // lively (2026-10-29): cards drop onto the board left to right on arrival
     tCard.innerHTML = `
       <i class="pin"></i>
       ${q ? `<div class="cork-eyebrow">${esc(q.text)}</div>` : ''}
@@ -140,6 +141,7 @@ export async function render(root, ctx, personId = null) {
       eCard.style.left = `${cx - EV_W / 2}px`;
       eCard.style.top = `${y}px`;
       eCard.style.setProperty('--tilt', `${tilt(l.id, 2)}deg`);
+      eCard.style.setProperty('--c', ci + 1 + ei);
       eCard.innerHTML = `<i class="pin"></i><div class="cork-ev-title">${EV_GLYPH[l.evidence_type] || '◆ '}${esc(l.evidence_title)}</div>`;
       eCard.title = `${l.evidence_title} · ${l.evidence_type}`;
       eCard.addEventListener('click', () => { if (scrollBox.dataset.dragged) return; ctx.navigate('#/evidence'); });
@@ -150,6 +152,8 @@ export async function render(root, ctx, personId = null) {
       line.setAttribute('x2', cx); line.setAttribute('y2', y);
       line.setAttribute('stroke', sourced ? 'var(--brass)' : 'var(--text-3)');
       line.setAttribute('stroke-width', '1.5');
+      if (sourced) line.setAttribute('pathLength', '1'); // so the CSS can draw it in on arrival (never on a dashed line: pathLength rescales its dashes)
+      line.style.setProperty('--c', ci + 1 + ei);
       if (!sourced) line.setAttribute('stroke-dasharray', '3,3');
       svg.appendChild(line);
     });
@@ -166,6 +170,7 @@ export async function render(root, ctx, personId = null) {
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', `M ${a.x} ${a.y} Q ${midX} ${lift} ${b.x} ${b.y}`);
     path.setAttribute('stroke', 'var(--red)'); path.setAttribute('stroke-width', '1.5'); path.setAttribute('fill', 'none');
+    path.setAttribute('pathLength', '1');
     svg.appendChild(path);
     for (const p of [a, b]) {
       const dot = document.createElementNS(NS, 'circle');

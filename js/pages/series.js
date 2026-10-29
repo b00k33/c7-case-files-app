@@ -18,7 +18,7 @@
 // franchise still in progress, without her doing anything by hand.
 import { emptyState } from '../indicators.js';
 import { resolveAssetUrl } from '../assets.js';
-import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker } from '../ui.js';
+import { inlineNote, clearInlineNote, twoTapConfirm, renderUnplacedPicker, countUp } from '../ui.js';
 import { fetchInstallments, addInstallments } from '../works.js';
 import { searchPeople, fetchCast, addPeopleFromWikidata } from '../lookup.js';
 
@@ -90,6 +90,11 @@ function groupInstallments(events) {
   }
   return { ungrouped, groups };
 }
+
+// lively (2026-10-29, the quiet-pages pass): the installment just added pops with a glow on the
+// one redraw after its save; the count counts up once a session per series.
+let freshEvent = null;
+const counted = new Set();
 
 export async function render(root, ctx, tab = 'overview') {
   const { store } = ctx;
@@ -310,9 +315,11 @@ export async function render(root, ctx, tab = 'overview') {
     const { ungrouped, groups } = groupInstallments(events);
     if (countEl) {
       const episodes = events.length - groups.length;
-      countEl.textContent = groups.length
-        ? `${groups.length} season${groups.length === 1 ? '' : 's'} · ${episodes} episode${episodes === 1 ? '' : 's'}`
-        : `${events.length} installment${events.length === 1 ? '' : 's'}`;
+      const n = (v) => `<span data-count="${v}">${v}</span>`;
+      countEl.innerHTML = groups.length
+        ? `${n(groups.length)} season${groups.length === 1 ? '' : 's'} · ${n(episodes)} episode${episodes === 1 ? '' : 's'}`
+        : `${n(events.length)} installment${events.length === 1 ? '' : 's'}`;
+      if (!counted.has(kase.id)) { counted.add(kase.id); countUp(countEl); }
     }
     for (const e of ungrouped) listEl.appendChild(quietRow(e));
     for (const g of groups) listEl.appendChild(seasonBlockEl(g));
@@ -329,7 +336,7 @@ export async function render(root, ctx, tab = 'overview') {
     const { num, title } = splitOrdinal(e.title);
     const withPeople = String(e.with_ids || '').split(',').filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
     const row = document.createElement('div');
-    row.className = 'ep-row';
+    row.className = 'ep-row' + (e.id === freshEvent ? ' fresh' : '');
     row.innerHTML = `
       <span class="ep-main">
         ${num != null ? `<span class="ep-num">${esc(num)}</span>` : ''}
@@ -386,6 +393,7 @@ export async function render(root, ctx, tab = 'overview') {
     for (const e of items) rows.appendChild(quietRow(e));
     return wrap;
   }
+  freshEvent = null;
   root.querySelector('#add-entry-btn').addEventListener('click', () => {
     const slot = root.querySelector('#entry-form-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }
@@ -439,7 +447,7 @@ function entryForm(store, ctx, kase, people, existing, onDone) {
       ...parsed,
     };
     if (existing) await store.updateEvent(existing.id, patch);
-    else await store.createEvent({ case_id: kase.id, kind: 'installment', ...patch });
+    else freshEvent = await store.createEvent({ case_id: kase.id, kind: 'installment', ...patch });
     wrap.remove();
     onDone();
   });

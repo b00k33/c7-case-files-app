@@ -3,10 +3,12 @@
 // Faces are decoded before the row is shown, so they arrive with the page
 // instead of popping in after it (Stage 1 of her redesign, 2026-09-07).
 import { emptyState } from '../indicators.js';
+import { countUp } from '../ui.js';
 import { resolveAssetUrl, preloadImage } from '../assets.js';
 import { insertFamily } from '../lookup.js';
 
 function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
+const counted = new Set(); // lively (2026-10-29): the member count counts up once a session per family
 
 export async function render(root, ctx) {
   const { store } = ctx;
@@ -28,7 +30,7 @@ export async function render(root, ctx) {
     <div class="stack">
       <div class="panel">
         <div class="row between">
-          <div class="panel-title" style="margin:0">Members <span class="mono" style="color:var(--text-3);font-size:11px">· ${people.length}</span></div>
+          <div class="panel-title" style="margin:0">Members <span class="mono" style="color:var(--text-3);font-size:11px">· <span data-count="${people.length}">${people.length}</span></span></div>
           <button class="btn btn-ghost btn-sm" id="members-wiki-btn" title="Look up one or many people on Wikipedia and add them">+ From Wikipedia</button>
         </div>
         <div class="faces-row" id="faces"></div>
@@ -37,6 +39,7 @@ export async function render(root, ctx) {
     </div>
   `;
   root.querySelector('#members-wiki-btn').addEventListener('click', () => ctx.openDrawer((body) => relations.renderAddPerson(body, ctx, 'lookup')));
+  if (!counted.has(ctx.caseId)) { counted.add(ctx.caseId); countUp(root.querySelector('.panel-title')); }
 
   const faces = root.querySelector('#faces');
   if (!people.length) {

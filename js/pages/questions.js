@@ -20,6 +20,10 @@ import { normTitle } from '../works.js';
 import { autoCaseName, looksHurried } from '../names.js';
 
 const FILTER_KEY = 'c7-q-filter'; // all | open | leaning | answered
+// lively (2026-10-29, the quiet-pages pass): the question or theory just added pops with a glow
+// on the one repaint after its save, and a star just tapped pops. Arrivals are CSS (.zd-arrive).
+let freshQ = null;
+let justStar = null;
 
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function initials(name) { return String(name || '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
@@ -140,6 +144,7 @@ export async function render(root, ctx, personId = null) {
     const card = document.createElement('div');
     card.className = `q-card ${status}${existing ? (existing.classList.contains('collapsed') ? ' collapsed' : '') : (phone ? ' collapsed' : '')}`;
     card.dataset.id = q.id;
+    if (q.id === freshQ) { card.classList.add('fresh'); freshQ = null; }
     card.innerHTML = `
       <div class="q-head">
         <div class="q-main">
@@ -178,7 +183,7 @@ export async function render(root, ctx, personId = null) {
       const form = inlineNameForm({
         placeholder: 'The theory, in a sentence',
         submitLabel: 'Add theory',
-        onSubmit: async (text) => { await store.createQuestion({ case_id: ctx.caseId, parent_id: q.id, text }); repaint(); },
+        onSubmit: async (text) => { freshQ = await store.createQuestion({ case_id: ctx.caseId, parent_id: q.id, text }); repaint(); },
       });
       slot.appendChild(form);
     });
@@ -210,7 +215,9 @@ export async function render(root, ctx, personId = null) {
       const links = await store.listLinksForTarget('question', t.id);
       const won = q.resolved && q.answer_id === t.id;
       const row = document.createElement('div');
-      row.className = `theory${t.pick ? ' pick' : ''}${won ? ' won' : ''}`;
+      row.className = `theory${t.pick ? ' pick' : ''}${won ? ' won' : ''}${t.id === freshQ ? ' fresh' : ''}${t.id === justStar ? ' just' : ''}`;
+      if (t.id === freshQ) freshQ = null;
+      if (t.id === justStar) justStar = null;
       row.innerHTML = `
         <button class="star" title="${t.pick ? 'My pick — tap to un-pick' : 'Make this one I lean towards'}">${t.pick || won ? '★' : '☆'}</button>
         <div style="min-width:0">
@@ -225,7 +232,7 @@ export async function render(root, ctx, personId = null) {
         </div>
         <button class="linkish t-menu" title="Why · edit · delete">⋯</button>
       `;
-      row.querySelector('.star').addEventListener('click', async () => { await store.updateQuestion(t.id, { pick: t.pick ? 0 : 1 }); repaint(); });
+      row.querySelector('.star').addEventListener('click', async () => { justStar = t.id; await store.updateQuestion(t.id, { pick: t.pick ? 0 : 1 }); repaint(); });
       row.querySelectorAll('[data-ev]').forEach((chip) => chip.addEventListener('click', async (e) => {
         if (e.target.closest('[data-unlink]')) { await store.unlinkEvidence(e.target.closest('[data-unlink]').dataset.unlink); repaint(); return; }
         ctx.navigate('#/evidence');
@@ -539,7 +546,7 @@ export async function render(root, ctx, personId = null) {
       label: 'About',
       choices: [{ value: '', label: worldLabel }, ...people.map((p) => ({ value: p.id, label: p.display_name }))],
       onSubmit: async (text, pid) => {
-        await store.createQuestion({ case_id: ctx.caseId, text, person_id: pid || null });
+        freshQ = await store.createQuestion({ case_id: ctx.caseId, text, person_id: pid || null });
         slot.innerHTML = '';
         data = await load();
         await paintList();

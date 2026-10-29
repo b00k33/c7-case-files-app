@@ -401,7 +401,7 @@ function renderPasteTab(body, ctx, people) {
     previewEl.appendChild(title);
 
     const list = document.createElement('div');
-    list.className = 'stack';
+    list.className = 'stack pv-in'; // lively (2026-10-29): the rows just read rise in one after another
     list.style.gap = '4px';
     for (const r of events) {
       const row = document.createElement('div');

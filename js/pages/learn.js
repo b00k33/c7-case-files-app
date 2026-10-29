@@ -14,6 +14,7 @@
 // restarts the video. So adding / editing / ticking a moment repaints only
 // that lecture's moment list; the player and the rest of the card stay put.
 import { emptyState } from '../indicators.js';
+import { countUp } from '../ui.js';
 import { resolveAssetUrl, compressImage } from '../assets.js';
 import { searchPeople, fetchItemPhoto } from '../lookup.js';
 import { parseTimestamp, formatTimestamp, parseMomentLines, parseLectureUrl, seekEmbed, MOMENT_KINDS } from '../learn-parse.js';
@@ -30,6 +31,13 @@ const STATUS = ['queued', 'watching', 'watched'];
 const STATUS_LABEL = { queued: 'Queued', watching: 'Watching', watched: 'Watched' };
 const STATUS_CHIP = { queued: '', watching: 'brass', watched: 'green' };
 const PLATFORM_ICON = { youtube: '▶', vimeo: '▶', link: '↗' };
+
+// lively (2026-10-29, the quiet-pages pass): the header shines and counts once a session; the
+// lectures and their moments rise in only when the teacher or the view changed (.learn-enter),
+// never on the repaint after a save; the lecture just added pops with a glow.
+let learnSeen = false;
+let lastLearn = null;
+let freshLecture = null;
 
 const ls = {
   get(k, d) { try { return localStorage.getItem(k) || d; } catch (_) { return d; } },
@@ -107,7 +115,7 @@ export async function render(root, ctx) {
           <div>
             <p class="shelf-eyebrow">My education journey</p>
             <h1 class="shelf-h1">Learn</h1>
-            <p class="shelf-stat">${teachers.length} teacher${teachers.length === 1 ? '' : 's'} &middot; ${total} saved moment${total === 1 ? '' : 's'}</p>
+            <p class="shelf-stat"><span data-count="${teachers.length}">${teachers.length}</span> teacher${teachers.length === 1 ? '' : 's'} &middot; <span data-count="${total}">${total}</span> saved moment${total === 1 ? '' : 's'}</p>
           </div>
         </div>
         <div class="learn-shell ${mobileDetail ? 'detail-open' : ''}">
@@ -117,6 +125,13 @@ export async function render(root, ctx) {
       </div>`;
     paintList();
     paintDetail();
+    if (!learnSeen) {
+      learnSeen = true;
+      const top = root.querySelector('.shelf-topbar');
+      top.classList.add('shelf-shine');
+      countUp(top);
+      setTimeout(() => top.classList.remove('shelf-shine'), 1800);
+    }
   }
 
   function paintList() {
@@ -153,6 +168,9 @@ export async function render(root, ctx) {
       }));
       return;
     }
+    const shown = `${teacherId}|${view}`;
+    const entering = shown !== lastLearn;
+    lastLearn = shown;
     el.innerHTML = `
       <button type="button" class="btn btn-ghost btn-sm learn-back" id="learn-back">← Teachers</button>
       <div class="learn-head">
@@ -170,7 +188,7 @@ export async function render(root, ctx) {
         </div>
       </div>
       <div id="learn-form-slot"></div>
-      <div id="learn-body"></div>`;
+      <div id="learn-body" class="${entering ? 'learn-enter' : ''}"></div>`;
     el.querySelector('#learn-back').addEventListener('click', () => { mobileDetail = false; root.querySelector('.learn-shell').classList.remove('detail-open'); });
     el.querySelector('#learn-edit-teacher').addEventListener('click', () => teacherForm(t));
     el.querySelector('#learn-open-c7')?.addEventListener('click', () => {
@@ -216,6 +234,7 @@ export async function render(root, ctx) {
         <div class="inspo-form-actions"><button class="btn btn-primary btn-sm" id="ll-add">Add lecture</button><span class="shelf-stat" id="ll-msg"></span></div>
       </div>`;
     lectures.forEach((l) => { paintMoments(l.id, true); wireLecture(l); });
+    freshLecture = null;
     body.querySelector('#ll-add').addEventListener('click', addLecture);
     body.querySelector('#ll-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') addLecture(); });
   }
@@ -224,7 +243,7 @@ export async function render(root, ctx) {
     const info = parseLectureUrl(l.url);
     const canPlay = info && info.platform !== 'link';
     return `
-      <article class="learn-lecture card" data-lid="${esc(l.id)}">
+      <article class="learn-lecture card${l.id === freshLecture ? ' fresh' : ''}" data-lid="${esc(l.id)}">
         <div class="learn-lec-head">
           <span class="learn-plat">${PLATFORM_ICON[info?.platform || 'link']}</span>
           <div class="learn-lec-title">
@@ -435,7 +454,7 @@ export async function render(root, ctx) {
       }
       if (!title) { try { title = new URL(info.url).hostname.replace(/^www\./, ''); } catch (_) { title = 'Untitled lecture'; } }
     }
-    await store.createLearnLecture({ teacher_id: teacherId, title: title || 'Untitled lecture', url });
+    freshLecture = await store.createLearnLecture({ teacher_id: teacherId, title: title || 'Untitled lecture', url });
     await reloadTeachers(); await paint();
   }
   /** YouTube and Vimeo both publish a public oEmbed title. Offline or blocked → null (she can type one). */

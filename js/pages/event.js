@@ -52,6 +52,10 @@ function fmtDate(e) {
 }
 function sortKey(e) { return e.date || (e.date_year_min ? `${e.date_year_min}-01-01` : '9999-99-99'); }
 
+// lively (2026-10-29, the quiet-pages pass): the entry just added pops with a glow on the one
+// redraw after its save; everything else that moves here is CSS keyed to the page's arrival.
+let freshEvent = null;
+
 export async function render(root, ctx, tab = 'overview') {
   const { store } = ctx;
   if (!TABS.some(([k]) => k === tab)) tab = 'overview';
@@ -160,7 +164,7 @@ export async function render(root, ctx, tab = 'overview') {
   for (const e of events) {
     const withPeople = String(e.with_ids || '').split(',').filter(Boolean).map((id) => byId.get(id)).filter(Boolean);
     const row = document.createElement('div');
-    row.className = 'card tl-entry';
+    row.className = 'card tl-entry' + (e.id === freshEvent ? ' fresh' : '');
     row.innerHTML = `
       <div class="row between" style="align-items:flex-start">
         <div>
@@ -192,6 +196,7 @@ export async function render(root, ctx, tab = 'overview') {
     });
     listEl.appendChild(row);
   }
+  freshEvent = null;
   root.querySelector('#add-entry-btn').addEventListener('click', () => {
     const slot = root.querySelector('#entry-form-slot');
     if (slot.children.length) { slot.innerHTML = ''; return; }
@@ -245,7 +250,7 @@ function entryForm(store, ctx, kase, people, existing, onDone) {
       ...parsed,
     };
     if (existing) await store.updateEvent(existing.id, patch);
-    else await store.createEvent({ case_id: kase.id, kind: 'other', ...patch });
+    else freshEvent = await store.createEvent({ case_id: kase.id, kind: 'other', ...patch });
     wrap.remove();
     onDone();
   });
